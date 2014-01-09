@@ -8,12 +8,12 @@
 \begin{document}
 \maketitle
 \section{Introduction}
-A "proof of work" (PoW) system allows a verifier, such as an email recipient,
+A ``proof of work'' (PoW) system allows a verifier, such as an email recipient,
 to check (with negligable effort) that a prover, like the sender of the email,
 has expended a large amount of computational effort.
 This effort is the price paid for demanding the recipient's attention.
 
-In cryptocurrencies, a global peer-to-peer network of "miners" use proof of
+In cryptocurrencies, a global peer-to-peer network of ``miners'' use proof of
 work to create concensus on the state of the public transaction ledger, for
 which they are awarded new coins (and transaction fees). 
 
@@ -21,7 +21,7 @@ Bitcoin\cite{nakamoto2009bitcoin} uses hashcash-${\sha}^2$ as proof of work for
 new blocks of transactions, which requires finding a nonce value such that
 twofold application of the cryptographic hash function SHA256
 to this nonce (and the rest of the block header) results in a number with many
-leading 0s.  The bitcoin protocol dynamically adjust this "difficulty" number
+leading 0s.  The bitcoin protocol dynamically adjust this ``difficulty'' number
 so as to maintain a 10-minute average block interval. The current value of 62
 thus implies that on the order of $2^{62}/600$ double-hashes
 are performed every second, enabled by the highly-parallellizable nature of the
@@ -87,7 +87,7 @@ the rate of solution finding.
 \section{Implementation and performance}
 The C-program listed in the Appendix is also available online at
 \url{https://github.com/tromp/cuckoo} together with a Makefile,
-proof verifier and this paper. "make test" tests everything.
+proof verifier and this paper. `make test' tests everything.
 The main program uses 31 bits per node to represent the
 directed cuckoo graph, reserving the most significant bit
 for marking edges on a cycle, to simplify recovery of the proof nonces.
