@@ -62,8 +62,8 @@ Function $\cuckoo$ maps any binary string $h$ (the header) to a bipartite graph
 $G = (V_0 \cup V_1, E)$, where $V_0$ is the set of integers modulo $N_0=N/2+1$,
 $V_1$ is the set of integers modulo $N_1=N/2-1$, and $E$ has an edge between
 $\sha(h\;n) \bmod N_0$ in $V_0$ and $\sha(h\;n) \bmod N_1$ in $V_1$ for every
-nonce $0 \leq n < E$.  A proof for $G$ is a subset of $n$ nonces, such that
-their corresponding edges form a cycle.
+nonce $0 \leq n < E$. A proof for $G$ is a subset of $L$ nonces whose
+corresponding edges form an $L$-cycle in $G$.
 
 \section{Cycle formation}
 A set of stored keys gives rise to a {\em directed} cuckoo graph, where each
