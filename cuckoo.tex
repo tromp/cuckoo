@@ -92,8 +92,8 @@ proof verifier and this paper. `make test' tests everything.
 The main program uses 31 bits per node to represent the
 directed cuckoo graph, reserving the most significant bit
 for marking edges on a cycle, to simplify recovery of the proof nonces.
-On my 3.2GHz Intel Core i5, in case no solution is found, size $2^{20}$ takes 4MB and 0.4s, size
-$2^{25}$ takes 128MB and 13s, and size $2^{30}$ takes 4GB and 420s, a significant fraction of which
+On my 3.2GHz Intel Core i5, in case no solution is found, size $2^{20}$ takes 4MB and 0.25s, size
+$2^{25}$ takes 128MB and 10s, and size $2^{30}$ takes 4GB and 400s, a significant fraction of which
 is spend pointer chasing.
 % When a 42-cycle is found, recovering the nonces almost doubles the time.
 Figure~\ref{solprob} shows the probability of finding a 42-cycle as empirically
