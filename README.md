@@ -9,7 +9,7 @@ Cuckoo Cycle is a new proof of work system with the following features
 2) the graph size (number of nodes) can scale from 1*2^10 to 7*2^29
    with 4 bytes needed per node, so memory use scales from 4KB to 14GB
 
-3) running time is roughly linear in memory, at under 1s/4MB
+3) running time is roughly linear in memory, at under 1s/16MB
 
 4) there is no time-memory trade-off, and memory access patterns are the worst possible,
    making the algorithm constrained by memory latency
