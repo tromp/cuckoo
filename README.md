@@ -17,3 +17,9 @@ Cuckoo Cycle is a new proof of work system with the following features
 5) it has a natural notion of difficulty, namely the number of edges in the graph;
    above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
    starts to fall sharply
+
+6) the choice of cycle length allows a tradoff between algorithmic hardness and proof size,
+   similar to the choice of the number of rounds in a cryptographic hash or encryption function.
+   of all even numbers under 64 (to keep proof size under 0.25KB),
+   9 have maximum addition chain length(a measure of compositional complexity), namely
+   38,42,44,46,50,52,54,56,60 among which we picked 42 as the nicest number.
