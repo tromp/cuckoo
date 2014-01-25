@@ -44,8 +44,10 @@ pseudo-primality tests to remaining candidates. The most efficient implementatio
 A downside to primecoin is that its use of memory is not constrained much.
 
 \section{Memory latency; the great equalizer}
-To level the mining playing field, a proof of work system should not merely be memory bound rather
-than CPU bound, it should have the following additional properties:
+While cpu-speed and memory bandwidth are highly variable across time and architectures, main memory latencies
+have remained relatively stable.
+To level the mining playing field, a proof of work system should not merely be memory bound-rather
+than CPU bound; it should have the following additional properties:
 \begin{description}
 \item[scalable] The amount of memory needed should be a parameter that can scale arbitrarily.
 \item[linear] The number of memory accesses should be linear in the amount---on average,
@@ -144,9 +146,9 @@ for which a Bloom filter would be very effective, as would Rainbow tables.
 It seems however that the Cuckoo representation might be optimal even for $L=4$.
 Such small values still harm the TMTO resistance though as mentioned in the previous paragraph.
 In order to keep proof size manageable, the cycle length should not be too large either.
-We consider 24-64 to be a healthy range. The chosen value of 42 is close to the middle of the range.
+We consider 24-64 to be a healthy range, and 42 a nice number close to the middle of that range.
 
-\section{Scaling memory beyond 16-32GB}
+\section{Scaling memory beyond 16-32 GB}
 While the current algorithm can accomodate up to $N=2^{33}-2$ nodes by a simple change
 in implementation, a different idea is needed to scale beyond that.
 To that end, we propose to use $K$-partite graphs with edges only between partition $k$ and partition $(k+1) \bmod K$,
