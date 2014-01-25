@@ -123,9 +123,43 @@ for marking edges on a cycle, to simplify recovery of the proof nonces.
 On my 3.2GHz Intel Core i5, in case no solution is found, size $2^{20}$ takes 4MB and 0.25s, size
 $2^{25}$ takes 128MB and 10s, and size $2^{30}$ takes 4GB and 400s, a significant fraction of which
 is spend pointer chasing.
-Figure~\ref{solprob} shows the probability of finding a 42-cycle as empirically
-determined from 10000 runs at size $1 \cdot 2^{20}$.  Figure~\ref{readswrites} shows that on average,
-for each edge, 3.3 reads and 1.75 writes to main memory take place.
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[legend pos=south east]
+\addplot[color=blue] coordinates {
+% (1,0) (2,0) (3,0) (4,0) (5,0) (6,0) (7,0) (8,0) (9,0) (10,0)
+% (11,0) (12,0) (13,0) (14,0) (15,0) (16,0) (17,0) (18,0) (19,0) (20,0)
+% (21,0) (22,0) (23,0) (24,0) (25,0) (26,0) (27,0) (28,0) (29,0) (30,0)
+% (31,0) (32,0) (33,0) (34,0) (35,0) (36,0) (37,0) (38,0) (39,0)
+(40,0) (41,0) (42,0) (43,0.0001) (44,0.0002) (45,0.0009)
+(46,0.0022) (47,0.0058) (48,0.0106) (49,0.0237) (50,0.0497)
+(51,0.0997) (52,0.1767) (53,0.2728) (54,0.3931) (55,0.5158)
+(56,0.6357) (57,0.739) (58,0.8246) (59,0.8931) (60,0.9366)
+(61,0.9629) (62,0.9799) (63,0.9893) (64,0.9956) (65,0.9982)
+(66,0.999) (67,0.9998) (68,1) (69,1) (70,1)
+% (71,1) (72,1) (73,1) (74,1) (75,1) (76,1) (77,1) (78,1) (79,1) (80,1)
+% (81,1) (82,1) (83,1) (84,1) (85,1) (86,1) (87,1) (88,1) (89,1) (90,1)
+% (91,1) (92,1) (93,1) (94,1) (95,1) (96,1) (97,1) (98,1) (99,1) (100,1)
+};
+\addlegendentry{sol.prob.}
+\end{axis}
+\end{tikzpicture}
+\hspace{1cm}
+\begin{tikzpicture}
+\begin{axis}[ymin=-.5, legend pos=south east]
+\addplot[color=green] coordinates { (10,3.1882) (15,3.2904) (20,3.3104) (25,3.3308) (30,3.3333) };
+\addlegendentry{reads}
+\addplot[color=red]   coordinates { (10,1.6836) (15,1.7482) (20,1.7599) (25,1.7703) (30,1.7717) };
+\addlegendentry{writes}
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+The left plot above shows the probability of finding a 42-cycle as a function of the percentage edges/nodes,
+as determined from 10000 runs at size $2^{20}$. The right plot shows the average
+number of memory reads and writes per edge as function of log size, as determined from 1000 runs each.
+It is almost constant at 3.3 reads and 1.75 writes.
 For optimal performance, the implementation should be multi-threaded, with one thread enumerating
 edges, and the other accessing memory.
 
@@ -148,6 +182,43 @@ It seems however that the Cuckoo representation might be optimal even for $L=4$.
 Such small values still harm the TMTO resistance though as mentioned in the previous paragraph.
 In order to keep proof size manageable, the cycle length should not be too large either.
 We consider 24-64 to be a healthy range, and 42 a nice number close to the middle of that range.
+The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{15}$,
+as determined from 100000,100000,10000, and 1000 runs respectively.
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}
+\addplot[color=green] coordinates {
+(4,0.24862) (6,0.15673) (8,0.10907) (10,0.07952) (12,0.05783) (14,0.04269) (16,0.0303)
+(18,0.02237) (20,0.01653) (22,0.01168) (24,0.00815) (26,0.00511) (28,0.00374) (30,0.00251)
+(32,0.00191) (34,0.00098) (36,0.00079) (38,0.00029) (40,0.0003) (42,0.00011) (44,0.00018)
+(46,8e-05) (48,2e-05) (50,3e-05) };
+\addlegendentry{10}
+\addplot[color=orange] coordinates {
+(4,0.24822) (6,0.16551) (8,0.12317) (10,0.09749) (12,0.08105) (14,0.07036) (16,0.05871) (18,0.05308)
+(20,0.04717) (22,0.04189) (24,0.03801) (26,0.03342) (28,0.03205) (30,0.02822) (32,0.02521)
+(34,0.02282) (36,0.0212) (38,0.01852) (40,0.01814) (42,0.01668) (44,0.01511) (46,0.01356)
+(48,0.01246) (50,0.01145) (52,0.0101) (54,0.0093) (56,0.00861) (58,0.00778) (60,0.00768)
+(62,0.00672) (64,0.00589) (66,0.00565) (68,0.00517) (70,0.00455) (72,0.00435) (74,0.00375)
+(76,0.00348) (78,0.00286) (80,0.00276) (82,0.0023) (84,0.00224) (86,0.00204) (88,0.00165)
+(90,0.00164) (92,0.00134) (94,0.00126) (96,0.00114) (98,0.00103) (100,0.00101) };
+\addlegendentry{15}
+\addplot[color=red] coordinates {
+(4,0.249) (6,0.1666) (8,0.1309) (10,0.0977) (12,0.0821) (14,0.0754) (16,0.0612) (18,0.0569)
+(20,0.0504) (22,0.0412) (24,0.0438) (26,0.0385) (28,0.0364) (30,0.0349) (32,0.0328) (34,0.0286)
+(36,0.0263) (38,0.0283) (40,0.0244) (42,0.0237) (44,0.0213) (46,0.0197) (48,0.0185) (50,0.0171)
+(52,0.0169) (54,0.0204) (56,0.0161) (58,0.0155) (60,0.0153) (62,0.0158) (64,0.0135) (66,0.0135)
+(68,0.0118) (70,0.0158) (72,0.0137) (74,0.012) (76,0.0108) (78,0.0119) (80,0.0116) (82,0.0106)
+(84,0.0112) (86,0.0102) (88,0.0075) (90,0.0096) (92,0.0091) (94,0.0094) (96,0.0077) (98,0.0089)
+(100,0.006) };
+\addlegendentry{20}
+\addplot[color=blue] coordinates {
+(4,0.206) (6,0.176) (8,0.068) (10,0.074) (12,0.088) (14,0.06) (16,0.068) (18,0.026) (20,0.042) (22,0.036) (24,0.028) (26,0.032) (28,0.028) (30,0.032) (32,0.024) (34,0.034) (36,0.032) (38,0.036) (40,0.018) (42,0.018) (44,0.01) (46,0.02) (48,0.018) (50,0.022) (52,0.022) (54,0.01) (56,0.006) (58,0.016) (60,0.008) (62,0.012) (64,0.026) (66,0.014) (68,0.008) (70,0.006) (72,0.014) (74,0.01) (76,0.012) (78,0.012) (80,0.01) (82,0.004) (84,0.024) (86,0.002) (88,0.018) (90,0.006) (92,0.006) (94,0.004) (96,0.006) (98,0.006) (100,0.006)
+};
+\addlegendentry{25}
+\end{axis}
+\end{tikzpicture}
+\end{center}
 
 \section{Scaling memory beyond 16-32 GB}
 While the current algorithm can accomodate up to $N=2^{33}-2$ nodes by a simple change
@@ -155,6 +226,7 @@ in implementation, a different idea is needed to scale beyond that.
 To that end, we propose to use $K$-partite graphs with edges only between partition $k$ and partition $(k+1) \bmod K$,
 where $k$ is fed into the hash function along with the header and nonce. With each partition consisting of at most
 $2^31-1$ nodes, the most significant bit is then available to distinguish edges to the two neighbouring partitions.
+The partition sizes should remain relatively prime, e.g. by picking the largest $K$ primes under $2^{31}$.
 
 \bibliographystyle{plain}
 \bibliography{cuckoo}
@@ -272,46 +344,5 @@ void sha256edge(char *header, int nonce, int *pu, int *pv) {
   *pv = 1 + PARTU + (int)v64;
 }
 \end{verbatim}
-
-\section{Appendix C: plots}
-
-\begin{figure}
-\centering
-\begin{tikzpicture}
-\begin{axis}
-\addplot coordinates {
-% (1,0) (2,0) (3,0) (4,0) (5,0) (6,0) (7,0) (8,0) (9,0) (10,0)
-% (11,0) (12,0) (13,0) (14,0) (15,0) (16,0) (17,0) (18,0) (19,0) (20,0)
-% (21,0) (22,0) (23,0) (24,0) (25,0) (26,0) (27,0) (28,0) (29,0) (30,0)
-% (31,0) (32,0) (33,0) (34,0) (35,0) (36,0) (37,0) (38,0) (39,0)
-(40,0) (41,0) (42,0) (43,0.0001) (44,0.0002) (45,0.0009)
-(46,0.0022) (47,0.0058) (48,0.0106) (49,0.0237) (50,0.0497)
-(51,0.0997) (52,0.1767) (53,0.2728) (54,0.3931) (55,0.5158)
-(56,0.6357) (57,0.739) (58,0.8246) (59,0.8931) (60,0.9366)
-(61,0.9629) (62,0.9799) (63,0.9893) (64,0.9956) (65,0.9982)
-(66,0.999) (67,0.9998) (68,1) (69,1) (70,1)
-% (71,1) (72,1) (73,1) (74,1) (75,1) (76,1) (77,1) (78,1) (79,1) (80,1)
-% (81,1) (82,1) (83,1) (84,1) (85,1) (86,1) (87,1) (88,1) (89,1) (90,1)
-% (91,1) (92,1) (93,1) (94,1) (95,1) (96,1) (97,1) (98,1) (99,1) (100,1)
-};
-\end{axis}
-\end{tikzpicture}
-\caption{Solution probability as function of percentage edges/nodes}
-\label{solprob}
-\end{figure}
-
-\begin{figure}
-\centering
-\begin{tikzpicture}
-\begin{axis}[ymin=-.5, legend pos=south east]
-\addplot[color=green] coordinates { (10,3.1882) (15,3.2904) (20,3.3104) (25,3.3308) (30,3.3333) };
-\addlegendentry{reads}
-\addplot[color=red]   coordinates { (10,1.6836) (15,1.7482) (20,1.7599) (25,1.7703) (30,1.7717) };
-\addlegendentry{writes}
-\end{axis}
-\end{tikzpicture}
-\caption{average memory reads and writes per edge as function of log size}
-\label{readswrites}
-\end{figure}
 
 \end{document}  
