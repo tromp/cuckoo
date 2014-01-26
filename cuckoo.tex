@@ -160,8 +160,8 @@ The left plot above shows the probability of finding a 42-cycle as a function of
 as determined from 10000 runs at size $2^{20}$. The right plot shows the average
 number of memory reads and writes per edge as function of log size, as determined from 1000 runs each.
 It is almost constant at 3.3 reads and 1.75 writes.
-For optimal performance, the implementation should be multi-threaded, with one thread enumerating
-edges, and the other accessing memory.
+%For optimal performance, the implementation should use data prefetch instructions, proceeding to compute
+%the next edge while waiting for data from main memory to load.
 
 \section{Memory-hardness}
 I conjecture that this problem doesn't allow for a time-memory trade-off. If
@@ -183,7 +183,7 @@ Such small values still harm the TMTO resistance though as mentioned in the prev
 In order to keep proof size manageable, the cycle length should not be too large either.
 We consider 24-64 to be a healthy range, and 42 a nice number close to the middle of that range.
 The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{15}$,
-as determined from 100000,100000,10000, and 1000 runs respectively.
+as determined from 100000,100000,10000, and 5000 runs respectively.
 
 \begin{center}
 \begin{tikzpicture}
@@ -213,8 +213,13 @@ as determined from 100000,100000,10000, and 1000 runs respectively.
 (100,0.006) };
 \addlegendentry{20}
 \addplot[color=blue] coordinates {
-(4,0.206) (6,0.176) (8,0.068) (10,0.074) (12,0.088) (14,0.06) (16,0.068) (18,0.026) (20,0.042) (22,0.036) (24,0.028) (26,0.032) (28,0.028) (30,0.032) (32,0.024) (34,0.034) (36,0.032) (38,0.036) (40,0.018) (42,0.018) (44,0.01) (46,0.02) (48,0.018) (50,0.022) (52,0.022) (54,0.01) (56,0.006) (58,0.016) (60,0.008) (62,0.012) (64,0.026) (66,0.014) (68,0.008) (70,0.006) (72,0.014) (74,0.01) (76,0.012) (78,0.012) (80,0.01) (82,0.004) (84,0.024) (86,0.002) (88,0.018) (90,0.006) (92,0.006) (94,0.004) (96,0.006) (98,0.006) (100,0.006)
-};
+(4,0.2412) (6,0.173) (8,0.114) (10,0.1072) (12,0.0818) (14,0.0746) (16,0.0608) (18,0.0522)
+(20,0.0476) (22,0.0464) (24,0.0448) (26,0.0344) (28,0.0366) (30,0.0338) (32,0.029) (34,0.0328)
+(36,0.0278) (38,0.03) (40,0.0242) (42,0.02) (44,0.0218) (46,0.0204) (48,0.019) (50,0.0206)
+(52,0.0176) (54,0.019) (56,0.0148) (58,0.017) (60,0.0168) (62,0.0128) (64,0.017) (66,0.015)
+(68,0.0176) (70,0.0118) (72,0.014) (74,0.0116) (76,0.0138) (78,0.013) (80,0.0102) (82,0.013)
+(84,0.0132) (86,0.0114) (88,0.0116) (90,0.0094) (92,0.0096) (94,0.0142) (96,0.0116) (98,0.0084)
+(100,0.01) };
 \addlegendentry{25}
 \end{axis}
 \end{tikzpicture}
