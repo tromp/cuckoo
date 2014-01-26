@@ -3,7 +3,7 @@
 
 #include "cuckoo.h"
 // algorithm parameters
-#define MAXPATHLEN 65536
+#define MAXPATHLEN 8192
 
 // used to simplify nonce recovery
 #define CYCLE 0x80000000
@@ -21,11 +21,11 @@ int main(int argc, char **argv) {
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
     for (nu = 0; u; u = cuckoo[u]) {
-      assert(nu < MAXPATHLEN);
+      assert(nu < MAXPATHLEN-1);
       us[++nu] = u;
     }
     for (nv = 0; v; v = cuckoo[v]) {
-      assert(nv < MAXPATHLEN);
+      assert(nv < MAXPATHLEN-1);
       vs[++nv] = v;
     }
 #ifdef SHOW

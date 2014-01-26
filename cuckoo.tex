@@ -182,13 +182,14 @@ It seems however that the Cuckoo representation might be optimal even for $L=4$.
 Such small values still harm the TMTO resistance though as mentioned in the previous paragraph.
 In order to keep proof size manageable, the cycle length should not be too large either.
 We consider 24-64 to be a healthy range, and 42 a nice number close to the middle of that range.
-The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{15}$,
-as determined from 100000,100000,10000, and 10000 runs respectively.
+The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
+as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
+beyond $L=100$ are not shown. For reference, the longest cycle found was of length 1726.
 
 \begin{center}
 \begin{tikzpicture}
 \begin{axis}
-\addplot[color=green] coordinates {
+\addplot[color=blue] coordinates {
 (4,0.24862) (6,0.15673) (8,0.10907) (10,0.07952) (12,0.05783) (14,0.04269) (16,0.0303)
 (18,0.02237) (20,0.01653) (22,0.01168) (24,0.00815) (26,0.00511) (28,0.00374) (30,0.00251)
 (32,0.00191) (34,0.00098) (36,0.00079) (38,0.00029) (40,0.0003) (42,0.00011) (44,0.00018)
@@ -212,7 +213,7 @@ as determined from 100000,100000,10000, and 10000 runs respectively.
 (84,0.0112) (86,0.0102) (88,0.0075) (90,0.0096) (92,0.0091) (94,0.0094) (96,0.0077) (98,0.0089)
 (100,0.006) };
 \addlegendentry{20}
-\addplot[color=blue] coordinates {
+\addplot[color=green] coordinates {
 (4,0.2439) (6,0.1661) (8,0.1216) (10,0.1031) (12,0.0816) (14,0.0755) (16,0.0635) (18,0.055) (20,0.0511) (22,0.0451) (24,0.0427) (26,0.0369) (28,0.0375) (30,0.0336) (32,0.0302) (34,0.0297) (36,0.0264) (38,0.0268) (40,0.0254) (42,0.0215) (44,0.021) (46,0.0205) (48,0.0206) (50,0.0182) (52,0.017) (54,0.0192) (56,0.0172) (58,0.0169) (60,0.0167) (62,0.0147) (64,0.0169) (66,0.0137) (68,0.0169) (70,0.0125) (72,0.0127) (74,0.0123) (76,0.0139) (78,0.0122) (80,0.0131) (82,0.0129) (84,0.012) (86,0.0119) (88,0.0102) (90,0.0088) (92,0.0102) (94,0.0115) (96,0.0108) (98,0.0089) (100,0.0104) };
 \addlegendentry{25}
 \end{axis}
@@ -238,7 +239,7 @@ The partition sizes should remain relatively prime, e.g. by picking the largest 
 
 #include "cuckoo.h"
 // algorithm parameters
-#define MAXPATHLEN 65536
+#define MAXPATHLEN 8192
 
 // used to simplify nonce recovery
 #define CYCLE 0x80000000
@@ -256,11 +257,11 @@ int main(int argc, char **argv) {
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
     for (nu = 0; u; u = cuckoo[u]) {
-      assert(nu < MAXPATHLEN);
+      assert(nu < MAXPATHLEN-1);
       us[++nu] = u;
     }
     for (nv = 0; v; v = cuckoo[v]) {
-      assert(nv < MAXPATHLEN);
+      assert(nv < MAXPATHLEN-1);
       vs[++nv] = v;
     }
 #ifdef SHOW
@@ -282,8 +283,11 @@ int main(int argc, char **argv) {
         cuckoo[vs[nv+1]] = CYCLE | vs[nv];
       for (cuckoo[*vs] = CYCLE | *us; len ; nonce--) {
         sha256edge(header, nonce, &u, &v);
-        if (cuckoo[u] == (CYCLE|v) || cuckoo[v] == (CYCLE|u))
+        int c;
+        if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
           printf("%2d %08x (%d,%d)\n", --len, nonce, u, v);
+          cuckoo[c] &= ~CYCLE;
+        }
       }
       break;
     }
