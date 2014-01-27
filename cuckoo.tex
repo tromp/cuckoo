@@ -25,15 +25,16 @@ so as to maintain a 10-minute average block interval. Starting out at 32 leading
 the number has steadily climbed and is currently at 63, representing
 an incredible $2^{63}/10$ double-hashes per minute. This exponential growth of hashing power
 is enabled by the highly-parallellizable nature of the hashcash proof of work.
-which saw desktop cpus out-performed by graphics-cards,
-these in turn by programmable gate arrays, and finally by custom designed chips (ASICs).
+which saw desktop cpus out-performed by graphics-cards (GPUs),
+these in turn by field-programmable gate arrays (FPGAs),
+and finally by custom designed chips (ASICs).
 
-Downsides of this development include high investment costs, rapid obsolesence, centralization
-of mining power, and ``waste'' of energy.
+Downsides of this development include high investment costs, rapid obsolesence,
+centralization of mining power, and large power consumption.
 This has led people to look for alternative proofs of work that lack parallelizability,
 aiming to keep commodity hardware competitive.
 
-Litecoin replaces the sha256 hash function in hashcash by a single round, 128KB version of the
+Litecoin replaces the SHA256 hash function in hashcash by a single round, 128KB version of the
 {\em scrypt} key derivation function. Technically, this is no longer a proof of work system, as
 verification takes a nontrivial amount of computation. Even so, GPUs are a least an order
 of magnitude faster than CPUs for Litecoin mining, and ASICs are coming on to the market in 2014.
@@ -46,43 +47,42 @@ A downside to primecoin is that its use of memory is not constrained much.
 \section{Memory latency; the great equalizer}
 While cpu-speed and memory bandwidth are highly variable across time and architectures, main memory latencies
 have remained relatively stable.
-To level the mining playing field, a proof of work system should not merely be memory bound-rather
+To level the mining playing field, a proof of work system should not merely be memory bound rather
 than CPU bound; it should have the following additional properties:
 \begin{description}
 \item[scalable] The amount of memory needed should be a parameter that can scale arbitrarily.
 \item[linear] The number of memory accesses should be linear in the amount---on average,
-each memory cell is accessed a constant number of time
-\item[tmto-hard] It should not allow any time-memory trade-off---using only half as much memory should incur
-several orders of magnitude slowdown.
+each memory cell is accessed a constant number of times.
+\item[tmto-hard] It should not allow any time-memory trade-off---using only half as much memory should incur several orders of magnitude slowdown.
 \item[no-locality] The pattern of memory accesses should be sufficiently random as to make caches useless.
-\item[sequential] Results should to a large extent depend on a proper ordering of memory accesses.
-\item[cpu-easy] the total running time should be dominated by waiting for memory accesses
+\item[sequential] Correctness should to a large extent depend on a proper ordering of memory accesses.
+\item[cpu-easy] The total running time should be dominated by waiting for memory accesses.
 \item[simple] The algorithm should be sufficiently simple that one can be convinced of its optimality.
 \end{description}
-Combined, these properties ensure that the proof of work system is almost entirely constrained by main
+Combined, these properties ensure that a proof of work system is almost entirely constrained by main
 memory latency and scales appropriately for any application.
 
 We introduce the first proof of work system satisfying these properties.
 Amazingly, it amounts to little more than enumerating nonces and storing them
-in a hashtable. All hashtables break down when trying to store more items than
-it was designed to handle. For one particular hash table design, this very break down
-is of a special form that can be turned into a concise and quickly verifiable proof.
-Enter the cuckoo hash table.
+in a hashtable. While all hashtables break down when trying to store more items than
+it was designed to handle, in one hashtable design in particular this breakdown
+is of a special nature that can be turned into a concise and easily verified proof.
+Enter the cuckoo hashtable.
 
 \section{Cuckoo hashing}
 Introduced by Rasmus Pagh and Flemming Friche Rodler in
-2001\cite{Pagh01cuckoohashing}, a cuckoo hash table consists of two same sized
-hash tables with different hash functions,
-providing two possible locations for each key (and constant lookup time).
-Upon insertion of a new key, if both locations are already taken,
+2001\cite{Pagh01cuckoohashing}, a cuckoo hashtable consists of two same-sized
+tables each with its own hash function mapping a key to a table location,
+providing two possible locations for each key.
+% (and constant lookup time).
+Upon insertion of a new key, if both locations are already occupied by keys,
 then one is kicked out and inserted in its alternate location, possibly
 displacing yet another key, repeating the process until either a vacant
-location is found, or some maximum number of iterations,
-is reached. The latter can only happen once cycles have formed in the {\em
-Cuckoo graph}.  This is a bipartite graph with a node for each location and an
-edge for every key,
-connecting the two locations it can reside at. This naturally suggests a proof
-of work problem, which we now formally define.
+location is found, or some maximum number of iterations is reached.
+The latter can only happen once cycles have formed in the {\em Cuckoo graph}.
+This is a bipartite graph with a node for each location and an
+edge for every key, connecting the two locations it can reside at.
+This naturally suggests a proof of work problem, which we now formally define.
 
 \section{The proof of work function}
 Fix three parameters $L \leq E \leq N$ in the range $\{4,...,2^{32}\}$, which
@@ -91,25 +91,32 @@ and the number of nodes, resprectively. $L$ and $N$ must be even.
 Function $\cuckoo$ maps any binary string $h$ (the header) to a bipartite graph
 $G = (V_0 \cup V_1, E)$, where $V_0$ is the set of integers modulo $N_0=N/2+1$,
 $V_1$ is the set of integers modulo $N_1=N/2-1$, and $E$ has an edge between
-$\sha(h\;n) \bmod N_0$ in $V_0$ and $\sha(h\;n) \bmod N_1$ in $V_1$ for every
+$\sha(h||n) \bmod N_0$ in $V_0$ and $\sha(h||n) \bmod N_1$ in $V_1$ for every
 nonce $0 \leq n < E$. A proof for $G$ is a subset of $L$ nonces whose
 corresponding edges form an $L$-cycle in $G$.
 
-\section{Cycle formation}
-A set of stored keys gives rise to a {\em directed} cuckoo graph, where each
-stored key is a directed edge from the location where it resides to its
-alternate location. The outdegree of every node in this
+\section{Solving a proof of work problem}
+We enumerate the $E$ nonces, but instead of storing the nonce itself as a key
+in the Cuckoo hashtable, we store the alternate key location at the key location,
+and forget about the nonce.
+We thus maintain the {\em directed} cuckoo graph, in which the edge for a key
+is directed from the location where it resides to its alternate location.
+The outdegree of every node in this
 graph is either 0 or 1, When there are no cycles yet, the graph is a {\em
 forest}, a disjoint union of trees. In each tree, all edges are directed,
 directly, or indirectly, to its root,
 the only node in the tree with outdegree 0. Addition of a new key causes a
-cycle if and only if its two locations are in the same tree, testable
-by following the path each locations to its root.
+cycle if and only if its two locations are in the same tree, which we can test
+by following the path from each location to its root.
+In case of different roots, we reverse all edges on the shorter of the two paths,
+and finally create the edge for the new key itself, thereby joining the two trees into one.
 In case of equal roots, we can compute the length of the resulting cycle as
 1 plus the sum of the path-lengths to the node where the two paths first join.
-If the cycle length is not $L$, we keep the graph acyclic by not storing the new key.
+If the cycle length is $L$, then we solved the problem, and recover the proof
+by enumerating nonces once more and checking which ones formed the cycle.
+If not, then we keep the graph acyclic by not ignoring the key.
 There is some probability of overlooking other $L$-cycles
-that uses that key, but in the important low easyness case of having few cycles
+that uses that key, but in the important low easiness case of having few cycles
 in the cuckoo graph to begin with, it does not significantly affect
 the rate of solution finding.
 
@@ -227,6 +234,10 @@ To that end, we propose to use $K$-partite graphs with edges only between partit
 where $k$ is fed into the hash function along with the header and nonce. With each partition consisting of at most
 $2^31-1$ nodes, the most significant bit is then available to distinguish edges to the two neighbouring partitions.
 The partition sizes should remain relatively prime, e.g. by picking the largest $K$ primes under $2^{31}$.
+
+\section{Conclusion}
+Cuckoo Cycle is an elegant memory-hard proof-of-work design featuring
+scalability, trivial verification, and strong resistance to speedup by special hardware.
 
 \bibliographystyle{plain}
 \bibliography{cuckoo}
