@@ -5,10 +5,15 @@
 \newcommand{\cuckoo}{{\rm cuckoo}}
 \newcommand{\sha}{{\rm SHA256}}
 \usepackage{hyperref}
-\title{Cuckoo Cycle \protect\\ a memory-hard proof-of-work system}
+\title{Cuckoo Cycle: \protect\\ a memory-hard proof-of-work system}
 \author{John Tromp}
 \begin{document}
 \maketitle
+
+\begin{abstract}
+We introduce the first trivially verifiable, scalable, memory-hard and tmto-hard proof-of-work system.
+\end{abstract}
+
 \section{Introduction}
 A ``proof of work'' (PoW) system allows a verifier to check---with
 negligible effort---that a prover has expended a large amount of computational effort.
@@ -47,22 +52,23 @@ A downside to primecoin is that its use of memory is not constrained much.
 \section{Memory latency; the great equalizer}
 While cpu-speed and memory bandwidth are highly variable across time and architectures, main memory latencies
 have remained relatively stable.
-To level the mining playing field, a proof of work system should not merely be memory bound rather
-than CPU bound; it should have the following additional properties:
+To level the mining playing field, a proof of work system should be latency bound.
+Ideally, it should have the following properties:
 \begin{description}
-\item[scalable] The amount of memory needed should be a parameter that can scale arbitrarily.
-\item[linear] The number of memory accesses should be linear in the amount---on average,
-each memory cell is accessed a constant number of times.
-\item[tmto-hard] It should not allow any time-memory trade-off---using only half as much memory should incur several orders of magnitude slowdown.
-\item[no-locality] The pattern of memory accesses should be sufficiently random as to make caches useless.
-\item[sequential] Correctness should to a large extent depend on a proper ordering of memory accesses.
-\item[cpu-easy] The total running time should be dominated by waiting for memory accesses.
+\item[verify-trivial] Implied by the notion of a PoW, but still failed by several systems billed as such.
+\item[scalable] The amount of memory needed is a parameter that can scale arbitrarily.
+\item[linear] The number of computational steps and the number of memory accesses is linear in the amount of memory.
+\item[tmto-hard] There is no time-memory trade-off---using only half as much memory should
+incur several orders of magnitude slowdown.
+\item[random-access] RAM is accessed randomly, making bandwidth and caches irrelevant.
+\item[parallel-hard] Memory accesses cannot be effectively parallelized.
 \item[simple] The algorithm should be sufficiently simple that one can be convinced of its optimality.
 \end{description}
-Combined, these properties ensure that a proof of work system is almost entirely constrained by main
+Combined, these properties ensure that a proof of work system is entirely constrained by main
 memory latency and scales appropriately for any application.
 
-We introduce the first proof of work system satisfying these properties.
+We introduce the first proof of work system satisfying all properties,
+except for being parallel-resistent at best.
 Amazingly, it amounts to little more than enumerating nonces and storing them
 in a hashtable. While all hashtables break down when trying to store more items than
 it was designed to handle, in one hashtable design in particular this breakdown
@@ -133,7 +139,7 @@ is spend pointer chasing.
 
 \begin{center}
 \begin{tikzpicture}
-\begin{axis}[legend pos=south east]
+\begin{axis}[legend pos=north west]
 \addplot[color=blue] coordinates {
 % (1,0) (2,0) (3,0) (4,0) (5,0) (6,0) (7,0) (8,0) (9,0) (10,0)
 % (11,0) (12,0) (13,0) (14,0) (15,0) (16,0) (17,0) (18,0) (19,0) (20,0)
@@ -149,24 +155,27 @@ is spend pointer chasing.
 % (81,1) (82,1) (83,1) (84,1) (85,1) (86,1) (87,1) (88,1) (89,1) (90,1)
 % (91,1) (92,1) (93,1) (94,1) (95,1) (96,1) (97,1) (98,1) (99,1) (100,1)
 };
-\addlegendentry{sol.prob.}
+\addlegendentry{solution prob.}
 \end{axis}
 \end{tikzpicture}
 \hspace{1cm}
 \begin{tikzpicture}
-\begin{axis}[ymin=-.5, legend pos=south east]
-\addplot[color=green] coordinates { (10,3.1882) (15,3.2904) (20,3.3104) (25,3.3308) (30,3.3333) };
+\begin{axis}[ymin=0, legend pos=north west]
+\addplot[color=green] coordinates {
+(0,2.01) (1,2.02) (2,2.03) (3,2.04) (4,2.05) (5,2.06) (6,2.07) (7,2.08) (8,2.09) (9,2.10) (10,2.11) (11,2.12) (12,2.13) (13,2.15) (14,2.16) (15,2.17) (16,2.18) (17,2.20) (18,2.21) (19,2.22) (20,2.23) (21,2.25) (22,2.26) (23,2.28) (24,2.29) (25,2.30) (26,2.32) (27,2.33) (28,2.35) (29,2.36) (30,2.38) (31,2.40) (32,2.41) (33,2.43) (34,2.45) (35,2.46) (36,2.48) (37,2.50) (38,2.52) (39,2.54) (40,2.56) (41,2.58) (42,2.60) (43,2.62) (44,2.64) (45,2.66) (46,2.68) (47,2.71) (48,2.73) (49,2.76) (50,2.78) (51,2.81) (52,2.83) (53,2.86) (54,2.89) (55,2.92) (56,2.95) (57,2.98) (58,3.01) (59,3.05) (60,3.08) (61,3.12) (62,3.15) (63,3.19) (64,3.23) (65,3.27) (66,3.32) (67,3.36) (68,3.41) (69,3.45) (70,3.51) (71,3.56) (72,3.61) (73,3.67) (74,3.73) (75,3.80) (76,3.86) (77,3.93) (78,4.01) (79,4.09) (80,4.17) (81,4.26) (82,4.36) (83,4.46) (84,4.57) (85,4.69) (86,4.83) (87,4.97) (88,5.13) (89,5.30) (90,5.49) (91,5.71) (92,5.96) (93,6.25) (94,6.59) (95,6.99) (96,7.51) (97,8.18) (98,9.20) (99,10.93) };
 \addlegendentry{reads}
-\addplot[color=red]   coordinates { (10,1.6836) (15,1.7482) (20,1.7599) (25,1.7703) (30,1.7717) };
+\addplot[color=red] coordinates {
+(0,1.00) (1,1.00) (2,1.00) (3,1.00) (4,1.00) (5,1.00) (6,1.00) (7,1.00) (8,1.00) (9,1.00) (10,1.00) (11,1.00) (12,1.00) (13,1.00) (14,1.00) (15,1.00) (16,1.00) (17,1.00) (18,1.00) (19,1.00) (20,1.00) (21,1.00) (22,1.00) (23,1.01) (24,1.01) (25,1.01) (26,1.01) (27,1.01) (28,1.01) (29,1.01) (30,1.01) (31,1.01) (32,1.01) (33,1.02) (34,1.02) (35,1.02) (36,1.02) (37,1.02) (38,1.02) (39,1.02) (40,1.03) (41,1.03) (42,1.03) (43,1.03) (44,1.03) (45,1.04) (46,1.04) (47,1.04) (48,1.04) (49,1.05) (50,1.05) (51,1.05) (52,1.06) (53,1.06) (54,1.06) (55,1.07) (56,1.07) (57,1.07) (58,1.08) (59,1.08) (60,1.08) (61,1.09) (62,1.09) (63,1.10) (64,1.10) (65,1.11) (66,1.11) (67,1.12) (68,1.13) (69,1.13) (70,1.14) (71,1.14) (72,1.15) (73,1.16) (74,1.16) (75,1.17) (76,1.18) (77,1.19) (78,1.20) (79,1.21) (80,1.22) (81,1.23) (82,1.24) (83,1.25) (84,1.26) (85,1.27) (86,1.29) (87,1.30) (88,1.32) (89,1.33) (90,1.35) (91,1.37) (92,1.39) (93,1.41) (94,1.43) (95,1.46) (96,1.48) (97,1.51) (98,1.54) (99,1.58) };
 \addlegendentry{writes}
 \end{axis}
 \end{tikzpicture}
 \end{center}
 
 The left plot above shows the probability of finding a 42-cycle as a function of the percentage edges/nodes,
-as determined from 10000 runs at size $2^{20}$. The right plot shows the average
-number of memory reads and writes per edge as function of log size, as determined from 1000 runs each.
-It is almost constant at 3.3 reads and 1.75 writes.
+while the right plot shows the average number of memory reads and writes per edge as a function of the percentage
+nonce/easiness (progress through main loop). Both were determined from 10000 runs at size $2^{20}$;
+results at size $2^{25}$ look almost identical.
+In total the program averages 3.3 reads and 1.75 writes per edge.
 %For optimal performance, the implementation should use data prefetch instructions, proceeding to compute
 %the next edge while waiting for data from main memory to load.
 
@@ -181,28 +190,41 @@ effort of recovering them in the current slow manner. The speedup falls far
 short of a factor 2 though, so a better use of that memory would be to run
 another copy in parallel.
 
-\section{Choice of cycle length}
-Extremely small cycle lengths risk the feasability of alternative datastructures that
-are more memory-efficient. For example, for $L=2$ the problem reduces to finding a birthday collision,
-for which a Bloom filter would be very effective, as would Rainbow tables.
-It seems however that the Cuckoo representation might be optimal even for $L=4$.
-Such small values still harm the TMTO resistance though as mentioned in the previous paragraph.
-In order to keep proof size manageable, the cycle length should not be too large either.
-We consider 24-64 to be a healthy range, and 42 a nice number close to the middle of that range.
-The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
-as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
-beyond $L=100$ are not shown. For reference, the longest cycle found was of length 1726.
+\section{Parallelizability}
+To parallellize the program one could run $P$ processing elements (PE) connected to at least $P$ memory elements (ME)
+by some multistage interconnection network.
+For $0\leq p < P$, PE $p$ processes all nonces $p \bmod P$.
+Note that unless one uses at least $P^2$ MEs, memory routing conflicts will frequently arise.
+Another problem are path conflicts, where one PE is reversing a path that another PE
+is either following, or installing a new edge on. The left plot below shows the average number of times that either of
+the two roots
+for a nonce occurred a given number of nonces ago, which suggests that there are potentially about $10P$ such conflicts.
+Analysing how these conflicts affect performance and the probabillity of finding cycles is a topic for further research. 
+In any case, development of hardware for improved parallel random access to main memory will benefit
+other applications too, and so one may expect such improvements to become available on commodity hardware as well.
 
 \begin{center}
 \begin{tikzpicture}
-\begin{axis}
+\begin{axis}[ymin=0, legend pos=south west]
+\addplot[color=green] coordinates {
+(1, 8.97) (2, 8.77) (3, 8.66) (4, 8.58) (5, 8.38) (6, 8.27) (7, 8.18) (8, 8.12) (9, 7.95) (10, 7.97) (11, 7.76) (12, 7.70) (13, 7.65) (14, 7.57) (15, 7.51) (16, 7.44) (17, 7.40) (18, 7.33) (19, 7.20) (20, 7.24) (21, 7.14) (22, 7.07) (23, 7.02) (24, 7.00) (25, 6.93) (26, 6.91) (27, 6.84) (28, 6.83) (29, 6.74) (30, 6.79) (31, 6.69) (32, 6.67) (33, 6.64) (34, 6.54) (35, 6.50) (36, 6.54) (37, 6.52) (38, 6.48) (39, 6.41) (40, 6.38) (41, 6.35) (42, 6.34) (43, 6.31) (44, 6.35) (45, 6.23) (46, 6.17) (47, 6.21) (48, 6.21) (49, 6.16) (50, 6.11) (51, 6.06) (52, 6.04) (53, 6.05) (54, 6.01) (55, 6.02) (56, 5.98) (57, 5.95) (58, 5.92) (59, 5.92) (60, 5.88) (61, 5.86) (62, 5.88) (63, 5.86) };
+\addlegendentry{15}
+\addplot[color=red] coordinates {
+(1,11.29) (2,11.31) (3,11.17) (4,11.13) (5,11.21) (6,11.03) (7,10.98) (8,10.87) (9,10.97) (10,10.80) (11,10.92) (12,10.76) (13,10.64) (14,10.75) (15,10.78) (16,10.66) (17,10.65) (18,10.60) (19,10.62) (20,10.56) (21,10.52) (22,10.44) (23,10.43) (24,10.44) (25,10.38) (26,10.46) (27,10.30) (28,10.20) (29,10.16) (30,10.33) (31,10.35) (32,10.13) (33,10.12) (34,10.25) (35,10.22) (36,10.23) (37,10.07) (38,10.29) (39, 9.96) (40,10.11) (41,10.07) (42,10.05) (43,10.09) (44,10.02) (45, 9.91) (46,10.05) (47, 9.92) (48,10.03) (49, 9.82) (50,10.01) (51, 9.90) (52,10.02) (53, 9.76) (54, 9.72) (55, 9.74) (56, 9.81) (57, 9.54) (58, 9.73) (59, 9.79) (60, 9.54) (61, 9.71) (62, 9.70) (63, 9.82) };
+\addlegendentry{20}
 \addplot[color=blue] coordinates {
+(1,13.17) (2,13.95) (3,13.63) (4,13.73) (5,13.24) (6,13.15) (7,14.30) (8,13.04) (9,13.15) (10,13.60) (11,13.74) (12,13.41) (13,13.69) (14,13.15) (15,13.25) (16,12.76) (17,12.56) (18,13.09) (19,13.38) (20,13.79) (21,13.36) (22,13.13) (23,13.66) (24,13.77) (25,13.05) (26,12.90) (27,13.57) (28,13.82) (29,12.79) (30,13.77) (31,13.21) (32,13.31) (33,13.56) (34,12.69) (35,13.66) (36,13.52) (37,12.87) (38,12.82) (39,12.59) (40,13.17) (41,13.30) (42,12.74) (43,13.29) (44,13.37) (45,12.74) (46,13.30) (47,12.67) (48,13.27) (49,13.19) (50,12.38) (51,12.65) (52,13.08) (53,12.67) (54,12.98) (55,12.11) (56,12.87) (57,12.23) (58,12.73) (59,12.50) (60,13.00) (61,12.95) (62,13.44) (63,12.15) };
+\addlegendentry{25}
+\end{axis}
+\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}
+\begin{axis}
+\addplot[color=orange] coordinates {
 (4,0.24862) (6,0.15673) (8,0.10907) (10,0.07952) (12,0.05783) (14,0.04269) (16,0.0303)
 (18,0.02237) (20,0.01653) (22,0.01168) (24,0.00815) (26,0.00511) (28,0.00374) (30,0.00251)
 (32,0.00191) (34,0.00098) (36,0.00079) (38,0.00029) (40,0.0003) (42,0.00011) (44,0.00018)
 (46,8e-05) (48,2e-05) (50,3e-05) };
 \addlegendentry{10}
-\addplot[color=orange] coordinates {
+\addplot[color=green] coordinates {
 (4,0.24822) (6,0.16551) (8,0.12317) (10,0.09749) (12,0.08105) (14,0.07036) (16,0.05871) (18,0.05308)
 (20,0.04717) (22,0.04189) (24,0.03801) (26,0.03342) (28,0.03205) (30,0.02822) (32,0.02521)
 (34,0.02282) (36,0.0212) (38,0.01852) (40,0.01814) (42,0.01668) (44,0.01511) (46,0.01356)
@@ -220,12 +242,24 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 (84,0.0112) (86,0.0102) (88,0.0075) (90,0.0096) (92,0.0091) (94,0.0094) (96,0.0077) (98,0.0089)
 (100,0.006) };
 \addlegendentry{20}
-\addplot[color=green] coordinates {
+\addplot[color=blue] coordinates {
 (4,0.2439) (6,0.1661) (8,0.1216) (10,0.1031) (12,0.0816) (14,0.0755) (16,0.0635) (18,0.055) (20,0.0511) (22,0.0451) (24,0.0427) (26,0.0369) (28,0.0375) (30,0.0336) (32,0.0302) (34,0.0297) (36,0.0264) (38,0.0268) (40,0.0254) (42,0.0215) (44,0.021) (46,0.0205) (48,0.0206) (50,0.0182) (52,0.017) (54,0.0192) (56,0.0172) (58,0.0169) (60,0.0167) (62,0.0147) (64,0.0169) (66,0.0137) (68,0.0169) (70,0.0125) (72,0.0127) (74,0.0123) (76,0.0139) (78,0.0122) (80,0.0131) (82,0.0129) (84,0.012) (86,0.0119) (88,0.0102) (90,0.0088) (92,0.0102) (94,0.0115) (96,0.0108) (98,0.0089) (100,0.0104) };
 \addlegendentry{25}
 \end{axis}
 \end{tikzpicture}
 \end{center}
+
+\section{Choice of cycle length}
+Extremely small cycle lengths risk the feasability of alternative datastructures that
+are more memory-efficient. For example, for $L=2$ the problem reduces to finding a birthday collision,
+for which a Bloom filter would be very effective, as would Rainbow tables.
+It seems however that the Cuckoo representation might be optimal even for $L=4$.
+Such small values still harm the TMTO resistance though as mentioned in the previous paragraph.
+In order to keep proof size manageable, the cycle length should not be too large either.
+We consider 24-64 to be a healthy range, and 42 a nice number close to the middle of that range.
+The right plot above shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
+as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
+beyond $L=100$ are not shown. For reference, the longest cycle found was of length 1726.
 
 \section{Scaling memory beyond 16-32 GB}
 While the current algorithm can accomodate up to $N=2^{33}-2$ nodes by a simple change
@@ -261,9 +295,9 @@ int main(int argc, char **argv) {
   assert(SIZE < (unsigned)CYCLE);
   char *header = argc >= 2 ? argv[1] : "";
   printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASYNESS);
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
   int us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
-  for (int nonce = 0; nonce < EASYNESS; nonce++) {
+  for (int nonce = 0; nonce < EASINESS; nonce++) {
     sha256edge(header, nonce, us, vs);
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
@@ -285,7 +319,7 @@ int main(int argc, char **argv) {
       int min = nu < nv ? nu : nv;
       for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
       int len = nu + nv + 1;
-      printf("% 4d-cycle found at %d%%\n", len, (int)(nonce*100L/EASYNESS));
+      printf("% 4d-cycle found at %d%%\n", len, (int)(nonce*100L/EASINESS));
       if (len != PROOFSIZE)
         continue;
       while (nu--)
@@ -302,9 +336,15 @@ int main(int argc, char **argv) {
       }
       break;
     }
-    while (nu--)
-      cuckoo[us[nu+1]] = us[nu];
-    cuckoo[*us] = *vs;
+    if (nu < nv) {
+      while (nu--)
+        cuckoo[us[nu+1]] = us[nu];
+      cuckoo[*us] = *vs;
+    } else {
+      while (nv--)
+        cuckoo[vs[nv+1]] = vs[nv];
+      cuckoo[*vs] = *us;
+    }
   }
   return 0;
 }
@@ -329,8 +369,8 @@ int main(int argc, char **argv) {
 #ifndef SIZESHIFT 
 #define SIZESHIFT 20
 #endif
-#ifndef EASYNESS 
-#define EASYNESS (SIZE/2)
+#ifndef EASINESS 
+#define EASINESS (SIZE/2)
 #endif
 #ifndef PROOFSIZE 
 #define PROOFSIZE 42
