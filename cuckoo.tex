@@ -15,8 +15,8 @@ We introduce the first trivially verifiable, scalable, memory-hard and tmto-hard
 \end{abstract}
 
 \section{Introduction}
-A ``proof of work'' (PoW) system allows a verifier to check---with
-negligible effort---that a prover has expended a large amount of computational effort.
+A ``proof of work'' (PoW) system allows a verifier to check with
+negligible effort that a prover has expended a large amount of computational effort.
 Originally introduced as a spam fighting measure, 
 where the effort is the price paid by an email sender for demanding the recipient's attention,
 they now form one of the cornerstones of crypto-currencies.
@@ -39,10 +39,11 @@ centralization of mining power, and large power consumption.
 This has led people to look for alternative proofs of work that lack parallelizability,
 aiming to keep commodity hardware competitive.
 
-Litecoin replaces the SHA256 hash function in hashcash by a single round, 128KB version of the
-{\em scrypt} key derivation function. Technically, this is no longer a proof of work system, as
-verification takes a nontrivial amount of computation. Even so, GPUs are a least an order
-of magnitude faster than CPUs for Litecoin mining, and ASICs are coming on to the market in 2014.
+Litecoin replaces the SHA256 hash function in hashcash by a single round version of the
+{\em scrypt} key derivation function. It's memory requirement of 128KB is a compromise
+between computation-hardness for the prover and verification efficiency for the verifier.
+Although designed to be GPU-resistant, GPUs are now a least an order of magnitude faster
+than CPUs for Litecoin mining, and ASICs are have appeared on the market in early 2014.
 
 Primecoin~\cite{king2013} is an interesting design based on finding long Cunningham chains
 of prime numbers, using a two-step process of filtering candidates by {\em sieving}, and applying
@@ -50,12 +51,12 @@ pseudo-primality tests to remaining candidates. The most efficient implementatio
 A downside to primecoin is that its use of memory is not constrained much.
 
 \section{Memory latency; the great equalizer}
-While cpu-speed and memory bandwidth are highly variable across time and architectures, main memory latencies
-have remained relatively stable.
+While cpu-speed and memory bandwidth are highly variable across time and architectures,
+main memory latencies have remained relatively stable.
 To level the mining playing field, a proof of work system should be latency bound.
 Ideally, it should have the following properties:
 \begin{description}
-\item[verify-trivial] Implied by the notion of a PoW, but still failed by several systems billed as such.
+\item[verify-trivial] A proof can be checked in microseconds rather than milliseconds.
 \item[scalable] The amount of memory needed is a parameter that can scale arbitrarily.
 \item[linear] The number of computational steps and the number of memory accesses is linear in the amount of memory.
 \item[tmto-hard] There is no time-memory trade-off---using only half as much memory should
@@ -270,8 +271,10 @@ $2^31-1$ nodes, the most significant bit is then available to distinguish edges 
 The partition sizes should remain relatively prime, e.g. by picking the largest $K$ primes under $2^{31}$.
 
 \section{Conclusion}
-Cuckoo Cycle is an elegant memory-hard proof-of-work design featuring
-scalability, trivial verification, and strong resistance to speedup by special hardware.
+Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency.
+Its parallelizability may be limited to that of multiprocessor-memory interconnection networks
+in general, offering hope of leveling the mining playing field through use of commodity hardware.
+Future research is needed to quantify the behaviour of multiprocessor implementations.
 
 \bibliographystyle{plain}
 \bibliography{cuckoo}
