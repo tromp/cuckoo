@@ -13,11 +13,12 @@ int main(int argc, char **argv) {
   // 6 largest sizes 131 928 529 330 729 132 not implemented
   assert(SIZE < (unsigned)CYCLE);
   char *header = argc >= 2 ? argv[1] : "";
+  setheader(header);
   printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASYNESS);
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
   int us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
-  for (int nonce = 0; nonce < EASYNESS; nonce++) {
-    sha256edge(header, nonce, us, vs);
+  for (int nonce = 0; nonce < EASINESS; nonce++) {
+    sipedge(nonce, us, vs);
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
     for (nu = 0; u; u = cuckoo[u]) {
@@ -38,7 +39,7 @@ int main(int argc, char **argv) {
       int min = nu < nv ? nu : nv;
       for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
       int len = nu + nv + 1;
-      printf("% 4d-cycle found at %d%%\n", len, (int)(nonce*100L/EASYNESS));
+      printf("% 4d-cycle found at %d%%\n", len, (int)(nonce*100L/EASINESS));
       if (len != PROOFSIZE)
         continue;
       while (nu--)
@@ -46,7 +47,7 @@ int main(int argc, char **argv) {
       while (nv--)
         cuckoo[vs[nv+1]] = CYCLE | vs[nv];
       for (cuckoo[*vs] = CYCLE | *us; len ; nonce--) {
-        sha256edge(header, nonce, &u, &v);
+        sipedge(nonce, &u, &v);
         int c;
         if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
           printf("%2d %08x (%d,%d)\n", --len, nonce, u, v);
@@ -55,9 +56,15 @@ int main(int argc, char **argv) {
       }
       break;
     }
-    while (nu--)
-      cuckoo[us[nu+1]] = us[nu];
-    cuckoo[*us] = *vs;
+    if (nu < nv) {
+      while (nu--)
+        cuckoo[us[nu+1]] = us[nu];
+      cuckoo[*us] = *vs;
+    } else {
+      while (nv--)
+        cuckoo[vs[nv+1]] = vs[nv];
+      cuckoo[*vs] = *us;
+    }
   }
   return 0;
 }

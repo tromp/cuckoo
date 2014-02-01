@@ -23,4 +23,4 @@ verify:	cuckoo.h verify.c Makefile
 	cc -o verify verify.c ${FLAGS}
 
 test:	cuckoo120 verify Makefile
-	./cuckoo120 0 | tail -42 | ./verify 0
+	./cuckoo120 6 | tail -42 | ./verify 6

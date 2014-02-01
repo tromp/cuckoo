@@ -3,7 +3,7 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=default}
 \newcommand{\cuckoo}{{\rm cuckoo}}
-\newcommand{\sha}{{\rm SHA256}}
+\newcommand{\hash}{{\rm hash}}
 \usepackage{hyperref}
 \title{Cuckoo Cycle: \protect\\ a memory-hard proof-of-work system}
 \author{John Tromp}
@@ -98,7 +98,7 @@ and the number of nodes, resprectively. $L$ and $N$ must be even.
 Function $\cuckoo$ maps any binary string $h$ (the header) to a bipartite graph
 $G = (V_0 \cup V_1, E)$, where $V_0$ is the set of integers modulo $N_0=N/2+1$,
 $V_1$ is the set of integers modulo $N_1=N/2-1$, and $E$ has an edge between
-$\sha(h||n) \bmod N_0$ in $V_0$ and $\sha(h||n) \bmod N_1$ in $V_1$ for every
+$\hash(h,n) \bmod N_0$ in $V_0$ and $\hash(h,n) \bmod N_1$ in $V_1$ for every
 nonce $0 \leq n < E$. A proof for $G$ is a subset of $L$ nonces whose
 corresponding edges form an $L$-cycle in $G$.
 
@@ -134,9 +134,9 @@ proof verifier and this paper. `make test' tests everything.
 The main program uses 31 bits per node to represent the
 directed cuckoo graph, reserving the most significant bit
 for marking edges on a cycle, to simplify recovery of the proof nonces.
-On my 3.2GHz Intel Core i5, in case no solution is found, size $2^{20}$ takes 4MB and 0.25s, size
-$2^{25}$ takes 128MB and 10s, and size $2^{30}$ takes 4GB and 400s, a significant fraction of which
-is spend pointer chasing.
+On my 3.2GHz Intel Core i5, in case no solution is found, size $2^{20}$ takes 4MB and 0.025s, size
+$2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 136s,
+most of which is spent pointer chasing.
 
 \begin{center}
 \begin{tikzpicture}
@@ -214,7 +214,7 @@ other applications too, and so one may expect such improvements to become availa
 (1,11.29) (2,11.31) (3,11.17) (4,11.13) (5,11.21) (6,11.03) (7,10.98) (8,10.87) (9,10.97) (10,10.80) (11,10.92) (12,10.76) (13,10.64) (14,10.75) (15,10.78) (16,10.66) (17,10.65) (18,10.60) (19,10.62) (20,10.56) (21,10.52) (22,10.44) (23,10.43) (24,10.44) (25,10.38) (26,10.46) (27,10.30) (28,10.20) (29,10.16) (30,10.33) (31,10.35) (32,10.13) (33,10.12) (34,10.25) (35,10.22) (36,10.23) (37,10.07) (38,10.29) (39, 9.96) (40,10.11) (41,10.07) (42,10.05) (43,10.09) (44,10.02) (45, 9.91) (46,10.05) (47, 9.92) (48,10.03) (49, 9.82) (50,10.01) (51, 9.90) (52,10.02) (53, 9.76) (54, 9.72) (55, 9.74) (56, 9.81) (57, 9.54) (58, 9.73) (59, 9.79) (60, 9.54) (61, 9.71) (62, 9.70) (63, 9.82) };
 \addlegendentry{20}
 \addplot[color=blue] coordinates {
-(1,13.17) (2,13.95) (3,13.63) (4,13.73) (5,13.24) (6,13.15) (7,14.30) (8,13.04) (9,13.15) (10,13.60) (11,13.74) (12,13.41) (13,13.69) (14,13.15) (15,13.25) (16,12.76) (17,12.56) (18,13.09) (19,13.38) (20,13.79) (21,13.36) (22,13.13) (23,13.66) (24,13.77) (25,13.05) (26,12.90) (27,13.57) (28,13.82) (29,12.79) (30,13.77) (31,13.21) (32,13.31) (33,13.56) (34,12.69) (35,13.66) (36,13.52) (37,12.87) (38,12.82) (39,12.59) (40,13.17) (41,13.30) (42,12.74) (43,13.29) (44,13.37) (45,12.74) (46,13.30) (47,12.67) (48,13.27) (49,13.19) (50,12.38) (51,12.65) (52,13.08) (53,12.67) (54,12.98) (55,12.11) (56,12.87) (57,12.23) (58,12.73) (59,12.50) (60,13.00) (61,12.95) (62,13.44) (63,12.15) };
+(1,13.17)(1,13.61) (2,13.72) (3,13.76) (4,13.69) (5,13.48) (6,13.47) (7,13.73) (8,13.57) (9,13.52) (10,13.67) (11,13.65) (12,13.48) (13,13.45) (14,13.35) (15,13.64) (16,13.57) (17,13.31) (18,13.35) (19,13.48) (20,13.24) (21,13.40) (22,13.33) (23,13.36) (24,13.30) (25,13.33) (26,13.45) (27,13.47) (28,13.36) (29,13.12) (30,13.44) (31,13.24) (32,13.27) (33,13.26) (34,13.30) (35,13.22) (36,13.21) (37,13.19) (38,13.13) (39,13.09) (40,13.04) (41,13.13) (42,13.13) (43,13.14) (44,13.27) (45,13.16) (46,13.25) (47,13.04) (48,13.07) (49,13.12) (50,13.04) (51,12.89) (52,13.01) (53,13.02) (54,13.02) (55,12.78) (56,12.98) (57,12.90) (58,12.75) (59,12.82) (60,12.86) (61,12.91) (62,13.01) (63,12.78) };
 \addlegendentry{25}
 \end{axis}
 \end{tikzpicture}\hspace{1cm}\begin{tikzpicture}
@@ -297,11 +297,12 @@ int main(int argc, char **argv) {
   // 6 largest sizes 131 928 529 330 729 132 not implemented
   assert(SIZE < (unsigned)CYCLE);
   char *header = argc >= 2 ? argv[1] : "";
+  setheader(header);
   printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
   int us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
   for (int nonce = 0; nonce < EASINESS; nonce++) {
-    sha256edge(header, nonce, us, vs);
+    sipedge(nonce, us, vs);
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
     for (nu = 0; u; u = cuckoo[u]) {
@@ -330,7 +331,7 @@ int main(int argc, char **argv) {
       while (nv--)
         cuckoo[vs[nv+1]] = CYCLE | vs[nv];
       for (cuckoo[*vs] = CYCLE | *us; len ; nonce--) {
-        sha256edge(header, nonce, &u, &v);
+        sipedge(nonce, &u, &v);
         int c;
         if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
           printf("%2d %08x (%d,%d)\n", --len, nonce, u, v);
@@ -384,21 +385,51 @@ int main(int argc, char **argv) {
 #define PARTU (SIZE/2+1)
 #define PARTV (SIZE/2-1)
 
-// generate edge in cuckoo graph from hash(header++nonce)
-void sha256edge(char *header, int nonce, int *pu, int *pv) {
-  uint32_t hash[8];
-  SHA256_CTX sha256;
-  SHA256_Init(&sha256);
-  SHA256_Update(&sha256, header, strlen(header));
-  SHA256_Update(&sha256, &nonce, sizeof(nonce));
-  SHA256_Final((unsigned char *)hash, &sha256);
-  uint64_t u64 = 0, v64 = 0;
-  for (int i = 8; i--; ) {
-    u64 = ((u64<<32) + hash[i]) % PARTU;
-    v64 = ((v64<<32) + hash[i]) % PARTV;
-  }
-  *pu = 1 +         (int)u64;
-  *pv = 1 + PARTU + (int)v64;
+typedef uint64_t u64;
+ 
+#define ROTL(x,b) (u64)( ((x) << (b)) | ( (x) >> (64 - (b))) )
+ 
+#define SIPROUND \
+  do { \
+    v0 += v1; v1=ROTL(v1,13); v1 ^= v0; v0=ROTL(v0,32); \
+    v2 += v3; v3=ROTL(v3,16); v3 ^= v2; \
+    v0 += v3; v3=ROTL(v3,21); v3 ^= v0; \
+    v2 += v1; v1=ROTL(v1,17); v1 ^= v2; v2=ROTL(v2,32); \
+  } while(0)
+ 
+// SipHash-2-4 specialized to precomputed key and 4 byte nonces
+u64 siphash24( int nonce, u64 v0, u64 v1, u64 v2, u64 v3) {
+  u64 b = ( ( u64 )4 ) << 56 | nonce;
+  v3 ^= b;
+  SIPROUND; SIPROUND;
+  v0 ^= b;
+  v2 ^= 0xff;
+  SIPROUND; SIPROUND; SIPROUND; SIPROUND;
+  return v0 ^ v1 ^ v2  ^ v3;
+}
+
+u64 v0 = 0x736f6d6570736575ULL, v1 = 0x646f72616e646f6dULL,
+    v2 = 0x6c7967656e657261ULL, v3 = 0x7465646279746573ULL;
+
+#define U8TO64_LE(p) \
+  (((u64)((p)[0])      ) | ((u64)((p)[1]) <<  8) | \
+   ((u64)((p)[2]) << 16) | ((u64)((p)[3]) << 24) | \
+   ((u64)((p)[4]) << 32) | ((u64)((p)[5]) << 40) | \
+   ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
+ 
+// derive siphash key from header
+void setheader(const char *header) {
+  unsigned char hdrkey[32];
+  SHA256((unsigned char *)header, strlen(header), hdrkey);
+  u64 k0 = U8TO64_LE( hdrkey ); u64 k1 = U8TO64_LE( hdrkey + 8 );
+  v3 ^= k1; v2 ^= k0; v1 ^= k1; v0 ^= k0;
+}
+
+// generate edge in cuckoo graph
+void sipedge(int nonce, int *pu, int *pv) {
+  u64 sip = siphash24(nonce, v0, v1, v2, v3);
+  *pu = 1 +         (int)(sip % PARTU);
+  *pv = 1 + PARTU + (int)(sip % PARTV);
 }
 \end{verbatim}
 
