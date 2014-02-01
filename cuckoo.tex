@@ -70,7 +70,8 @@ incur several orders of magnitude slowdown.
 Combined, these properties ensure that a proof of work system is entirely constrained by main
 memory latency and scales appropriately for any application.
 
-We introduce the first proof of work system satisfying all properties,
+We introduce the very first proof of work system that is both verify-trivial
+and tmto-hard. Furthermore, it satisfies all other properties,
 except for being parallel-resistent at best.
 Amazingly, it amounts to little more than enumerating nonces and storing them
 in a hashtable. While all hashtables break down when trying to store more items than
@@ -119,11 +120,70 @@ cycle if and only if its two locations are in the same tree, which we can test
 by following the path from each location to its root.
 In case of different roots, we reverse all edges on the shorter of the two paths,
 and finally create the edge for the new key itself, thereby joining the two trees into one.
-In case of equal roots, we can compute the length of the resulting cycle as
+The left diagram below shows the directed cuckoo graph for header ``926'' on $N=9+7$ nodes after storing
+the first 5 edges $(8,16),(3,15),(2,15),(8,10)$ and $(8,12)$ (other edge-less nodes are ommited for clarity).
+In order to add the 6th edge $(2,10)$,
+we follow the paths $2 \rightarrow 15 \rightarrow 3$ and $10 \rightarrow 8$
+to find different roots $3$ and $8$. Sine the latter path is shorter, we reverse it so we can
+insert the new edge as $(10 \rightarrow 2)$. After further adding the 7th edge $(1,14)$, we have the right diagram.
+When adding the 8th edge $(3,16)$, we find the singleton path $3$ and the path
+$16 \rightarrow 8 \rightarrow 10 \rightarrow 2 \rightarrow 15 \rightarrow 3$ 
+with equal roots.
+\begin{center}
+\begin{tikzpicture}
+\node  (1) at (1.5, 1) [shape=circle,draw] {1};
+\node  (2) at (2.5, 1) [shape=circle,draw] {2};
+\node  (3) at (3.5, 1) [shape=circle,draw] {3};
+%\node  (4) at (4, 1) [shape=circle,draw] {4};
+%\node  (5) at (5, 1) [shape=circle,draw] {5};
+%\node  (6) at (6, 1) [shape=circle,draw] {6};
+%\node  (7) at (4, 1) [shape=circle,draw] {7};
+\node  (8) at (4.5, 1) [shape=circle,draw] {8};
+%\node  (9) at (9, 1) [shape=circle,draw] {9};
+\node (10) at (1,-1) [shape=circle,draw] {10};
+%\node (11) at (3,-1) [shape=circle,draw] {11};
+\node (12) at (2,-1) [shape=circle,draw] {12};
+%\node (13) at (5,-1) [shape=circle,draw] {13};
+\node (14) at (3,-1) [shape=circle,draw] {14};
+\node (15) at (4,-1) [shape=circle,draw] {15};
+\node (16) at (5,-1) [shape=circle,draw] {16};
+\draw [->] (16) -- (8);
+\draw [->] (15) -- (3);
+\draw [->]  (2) -- (15);
+\draw [->] (10) -- (8);
+\draw [->] (12) -- (8);
+\end{tikzpicture}\hspace{3cm}\begin{tikzpicture}
+\node  (1) at (1.5, 1) [shape=circle,draw] {1};
+\node  (2) at (2.5, 1) [shape=circle,draw] {2};
+\node  (3) at (3.5, 1) [shape=circle,draw] {3};
+%\node  (4) at (4, 1) [shape=circle,draw] {4};
+%\node  (5) at (5, 1) [shape=circle,draw] {5};
+%\node  (6) at (6, 1) [shape=circle,draw] {6};
+%\node  (7) at (4, 1) [shape=circle,draw] {7};
+\node  (8) at (4.5, 1) [shape=circle,draw] {8};
+%\node  (9) at (9, 1) [shape=circle,draw] {9};
+\node (10) at (1,-1) [shape=circle,draw] {10};
+%\node (11) at (3,-1) [shape=circle,draw] {11};
+\node (12) at (2,-1) [shape=circle,draw] {12};
+%\node (13) at (5,-1) [shape=circle,draw] {13};
+\node (14) at (3,-1) [shape=circle,draw] {14};
+\node (15) at (4,-1) [shape=circle,draw] {15};
+\node (16) at (5,-1) [shape=circle,draw] {16};
+\draw [->] (16) -- (8);
+\draw [->] (15) -- (3);
+\draw [->]  (2) -- (15);
+\draw [->]  (8) -- (10);
+\draw [->] (12) -- (8);
+\draw [->] (10) -- (2);
+\draw [->] (14) -- (1);
+\end{tikzpicture}
+\end{center}
+In this case, we can compute the length of the resulting cycle as
 1 plus the sum of the path-lengths to the node where the two paths first join.
+In the diagram, the paths join at the root, and length is $1+0+3=4$.
 If the cycle length is $L$, then we solved the problem, and recover the proof
 by enumerating nonces once more and checking which ones formed the cycle.
-If not, then we keep the graph acyclic by not ignoring the key.
+If not, then we keep the graph acyclic by ignoring the key.
 There is some probability of overlooking other $L$-cycles
 that uses that key, but in the important low easiness case of having few cycles
 in the cuckoo graph to begin with, it does not significantly affect
