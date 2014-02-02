@@ -178,7 +178,7 @@ When adding the 11th edge $(3,15)$, we find the singleton path $3$ and the path
 $15 \rightarrow 5 \rightarrow 10 \rightarrow 7 \rightarrow 16 \rightarrow 3$ with equal roots.
 In this case, we can compute the length of the resulting cycle as
 1 plus the sum of the path-lengths to the node where the two paths first join.
-In the diagram, the paths first join at the root, and the cycle length is computed as $1+0+3=4$.
+In the diagram, the paths first join at the root, and the cycle length is computed as $1+0+5=6$.
 If the cycle length equals $L$, then we solved the problem, and recover the proof
 by enumerating nonces once more and checking which ones formed the cycle.
 If not, then we keep the graph acyclic by ignoring the edge.
@@ -190,6 +190,7 @@ in the cuckoo graph to begin with, it hardly affect the rate of solution finding
 The C-program listed in the Appendix is also available online at
 \url{https://github.com/tromp/cuckoo} together with a Makefile,
 proof verifier and this paper. `make test' tests everything.
+`make example' reproduces the example shown in the diagrams.
 The main program uses 31 bits per node to represent the
 directed cuckoo graph, reserving the most significant bit
 for marking edges on a cycle, to simplify recovery of the proof nonces.
@@ -256,8 +257,11 @@ by some multistage interconnection network.
 For $0\leq p < P$, PE $p$ processes all nonces $p \bmod P$.
 Note that unless one uses at least $P^2$ MEs, memory routing conflicts will frequently arise.
 Another problem are path conflicts, where one PE is reversing a path that another PE
-is either following, or installing a new edge on. The left plot below shows the average number of times that either of
-the two roots
+is either following, or installing a new edge on. One example is the addition of edges $(7,10)$ and $(3,15)$ in the
+example diagrams. If these were to happen in parallel, then the path from $15$ will likely end at $5$ because
+edge $(5,10)$ hasn't been reversed yet, and $(3 \rightarrow 15$ will be added without realizing it creates a cyle.
+This means path following cannot be assumed to terminate in a parallel implementation, creating further complications.
+The left plot below shows the average number of times that either of the two roots
 for a nonce occurred a given number of nonces ago, which suggests that there are potentially about $10P$ such conflicts.
 Analysing how these conflicts affect performance and the probabillity of finding cycles is a topic for further research. 
 In any case, development of hardware for improved parallel random access to main memory will benefit

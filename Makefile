@@ -2,7 +2,10 @@
 FLAGS = -O3 -std=c99 -Wall -Wno-deprecated-declarations -l crypto
 
 cuckoo:		cuckoo.h cuckoo.c Makefile
-	cc -o cuckoo -DSHOW -DPROOFSIZE=6 -DSIZEMULT=1 -DSIZESHIFT=4 cuckoo.c ${FLAGS}
+	cc -o cuckoo -DSHOW -DPROOFSIZE=6 -DSIZEMULT=1 -DSIZESHIFT=4 -DEASINESS=16 cuckoo.c ${FLAGS}
+
+example:	cuckoo
+	./cuckoo "header"
 
 cuckoo110:	cuckoo.h cuckoo.c Makefile
 	cc -o cuckoo110 -DSIZEMULT=1 -DSIZESHIFT=10 cuckoo.c ${FLAGS}
