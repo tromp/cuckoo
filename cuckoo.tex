@@ -81,7 +81,7 @@ Enter the cuckoo hashtable.
 
 \section{Cuckoo hashing}
 Introduced by Rasmus Pagh and Flemming Friche Rodler in
-2001\cite{Pagh01cuckoohashing}, a cuckoo hashtable consists of two same-sized
+2001\cite{Pagh04cuckoohashing}, a cuckoo hashtable consists of two same-sized
 tables each with its own hash function mapping a key to a table location,
 providing two possible locations for each key.
 % (and constant lookup time).
@@ -128,12 +128,12 @@ to find different roots $3$ and $5$. Since the latter path is shorter, we revers
 add the new edge as $(10 \rightarrow 7)$, resulting in the right diagram.
 \begin{center}
 \begin{tikzpicture}[>=stealth]
-\node  (3) at (1, 1) [shape=circle,draw] {3};
-\node  (4) at (2, 1) [shape=circle,draw] {4};
-\node  (5) at (3, 1) [shape=circle,draw] {5};
-\node  (6) at (4, 1) [shape=circle,draw] {6};
-\node  (7) at (5, 1) [shape=circle,draw] {7};
-\node  (9) at (6, 1) [shape=circle,draw] {9};
+\node  (3) at (1, 2) [shape=circle,draw] {3};
+\node  (4) at (2, 2) [shape=circle,draw] {4};
+\node  (5) at (3, 2) [shape=circle,draw] {5};
+\node  (6) at (4, 2) [shape=circle,draw] {6};
+\node  (7) at (5, 2) [shape=circle,draw] {7};
+\node  (9) at (6, 2) [shape=circle,draw] {9};
 \node (10) at (1,-1) [shape=circle,draw] {10};
 \node (12) at (2,-1) [shape=circle,draw] {12};
 \node (13) at (3,-1) [shape=circle,draw] {13};
@@ -150,12 +150,12 @@ add the new edge as $(10 \rightarrow 7)$, resulting in the right diagram.
 \draw [->] (14) -- (9);
 \draw [->]  (4) -- (14);
 \end{tikzpicture}\hspace{3cm}\begin{tikzpicture}[>=stealth]
-\node  (3) at (1, 1) [shape=circle,draw] {3};
-\node  (4) at (2, 1) [shape=circle,draw] {4};
-\node  (5) at (3, 1) [shape=circle,draw] {5};
-\node  (6) at (4, 1) [shape=circle,draw] {6};
-\node  (7) at (5, 1) [shape=circle,draw] {7};
-\node  (9) at (6, 1) [shape=circle,draw] {9};
+\node  (3) at (1, 2) [shape=circle,draw] {3};
+\node  (4) at (2, 2) [shape=circle,draw] {4};
+\node  (5) at (3, 2) [shape=circle,draw] {5};
+\node  (6) at (4, 2) [shape=circle,draw] {6};
+\node  (7) at (5, 2) [shape=circle,draw] {7};
+\node  (9) at (6, 2) [shape=circle,draw] {9};
 \node (10) at (1,-1) [shape=circle,draw] {10};
 \node (12) at (2,-1) [shape=circle,draw] {12};
 \node (13) at (3,-1) [shape=circle,draw] {13};
@@ -252,20 +252,30 @@ short of a factor 2 though, so a better use of that memory would be to run
 another copy in parallel.
 
 \section{Parallelizability}
-To parallellize the program one could run $P$ processing elements (PE) connected to at least $P$ memory elements (ME)
-by some multistage interconnection network.
+To parallellize the program one could run $P$ processing elements (PE) connected to at
+least $P$ memory elements (ME) by some multistage interconnection network.
 For $0\leq p < P$, PE $p$ processes all nonces $p \bmod P$.
+
 Note that unless one uses at least $P^2$ MEs, memory routing conflicts will frequently arise.
-Another problem are path conflicts, where one PE is reversing a path that another PE
-is either following, or installing a new edge on. One example is the addition of edges $(7,10)$ and $(3,15)$ in the
-example diagrams. If these were to happen in parallel, then the path from $15$ will likely end at $5$ because
-edge $(5,10)$ hasn't been reversed yet, and $(3 \rightarrow 15$ will be added without realizing it creates a cyle.
-This means path following cannot be assumed to terminate in a parallel implementation, creating further complications.
+The possibility of development of custom hardware for improved parallel random access to main
+need not be a big concern, as this is likely to benefit many other applications as well.
+
+Parallelization also presents algorithmic challenges. Paths from an edge's two endpoints
+are not well-defined when other edge additions and path reversals are still in progress.
+One example of such a path conflict is the addition of edges
+$(7,10)$ and $(3,15)$ in the example diagrams. If these were to happen in parallel,
+then the path from $15$ will likely end at $5$ because
+edge $(10 \rightarrow 5)$ hasn't been reversed yet.
+As a result, $(3 \rightarrow 15)$ will be added without realizing it creates a cyle.
+Thus, in a parallel implementation, path following cannot be assumed to terminate,
+creating further complications, like the need for cycle detection algorithm
+such as~\cite{1980-brent-cycles}. Simply ignoring the formed cycle, by aborting paths whose length
+exceed some threshold, means that no cycles can ever be found containing nodes that lead to the cycle.
 The left plot below shows the average number of times that either of the two roots
-for a nonce occurred a given number of nonces ago, which suggests that there are potentially about $10P$ such conflicts.
-Analysing how these conflicts affect performance and the probabillity of finding cycles is a topic for further research. 
-In any case, development of hardware for improved parallel random access to main memory will benefit
-other applications too, and so one may expect such improvements to become available on commodity hardware as well.
+for a nonce occurred a given number of nonces ago, which suggests that there are potentially
+about $10P$ such conflicts.
+Analysing how these conflicts affect performance and the probabillity of finding cycles
+is a topic for further research. 
 
 \begin{center}
 \begin{tikzpicture}
