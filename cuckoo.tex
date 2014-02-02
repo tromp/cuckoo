@@ -11,7 +11,7 @@
 \maketitle
 
 \begin{abstract}
-We introduce the first trivially verifiable, scalable, memory-hard and tmto-hard proof-of-work system.
+We introduce the first trivially verifiable, scalable, memory-and-tmto-hard proof-of-work system.
 \end{abstract}
 
 \section{Introduction}
@@ -21,7 +21,7 @@ Originally introduced as a spam fighting measure,
 where the effort is the price paid by an email sender for demanding the recipient's attention,
 they now form one of the cornerstones of crypto-currencies.
 
-Bitcoin\cite{nakamoto2009bitcoin} uses hashcash\cite{back2002} as proof of work for
+Bitcoin\cite{nakamoto2009bitcoin} uses hashcash\cite{back2002} as proof-of-work for
 new blocks of transactions, which requires finding a nonce value such that
 twofold application of the cryptographic hash function SHA256
 to this nonce (and the rest of the block header) results in a number with many
@@ -29,18 +29,18 @@ leading 0s.  The bitcoin protocol dynamically adjust this ``difficulty'' number
 so as to maintain a 10-minute average block interval. Starting out at 32 leading zeroes in 2009,
 the number has steadily climbed and is currently at 63, representing
 an incredible $2^{63}/10$ double-hashes per minute. This exponential growth of hashing power
-is enabled by the highly-parallellizable nature of the hashcash proof of work.
+is enabled by the highly-parallellizable nature of the hashcash proof-of-work.
 which saw desktop cpus out-performed by graphics-cards (GPUs),
 these in turn by field-programmable gate arrays (FPGAs),
 and finally by custom designed chips (ASICs).
 
 Downsides of this development include high investment costs, rapid obsolesence,
 centralization of mining power, and large power consumption.
-This has led people to look for alternative proofs of work that lack parallelizability,
+This has led people to look for alternative proof-of-work systems that resist parallelizability,
 aiming to keep commodity hardware competitive.
 
 Litecoin replaces the SHA256 hash function in hashcash by a single round version of the
-{\em scrypt} key derivation function. It's memory requirement of 128KB is a compromise
+{\em scrypt} key derivation function. Its memory requirement of 128KB is a compromise
 between computation-hardness for the prover and verification efficiency for the verifier.
 Although designed to be GPU-resistant, GPUs are now a least an order of magnitude faster
 than CPUs for Litecoin mining, and ASICs are have appeared on the market in early 2014.
@@ -50,29 +50,29 @@ of prime numbers, using a two-step process of filtering candidates by {\em sievi
 pseudo-primality tests to remaining candidates. The most efficient implementations are still CPU based.
 A downside to primecoin is that its use of memory is not constrained much.
 
-Adam Back~\cite{back2014} has a good overview of PoW papers past and present.
+Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
 
 \section{Memory latency; the great equalizer}
 While cpu-speed and memory bandwidth are highly variable across time and architectures,
 main memory latencies have remained relatively stable.
-To level the mining playing field, a proof of work system should be latency bound.
+This suggests making the proof-of-work system latency-bound to level the mining playing field.
 Ideally, it should have the following properties:
 \begin{description}
 \item[verify-trivial] A proof can be checked in microseconds rather than milliseconds.
 \item[scalable] The amount of memory needed is a parameter that can scale arbitrarily.
 \item[linear] The number of computational steps and the number of memory accesses is linear in the amount of memory.
-\item[tmto-hard] There is no time-memory trade-off---using only half as much memory should
+\item[tmto-hard] There is no time-memory trade-off; using only half as much memory should
 incur several orders of magnitude slowdown.
 \item[random-access] RAM is accessed randomly, making bandwidth and caches irrelevant.
 \item[parallel-hard] Memory accesses cannot be effectively parallelized.
 \item[simple] The algorithm should be sufficiently simple that one can be convinced of its optimality.
 \end{description}
-Combined, these properties ensure that a proof of work system is entirely constrained by main
+Combined, these properties ensure that a proof-of-work system is entirely constrained by main
 memory latency and scales appropriately for any application.
 
-We introduce the very first proof of work system that is both verify-trivial
+We introduce the very first proof-of-work system that is both verify-trivial
 and tmto-hard. Furthermore, it satisfies all other properties,
-except for being parallel-resistent at best.
+except for being parallel-resistant at best.
 Amazingly, it amounts to little more than enumerating nonces and storing them
 in a hashtable. While all hashtables break down when trying to store more items than
 it was designed to handle, in one hashtable design in particular this breakdown
@@ -92,9 +92,9 @@ location is found, or some maximum number of iterations is reached.
 The latter can only happen once cycles have formed in the {\em Cuckoo graph}.
 This is a bipartite graph with a node for each location and an
 edge for every key, connecting the two locations it can reside at.
-This naturally suggests a proof of work problem, which we now formally define.
+This naturally suggests a proof-of-work problem, which we now formally define.
 
-\section{The proof of work function}
+\section{The proof-of-work function}
 Fix three parameters $L \leq E \leq N$ in the range $\{4,...,2^{32}\}$, which
 denote the cycle length, number of edges (also easyness, opposite of difficulty),
 and the number of nodes, resprectively. $L$ and $N$ must be even.
@@ -105,89 +105,86 @@ $\hash(h,n) \bmod N_0$ in $V_0$ and $\hash(h,n) \bmod N_1$ in $V_1$ for every
 nonce $0 \leq n < E$. A proof for $G$ is a subset of $L$ nonces whose
 corresponding edges form an $L$-cycle in $G$.
 
-\section{Solving a proof of work problem}
+\section{Solving a proof-of-work problem}
 We enumerate the $E$ nonces, but instead of storing the nonce itself as a key
 in the Cuckoo hashtable, we store the alternate key location at the key location,
 and forget about the nonce.
 We thus maintain the {\em directed} cuckoo graph, in which the edge for a key
 is directed from the location where it resides to its alternate location.
-The outdegree of every node in this
-graph is either 0 or 1, When there are no cycles yet, the graph is a {\em
-forest}, a disjoint union of trees. In each tree, all edges are directed,
-directly, or indirectly, to its root,
-the only node in the tree with outdegree 0. Addition of a new key causes a
-cycle if and only if its two locations are in the same tree, which we can test
-by following the path from each location to its root.
+Moving a key to its alternate location thus corresponds to reversing its edge.
+The outdegree of every node in this graph is either 0 or 1.
+When there are no cycles yet, the graph is a {\em forest}, a disjoint union of trees.
+In each tree, all edges are directed, directly, or indirectly, to its {\em root},
+the only node in the tree with outdegree 0.
+Initially there are just $N$ singleton trees consisting of individual nodes which are all roots.
+Addition of a new key causes a cycle if and only if its two endpoints are nodes in the same tree,
+which we can test by following the path from each endpoint to its root.
 In case of different roots, we reverse all edges on the shorter of the two paths,
 and finally create the edge for the new key itself, thereby joining the two trees into one.
-The left diagram below shows the directed cuckoo graph for header ``926'' on $N=9+7$ nodes after storing
-the first 5 edges $(8,16),(3,15),(2,15),(8,10)$ and $(8,12)$ (other edge-less nodes are ommited for clarity).
-In order to add the 6th edge $(2,10)$,
-we follow the paths $2 \rightarrow 15 \rightarrow 3$ and $10 \rightarrow 8$
-to find different roots $3$ and $8$. Sine the latter path is shorter, we reverse it so we can
-insert the new edge as $(10 \rightarrow 2)$. After further adding the 7th edge $(1,14)$, we have the right diagram.
-When adding the 8th edge $(3,16)$, we find the singleton path $3$ and the path
-$16 \rightarrow 8 \rightarrow 10 \rightarrow 2 \rightarrow 15 \rightarrow 3$ 
-with equal roots.
+The left diagram below shows the directed cuckoo graph for header `header' on $N=9+7$ nodes after adding edges
+$(3,16),(5,15),(6,16),(7,16),(5,10),(6,13),(6,12),(9,14)$ and $(4,14)$ (nodes with no incident edges are omitted for clarity).
+In order to add the 10th edge $(7,10)$, we follow the paths $7 \rightarrow 16 \rightarrow 3$ and $10 \rightarrow 5$
+to find different roots $3$ and $5$. Since the latter path is shorter, we reverse it to $5 \rightarrow 10$ so we can
+add the new edge as $(10 \rightarrow 7)$, resulting in the right diagram.
 \begin{center}
-\begin{tikzpicture}
-\node  (1) at (1.5, 1) [shape=circle,draw] {1};
-\node  (2) at (2.5, 1) [shape=circle,draw] {2};
-\node  (3) at (3.5, 1) [shape=circle,draw] {3};
-%\node  (4) at (4, 1) [shape=circle,draw] {4};
-%\node  (5) at (5, 1) [shape=circle,draw] {5};
-%\node  (6) at (6, 1) [shape=circle,draw] {6};
-%\node  (7) at (4, 1) [shape=circle,draw] {7};
-\node  (8) at (4.5, 1) [shape=circle,draw] {8};
-%\node  (9) at (9, 1) [shape=circle,draw] {9};
+\begin{tikzpicture}[>=stealth]
+\node  (3) at (1, 1) [shape=circle,draw] {3};
+\node  (4) at (2, 1) [shape=circle,draw] {4};
+\node  (5) at (3, 1) [shape=circle,draw] {5};
+\node  (6) at (4, 1) [shape=circle,draw] {6};
+\node  (7) at (5, 1) [shape=circle,draw] {7};
+\node  (9) at (6, 1) [shape=circle,draw] {9};
 \node (10) at (1,-1) [shape=circle,draw] {10};
-%\node (11) at (3,-1) [shape=circle,draw] {11};
 \node (12) at (2,-1) [shape=circle,draw] {12};
-%\node (13) at (5,-1) [shape=circle,draw] {13};
-\node (14) at (3,-1) [shape=circle,draw] {14};
-\node (15) at (4,-1) [shape=circle,draw] {15};
-\node (16) at (5,-1) [shape=circle,draw] {16};
-\draw [->] (16) -- (8);
-\draw [->] (15) -- (3);
-\draw [->]  (2) -- (15);
-\draw [->] (10) -- (8);
-\draw [->] (12) -- (8);
-\end{tikzpicture}\hspace{3cm}\begin{tikzpicture}
-\node  (1) at (1.5, 1) [shape=circle,draw] {1};
-\node  (2) at (2.5, 1) [shape=circle,draw] {2};
-\node  (3) at (3.5, 1) [shape=circle,draw] {3};
-%\node  (4) at (4, 1) [shape=circle,draw] {4};
-%\node  (5) at (5, 1) [shape=circle,draw] {5};
-%\node  (6) at (6, 1) [shape=circle,draw] {6};
-%\node  (7) at (4, 1) [shape=circle,draw] {7};
-\node  (8) at (4.5, 1) [shape=circle,draw] {8};
-%\node  (9) at (9, 1) [shape=circle,draw] {9};
+\node (13) at (3,-1) [shape=circle,draw] {13};
+\node (14) at (4,-1) [shape=circle,draw] {14};
+\node (15) at (5,-1) [shape=circle,draw] {15};
+\node (16) at (6,-1) [shape=circle,draw] {16};
+\draw [->] (16) -- (3);
+\draw [->] (15) -- (5);
+\draw [->]  (6) -- (16);
+\draw [->]  (7) -- (16);
+\draw [->] (10) -- (5);
+\draw [->] (13) -- (6);
+\draw [->] (12) -- (6);
+\draw [->] (14) -- (9);
+\draw [->]  (4) -- (14);
+\end{tikzpicture}\hspace{3cm}\begin{tikzpicture}[>=stealth]
+\node  (3) at (1, 1) [shape=circle,draw] {3};
+\node  (4) at (2, 1) [shape=circle,draw] {4};
+\node  (5) at (3, 1) [shape=circle,draw] {5};
+\node  (6) at (4, 1) [shape=circle,draw] {6};
+\node  (7) at (5, 1) [shape=circle,draw] {7};
+\node  (9) at (6, 1) [shape=circle,draw] {9};
 \node (10) at (1,-1) [shape=circle,draw] {10};
-%\node (11) at (3,-1) [shape=circle,draw] {11};
 \node (12) at (2,-1) [shape=circle,draw] {12};
-%\node (13) at (5,-1) [shape=circle,draw] {13};
-\node (14) at (3,-1) [shape=circle,draw] {14};
-\node (15) at (4,-1) [shape=circle,draw] {15};
-\node (16) at (5,-1) [shape=circle,draw] {16};
-\draw [->] (16) -- (8);
-\draw [->] (15) -- (3);
-\draw [->]  (2) -- (15);
-\draw [->]  (8) -- (10);
-\draw [->] (12) -- (8);
-\draw [->] (10) -- (2);
-\draw [->] (14) -- (1);
+\node (13) at (3,-1) [shape=circle,draw] {13};
+\node (14) at (4,-1) [shape=circle,draw] {14};
+\node (15) at (5,-1) [shape=circle,draw] {15};
+\node (16) at (6,-1) [shape=circle,draw] {16};
+\draw [->] (16) -- (3);
+\draw [->] (15) -- (5);
+\draw [->]  (6) -- (16);
+\draw [->]  (7) -- (16);
+\draw [->]  (5) -- (10);
+\draw [->] (13) -- (6);
+\draw [->] (12) -- (6);
+\draw [->] (14) -- (9);
+\draw [->]  (4) -- (14);
+\draw [->] (10) -- (7);
 \end{tikzpicture}
 \end{center}
+When adding the 11th edge $(3,15)$, we find the singleton path $3$ and the path
+$15 \rightarrow 5 \rightarrow 10 \rightarrow 7 \rightarrow 16 \rightarrow 3$ with equal roots.
 In this case, we can compute the length of the resulting cycle as
 1 plus the sum of the path-lengths to the node where the two paths first join.
-In the diagram, the paths join at the root, and length is $1+0+3=4$.
-If the cycle length is $L$, then we solved the problem, and recover the proof
+In the diagram, the paths first join at the root, and the cycle length is computed as $1+0+3=4$.
+If the cycle length equals $L$, then we solved the problem, and recover the proof
 by enumerating nonces once more and checking which ones formed the cycle.
-If not, then we keep the graph acyclic by ignoring the key.
+If not, then we keep the graph acyclic by ignoring the edge.
 There is some probability of overlooking other $L$-cycles
-that uses that key, but in the important low easiness case of having few cycles
-in the cuckoo graph to begin with, it does not significantly affect
-the rate of solution finding.
+through that edge, but in the important low easiness case of having few cycles
+in the cuckoo graph to begin with, it hardly affect the rate of solution finding.
 
 \section{Implementation and performance}
 The C-program listed in the Appendix is also available online at
@@ -198,7 +195,7 @@ directed cuckoo graph, reserving the most significant bit
 for marking edges on a cycle, to simplify recovery of the proof nonces.
 On my 3.2GHz Intel Core i5, in case no solution is found, size $2^{20}$ takes 4MB and 0.025s, size
 $2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 136s,
-most of which is spent pointer chasing.
+most of which is spent on memory latency.
 
 \begin{center}
 \begin{tikzpicture}
