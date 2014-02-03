@@ -241,6 +241,12 @@ In total the program averages 3.3 reads and 1.75 writes per edge.
 %For optimal performance, the implementation should use data prefetch instructions, proceeding to compute
 %the next edge while waiting for data from main memory to load.
 
+\section{Additional difficulty control}
+At very low easiness settings, it's difficult to determine the solution probability
+with much precision. If desired, one can instead impose an additional constraint on the $L$-cycle,
+namely that the exclusive-or of its nonces be less than some difficulty threshold $D$.
+For easiness that is a 2-power, this reduces the success probability by exactly $E/D$.
+
 \section{Memory-hardness}
 I conjecture that this problem doesn't allow for a time-memory trade-off. If
 one were to store only a fraction $p$ of $V_0$ and $V_1$, then one would have
