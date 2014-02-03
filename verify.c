@@ -11,6 +11,7 @@ int main(int argc, char **argv) {
   int us[PROOFSIZE], vs[PROOFSIZE], i, j, nonce;
   for (int n = 0; n < PROOFSIZE; n++) {
     assert(scanf("%*d %x (%*d,%*d)\n", &nonce) == 1);
+    assert(nonce < EASINESS);
     sipedge(nonce, &us[n], &vs[n]);
   }
   for (int n = i = 0; n < PROOFSIZE; n += 2) {

@@ -68,7 +68,8 @@ incur several orders of magnitude slowdown.
 \item[simple] The algorithm should be sufficiently simple that one can be convinced of its optimality.
 \end{description}
 Combined, these properties ensure that a proof-of-work system is entirely constrained by main
-memory latency and scales appropriately for any application.
+memory latency\footnote{The memory requirement should exceed that of the largest available
+single-chip memory to enforce chip-to-chip latencies.} and scales appropriately for any application.
 
 We introduce the very first proof-of-work system that is both verify-trivial
 and tmto-hard. Furthermore, it satisfies all other properties,
