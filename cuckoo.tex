@@ -70,6 +70,9 @@ incur several orders of magnitude slowdown.
 Combined, these properties ensure that a proof-of-work system is entirely constrained by main
 memory latency\footnote{The memory requirement should exceed that of the largest available
 single-chip memory to enforce chip-to-chip latencies.} and scales appropriately for any application.
+The single biggest advantage of a memory-and-latency-hard proof-of-work is
+{\em sustainability}---miner costs should be dominated by investment in low-power general purpose
+hardware rather than investment in single purpose hardware coupled with high operational costs.
 
 We introduce the very first proof-of-work system that is both verify-trivial
 and tmto-hard. Furthermore, it satisfies all other properties,
@@ -81,8 +84,8 @@ is of a special nature that can be turned into a concise and easily verified pro
 Enter the cuckoo hashtable.
 
 \section{Cuckoo hashing}
-Introduced by Rasmus Pagh and Flemming Friche Rodler in
-2001\cite{Pagh04cuckoohashing}, a cuckoo hashtable consists of two same-sized
+Introduced by Rasmus Pagh and Flemming Friche Rodler\cite{Pagh04cuckoohashing},
+a cuckoo hashtable consists of two same-sized
 tables each with its own hash function mapping a key to a table location,
 providing two possible locations for each key.
 % (and constant lookup time).
