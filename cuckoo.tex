@@ -70,9 +70,6 @@ incur several orders of magnitude slowdown.
 Combined, these properties ensure that a proof-of-work system is entirely constrained by main
 memory latency\footnote{The memory requirement should exceed that of the largest available
 single-chip memory to enforce chip-to-chip latencies.} and scales appropriately for any application.
-The single biggest advantage of a memory-and-latency-hard proof-of-work is
-{\em sustainability}---miner costs should be dominated by investment in low-power general purpose
-hardware rather than investment in single purpose hardware coupled with high operational costs.
 
 We introduce the very first proof-of-work system that is both verify-trivial
 and tmto-hard. Furthermore, it satisfies all other properties,
@@ -355,9 +352,10 @@ The partition sizes should remain relatively prime, e.g. by picking the largest 
 
 \section{Conclusion}
 Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency.
-Its parallelizability may be limited to that of multiprocessor-memory interconnection networks
-in general, offering hope of leveling the mining playing field through use of commodity hardware.
-Future research is needed to quantify the behaviour of multiprocessor implementations.
+This aims to make mining more {\em sustainable}, with costs dominated by investment
+in low-power general purpose hardware rather than investment in single purpose hardware
+coupled with high operational costs.
+More research is needed to quantify the behaviour and feasibility of multiprocessor implementations.
 
 \bibliographystyle{IEEEtran}
 \bibliography{cuckoo}
