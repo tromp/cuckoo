@@ -196,8 +196,9 @@ The main program uses 31 bits per node to represent the
 directed cuckoo graph, reserving the most significant bit
 for marking edges on a cycle, to simplify recovery of the proof nonces.
 On my 3.2GHz Intel Core i5, in case no solution is found, size $2^{20}$ takes 4MB and 0.025s, size
-$2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 136s,
-most of which is spent on memory latency.
+$2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 136s.
+A simultaneous multithreading (SMT) implementation should be able to somewhat improve on these times
+by completely hiding the (already cheap) hash computations inside memory access latencies.
 
 \begin{center}
 \begin{tikzpicture}
