@@ -1,24 +1,34 @@
 cuckoo
 ======
 
-Cuckoo Cycle is a new proof of work system with the following features
+Mining is generally considered to be inherently power hungry but it need not be.
+It’s a consequence of making the proof of work computationally intensive.
+If computation is minimized in favor of random access to gigabytes of memory
+(incurring long latencies), then mining will require large investments in RAM
+but relatively little power.
 
-1) proofs take the form of a length 42 cycle in the Cuckoo graph,
-   so that verification only requires computing 42 hashes.
+Bitcoin mining is all computation and no memory.
 
-2) the graph size can scale from 4 to 2^32 nodes,
-   with 4 bytes needed per node, so memory use scales from 1KB to 16GB.
-   Use of 4GB+ should make it somewhat resistent to botnets.
+Litecoin mining requires 128KB of memory per scrypt instance but only 1024
+random accesses, with negligable latency.
 
-3) running time is roughly linear in memory, at under 24s/GB for the current
-   implementation on high end x86.
+Primecoin mining has a sieving and a modular exponentiation component, the latter of
+which is pure computation, while the former requires a few megabytes of memory
+(with non-random access).
 
-4) no time-memory trade-off (TMTO) is known, and memory access patterns are the worst possible,
-   making the algorithm constrained by memory latency.
- 
-5) it has a natural notion of difficulty, namely the number of edges in the graph;
-   above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
-   starts to fall sharply.
+Protoshares mining with Momentum requires 512MB but performs at least one complex SHA512
+computation for each memory access, with a choice of algorithms some of which avoid random access.
 
-6) parallelization must allow many processing elements simultaneous random access to
-   global shared memory, likely benefiting many other applications.
+The memory requirements above are not absolute but allow a trade-off between time and memory.
+
+Cuckoo Cycle represents a breakthrough in three important ways:
+
+1) it performs only one very cheap siphash computation for about 3.3 random accesses to memory,
+
+2) its memory requirement can be set arbitrarily and doesn't allow for any time-memory trade-off.
+
+3) verification of the proof of work is instant, requiring only 42 siphash computations.
+
+Runtime in Cuckoo Cycle is completely dominated by memory latency. It promotes the use
+of commodity general-purpose hardware over custom designed single-purpose hardware,
+making mining more sustainable.
