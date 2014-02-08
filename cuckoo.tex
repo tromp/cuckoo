@@ -200,6 +200,28 @@ $2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 136s.
 A simultaneous multithreading (SMT) implementation should be able to somewhat improve on these times
 by completely hiding the (already cheap) hash computations inside memory access latencies.
 
+% 10 0.001 0.001 94.397
+% 11 0.001 0.001 94.272
+% 12 0.001 0.001 89.146
+% 13 0.001 0.001 93.673
+% 14 0.001 0.001 83.255
+% 15 0.001 0.001 78.903
+% 16 0.001 0.002 62.530
+% 17 0.001 0.003 48.083
+% 18 0.002 0.006 37.878
+% 19 0.004 0.014 29.487
+% 20 0.007 0.028 26.205
+% 21 0.014 0.091 15.653
+% 22 0.028 0.252 11.109
+% 23 0.055 0.580 9.527
+% 24 0.110 1.245 8.847
+% 25 0.216 2.578 8.389
+% 26 0.432 5.378 8.027
+% 27 0.863 11.446 7.542
+% 28 1.724 25.999 6.631
+% 29 3.500 72.057 4.858
+% 30 7.072 150.514 4.699
+
 \begin{center}
 \begin{tikzpicture}
 \begin{axis}[legend pos=north west]
