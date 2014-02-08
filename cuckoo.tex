@@ -195,11 +195,15 @@ proof verifier and this paper. `make test' tests everything.
 The main program uses 31 bits per node to represent the
 directed cuckoo graph, reserving the most significant bit
 for marking edges on a cycle, to simplify recovery of the proof nonces.
-On my 3.2GHz Intel Core i5, in case no solution is found, size $2^{20}$ takes 4MB and 0.025s, size
-$2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 136s.
-A simultaneous multithreading (SMT) implementation should be able to somewhat improve on these times
-by completely hiding the (already cheap) hash computations inside memory access latencies.
+The left plot below shows both the total runtime and the runtime of just
+the hash computation, as a function of (log)size. The latter is purely
+linear, while the former is superlinear due to increasing memory latency
+as the graph no longer fits in cache. The right plot show this more clearly
+as the percentage of hashing to total runtime, ending up around 5\%.
 
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[ymode=log, legend pos=north west]
 % 10 0.001 0.001 94.397
 % 11 0.001 0.001 94.272
 % 12 0.001 0.001 89.146
@@ -210,17 +214,68 @@ by completely hiding the (already cheap) hash computations inside memory access 
 % 17 0.001 0.003 48.083
 % 18 0.002 0.006 37.878
 % 19 0.004 0.014 29.487
-% 20 0.007 0.028 26.205
-% 21 0.014 0.091 15.653
-% 22 0.028 0.252 11.109
-% 23 0.055 0.580 9.527
-% 24 0.110 1.245 8.847
-% 25 0.216 2.578 8.389
-% 26 0.432 5.378 8.027
-% 27 0.863 11.446 7.542
-% 28 1.724 25.999 6.631
-% 29 3.500 72.057 4.858
-% 30 7.072 150.514 4.699
+\addplot[color=green] coordinates {
+(20, 0.007)
+(21, 0.014)
+(22, 0.028)
+(23, 0.055)
+(24, 0.110)
+(25, 0.216)
+(26, 0.432)
+(27, 0.863)
+(28, 1.724)
+(29, 3.500)
+(30, 7.072)
+};
+\addlegendentry{hash runtime}
+\addplot[color=red] coordinates {
+(20, 0.028)
+(21, 0.091)
+(22, 0.252)
+(23, 0.580)
+(24, 1.245)
+(25, 2.578)
+(26, 5.378)
+(27, 11.446)
+(28, 25.999)
+(29, 72.057)
+(30, 150.514)
+};
+\addlegendentry{total runtime}
+\end{axis}
+\end{tikzpicture}
+\hspace{1cm}
+\begin{tikzpicture}
+\begin{axis}[legend pos=north east]
+\addplot[color=blue] coordinates {
+(20, 26.205)
+(21, 15.653)
+(22, 11.109)
+(23, 9.527)
+(24, 8.847)
+(25, 8.389)
+(26, 8.027)
+(27, 7.542)
+(28, 6.631)
+(29, 4.858)
+(30, 4.699)
+};
+\addlegendentry{hash percentage}
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+A simultaneous multithreading (SMT) implementation should be able to
+completely hide the hash computations inside memory access latencies for the bigger sizes.
+On a 3.2GHz Intel Core i5, size $2^{20}$ takes 4MB and 0.025s, size
+$2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 136s.
+The left plot below shows the probability of finding a 42-cycle as a function of the percentage edges/nodes,
+while the right plot shows the average number of memory reads and writes per edge as a function of the percentage
+nonce/easiness (progress through main loop). Both were determined from 10000 runs at size $2^{20}$;
+results at size $2^{25}$ look almost identical.
+In total the program averages 3.3 reads and 1.75 writes per edge.
+%For optimal performance, the implementation should use data prefetch instructions, proceeding to compute
+%the next edge while waiting for data from main memory to load.
 
 \begin{center}
 \begin{tikzpicture}
@@ -255,14 +310,6 @@ by completely hiding the (already cheap) hash computations inside memory access 
 \end{axis}
 \end{tikzpicture}
 \end{center}
-
-The left plot above shows the probability of finding a 42-cycle as a function of the percentage edges/nodes,
-while the right plot shows the average number of memory reads and writes per edge as a function of the percentage
-nonce/easiness (progress through main loop). Both were determined from 10000 runs at size $2^{20}$;
-results at size $2^{25}$ look almost identical.
-In total the program averages 3.3 reads and 1.75 writes per edge.
-%For optimal performance, the implementation should use data prefetch instructions, proceeding to compute
-%the next edge while waiting for data from main memory to load.
 
 \section{Additional difficulty control}
 At very low easiness settings, it's difficult to determine the solution probability
@@ -374,9 +421,9 @@ $2^31-1$ nodes, the most significant bit is then available to distinguish edges 
 The partition sizes should remain relatively prime, e.g. by picking the largest $K$ primes under $2^{31}$.
 
 \section{Conclusion}
-Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency.
+Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency over computation.
 This promotes investment in low-power general purpose hardware (RAM) rather than investment
-in single purpose hardware coupled with high operational costs, maing mining more sustainable.
+in single purpose hardware coupled with high operational costs, making mining more sustainable.
 More research is needed to quantify the behaviour and feasibility of multiprocessor implementations.
 
 \bibliographystyle{IEEEtran}
