@@ -30,5 +30,14 @@ Cuckoo Cycle represents a breakthrough in three important ways:
 3) verification of the proof of work is instant, requiring 1 sha256 and 42 siphash computations.
 
 Runtime in Cuckoo Cycle is completely dominated by memory latency. It promotes the use
-of commodity general-purpose hardware over custom designed single-purpose hardware,
-making mining more sustainable.
+of commodity general-purpose hardware over custom designed single-purpose hardware.
+
+Other features:
+
+4) proofs take the form of a length 42 cycle in the Cuckoo graph
+
+5) it has a natural notion of difficulty, namely the number of edges in the graph;
+   above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
+   starts to fall sharply.
+
+6) running time is under 24s/GB for the current implementation on high end x86.
