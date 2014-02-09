@@ -50,6 +50,10 @@ of prime numbers, using a two-step process of filtering candidates by {\em sievi
 pseudo-primality tests to remaining candidates. The most efficient implementations are still CPU based.
 A downside to primecoin is that its use of memory is not constrained much.
 
+Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs as proof-of-work, the simplest way
+to combine scalable memory usage with trivial verifiability. Its memory requirements are not very strict
+though. as Bloom filters or rainbow tables can identify collisions, and parallellizes well.
+
 Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
 
 \section{Memory latency; the great equalizer}
@@ -195,52 +199,28 @@ proof verifier and this paper. `make test' tests everything.
 The main program uses 31 bits per node to represent the
 directed cuckoo graph, reserving the most significant bit
 for marking edges on a cycle, to simplify recovery of the proof nonces.
-The left plot below shows both the total runtime and the runtime of just
+The left plot below shows both the total runtime in seconds and the runtime of just
 the hash computation, as a function of (log)size. The latter is purely
 linear, while the former is superlinear due to increasing memory latency
-as the graph no longer fits in cache. The right plot show this more clearly
+as the nodes no longer fit in cache. The right plot show this more clearly
 as the percentage of hashing to total runtime, ending up around 5\%.
 
 \begin{center}
 \begin{tikzpicture}
 \begin{axis}[ymode=log, legend pos=north west]
-% 10 0.001 0.001 94.397
-% 11 0.001 0.001 94.272
-% 12 0.001 0.001 89.146
-% 13 0.001 0.001 93.673
-% 14 0.001 0.001 83.255
-% 15 0.001 0.001 78.903
-% 16 0.001 0.002 62.530
-% 17 0.001 0.003 48.083
-% 18 0.002 0.006 37.878
-% 19 0.004 0.014 29.487
-\addplot[color=green] coordinates {
-(20, 0.007)
-(21, 0.014)
-(22, 0.028)
-(23, 0.055)
-(24, 0.110)
-(25, 0.216)
-(26, 0.432)
-(27, 0.863)
-(28, 1.724)
-(29, 3.500)
-(30, 7.072)
-};
-\addlegendentry{hash runtime}
 \addplot[color=red] coordinates {
-(20, 0.028)
-(21, 0.091)
-(22, 0.252)
-(23, 0.580)
-(24, 1.245)
-(25, 2.578)
-(26, 5.378)
-(27, 11.446)
-(28, 25.999)
-(29, 72.057)
-(30, 150.514)
-};
+% (10,0.0000) (11,0.0000) (12,0.0000) (13,0.0001) (14,0.0001)
+(15,0.0002) (16,0.0004) (17,0.0008) (18,0.0017) (19,0.0034)
+(20,0.0068) (21,0.0139) (22,0.0271) (23,0.0542) (24,0.1084)
+(25,0.2166) (26,0.4336) (27,0.8658) (28,1.7322) (29,3.4719)
+(30,7.0389) };
+\addlegendentry{hashing runtime}
+\addplot[color=green] coordinates {
+% (10,0.0000) (11,0.0000) (12,0.0001) (13,0.0001) (14,0.0003)
+(15,0.0002) (16,0.0010) (17,0.0022) (18,0.0049) (19,0.0104)
+(20,0.0250) (21,0.0986) (22,0.2465) (23,0.5332) (24,1.1922)
+(25,2.5505) (26,5.3394) (27,11.0793) (28,23.1984) (29,54.6811)
+(30,128.1682) };
 \addlegendentry{total runtime}
 \end{axis}
 \end{tikzpicture}
@@ -248,19 +228,12 @@ as the percentage of hashing to total runtime, ending up around 5\%.
 \begin{tikzpicture}
 \begin{axis}[legend pos=north east]
 \addplot[color=blue] coordinates {
-(20, 26.205)
-(21, 15.653)
-(22, 11.109)
-(23, 9.527)
-(24, 8.847)
-(25, 8.389)
-(26, 8.027)
-(27, 7.542)
-(28, 6.631)
-(29, 4.858)
-(30, 4.699)
-};
-\addlegendentry{hash percentage}
+% (10,38.8889) (11,33.3333) (12,45.1613) (13,39.8496) (14,44.6154)
+(15,96.5217) (16,45.9119) (17,38.2180) (18,35.0988) (19,32.6724)
+(20,27.2076) (21,14.0874) (22,11.0014) (23,10.1635) (24,9.0964)
+(25,8.4921) (26,8.1215) (27,7.8144) (28,7.4670) (29,6.3494)
+(30,5.4919) };
+\addlegendentry{hashing percentage}
 \end{axis}
 \end{tikzpicture}
 \end{center}
@@ -268,7 +241,7 @@ as the percentage of hashing to total runtime, ending up around 5\%.
 A simultaneous multithreading (SMT) implementation should be able to
 completely hide the hash computations inside memory access latencies for the bigger sizes.
 On a 3.2GHz Intel Core i5, size $2^{20}$ takes 4MB and 0.025s, size
-$2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 136s.
+$2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 128s, or roughly half a minute per GB.
 The left plot below shows the probability of finding a 42-cycle as a function of the percentage edges/nodes,
 while the right plot shows the average number of memory reads and writes per edge as a function of the percentage
 nonce/easiness (progress through main loop). Both were determined from 10000 runs at size $2^{20}$;
@@ -343,11 +316,11 @@ One example of such a path conflict is the addition of edges
 $(7,10)$ and $(3,15)$ in the example diagrams. If these were to happen in parallel,
 then the path from $15$ will likely end at $5$ because
 edge $(10 \rightarrow 5)$ hasn't been reversed yet.
-As a result, $(3 \rightarrow 15)$ will be added without realizing it creates a cyle.
-Thus, in a parallel implementation, path following cannot be assumed to terminate,
+As a result, $(3 \rightarrow 15)$ will be added, not realizing it creates a cyle.
+Thus, in a parallel implementation, path following can no longer be assumed to terminate,
 creating further complications, like the need for cycle detection algorithm
 such as~\cite{1980-brent-cycles}. Simply ignoring the formed cycle, by aborting paths whose length
-exceed some threshold, means that no cycles can ever be found containing nodes that lead to the cycle.
+exceeds some threshold, means that no cycles can ever be found containing nodes that lead to the cycle.
 The left plot below shows the average number of times that either of the two roots
 for a nonce occurred a given number of nonces ago, which suggests that there are potentially
 about $10P$ such conflicts.
@@ -402,12 +375,13 @@ is a topic for further research.
 
 \section{Choice of cycle length}
 Extremely small cycle lengths risk the feasability of alternative datastructures that
-are more memory-efficient. For example, for $L=2$ the problem reduces to finding a birthday collision,
-for which a Bloom filter would be very effective, as would Rainbow tables.
-It seems however that the Cuckoo representation might be optimal even for $L=4$.
-Such small values still harm the TMTO resistance though as mentioned in the previous paragraph.
+are more memory-efficient. For example, for $L=2$ the problem reduces to finding a birthday collision
+as in the Momentum proof-of-work.
+It is conceivable however that the Cuckoo representation is already optimal for $L=4$.
+Such small values still harm the TMTO resistance though, as mentioned in the previous paragraph,
+and may reduce parallelization resistance.
 In order to keep proof size manageable, the cycle length should not be too large either.
-We consider 24-64 to be a healthy range, and 42 a nice number close to the middle of that range.
+We consider 20-64 to be a healthy range, which averages to 42.
 The right plot above shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
 as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
 beyond $L=100$ are not shown. For reference, the longest cycle found was of length 1726.
