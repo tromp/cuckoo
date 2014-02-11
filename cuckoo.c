@@ -17,7 +17,6 @@ int main(int argc, char **argv) {
   printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
   unsigned us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
-unsigned nw=0;
   for (unsigned nonce = 0; nonce < EASINESS; nonce++) {
     sipedge(nonce, us, vs);
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
@@ -58,17 +57,14 @@ unsigned nw=0;
       break;
     }
     if (nu < nv) {
-nw += nu + 1;
       while (nu--)
         cuckoo[us[nu+1]] = us[nu];
       cuckoo[*us] = *vs;
     } else {
-nw += nv + 1;
       while (nv--)
         cuckoo[vs[nv+1]] = vs[nv];
       cuckoo[*vs] = *us;
     }
   }
-printf("%.3lf writes\n", nw/(double)EASINESS);
   return 0;
 }
