@@ -7,7 +7,7 @@
 
 // used to simplify nonce recovery
 #define CYCLE 0x80000000
-int cuckoo[1+SIZE]; // global; conveniently initialized to zero
+unsigned cuckoo[1+SIZE]; // global; conveniently initialized to zero
 
 int main(int argc, char **argv) {
   // 6 largest sizes 131 928 529 330 729 132 not implemented
@@ -16,8 +16,9 @@ int main(int argc, char **argv) {
   setheader(header);
   printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
-  int us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
-  for (int nonce = 0; nonce < EASINESS; nonce++) {
+  unsigned us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
+unsigned nw=0;
+  for (unsigned nonce = 0; nonce < EASINESS; nonce++) {
     sipedge(nonce, us, vs);
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
@@ -48,7 +49,7 @@ int main(int argc, char **argv) {
         cuckoo[vs[nv+1]] = CYCLE | vs[nv];
       for (cuckoo[*vs] = CYCLE | *us; len ; nonce--) {
         sipedge(nonce, &u, &v);
-        int c;
+        unsigned c;
         if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
           printf("%2d %08x (%d,%d)\n", --len, nonce, u, v);
           cuckoo[c] &= ~CYCLE;
@@ -57,14 +58,17 @@ int main(int argc, char **argv) {
       break;
     }
     if (nu < nv) {
+nw += nu + 1;
       while (nu--)
         cuckoo[us[nu+1]] = us[nu];
       cuckoo[*us] = *vs;
     } else {
+nw += nv + 1;
       while (nv--)
         cuckoo[vs[nv+1]] = vs[nv];
       cuckoo[*vs] = *us;
     }
   }
+printf("%.3lf writes\n", nw/(double)EASINESS);
   return 0;
 }

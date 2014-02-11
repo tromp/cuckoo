@@ -3,7 +3,7 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=default}
 \newcommand{\cuckoo}{{\rm cuckoo}}
-\newcommand{\hash}{{\rm hash}}
+\newcommand{\hash}{{\rm siphash}}
 \usepackage{hyperref}
 \title{Cuckoo Cycle: \protect\\ a memory-hard proof-of-work system}
 \author{John Tromp}
@@ -11,7 +11,7 @@
 \maketitle
 
 \begin{abstract}
-We introduce the first trivially verifiable, scalable, memory-and-tmto-hard proof-of-work system.
+We introduce the first trivially verifiable, scalable and tmto\footnote{time-memory trade-off}-hard proof-of-work system.
 \end{abstract}
 
 \section{Introduction}
@@ -36,23 +36,25 @@ and finally by custom designed chips (ASICs).
 
 Downsides of this development include high investment costs, rapid obsolesence,
 centralization of mining power, and large power consumption.
-This has led people to look for alternative proof-of-work systems that resist parallelizability,
-aiming to keep commodity hardware competitive.
+This has led people to look for alternative proof-of-work systems that resist parallelizability
+and require a nontrivial amount of memory, aiming to keep commodity hardware competitive.
 
 Litecoin replaces the SHA256 hash function in hashcash by a single round version of the
 {\em scrypt} key derivation function. Its memory requirement of 128KB is a compromise
 between computation-hardness for the prover and verification efficiency for the verifier.
-Although designed to be GPU-resistant, GPUs are now a least an order of magnitude faster
-than CPUs for Litecoin mining, and ASICs are have appeared on the market in early 2014.
+Although designed to be GPU-resistant, GPUs are now at least an order of magnitude faster
+than CPUs for Litecoin mining, and ASICs have appeared on the market in early 2014.
 
 Primecoin~\cite{king2013} is an interesting design based on finding long Cunningham chains
 of prime numbers, using a two-step process of filtering candidates by {\em sieving}, and applying
 pseudo-primality tests to remaining candidates. The most efficient implementations are still CPU based.
-A downside to primecoin is that its use of memory is not constrained much.
+Downsides to this proof-of-work are its complexity and the scope for algorithmic improvements
+that may be kept private. Its memory requirements, while larger than Litecoin's, are still modest.
 
-Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs as proof-of-work, the simplest way
-to combine scalable memory usage with trivial verifiability. Its memory requirements are not very strict
-though. as Bloom filters or rainbow tables can identify collisions, and parallellizes well.
+Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs as proof-of-work,
+the simplest way to combine scalable memory usage with trivial verifiability.
+Its memory requirements are not very strict though. as Bloom filters or rainbow tables
+can identify collisions, and parallellizes well.
 
 Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
 
@@ -64,16 +66,15 @@ Ideally, it should have the following properties:
 \begin{description}
 \item[verify-trivial] A proof can be checked in microseconds rather than milliseconds.
 \item[scalable] The amount of memory needed is a parameter that can scale arbitrarily.
-\item[linear] The number of computational steps and the number of memory accesses is linear in the amount of memory.
-\item[tmto-hard] There is no time-memory trade-off; using only half as much memory should
-incur several orders of magnitude slowdown.
+\item[linear] Amount of computational steps and memory accesses are linear in the amount of memory.
+\item[tmto-hard] Using only half as much memory should incur several orders of magnitude slowdown.
 \item[random-access] RAM is accessed randomly, making bandwidth and caches irrelevant.
 \item[parallel-hard] Memory accesses cannot be effectively parallelized.
 \item[simple] The algorithm should be sufficiently simple that one can be convinced of its optimality.
 \end{description}
 Combined, these properties ensure that a proof-of-work system is entirely constrained by main
 memory latency\footnote{The memory requirement should exceed that of the largest available
-single-chip memory to enforce chip-to-chip latencies.} and scales appropriately for any application.
+single-chip memory to enforce off-chip latencies.} and scales appropriately for any application.
 
 We introduce the very first proof-of-work system that is both verify-trivial
 and tmto-hard. Furthermore, it satisfies all other properties,
@@ -101,16 +102,16 @@ This naturally suggests a proof-of-work problem, which we now formally define.
 
 \section{The proof-of-work function}
 Fix three parameters $L \leq E \leq N$ in the range $\{4,...,2^{32}\}$, which
-denote the cycle length, number of edges (also easiness),
-and the number of nodes, resprectively. $L$ and $N$ must be even.
-Function $\cuckoo$ maps any binary string $h$ (the header) to a bipartite graph
+denote the cycle length, number of edges (aka easiness),
+and the number of nodes, respectively. $L$ and $N$ must be even.
+Function $\cuckoo$ maps any 128-bit key $k$ (header digest) to a bipartite graph
 $G = (V_0 \cup V_1, E)$, where $V_0$ is the set of integers modulo $N_0=N/2+1$,
 $V_1$ is the set of integers modulo $N_1=N/2-1$, and $E$ has an edge between
-$\hash(h,n) \bmod N_0$ in $V_0$ and $\hash(h,n) \bmod N_1$ in $V_1$ for every
+$\hash(k,n) \bmod N_0$ in $V_0$ and $\hash(k,n) \bmod N_1$ in $V_1$ for every
 nonce $0 \leq n < E$. A proof for $G$ is a subset of $L$ nonces whose
 corresponding edges form an $L$-cycle in $G$.
 
-\section{Solving a proof-of-work problem}
+\section{Solving the proof-of-work problem}
 We enumerate the $E$ nonces, but instead of storing the nonce itself as a key
 in the Cuckoo hashtable, we store the alternate key location at the key location,
 and forget about the nonce.
@@ -194,8 +195,8 @@ in the cuckoo graph to begin with, it hardly affects the rate of solution findin
 \section{Implementation and performance}
 The C-program listed in the Appendix is also available online at
 \url{https://github.com/tromp/cuckoo} together with a Makefile,
-proof verifier and this paper. `make test' tests everything.
-`make example' reproduces the example shown in the diagrams.
+proof verifier and the latest version of this paper. `make test' tests everything.
+`make example' reproduces the example shown above.
 The main program uses 31 bits per node to represent the
 directed cuckoo graph, reserving the most significant bit
 for marking edges on a cycle, to simplify recovery of the proof nonces.
@@ -243,11 +244,11 @@ completely hide the hash computations inside memory access latencies for the big
 On a 3.2GHz Intel Core i5, size $2^{20}$ takes 4MB and 0.025s, size
 $2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 128s, or roughly half a minute per GB.
 The left plot below shows the probability of finding a 42-cycle as a function
-of the percentage edges/nodes, while the right plot shows the average number of
+of the percentage edges/nodes (relative easiness), while the right plot shows the average number of
 memory reads and writes per edge as a function of the percentage
 nonce/easiness (progress through main loop). Both were determined from 10000 runs at size $2^{20}$;
 results at size $2^{25}$ look almost identical.
-In total the program averages 3.3 reads and 1.75 writes per edge.
+In total the program averages 3.3 reads and 1.1 writes per edge.
 %For optimal performance, the implementation should use data prefetch instructions, proceeding to compute
 %the next edge while waiting for data from main memory to load.
 
@@ -289,8 +290,8 @@ In total the program averages 3.3 reads and 1.75 writes per edge.
 Easiness determines a base level of difficulty, which may suffice for applications where
 difficulty is to remain fixed. For crypto currencies, where difficulty must scale in precisely
 controlled manner across a huge range, adjusting easiness is not suitable.
-Instead, a threshold $0 < T < 2^64$ is introduced, and we impose an additional constraint
-$\hash(h,n) < T$, on any $L$-cycle, where $n$ is the sum of its nonces modulo $E$.
+Instead, a diffculty target $0 < T < 2^64$ is introduced, and we impose the additional constraint
+$\hash(h,s) < T$, on any $L$-cycle, where $s$ is the sum of its nonces modulo $E$.
 This reduces the success probability by a factor $2^{64}/T$.
 
 \section{Memory-hardness}
@@ -300,8 +301,8 @@ to reject a fraction $p^2$ of generated edges, drastically reducing the odds of
 finding cycles for $p<1/\sqrt{2}$ (the reduction being exponential in cycle length).
 There is one obvious trade-off in the other direction. By doubling the memory
 used, nonces can be stored alongside the directed edges, which would save the
-effort of recovering them in the current slow manner. The speedup falls far
-short of a factor 2 though, so a better use of that memory would be to run
+effort of recovering them in the current slow manner. The speedup only
+applies to solution finding runs though, so a better use of that memory would be to run
 another copy in parallel.
 
 \section{Parallelizability}
@@ -418,7 +419,7 @@ More research is needed to quantify the behaviour and feasibility of multiproces
 
 // used to simplify nonce recovery
 #define CYCLE 0x80000000
-int cuckoo[1+SIZE]; // global; conveniently initialized to zero
+unsigned cuckoo[1+SIZE]; // global; conveniently initialized to zero
 
 int main(int argc, char **argv) {
   // 6 largest sizes 131 928 529 330 729 132 not implemented
@@ -427,8 +428,8 @@ int main(int argc, char **argv) {
   setheader(header);
   printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
-  int us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
-  for (int nonce = 0; nonce < EASINESS; nonce++) {
+  unsigned us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
+  for (unsigned nonce = 0; nonce < EASINESS; nonce++) {
     sipedge(nonce, us, vs);
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
@@ -459,7 +460,7 @@ int main(int argc, char **argv) {
         cuckoo[vs[nv+1]] = CYCLE | vs[nv];
       for (cuckoo[*vs] = CYCLE | *us; len ; nonce--) {
         sipedge(nonce, &u, &v);
-        int c;
+        unsigned c;
         if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
           printf("%2d %08x (%d,%d)\n", --len, nonce, u, v);
           cuckoo[c] &= ~CYCLE;
@@ -525,7 +526,7 @@ typedef uint64_t u64;
   } while(0)
  
 // SipHash-2-4 specialized to precomputed key and 4 byte nonces
-u64 siphash24( int nonce, u64 v0, u64 v1, u64 v2, u64 v3) {
+u64 siphash24( unsigned nonce, u64 v0, u64 v1, u64 v2, u64 v3) {
   u64 b = ( ( u64 )4 ) << 56 | nonce;
   v3 ^= b;
   SIPROUND; SIPROUND;
@@ -552,11 +553,15 @@ void setheader(const char *header) {
   v3 ^= k1; v2 ^= k0; v1 ^= k1; v0 ^= k0;
 }
 
+u64 siphash(unsigned nonce) {
+  return siphash24(nonce, v0, v1, v2, v3);
+}
+
 // generate edge in cuckoo graph
-void sipedge(int nonce, int *pu, int *pv) {
-  u64 sip = siphash24(nonce, v0, v1, v2, v3);
-  *pu = 1 +         (int)(sip % PARTU);
-  *pv = 1 + PARTU + (int)(sip % PARTV);
+void sipedge(unsigned nonce, unsigned *pu, unsigned *pv) {
+  u64 sip = siphash(nonce);
+  *pu = 1 +         (unsigned)(sip % PARTU);
+  *pv = 1 + PARTU + (unsigned)(sip % PARTV);
 }
 \end{verbatim}
 

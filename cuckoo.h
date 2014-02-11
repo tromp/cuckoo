@@ -39,7 +39,7 @@ typedef uint64_t u64;
   } while(0)
  
 // SipHash-2-4 specialized to precomputed key and 4 byte nonces
-u64 siphash24( int nonce, u64 v0, u64 v1, u64 v2, u64 v3) {
+u64 siphash24( unsigned nonce, u64 v0, u64 v1, u64 v2, u64 v3) {
   u64 b = ( ( u64 )4 ) << 56 | nonce;
   v3 ^= b;
   SIPROUND; SIPROUND;
@@ -66,9 +66,13 @@ void setheader(const char *header) {
   v3 ^= k1; v2 ^= k0; v1 ^= k1; v0 ^= k0;
 }
 
+u64 siphash(unsigned nonce) {
+  return siphash24(nonce, v0, v1, v2, v3);
+}
+
 // generate edge in cuckoo graph
-void sipedge(int nonce, int *pu, int *pv) {
-  u64 sip = siphash24(nonce, v0, v1, v2, v3);
-  *pu = 1 +         (int)(sip % PARTU);
-  *pv = 1 + PARTU + (int)(sip % PARTV);
+void sipedge(unsigned nonce, unsigned *pu, unsigned *pv) {
+  u64 sip = siphash(nonce);
+  *pu = 1 +         (unsigned)(sip % PARTU);
+  *pv = 1 + PARTU + (unsigned)(sip % PARTV);
 }
