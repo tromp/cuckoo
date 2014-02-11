@@ -101,7 +101,7 @@ This naturally suggests a proof-of-work problem, which we now formally define.
 
 \section{The proof-of-work function}
 Fix three parameters $L \leq E \leq N$ in the range $\{4,...,2^{32}\}$, which
-denote the cycle length, number of edges (also easyness, opposite of difficulty),
+denote the cycle length, number of edges (also easiness),
 and the number of nodes, resprectively. $L$ and $N$ must be even.
 Function $\cuckoo$ maps any binary string $h$ (the header) to a bipartite graph
 $G = (V_0 \cup V_1, E)$, where $V_0$ is the set of integers modulo $N_0=N/2+1$,
@@ -189,7 +189,7 @@ by enumerating nonces once more and checking which ones formed the cycle.
 If not, then we keep the graph acyclic by ignoring the edge.
 There is some probability of overlooking other $L$-cycles
 through that edge, but in the important low easiness case of having few cycles
-in the cuckoo graph to begin with, it hardly affect the rate of solution finding.
+in the cuckoo graph to begin with, it hardly affects the rate of solution finding.
 
 \section{Implementation and performance}
 The C-program listed in the Appendix is also available online at
@@ -242,8 +242,9 @@ A simultaneous multithreading (SMT) implementation should be able to
 completely hide the hash computations inside memory access latencies for the bigger sizes.
 On a 3.2GHz Intel Core i5, size $2^{20}$ takes 4MB and 0.025s, size
 $2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 128s, or roughly half a minute per GB.
-The left plot below shows the probability of finding a 42-cycle as a function of the percentage edges/nodes,
-while the right plot shows the average number of memory reads and writes per edge as a function of the percentage
+The left plot below shows the probability of finding a 42-cycle as a function
+of the percentage edges/nodes, while the right plot shows the average number of
+memory reads and writes per edge as a function of the percentage
 nonce/easiness (progress through main loop). Both were determined from 10000 runs at size $2^{20}$;
 results at size $2^{25}$ look almost identical.
 In total the program averages 3.3 reads and 1.75 writes per edge.
@@ -284,11 +285,13 @@ In total the program averages 3.3 reads and 1.75 writes per edge.
 \end{tikzpicture}
 \end{center}
 
-\section{Additional difficulty control}
-At very low easiness settings, it's difficult to determine the solution probability
-with much precision. If desired, one can instead impose an additional constraint on the $L$-cycle,
-namely that the sum of its nonces modulo $E$ be less than some difficulty threshold $D$.
-This reduces the success probability by exactly $E/D$.
+\section{Difficulty control}
+Easiness determines a base level of difficulty, which may suffice for applications where
+difficulty is to remain fixed. For crypto currencies, where difficulty must scale in precisely
+controlled manner across a huge range, adjusting easiness is not suitable.
+Instead, a threshold $0 < T < 2^64$ is introduced, and we impose an additional constraint
+$\hash(h,n) < T$, on any $L$-cycle, where $n$ is the sum of its nonces modulo $E$.
+This reduces the success probability by a factor $2^{64}/T$.
 
 \section{Memory-hardness}
 I conjecture that this problem doesn't allow for a time-memory trade-off. If
@@ -307,8 +310,8 @@ least $P$ memory elements (ME) by some multistage interconnection network.
 For $0\leq p < P$, PE $p$ processes all nonces $p \bmod P$.
 
 Note that unless one uses at least $P^2$ MEs, memory routing conflicts will frequently arise.
-The possibility of development of custom hardware for improved parallel random access to main
-need not be a big concern, as this is likely to benefit many other applications as well.
+The possibility of development of custom hardware for improved parallel random access to global
+shared memory need not be a big concern, as this is likely to benefit many other applications as well.
 
 Parallelization also presents algorithmic challenges. Paths from an edge's two endpoints
 are not well-defined when other edge additions and path reversals are still in progress.
