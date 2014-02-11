@@ -105,10 +105,9 @@ edge for every key, connecting the two locations it can reside at.
 This naturally suggests a proof-of-work problem, which we now formally define.
 
 \section{The proof-of-work function}
-Fix three parameters $L \leq E \leq N$ in the range $\{4,...,2^{32}\}$, which
-denote the cycle length, number of edges (aka easiness),
-and the number of nodes, respectively. $L$ and $N$ must be even.
-Function $\cuckoo$ maps any 128-bit key $k$ (header digest) to a bipartite graph
+Fix an (even) number of nodes $8 \leq N < 2^{32}$, a number of edges $N/4 < E \leq N$,
+and an (even) cycle length $4 \leq L < 256$.
+Function $\cuckoo$ maps any 128-bit key $k$ (the header digest) to a bipartite graph
 $G = (V_0 \cup V_1, E)$, where $V_0$ is the set of integers modulo $N_0=N/2+1$,
 $V_1$ is the set of integers modulo $N_1=N/2-1$, and $E$ has an edge between
 $\hash(k,n) \bmod N_0$ in $V_0$ and $\hash(k,n) \bmod N_1$ in $V_1$ for every
@@ -193,7 +192,7 @@ If the cycle length equals $L$, then we solved the problem, and recover the proo
 by enumerating nonces once more and checking which ones formed the cycle.
 If not, then we keep the graph acyclic by ignoring the edge.
 There is some probability of overlooking other $L$-cycles
-through that edge, but in the important low easiness case of having few cycles
+through that edge, but in the important case of having few cycles
 in the cuckoo graph to begin with, it hardly affects the rate of solution finding.
 
 \section{Implementation and performance}
@@ -253,8 +252,6 @@ memory reads and writes per edge as a function of the percentage
 nonce/easiness (progress through main loop). Both were determined from 10000 runs at size $2^{20}$;
 results at size $2^{25}$ look almost identical.
 In total the program averages 3.3 reads and 1.1 writes per edge.
-%For optimal performance, the implementation should use data prefetch instructions, proceeding to compute
-%the next edge while waiting for data from main memory to load.
 
 \begin{center}
 \begin{tikzpicture}
@@ -291,11 +288,16 @@ In total the program averages 3.3 reads and 1.1 writes per edge.
 \end{center}
 
 \section{Difficulty control}
-Easiness determines a base level of difficulty, which may suffice for applications where
-difficulty is to remain fixed. For crypto currencies, where difficulty must scale in precisely
+Relative easiness (the ratio $E/N$) determines a base level of difficulty,
+which may suffice for applications where difficulty is to remain fixed.
+The ratio $E/N=1$ is suitable when a practically guaranteed solution is desired,
+For crypto currencies, where difficulty must scale in precisely
 controlled manner across a huge range, adjusting easiness is not suitable.
-Instead, a diffculty target $0 < T < 2^64$ is introduced, and we impose the additional constraint
-$\hash(h,s) < T$, on any $L$-cycle, where $s$ is the sum of its nonces modulo $E$.
+The implementation default $E/N=1/2$ gives a solution probability of roughly $5\%$,
+while keeping the number of found cycles down to a handful.
+For further control, a diffculty target $0 < T < 2^{64}$ is introduced,
+and we impose the additional constraint $\hash(h,\Sigma) < T$
+on any $L$-cycle, where $\Sigma$ is the sum of its nonces modulo $E$.
 This reduces the success probability by a factor $2^{64}/T$.
 
 \section{Memory-hardness}
@@ -399,7 +401,7 @@ While the current algorithm can accomodate up to $N=2^{33}-2$ nodes by a simple 
 in implementation, a different idea is needed to scale beyond that.
 To that end, we propose to use $K$-partite graphs with edges only between partition $k$ and partition $(k+1) \bmod K$,
 where $k$ is fed into the hash function along with the header and nonce. With each partition consisting of at most
-$2^31-1$ nodes, the most significant bit is then available to distinguish edges to the two neighbouring partitions.
+$2^{31}-1$ nodes, the most significant bit is then available to distinguish edges to the two neighbouring partitions.
 The partition sizes should remain relatively prime, e.g. by picking the largest $K$ primes under $2^{31}$.
 
 \section{Conclusion}
