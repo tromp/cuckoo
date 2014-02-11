@@ -72,9 +72,13 @@ Ideally, it should have the following properties:
 \item[parallel-hard] Memory accesses cannot be effectively parallelized.
 \item[simple] The algorithm should be sufficiently simple that one can be convinced of its optimality.
 \end{description}
-Combined, these properties ensure that a proof-of-work system is entirely constrained by main
-memory latency\footnote{The memory requirement should exceed that of the largest available
-single-chip memory to enforce off-chip latencies.} and scales appropriately for any application.
+Combined, these properties ensure that a proof-of-work system is entirely
+constrained by main memory latency\footnote{The memory requirement should
+exceed that of the largest available
+single-chip memory to enforce off-chip latencies. It should also be a
+significant fraction of the typical memory of a botnet computer, as sending the
+machine into swap-hell is likely to alert its owner.} and scales appropriately
+for any application.
 
 We introduce the very first proof-of-work system that is both verify-trivial
 and tmto-hard. Furthermore, it satisfies all other properties,
