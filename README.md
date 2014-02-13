@@ -34,7 +34,7 @@ of commodity general-purpose hardware over custom designed single-purpose hardwa
 
 Other features:
 
-4) proofs take the form of a length 42 cycle in the Cuckoo graph
+4) proofs take the form of a length 42 cycle in the Cuckoo graph.
 
 5) it has a natural notion of (base) difficulty, namely the number of edges in the graph;
    above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
@@ -42,3 +42,6 @@ Other features:
 
 6) running time for the current implementation on high end x86 is under 24s/GB single-threaded,
    and under 3s/GB for 12 threads.
+
+7) making cuckoo use a significant fraction of the typical memory of a botnet computer
+   will send it into swap-hell, and likely alert its owner.
