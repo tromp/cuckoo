@@ -69,7 +69,7 @@ Ideally, it should have the following properties:
 \item[linear] Amount of computational steps and memory accesses are linear in the amount of memory.
 \item[tmto-hard] Using only half as much memory should incur several orders of magnitude slowdown.
 \item[random-access] RAM is accessed randomly, making bandwidth and caches irrelevant.
-\item[parallel-hard] Memory accesses cannot be effectively parallelized.
+\item[parallel-hard] No speedup is possible for parallel implementations.
 \item[simple] The algorithm should be sufficiently simple that one can be convinced of its optimality.
 \end{description}
 Combined, these properties ensure that a proof-of-work system is entirely
@@ -82,7 +82,7 @@ for any application.
 
 We introduce the very first proof-of-work system that is both verify-trivial
 and tmto-hard. Furthermore, it satisfies all other properties,
-except for being parallel-resistant at best.
+except for parallel-hardness (see the later section on parallelizability).
 Amazingly, it amounts to little more than enumerating nonces and storing them
 in a hashtable. While all hashtables break down when trying to store more items than
 it was designed to handle, in one hashtable design in particular this breakdown
@@ -242,8 +242,8 @@ as the percentage of hashing to total runtime, ending up around 5\%.
 \end{tikzpicture}
 \end{center}
 
-A simultaneous multithreading (SMT) implementation should be able to
-completely hide the hash computations inside memory access latencies for the bigger sizes.
+% A simultaneous multithreading (SMT) implementation should be able to
+% completely hide the hash computations inside memory access latencies for the bigger sizes.
 On a 3.2GHz Intel Core i5, size $2^{20}$ takes 4MB and 0.025s, size
 $2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 128s, or roughly half a minute per GB.
 The left plot below shows the probability of finding a 42-cycle as a function
@@ -312,30 +312,33 @@ applies to solution finding runs though, so a better use of that memory would be
 another copy in parallel.
 
 \section{Parallelizability}
-To parallellize the program one could run $P$ processing elements (PE) connected to at
-least $P$ memory elements (ME) by some multistage interconnection network.
-For $0\leq p < P$, PE $p$ processes all nonces $p \bmod P$.
-
-Note that unless one uses at least $P^2$ MEs, memory routing conflicts will frequently arise.
-The possibility of development of custom hardware for improved parallel random access to global
-shared memory need not be a big concern, as this is likely to benefit many other applications as well.
-
-Parallelization also presents algorithmic challenges. Paths from an edge's two endpoints
+The implementation allows the number of threads to be set with -DNTHREADS
+(but currently only outputs a proof in the single-threaded case).
+For $0\leq t < T$, thread $t$ processes all nonces $t \bmod T$.
+Parallelization presents some algorithmic challenges. Paths from an edge's two endpoints
 are not well-defined when other edge additions and path reversals are still in progress.
 One example of such a path conflict is the addition of edges
 $(7,10)$ and $(3,15)$ in the example diagrams. If these were to happen in parallel,
 then the path from $15$ will likely end at $5$ because
 edge $(10 \rightarrow 5)$ hasn't been reversed yet.
 As a result, $(3 \rightarrow 15)$ will be added, not realizing it creates a cyle.
-Thus, in a parallel implementation, path following can no longer be assumed to terminate,
-creating further complications, like the need for cycle detection algorithm
-such as~\cite{1980-brent-cycles}. Simply ignoring the formed cycle, by aborting paths whose length
-exceeds some threshold, means that no cycles can ever be found containing nodes that lead to the cycle.
+Thus, in a parallel implementation, path following can no longer be assumed to terminate.
+Instead of using a cycle detection algorithm such as~\cite{1980-brent-cycles}, our implementation
+simply aborts when the path length exceeds MAXPATHLEN.
 The left plot below shows the average number of times that either of the two roots
-for a nonce occurred a given number of nonces ago, which suggests that there are potentially
-about $10P$ such conflicts.
-Analysing how these conflicts affect performance and the probabillity of finding cycles
-is a topic for further research. 
+for a nonce occurred a given number of nonces ago, showing that there are potentially
+about $10T$ such conflicts.
+% Analysing how these conflicts affect performance and the probabillity of finding cycles
+% is a topic for further research. 
+The right plot shows the speedup achieved by up to 12 threads on an Intel Xeon X5670 at 2.93GHz.
+Each datapoint represents 10 runs on $2^{30}$ nodes with headers "0" through "9".
+Although the speedup is sublinear at 8.7 for 12 threads, there are still clear gains to be made
+by using more threads. Since there were no aborts in the 110 multithreaded runs, path conflicts
+do not pose a problem yet. More experiments are needed to determine where memory bottlenecks
+and path conflicts make further multithreading ineffective.
+% Note that unless one uses at least $P^2$ MEs, memory routing conflicts will frequently arise.
+% The possibility of development of custom hardware for improved parallel random access to global
+% shared memory need not be a big concern, as this is likely to benefit many other applications as well.
 
 \begin{center}
 \begin{tikzpicture}
@@ -351,6 +354,29 @@ is a topic for further research.
 \addlegendentry{25}
 \end{axis}
 \end{tikzpicture}\hspace{1cm}\begin{tikzpicture}
+\begin{axis}[ymin=0, legend pos=south east]
+\addplot coordinates { (1, 1) (2, 1.69) (3, 2.13) (4, 3.38) (5, 3.76)
+(6, 4.89) (7, 5.33) (8, 6.34) (9, 6.88) (10, 7.69) (11, 8.31) (12, 8.71) };
+\addlegendentry{multithreaded speedup}
+\end{axis}
+\end{tikzpicture}
+\end{center}
+
+\section{Choice of cycle length}
+Extremely small cycle lengths risk the feasability of alternative datastructures that
+are more memory-efficient. For example, for $L=2$ the problem reduces to finding a birthday collision
+as in the Momentum proof-of-work.
+It is conceivable however that the Cuckoo representation is already optimal for $L=4$.
+Such small values still harm the TMTO resistance though, as mentioned in the previous paragraph,
+and may reduce parallelization resistance.
+In order to keep proof size manageable, the cycle length should not be too large either.
+We consider 20-64 to be a healthy range, which averages to 42.
+The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
+as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
+beyond $L=100$ are not shown. For reference, the longest cycle found was of length 2120.
+
+\begin{center}
+\begin{tikzpicture}
 \begin{axis}
 \addplot[color=orange] coordinates {
 (4,0.24862) (6,0.15673) (8,0.10907) (10,0.07952) (12,0.05783) (14,0.04269) (16,0.0303)
@@ -383,19 +409,6 @@ is a topic for further research.
 \end{tikzpicture}
 \end{center}
 
-\section{Choice of cycle length}
-Extremely small cycle lengths risk the feasability of alternative datastructures that
-are more memory-efficient. For example, for $L=2$ the problem reduces to finding a birthday collision
-as in the Momentum proof-of-work.
-It is conceivable however that the Cuckoo representation is already optimal for $L=4$.
-Such small values still harm the TMTO resistance though, as mentioned in the previous paragraph,
-and may reduce parallelization resistance.
-In order to keep proof size manageable, the cycle length should not be too large either.
-We consider 20-64 to be a healthy range, which averages to 42.
-The right plot above shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
-as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
-beyond $L=100$ are not shown. For reference, the longest cycle found was of length 1726.
-
 \section{Scaling memory beyond 16-32 GB}
 While the current algorithm can accomodate up to $N=2^{33}-2$ nodes by a simple change
 in implementation, a different idea is needed to scale beyond that.
@@ -408,7 +421,7 @@ The partition sizes should remain relatively prime, e.g. by picking the largest 
 Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency over computation.
 This promotes investment in low-power general purpose hardware (RAM) rather than investment
 in single purpose hardware coupled with high operational costs, making mining more sustainable.
-More research is needed to quantify the behaviour and feasibility of multiprocessor implementations.
+More research is needed to determine the limits of parallelizability.
 
 \bibliographystyle{IEEEtran}
 \bibliography{cuckoo}
