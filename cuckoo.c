@@ -9,15 +9,10 @@
 #define CYCLE 0x80000000
 unsigned cuckoo[1+SIZE]; // global; conveniently initialized to zero
 
-int main(int argc, char **argv) {
-  // 6 largest sizes 131 928 529 330 729 132 not implemented
-  assert(SIZE < (unsigned)CYCLE);
-  char *header = argc >= 2 ? argv[1] : "";
-  setheader(header);
-  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
+void *worker(void *pt) {
+  long t = (long)pt;
   unsigned us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
-  for (unsigned nonce = 0; nonce < EASINESS; nonce++) {
+  for (unsigned nonce = t; nonce < EASINESS; nonce += NTHREADS) {
     sipedge(nonce, us, vs);
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
@@ -39,18 +34,21 @@ int main(int argc, char **argv) {
       int min = nu < nv ? nu : nv;
       for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
       int len = nu + nv + 1;
-      printf("% 4d-cycle found at %d%%\n", len, (int)(nonce*100L/EASINESS));
+      printf("% 4d-cycle found at %ld:%d%%\n", len, t, (int)(nonce*100L/EASINESS));
+#if NTHREADS==1
       if (len != PROOFSIZE)
+#endif
         continue;
       while (nu--)
         cuckoo[us[nu]] = CYCLE | us[nu+1];
       while (nv--)
         cuckoo[vs[nv+1]] = CYCLE | vs[nv];
-      for (cuckoo[*vs] = CYCLE | *us; len ; nonce--) {
-        sipedge(nonce, &u, &v);
+      cuckoo[*vs] = CYCLE | *us;
+      for (unsigned nce = len = 0; nce <= nonce ; nce++) {
+        sipedge(nce, &u, &v);
         unsigned c;
         if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
-          printf("%2d %08x (%d,%d)\n", --len, nonce, u, v);
+          printf("%2d %08x (%d,%d)\n", len++, nce, u, v);
           cuckoo[c] &= ~CYCLE;
         }
       }
@@ -66,5 +64,19 @@ int main(int argc, char **argv) {
       cuckoo[*vs] = *us;
     }
   }
+  pthread_exit(NULL);
+}
+
+int main(int argc, char **argv) {
+  // 6 largest sizes 131 928 529 330 729 132 not implemented
+  assert(SIZE < (unsigned)CYCLE);
+  char *header = argc >= 2 ? argv[1] : "";
+  setheader(header);
+  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
+  pthread_t threads[NTHREADS];
+  for (long t = 0; t < NTHREADS; t++)
+    assert(pthread_create(&threads[t], NULL, worker, (void *)t) == 0);
+  pthread_exit(NULL);
   return 0;
 }

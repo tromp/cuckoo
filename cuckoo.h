@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
+#include <pthread.h>
 #include <openssl/sha.h>
 
 // proof-of-work parameters
@@ -19,6 +20,10 @@
 #endif
 #ifndef PROOFSIZE 
 #define PROOFSIZE 42
+#endif
+// algorithm parameters
+#ifndef NTHREADS
+#define NTHREADS 1
 #endif
 
 #define SIZE (SIZEMULT*(1<<SIZESHIFT))
