@@ -36,8 +36,9 @@ Other features:
 
 4) proofs take the form of a length 42 cycle in the Cuckoo graph
 
-5) it has a natural notion of difficulty, namely the number of edges in the graph;
+5) it has a natural notion of (base) difficulty, namely the number of edges in the graph;
    above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
    starts to fall sharply.
 
-6) running time is under 24s/GB for the current implementation on high end x86.
+6) running time for the current implementation on high end x86 is under 24s/GB single-threaded,
+   and under 3s/GB for 12 threads.
