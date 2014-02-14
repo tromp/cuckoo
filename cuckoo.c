@@ -8,9 +8,12 @@
 // used to simplify nonce recovery
 #define CYCLE 0x80000000
 unsigned cuckoo[1+SIZE]; // global; conveniently initialized to zero
+pthread_t threads[NTHREADS];
+pthread_mutex_t setsol = PTHREAD_MUTEX_INITIALIZER;
+unsigned solus[MAXPATHLEN], solnu, solvs[MAXPATHLEN], solnv; 
 
-void *worker(void *pt) {
-  long t = (long)pt;
+void *worker(void *tp) {
+  int t = (pthread_t *)tp - threads;
   unsigned us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
   for (unsigned nonce = t; nonce < EASINESS; nonce += NTHREADS) {
     sipedge(nonce, us, vs);
@@ -34,27 +37,16 @@ void *worker(void *pt) {
       int min = nu < nv ? nu : nv;
       for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
       int len = nu + nv + 1;
-      printf("% 4d-cycle found at %ld:%d%%\n", len, t, (int)(nonce*100L/EASINESS));
-#if NTHREADS==1
+      printf("% 4d-cycle found at %d:%d%%\n", len, t, (int)(nonce*100L/EASINESS));
       if (len != PROOFSIZE)
-#endif
         continue;
-      while (nu--)
-        cuckoo[us[nu]] = CYCLE | us[nu+1];
-      while (nv--)
-        cuckoo[vs[nv+1]] = CYCLE | vs[nv];
-      cuckoo[*vs] = CYCLE | *us;
-      for (unsigned nce = len = 0; nce <= nonce ; nce++) {
-        sipedge(nce, &u, &v);
-        unsigned c;
-        if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
-          printf("%2d %08x (%d,%d)\n", len++, nce, u, v);
-          cuckoo[c] &= ~CYCLE;
-        }
-      }
-      break;
-    }
-    if (nu < nv) {
+      pthread_mutex_lock(&setsol);
+      for (solnu = nu, nu = 0; nu <= solnu; nu++)
+        solus[nu] = us[nu];
+      for (solnv = nv, nv = 0; nv <= solnv; nv++)
+        solvs[nv] = vs[nv];
+      pthread_mutex_unlock(&setsol);
+    } else if (nu < nv) {
       while (nu--)
         cuckoo[us[nu+1]] = us[nu];
       cuckoo[*us] = *vs;
@@ -74,9 +66,25 @@ int main(int argc, char **argv) {
   setheader(header);
   printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
-  pthread_t threads[NTHREADS];
-  for (long t = 0; t < NTHREADS; t++)
-    assert(pthread_create(&threads[t], NULL, worker, (void *)t) == 0);
-  pthread_exit(NULL);
+  for (int t = 0; t < NTHREADS; t++)
+    assert(pthread_create(&threads[t], NULL, worker, (void *)&threads[t]) == 0);
+  for (int t = 0; t < NTHREADS; t++)
+    assert(pthread_join(threads[t], NULL) == 0);
+  if (!solnu)
+    return 0;
+  while (solnu--)
+    cuckoo[solus[solnu]] = CYCLE | solus[solnu+1];
+  while (solnv--)
+    cuckoo[solvs[solnv+1]] = CYCLE | solvs[solnv];
+  cuckoo[*solvs] = CYCLE | *solus;
+  unsigned len = 0, u, v;
+  for (unsigned nonce = 0; nonce < EASINESS ; nonce++) {
+    sipedge(nonce, &u, &v);
+    unsigned c;
+    if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
+      printf("%2d %08x (%d,%d)\n", len++, nonce, u, v);
+      cuckoo[c] &= ~CYCLE;
+    }
+  }
   return 0;
 }

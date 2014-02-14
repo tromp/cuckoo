@@ -312,8 +312,7 @@ applies to solution finding runs though, so a better use of that memory would be
 another copy in parallel.
 
 \section{Parallelizability}
-The implementation allows the number of threads to be set with -DNTHREADS
-(but currently only outputs a proof in the single-threaded case).
+The implementation allows the number of threads to be set with -DNTHREADS.
 For $0\leq t < T$, thread $t$ processes all nonces $t \bmod T$.
 Parallelization presents some algorithmic challenges. Paths from an edge's two endpoints
 are not well-defined when other edge additions and path reversals are still in progress.
@@ -439,16 +438,14 @@ More research is needed to determine the limits of parallelizability.
 // used to simplify nonce recovery
 #define CYCLE 0x80000000
 unsigned cuckoo[1+SIZE]; // global; conveniently initialized to zero
+pthread_t threads[NTHREADS];
+pthread_mutex_t setsol = PTHREAD_MUTEX_INITIALIZER;
+unsigned solus[MAXPATHLEN], solnu, solvs[MAXPATHLEN], solnv; 
 
-int main(int argc, char **argv) {
-  // 6 largest sizes 131 928 529 330 729 132 not implemented
-  assert(SIZE < (unsigned)CYCLE);
-  char *header = argc >= 2 ? argv[1] : "";
-  setheader(header);
-  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
+void *worker(void *tp) {
+  int t = (pthread_t *)tp - threads;
   unsigned us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
-  for (unsigned nonce = 0; nonce < EASINESS; nonce++) {
+  for (unsigned nonce = t; nonce < EASINESS; nonce += NTHREADS) {
     sipedge(nonce, us, vs);
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
@@ -470,24 +467,16 @@ int main(int argc, char **argv) {
       int min = nu < nv ? nu : nv;
       for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
       int len = nu + nv + 1;
-      printf("% 4d-cycle found at %d%%\n", len, (int)(nonce*100L/EASINESS));
+      printf("% 4d-cycle found at %d:%d%%\n", len, t, (int)(nonce*100L/EASINESS));
       if (len != PROOFSIZE)
         continue;
-      while (nu--)
-        cuckoo[us[nu]] = CYCLE | us[nu+1];
-      while (nv--)
-        cuckoo[vs[nv+1]] = CYCLE | vs[nv];
-      for (cuckoo[*vs] = CYCLE | *us; len ; nonce--) {
-        sipedge(nonce, &u, &v);
-        unsigned c;
-        if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
-          printf("%2d %08x (%d,%d)\n", --len, nonce, u, v);
-          cuckoo[c] &= ~CYCLE;
-        }
-      }
-      break;
-    }
-    if (nu < nv) {
+      pthread_mutex_lock(&setsol);
+      for (solnu = nu, nu = 0; nu <= solnu; nu++)
+        solus[nu] = us[nu];
+      for (solnv = nv, nv = 0; nv <= solnv; nv++)
+        solvs[nv] = vs[nv];
+      pthread_mutex_unlock(&setsol);
+    } else if (nu < nv) {
       while (nu--)
         cuckoo[us[nu+1]] = us[nu];
       cuckoo[*us] = *vs;
@@ -495,6 +484,36 @@ int main(int argc, char **argv) {
       while (nv--)
         cuckoo[vs[nv+1]] = vs[nv];
       cuckoo[*vs] = *us;
+    }
+  }
+  pthread_exit(NULL);
+}
+
+int main(int argc, char **argv) {
+  // 6 largest sizes 131 928 529 330 729 132 not implemented
+  assert(SIZE < (unsigned)CYCLE);
+  char *header = argc >= 2 ? argv[1] : "";
+  setheader(header);
+  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
+  for (int t = 0; t < NTHREADS; t++)
+    assert(pthread_create(&threads[t], NULL, worker, (void *)&threads[t]) == 0);
+  for (int t = 0; t < NTHREADS; t++)
+    assert(pthread_join(threads[t], NULL) == 0);
+  if (!solnu)
+    return 0;
+  while (solnu--)
+    cuckoo[solus[solnu]] = CYCLE | solus[solnu+1];
+  while (solnv--)
+    cuckoo[solvs[solnv+1]] = CYCLE | solvs[solnv];
+  cuckoo[*solvs] = CYCLE | *solus;
+  unsigned len = 0, u, v;
+  for (unsigned nonce = 0; nonce < EASINESS ; nonce++) {
+    sipedge(nonce, &u, &v);
+    unsigned c;
+    if (cuckoo[c=u] == (CYCLE|v) || cuckoo[c=v] == (CYCLE|u)) {
+      printf("%2d %08x (%d,%d)\n", len++, nonce, u, v);
+      cuckoo[c] &= ~CYCLE;
     }
   }
   return 0;
