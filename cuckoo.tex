@@ -316,9 +316,10 @@ The implementation allows the number of threads to be set with -DNTHREADS.
 For $0\leq t < T$, thread $t$ processes all nonces $t \bmod T$.
 Parallelization presents some algorithmic challenges. Paths from an edge's two endpoints
 are not well-defined when other edge additions and path reversals are still in progress.
-One example of such a path conflict is the addition of edges
-$(7,10)$ and $(3,15)$ in the example diagrams. If these were to happen in parallel,
-then the path from $15$ will likely end at $5$ because
+One example of such a path conflict is the check for duplicate edges yielding a false negative,
+if in between checking the two endpoints, another thread reverses a path through those nodes.
+Another is the addition of edges $(7,10)$ and $(3,15)$ in the example diagrams.
+If these were to happen in parallel, then the path from $15$ will likely end at $5$ because
 edge $(10 \rightarrow 5)$ hasn't been reversed yet.
 As a result, $(3 \rightarrow 15)$ will be added, not realizing it creates a cyle.
 Thus, in a parallel implementation, path following can no longer be assumed to terminate.
