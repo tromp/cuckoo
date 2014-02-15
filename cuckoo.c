@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
     assert(pthread_create(&threads[t], NULL, worker, (void *)&threads[t]) == 0);
   for (int t = 0; t < NTHREADS; t++)
     assert(pthread_join(threads[t], NULL) == 0);
-  if (!solnu)
+  if (solnu + solnv == 0)
     return 0;
   while (solnu--)
     cuckoo[solus[solnu]] = CYCLE | solus[solnu+1];
