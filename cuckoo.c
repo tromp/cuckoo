@@ -46,7 +46,9 @@ void *worker(void *tp) {
       for (solnv = nv, nv = 0; nv <= solnv; nv++)
         solvs[nv] = vs[nv];
       pthread_mutex_unlock(&setsol);
-    } else if (nu < nv) {
+      break;
+    }
+    if (nu < nv) {
       while (nu--)
         cuckoo[us[nu+1]] = us[nu];
       cuckoo[*us] = *vs;

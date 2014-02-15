@@ -257,20 +257,12 @@ In total the program averages 3.3 reads and 1.1 writes per edge.
 \begin{tikzpicture}
 \begin{axis}[legend pos=north west]
 \addplot[color=blue] coordinates {
-% (1,0) (2,0) (3,0) (4,0) (5,0) (6,0) (7,0) (8,0) (9,0) (10,0)
-% (11,0) (12,0) (13,0) (14,0) (15,0) (16,0) (17,0) (18,0) (19,0) (20,0)
-% (21,0) (22,0) (23,0) (24,0) (25,0) (26,0) (27,0) (28,0) (29,0) (30,0)
-% (31,0) (32,0) (33,0) (34,0) (35,0) (36,0) (37,0) (38,0) (39,0)
-(40,0) (41,0) (42,0) (43,0.0001) (44,0.0002) (45,0.0009)
-(46,0.0022) (47,0.0058) (48,0.0106) (49,0.0237) (50,0.0497)
-(51,0.0997) (52,0.1767) (53,0.2728) (54,0.3931) (55,0.5158)
-(56,0.6357) (57,0.739) (58,0.8246) (59,0.8931) (60,0.9366)
-(61,0.9629) (62,0.9799) (63,0.9893) (64,0.9956) (65,0.9982)
-(66,0.999) (67,0.9998) (68,1) (69,1) (70,1)
-% (71,1) (72,1) (73,1) (74,1) (75,1) (76,1) (77,1) (78,1) (79,1) (80,1)
-% (81,1) (82,1) (83,1) (84,1) (85,1) (86,1) (87,1) (88,1) (89,1) (90,1)
-% (91,1) (92,1) (93,1) (94,1) (95,1) (96,1) (97,1) (98,1) (99,1) (100,1)
-};
+(40,0) (41,0.00001) (42,0.00003) (43,0.0001) (44,0.00031) (45,0.00067)
+(46,0.00141) (47,0.00385) (48,0.00967) (49,0.02222) (50,0.05076)
+(51,0.10117) (52,0.17953) (53,0.27993) (54,0.39581) (55,0.51873)
+(56,0.63614) (57,0.73955) (58,0.82352) (59,0.88719) (60,0.93182)
+(61,0.9616) (62,0.97949) (63,0.98956) (64,0.99503) (65,0.99799)
+(66,0.99907) (67,0.9996) (68,0.99989) (69,0.99997) (70,0.99998) (71,1) };
 \addlegendentry{solution prob.}
 \end{axis}
 \end{tikzpicture}
@@ -293,7 +285,7 @@ which may suffice for applications where difficulty is to remain fixed.
 The ratio $E/N=1$ is suitable when a practically guaranteed solution is desired,
 For crypto currencies, where difficulty must scale in precisely
 controlled manner across a huge range, adjusting easiness is not suitable.
-The implementation default $E/N=1/2$ gives a solution probability of roughly $5\%$,
+The implementation default $E/N=1/2$ gives a solution probability of roughly $2.2\%$,
 while keeping the number of found cycles down to a handful.
 For further control, a diffculty target $0 < T < 2^{64}$ is introduced,
 and we impose the additional constraint $\hash(h,\Sigma) < T$
@@ -311,7 +303,7 @@ effort of recovering them in the current slow manner. The speedup only
 applies to solution finding runs though, so a better use of that memory would be to run
 another copy in parallel.
 
-\section{Parallelizability}
+\section{Parallelization}
 The implementation allows the number of threads to be set with -DNTHREADS.
 For $0\leq t < T$, thread $t$ processes all nonces $t \bmod T$.
 Parallelization presents some algorithmic challenges. Paths from an edge's two endpoints
@@ -327,13 +319,19 @@ simply aborts when the path length exceeds MAXPATHLEN.
 The left plot below shows the average number of times that either of the two roots
 for a nonce occurred a given number of nonces ago, showing that there are potentially
 about $10T$ such conflicts.
+Despite these conflicts, and the complete lack of synchronization between threads
+(apart from a solution recording mutex),
+the cuckoo array at any time represents some, possibly cyclic, directed cuckoo graph
+on a subset of proccessed nonces.
 % Analysing how these conflicts affect performance and the probabillity of finding cycles
 % is a topic for further research. 
 The right plot shows the speedup achieved by up to 12 threads on an Intel Xeon X5670 at 2.93GHz.
 Each datapoint represents 10 runs on $2^{30}$ nodes with headers "0" through "9".
 Although the speedup is sublinear at 8.7 for 12 threads, there are still clear gains to be made
-by using more threads. Since there were no aborts in the 110 multithreaded runs, path conflicts
-do not pose a problem yet. More experiments are needed to determine where memory bottlenecks
+by using more threads.
+On $2^{20}$ nodes, aborts happened 0.03\% of the time with 2 threads and 0.1\% of the time with 4 threads.
+Both overlooked 0.35\% of the 42-cycles found by the single-threaded runs.
+More experiments are needed to determine where memory bottlenecks
 and path conflicts make further multithreading ineffective.
 % Note that unless one uses at least $P^2$ MEs, memory routing conflicts will frequently arise.
 % The possibility of development of custom hardware for improved parallel random access to global
@@ -476,7 +474,9 @@ void *worker(void *tp) {
       for (solnv = nv, nv = 0; nv <= solnv; nv++)
         solvs[nv] = vs[nv];
       pthread_mutex_unlock(&setsol);
-    } else if (nu < nv) {
+      break;
+    }
+    if (nu < nv) {
       while (nu--)
         cuckoo[us[nu+1]] = us[nu];
       cuckoo[*us] = *vs;
