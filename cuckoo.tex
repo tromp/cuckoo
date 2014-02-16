@@ -332,9 +332,12 @@ Although the speedup is sublinear at 8.7 for 12 threads, there are still clear g
 by using more threads.
 On $2^{20}$ nodes, aborts happened 0.03\% of the time with 2 threads, 0.1\% with 4 threads, 0.27\% with
 8 threars, and 0.2\% with 12 threads.
-They overlooked 0.13\%, 0.31\%, 0.57\%, and 0.17\%, respectiverly, of the 42-cycles found by the single-threaded runs.
+They overlooked 0.13\%, 0.31\%, 0.57\%, and 0.17\%, respectiverly, of the 42-cycles
+found by the single-threaded runs.
 Empirically then, path conflicts have negligable effect on multi-threaded performance.
 More experiments are needed to determine where memory bottlenecks make further multi-threading ineffective.
+The percentage of hashing to total runtime shows the same behaviour as in the single-threaded case,
+with a dual Xeon X5670 machine spending only 5.5\% of wallclock time on hashing with $2^{28}$ nodes.
 
 \begin{center}
 \begin{tikzpicture}
