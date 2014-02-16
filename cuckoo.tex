@@ -242,7 +242,7 @@ as the percentage of hashing to total runtime, ending up around 5\%.
 \end{tikzpicture}
 \end{center}
 
-% A simultaneous multithreading (SMT) implementation should be able to
+% A simultaneous multi-threading (SMT) implementation should be able to
 % completely hide the hash computations inside memory access latencies for the bigger sizes.
 On a 3.2GHz Intel Core i5, size $2^{20}$ takes 4MB and 0.025s, size
 $2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 128s, or roughly half a minute per GB.
@@ -286,7 +286,7 @@ The ratio $E/N=1$ is suitable when a practically guaranteed solution is desired,
 For crypto currencies, where difficulty must scale in precisely
 controlled manner across a huge range, adjusting easiness is not suitable.
 The implementation default $E/N=1/2$ gives a solution probability of roughly $2.2\%$,
-while keeping the number of found cycles down to a handful.
+and an average of 2 cycles found.
 For further control, a diffculty target $0 < T < 2^{64}$ is introduced,
 and we impose the additional constraint $\hash(h,\Sigma) < T$
 on any $L$-cycle, where $\Sigma$ is the sum of its nonces modulo $E$.
@@ -330,13 +330,11 @@ The right plot shows the speedup achieved by up to 12 threads on an Intel Xeon X
 Each datapoint represents 10 runs on $2^{30}$ nodes with headers "0" through "9".
 Although the speedup is sublinear at 8.7 for 12 threads, there are still clear gains to be made
 by using more threads.
-On $2^{20}$ nodes, aborts happened 0.03\% of the time with 2 threads and 0.1\% of the time with 4 threads.
-Both overlooked 0.35\% of the 42-cycles found by the single-threaded runs.
-More experiments are needed to determine where memory bottlenecks
-and path conflicts make further multithreading ineffective.
-% Note that unless one uses at least $P^2$ MEs, memory routing conflicts will frequently arise.
-% The possibility of development of custom hardware for improved parallel random access to global
-% shared memory need not be a big concern, as this is likely to benefit many other applications as well.
+On $2^{20}$ nodes, aborts happened 0.03\% of the time with 2 threads, 0.1\% with 4 threads, 0.27\% with
+8 threars, and 0.2\% with 12 threads.
+They overlooked 0.13\%, 0.31\%, 0.57\%, and 0.17\%, respectiverly, of the 42-cycles found by the single-threaded runs.
+Empirically then, path conflicts have negligable effect on multi-threaded performance.
+More experiments are needed to determine where memory bottlenecks make further multi-threading ineffective.
 
 \begin{center}
 \begin{tikzpicture}
@@ -355,7 +353,7 @@ and path conflicts make further multithreading ineffective.
 \begin{axis}[ymin=0, legend pos=south east]
 \addplot coordinates { (1, 1) (2, 1.69) (3, 2.13) (4, 3.38) (5, 3.76)
 (6, 4.89) (7, 5.33) (8, 6.34) (9, 6.88) (10, 7.69) (11, 8.31) (12, 8.71) };
-\addlegendentry{multithreaded speedup}
+\addlegendentry{multi-threaded speedup}
 \end{axis}
 \end{tikzpicture}
 \end{center}
