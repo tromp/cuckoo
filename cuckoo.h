@@ -2,6 +2,7 @@
 // Copyright (c) 2013-2014 John Tromp
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>

@@ -7,10 +7,9 @@
 
 // used to simplify nonce recovery
 #define CYCLE 0x80000000
-unsigned cuckoo[1+SIZE]; // global; conveniently initialized to zero
+unsigned *cuckoo, solus[MAXPATHLEN], solnu, solvs[MAXPATHLEN], solnv; 
 pthread_t threads[NTHREADS];
 pthread_mutex_t setsol = PTHREAD_MUTEX_INITIALIZER;
-unsigned solus[MAXPATHLEN], solnu, solvs[MAXPATHLEN], solnv; 
 
 void *worker(void *tp) {
   int t = (pthread_t *)tp - threads;
@@ -64,6 +63,7 @@ void *worker(void *tp) {
 int main(int argc, char **argv) {
   // 6 largest sizes 131 928 529 330 729 132 not implemented
   assert(SIZE < (unsigned)CYCLE);
+  assert(cuckoo = calloc(1+SIZE, sizeof(unsigned)));
   char *header = argc >= 2 ? argv[1] : "";
   setheader(header);
   printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d edges\n",
