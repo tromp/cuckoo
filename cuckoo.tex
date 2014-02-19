@@ -287,7 +287,7 @@ For crypto currencies, where difficulty must scale in precisely
 controlled manner across a huge range, adjusting easiness is not suitable.
 The implementation default $E/N=1/2$ gives a solution probability of roughly $2.2\%$.
 The average number of cycles found increases slowly with size; from 2 at $2^{20}$
-to 4 at $2^{30}$.
+to 3 at $2^{30}$.
 For further control, a diffculty target $0 < T < 2^{64}$ is introduced,
 and we impose the additional constraint $\hash(h,\Sigma) < T$
 on any $L$-cycle, where $\Sigma$ is the sum of its nonces modulo $E$.
