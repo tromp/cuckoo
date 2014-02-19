@@ -27,8 +27,8 @@ twofold application of the cryptographic hash function SHA256
 to this nonce (and the rest of the block header) results in a number with many
 leading 0s.  The bitcoin protocol dynamically adjust this ``difficulty'' number
 so as to maintain a 10-minute average block interval. Starting out at 32 leading zeroes in 2009,
-the number has steadily climbed and is currently at 63, representing
-an incredible $2^{63}/10$ double-hashes per minute. This exponential growth of hashing power
+the number has steadily climbed and is currently at 64, representing
+an incredible $2^{64}/10$ double-hashes per minute. This exponential growth of hashing power
 is enabled by the highly-parallellizable nature of the hashcash proof-of-work.
 which saw desktop cpus out-performed by graphics-cards (GPUs),
 these in turn by field-programmable gate arrays (FPGAs),
