@@ -7,20 +7,6 @@ If computation is minimized in favor of random access to gigabytes of memory
 (incurring long latencies), then mining will require large investments in RAM
 but relatively little power.
 
-Bitcoin mining is all computation and no memory.
-
-Litecoin mining requires 128KB of memory per scrypt instance but only 1024
-random accesses, with negligable latency.
-
-Primecoin mining has a sieving and a modular exponentiation component, the latter of
-which is pure computation, while the former requires a few megabytes of memory
-(with non-random access).
-
-Protoshares mining with Momentum requires 512MB but performs at least one complex SHA512
-computation for each memory access, with a choice of algorithms some of which avoid random access.
-
-The memory requirements above are not absolute but allow a trade-off between time and memory.
-
 Cuckoo Cycle represents a breakthrough in three important ways:
 
 1) it performs only one very cheap siphash computation for about 3.3 random accesses to memory,
