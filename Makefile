@@ -36,3 +36,7 @@ verify:	cuckoo.h verify.c Makefile
 
 test:	cuckoo120 verify Makefile
 	./cuckoo120 6 | tail -42 | ./verify 6
+
+speedup.25:	cuckoo.h cuckoo.c Makefile
+	for i in {1..8}; do echo $$i; cc -o cuckoo.spd -DNTHREADS=$$i -DSIZEMULT=1 -DSIZESHIFT=25 cuckoo.c ${FLAGS}; time for j in {0..9}; do ./cuckoo.spd $$j; done; done
+
