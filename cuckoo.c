@@ -45,9 +45,9 @@ void solution(unsigned *us, unsigned nu, unsigned *vs, unsigned nv) {
     usck[i] = vsck[i] = 0L;
   storedge((u64)*us<<32 | *vs, usck, vsck);
   while (nu--)
-    storedge((u64)us[nu+1&~1]<<32 | us[nu|1], usck, vsck); // u's in even position; v's in odd
+    storedge((u64)us[(nu+1)&~1]<<32 | us[nu|1], usck, vsck); // u's in even position; v's in odd
   while (nv--)
-    storedge((u64)vs[nv|1]<<32 | vs[nv+1&~1], usck, vsck); // u's in odd position; v's in even
+    storedge((u64)vs[nv|1]<<32 | vs[(nv+1)&~1], usck, vsck); // u's in odd position; v's in even
   pthread_mutex_lock(&setsol);
   for (unsigned nonce = n = 0; nonce < EASINESS ; nonce++) {
     sipedge(nonce, &u, &v);
