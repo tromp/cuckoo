@@ -6,11 +6,12 @@
 int main(int argc, char **argv) {
   char *header = argc >= 2 ? argv[1] : "";
   setheader(header);
-  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, EASINESS);
+  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d nodes and %d edges\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, EASINESS);
+  assert(scanf("Solution") == 0);
   unsigned us[PROOFSIZE], vs[PROOFSIZE], i = 0, n, nonce, sum;
   for (n = sum = 0; n < PROOFSIZE; n++) {
-    assert(scanf("%*d %x (%*d,%*d)\n", &nonce) == 1);
+    assert(scanf(" %x", &nonce) == 1);
     assert(nonce < EASINESS);
     sum = (sum + nonce) % EASINESS;
     sipedge(nonce, &us[n], &vs[n]);
@@ -27,6 +28,6 @@ int main(int argc, char **argv) {
     n -= 2;
   } while (i);
   assert(n == 0);
-  printf("Verified with hash(%u)=%llx\n", sum, siphash(sum));
+  printf("Verified with hash(%u)=%016llx\n", sum, siphash(sum));
   return 0;
 }

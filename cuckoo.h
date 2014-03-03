@@ -27,7 +27,7 @@
 #define NTHREADS 1
 #endif
 
-#define SIZE (SIZEMULT*(1<<SIZESHIFT))
+#define SIZE (SIZEMULT*((unsigned)1<<SIZESHIFT))
 // relatively prime partition sizes
 #define PARTU (SIZE/2+1)
 #define PARTV (SIZE/2-1)

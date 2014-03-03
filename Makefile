@@ -31,11 +31,14 @@ cuckoo130:	cuckoo.h cuckoo.c Makefile
 cuckoo130.4:	cuckoo.h cuckoo.c Makefile
 	cc -o cuckoo130.4 -DNTHREADS=4 -DSIZEMULT=1 -DSIZESHIFT=30 cuckoo.c ${FLAGS}
 
-verify:	cuckoo.h verify.c Makefile
-	cc -o verify verify.c ${FLAGS}
+cuckoo729.4:	cuckoo.h cuckoo.c Makefile
+	cc -o cuckoo130.4 -DNTHREADS=4 -DSIZEMULT=7 -DSIZESHIFT=29 cuckoo.c ${FLAGS}
 
-test:	cuckoo120 verify Makefile
-	./cuckoo120 6 | tail -42 | ./verify 6
+verify120:	cuckoo.h verify.c Makefile
+	cc -o verify120 -DSIZEMULT=1 -DSIZESHIFT=20 verify.c ${FLAGS}
+
+test:	cuckoo120 verify120 Makefile
+	./cuckoo120 6 | tail -1 | ./verify120 6
 
 speedup.25:	cuckoo.h cuckoo.c Makefile
 	for i in {1..8}; do echo $$i; cc -o cuckoo.spd -DNTHREADS=$$i -DSIZEMULT=1 -DSIZESHIFT=25 cuckoo.c ${FLAGS}; time for j in {0..9}; do ./cuckoo.spd $$j; done; done
