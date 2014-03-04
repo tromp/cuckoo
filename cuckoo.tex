@@ -286,12 +286,14 @@ which may suffice for applications where difficulty is to remain fixed.
 The ratio $E/N=1$ is suitable when a practically guaranteed solution is desired,
 For crypto currencies, where difficulty must scale in precisely
 controlled manner across a huge range, adjusting easiness is not suitable.
-The implementation default $E/N=1/2$ gives a solution probability of roughly $2.2\%$.
-The average number of cycles found increases slowly with size; from 2 at $2^{20}$
+The implementation default $E/N=1/2$ gives a solution probability of roughly $2.2\%$,
+while the average number of cycles found increases slowly with size; from 2 at $2^{20}$
 to 3 at $2^{30}$.
-For further control, a diffculty target $0 < T < 2^{64}$ is introduced,
-and we impose the additional constraint $\hash(h,\Sigma) < T$
-on any $L$-cycle, where $\Sigma$ is the sum of its nonces modulo $E$.
+For further control, a difficulty target $0 < T < 2^{64}$ is introduced,
+and we impose the additional constraint $\hash(h,\sigma) < T$
+on any $L$-cycle, where $\sigma$ is the sequence of its nonces in ascending
+order\footnote{The current implementation uses their sum modulo $E$, an acceptable
+alternative for sufficiently large $T$.}.
 This reduces the success probability by a factor $2^{64}/T$.
 
 \section{Memory-hardness}
@@ -639,6 +641,44 @@ void sipedge(unsigned nonce, unsigned *pu, unsigned *pv) {
   u64 sip = siphash(nonce);
   *pu = 1 +         (unsigned)(sip % PARTU);
   *pv = 1 + PARTU + (unsigned)(sip % PARTV);
+}
+\end{verbatim}
+
+\section{Appendix C: verify.c Source Code}
+\footnotesize
+\begin{verbatim}
+// Cuckoo Cycle, a memory-hard proof-of-work
+// Copyright (c) 2013-2014 John Tromp
+
+#include "cuckoo.h"
+
+int main(int argc, char **argv) {
+  char *header = argc >= 2 ? argv[1] : "";
+  setheader(header);
+  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d nodes and %d edges\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, EASINESS);
+  assert(scanf("Solution") == 0);
+  unsigned us[PROOFSIZE], vs[PROOFSIZE], i = 0, n, nonce, sum;
+  for (n = sum = 0; n < PROOFSIZE; n++) {
+    assert(scanf(" %x", &nonce) == 1);
+    assert(nonce < EASINESS);
+    sum = (sum + nonce) % EASINESS;
+    sipedge(nonce, &us[n], &vs[n]);
+  }
+  do {  // follow cycle until we return to i==0; n edges left to visit
+    int j = i;
+    for (int k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
+      if (k != i && vs[k] == vs[i]) { assert(j == i); j = k; }
+    assert(j != i);
+    i = j;
+    for (int k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
+      if (k != j && us[k] == us[j]) { assert(i == j); i = k; }
+    assert(i != j);
+    n -= 2;
+  } while (i);
+  assert(n == 0);
+  printf("Verified with hash(%u)=%016llx\n", sum, siphash(sum));
+  return 0;
 }
 \end{verbatim}
 
