@@ -289,12 +289,10 @@ controlled manner across a huge range, adjusting easiness is not suitable.
 The implementation default $E/N=1/2$ gives a solution probability of roughly $2.2\%$,
 while the average number of cycles found increases slowly with size; from 2 at $2^{20}$
 to 3 at $2^{30}$.
-For further control, a difficulty target $0 < T < 2^{64}$ is introduced,
-and we impose the additional constraint $\hash(h,\sigma) < T$
-on any $L$-cycle, where $\sigma$ is the sequence of its nonces in ascending
-order\footnote{The current implementation uses their sum modulo $E$, an acceptable
-alternative for sufficiently large $T$.}.
-This reduces the success probability by a factor $2^{64}/T$.
+For further control, a diffculty target $0 < T < 2^{256}$ is introduced,
+and we impose the additional constraint that the sha256 digest of the
+cycle nonces in ascending order be less than $T$, thus
+reducing the success probability by a factor $2^{256}/T$.
 
 \section{Memory-hardness}
 I conjecture that this problem doesn't allow for a time-memory trade-off. If
@@ -415,10 +413,14 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 \section{Scaling memory beyond 16-32 GB}
 While the current algorithm can accomodate up to $N=2^{33}-2$ nodes by a simple change
 in implementation, a different idea is needed to scale beyond that.
-To that end, we propose to use $K$-partite graphs with edges only between partition $k$ and partition $(k+1) \bmod K$,
-where $k$ is fed into the hash function along with the header and nonce. With each partition consisting of at most
-$2^{31}-1$ nodes, the most significant bit is then available to distinguish edges to the two neighbouring partitions.
-The partition sizes should remain relatively prime, e.g. by picking the largest $K$ primes under $2^{31}$.
+To that end, we propose to use $K$-partite graphs with edges only between
+partition $k$ and partition $(k+1) \bmod K$, where $k$ is fed into the hash
+function along with the header and nonce. With each partition consisting of at
+most $2^{31}-1$ nodes, the most significant bit is then available to distinguish
+edges to the two neighbouring partitions.
+Setting the size of partition 0 to be relatively prime to $2(K-1)$,
+and making each successive partition smaller by 2,
+ensures that neighbouring partition sizes are relatively prime.
 
 \section{Conclusion}
 Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency over computation.
@@ -625,7 +627,7 @@ u64 v0 = 0x736f6d6570736575ULL, v1 = 0x646f72616e646f6dULL,
    ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
  
 // derive siphash key from header
-void setheader(const char *header) {
+void setheader(char *header) {
   unsigned char hdrkey[32];
   SHA256((unsigned char *)header, strlen(header), hdrkey);
   u64 k0 = U8TO64_LE( hdrkey ); u64 k1 = U8TO64_LE( hdrkey + 8 );
@@ -658,12 +660,12 @@ int main(int argc, char **argv) {
   printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d nodes and %d edges\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, EASINESS);
   assert(scanf("Solution") == 0);
-  unsigned us[PROOFSIZE], vs[PROOFSIZE], i = 0, n, nonce, sum;
-  for (n = sum = 0; n < PROOFSIZE; n++) {
-    assert(scanf(" %x", &nonce) == 1);
-    assert(nonce < EASINESS);
-    sum = (sum + nonce) % EASINESS;
-    sipedge(nonce, &us[n], &vs[n]);
+  unsigned nonces[PROOFSIZE], us[PROOFSIZE], vs[PROOFSIZE], i = 0, n;
+  for (n = 0; n < PROOFSIZE; n++) {
+    assert(scanf(" %x", &nonces[n]) == 1);
+    if (n) assert(nonces[n-1] < nonces[n]);
+    assert(nonces[n] < EASINESS);
+    sipedge(nonces[n], &us[n], &vs[n]);
   }
   do {  // follow cycle until we return to i==0; n edges left to visit
     int j = i;
@@ -677,7 +679,12 @@ int main(int argc, char **argv) {
     n -= 2;
   } while (i);
   assert(n == 0);
-  printf("Verified with hash(%u)=%016llx\n", sum, siphash(sum));
+  printf("Verified with cyclehash=");
+  unsigned char cyclehash[32];
+  SHA256((unsigned char *)nonces, sizeof(nonces), cyclehash);
+  for (int i=0; i<32; i++)
+    printf("%02x", cyclehash[i]);
+  printf("\n");
   return 0;
 }
 \end{verbatim}

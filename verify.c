@@ -9,12 +9,12 @@ int main(int argc, char **argv) {
   printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d nodes and %d edges\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, EASINESS);
   assert(scanf("Solution") == 0);
-  unsigned us[PROOFSIZE], vs[PROOFSIZE], i = 0, n, nonce, sum;
-  for (n = sum = 0; n < PROOFSIZE; n++) {
-    assert(scanf(" %x", &nonce) == 1);
-    assert(nonce < EASINESS);
-    sum = (sum + nonce) % EASINESS;
-    sipedge(nonce, &us[n], &vs[n]);
+  unsigned nonces[PROOFSIZE], us[PROOFSIZE], vs[PROOFSIZE], i = 0, n;
+  for (n = 0; n < PROOFSIZE; n++) {
+    assert(scanf(" %x", &nonces[n]) == 1);
+    if (n) assert(nonces[n-1] < nonces[n]);
+    assert(nonces[n] < EASINESS);
+    sipedge(nonces[n], &us[n], &vs[n]);
   }
   do {  // follow cycle until we return to i==0; n edges left to visit
     int j = i;
@@ -28,6 +28,11 @@ int main(int argc, char **argv) {
     n -= 2;
   } while (i);
   assert(n == 0);
-  printf("Verified with hash(%u)=%016llx\n", sum, siphash(sum));
+  printf("Verified with cyclehash=");
+  unsigned char cyclehash[32];
+  SHA256((unsigned char *)nonces, sizeof(nonces), cyclehash);
+  for (int i=0; i<32; i++)
+    printf("%02x", cyclehash[i]);
+  printf("\n");
   return 0;
 }

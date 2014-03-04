@@ -65,7 +65,7 @@ u64 v0 = 0x736f6d6570736575ULL, v1 = 0x646f72616e646f6dULL,
    ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
  
 // derive siphash key from header
-void setheader(const char *header) {
+void setheader(char *header) {
   unsigned char hdrkey[32];
   SHA256((unsigned char *)header, strlen(header), hdrkey);
   u64 k0 = U8TO64_LE( hdrkey ); u64 k1 = U8TO64_LE( hdrkey + 8 );
