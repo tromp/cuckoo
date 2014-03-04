@@ -13,7 +13,7 @@ Cuckoo Cycle represents a breakthrough in three important ways:
 
 2) its memory requirement can be set arbitrarily and doesn't allow for any time-memory trade-off.
 
-3) verification of the proof of work is instant, requiring 1 sha256 and 42 siphash computations.
+3) verification of the proof of work is instant, requiring 2 sha256 and 42 siphash computations.
 
 Runtime in Cuckoo Cycle is completely dominated by memory latency. It promotes the use
 of commodity general-purpose hardware over custom designed single-purpose hardware.
