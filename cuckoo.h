@@ -7,7 +7,7 @@
 #include <string.h>
 #include <assert.h>
 #include <pthread.h>
-#include <openssl/sha.h>
+#include <openssl/sha.h> // if openssl absent, you can instead use #include "sha256.c"
 
 // proof-of-work parameters
 #ifndef SIZEMULT 
