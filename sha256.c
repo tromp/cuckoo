@@ -1,7 +1,10 @@
 /* from http://itunes.uic.edu/SourceFixes/sha256.c
- * changed by adding 3 line SHA256 routine and undefining main. -John Tromp
- *
- * Copyright 2006 Apple Computer, Inc.  All rights reserved.
+ * changed by adding 3 line SHA256 routine, undefining main, and fixing bug
+ * sha256.c:93:41: warning: array subscript is above array bounds [-Warray-bounds]
+ * -John Tromp
+ */
+
+/* Copyright 2006 Apple Computer, Inc.  All rights reserved.
  * 
  * iTunes U Sample Code License
  * IMPORTANT:  This Apple software is supplied to you by Apple Computer, Inc. ("Apple") 
@@ -87,7 +90,7 @@ typedef struct {
 
 void sha256_initialize(sha256 *sha) {
     int i;
-    for (i = 0; i < 17; ++i) sha->buffer[i] = 0;
+    for (i = 0; i < 16; ++i) sha->buffer[i] = 0;
     sha->state[0] = 0x6a09e667;
     sha->state[1] = 0xbb67ae85;
     sha->state[2] = 0x3c6ef372;
@@ -259,6 +262,7 @@ void SHA256(const unsigned char *header, int len, unsigned char hash[32]) {
 
 /******************************************************************************
  * Input/output.
+ */
 
 int main(int argc, const char *const *argv) {
     unsigned char block[512];

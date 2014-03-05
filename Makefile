@@ -1,7 +1,6 @@
 # -Wno-deprecated-declarations shuts up Apple OSX clang
 FLAGS = -O3 -std=c99 -Wall -Wno-deprecated-declarations -pthread -l crypto
-# use following FLAGS instead if openssl libraries absent
-# FLAGS = sha256.c -O3 -std=c99 -Wall -Wno-deprecated-declarations -pthread
+# leave out -l crypto if openssl libraries absent
 
 cuckoo:		cuckoo.h cuckoo.c Makefile
 	cc -o cuckoo -DSHOW -DPROOFSIZE=6 -DSIZEMULT=1 -DSIZESHIFT=4 -DEASINESS=16 cuckoo.c ${FLAGS}
