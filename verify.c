@@ -19,13 +19,13 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  int easiness = (unsigned)(easipct * (u64)SIZE / 100);
-  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d nodes and %d edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, easiness);
+  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d%% edges\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct);
   assert(scanf("Solution") == 0);
   unsigned nonces[PROOFSIZE];
   for (int n = 0; n < PROOFSIZE; n++)
     assert(scanf(" %x", &nonces[n]) == 1);
+  int easiness = (unsigned)(easipct * (u64)SIZE / 100);
   int ok = verify(nonces, header, easiness);
   if (!ok) {
     printf("FAILED\n");

@@ -188,8 +188,7 @@ void *worker(void *vp) {
   pthread_exit(NULL);
 }
 
-int verify(unsigned nonces[PROOFSIZE], char *header, int easipct) {
-  int easiness = (unsigned)(easipct * (u64)SIZE / 100);
+int verify(unsigned nonces[PROOFSIZE], char *header, int easiness) {
   siphash_ctx ctx;
   setheader(&ctx, header);
   unsigned us[PROOFSIZE], vs[PROOFSIZE], i = 0, n;

@@ -31,14 +31,17 @@ int main(int argc, char **argv) {
   assert(easipct >= 0 && easipct <= 100);
   printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d%% edges and %d threads\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct, nthreads);
+
   cuckoo_ctx ctx;
-  assert(ctx.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
-  ctx.nthreads = nthreads;
-  ctx.maxsols = maxsols;
-  assert(ctx.sols = calloc(maxsols, PROOFSIZE*sizeof(unsigned)));
-  ctx.nsols = 0;
-  ctx.easiness = (unsigned)(easipct * (u64)SIZE / 100);
   setheader(&ctx.sip_ctx, header);
+  ctx.easiness = (unsigned)(easipct * (u64)SIZE / 100);
+  assert(ctx.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
+  assert(ctx.sols = calloc(maxsols, PROOFSIZE*sizeof(unsigned)));
+  ctx.maxsols = maxsols;
+  ctx.nsols = 0;
+  ctx.nthreads = nthreads;
+  pthread_mutex_init(&ctx.setsol, NULL);
+
   thread_ctx *threads = calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
   for (int t = 0; t < nthreads; t++) {
