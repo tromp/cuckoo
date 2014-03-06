@@ -2,11 +2,8 @@
 // Copyright (c) 2013-2014 John Tromp
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
-#include <unistd.h>
-#include <assert.h>
 #include <pthread.h>
 #include <openssl/sha.h> // if openssl absent, use #include "sha256.c"
 
@@ -77,14 +74,14 @@ void setheader(siphash_ctx *ctx, char *header) {
 }
 
 typedef struct {
+  siphash_ctx sip_ctx;
+  unsigned easiness;
   unsigned *cuckoo;
-  pthread_mutex_t setsol;
   unsigned (*sols)[PROOFSIZE];
   unsigned maxsols;
   unsigned nsols;
-  siphash_ctx sip_ctx;
-  unsigned easiness;
   int nthreads;
+  pthread_mutex_t setsol;
 } cuckoo_ctx;
 
 typedef struct {
@@ -147,9 +144,10 @@ void solution(cuckoo_ctx *ctx, unsigned *us, int nu, unsigned *vs, int nv) {
       *c = 0;
     }
   }
-  ctx->nsols++;
+  if (n == PROOFSIZE)
+    ctx->nsols++;
+  else printf("Only recovered %d nonces\n", n);
   pthread_mutex_unlock(&ctx->setsol);
-  assert(n == PROOFSIZE);
 }
 
 void *worker(void *vp) {
@@ -196,8 +194,8 @@ int verify(unsigned nonces[PROOFSIZE], char *header, int easipct) {
   setheader(&ctx, header);
   unsigned us[PROOFSIZE], vs[PROOFSIZE], i = 0, n;
   for (n = 0; n < PROOFSIZE; n++) {
-    if (n) assert(nonces[n-1] < nonces[n]);
-    assert(nonces[n] < easiness);
+    if (nonces[n] >= easiness || (n && nonces[n] <= nonces[n-1]))
+      return 0;
     sipedge(&ctx, nonces[n], &us[n], &vs[n]);
   }
   do {  // follow cycle until we return to i==0; n edges left to visit

@@ -2,12 +2,14 @@
 // Copyright (c) 2013-2014 John Tromp
 
 #include "cuckoo.h"
+#include <stdlib.h>
+#include <unistd.h>
+#include <assert.h>
 
 int main(int argc, char **argv) {
   assert(SIZE < 1L<<32);
-  cuckoo_ctx ctx;
-  ctx.nthreads = 1;
-  ctx.maxsols = 8;
+  int nthreads = 1;
+  int maxsols = 8;
   char *header = "";
   int c, easipct = 50;
   while ((c = getopt (argc, argv, "e:h:m:t:")) != -1) {
@@ -19,29 +21,32 @@ int main(int argc, char **argv) {
         header = optarg;
         break;
       case 'm':
-        ctx.maxsols = atoi(optarg);
+        maxsols = atoi(optarg);
         break;
       case 't':
-        ctx.nthreads = atoi(optarg);
+        nthreads = atoi(optarg);
         break;
     }
   }
-  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d%% edges and %d threads\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct, ctx.nthreads);
   assert(easipct >= 0 && easipct <= 100);
+  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d%% edges and %d threads\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct, nthreads);
+  cuckoo_ctx ctx;
+  assert(ctx.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
+  ctx.nthreads = nthreads;
+  ctx.maxsols = maxsols;
+  assert(ctx.sols = calloc(maxsols, PROOFSIZE*sizeof(unsigned)));
+  ctx.nsols = 0;
   ctx.easiness = (unsigned)(easipct * (u64)SIZE / 100);
   setheader(&ctx.sip_ctx, header);
-  assert(ctx.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
-  assert(ctx.sols = calloc(ctx.maxsols, PROOFSIZE*sizeof(unsigned)));
-  ctx.nsols = 0;
-  thread_ctx *threads = calloc(ctx.nthreads, sizeof(thread_ctx));
+  thread_ctx *threads = calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
-  for (int t = 0; t < ctx.nthreads; t++) {
+  for (int t = 0; t < nthreads; t++) {
     threads[t].id = t;
     threads[t].ctx = &ctx;
     assert(pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]) == 0);
   }
-  for (int t = 0; t < ctx.nthreads; t++)
+  for (int t = 0; t < nthreads; t++)
     assert(pthread_join(threads[t].thread, NULL) == 0);
   for (int s = 0; s < ctx.nsols; s++) {
     printf("Solution");

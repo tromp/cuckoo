@@ -2,9 +2,12 @@
 // Copyright (c) 2013-2014 John Tromp
 
 #include "cuckoo.h"
+#include <stdlib.h>
+#include <unistd.h>
+#include <assert.h>
 
 int main(int argc, char **argv) {
-  char *header;
+  char *header = "";
   int c, easipct = 50;
   while ((c = getopt (argc, argv, "e:h:")) != -1) {
     switch (c) {
