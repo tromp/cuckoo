@@ -4,31 +4,31 @@
 #include "cuckoo.h"
 
 int main(int argc, char **argv) {
-  char *header = argc >= 2 ? argv[1] : "";
-  setheader(header);
-  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d nodes and %d edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, EASINESS);
-  assert(scanf("Solution") == 0);
-  unsigned nonces[PROOFSIZE], us[PROOFSIZE], vs[PROOFSIZE], i = 0, n;
-  for (n = 0; n < PROOFSIZE; n++) {
-    assert(scanf(" %x", &nonces[n]) == 1);
-    if (n) assert(nonces[n-1] < nonces[n]);
-    assert(nonces[n] < EASINESS);
-    sipedge(nonces[n], &us[n], &vs[n]);
+  char *header;
+  int c, easipct = 50;
+  while ((c = getopt (argc, argv, "e:h:")) != -1) {
+    switch (c) {
+      case 'e':
+        easipct = atoi(optarg);
+        break;
+          case 'h':
+        header = optarg;
+        break;
+    }
   }
-  do {  // follow cycle until we return to i==0; n edges left to visit
-    int j = i;
-    for (int k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
-      if (k != i && vs[k] == vs[i]) { assert(j == i); j = k; }
-    assert(j != i);
-    i = j;
-    for (int k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
-      if (k != j && us[k] == us[j]) { assert(i == j); i = k; }
-    assert(i != j);
-    n -= 2;
-  } while (i);
-  assert(n == 0);
-  printf("Verified with cyclehash=");
+  int easiness = (unsigned)(easipct * (u64)SIZE / 100);
+  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d nodes and %d edges\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, easiness);
+  assert(scanf("Solution") == 0);
+  unsigned nonces[PROOFSIZE];
+  for (int n = 0; n < PROOFSIZE; n++)
+    assert(scanf(" %x", &nonces[n]) == 1);
+  int ok = verify(nonces, header, easiness);
+  if (!ok) {
+    printf("FAILED\n");
+    exit(1);
+  }
+  printf("Verified with cyclehash ");
   unsigned char cyclehash[32];
   SHA256((unsigned char *)nonces, sizeof(nonces), cyclehash);
   for (int i=0; i<32; i++)

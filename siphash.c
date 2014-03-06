@@ -11,15 +11,9 @@
 #include <pthread.h>
 #include <openssl/sha.h> // if openssl absent, you can instead use #include "sha256.c"
 
-typedef struct _SIPHASH_CTX {
+typedef struct {
 	uint64_t	v[4];
-	union {
-		uint64_t	b64;
-		uint8_t		b8[8];
-	} buf;
-	uint64_t	bytes;
-	uint8_t		buflen;
-} SIPHASH_CTX;
+} siphash_ctx;
 
 void SipHash_Init24(SIPHASH_CTX *);
 void SipHash_SetKey(SIPHASH_CTX *, const uint8_t [16]);
@@ -31,16 +25,41 @@ uint64_t SipHash24(SIPHASH_CTX *, int, int, const uint8_t [16], const void *, si
 static void SipRounds(SIPHASH_CTX *ctx, int final);
 
 void SipHash_Init24(SIPHASH_CTX *ctx) {
+	ctx->buf.b64 = 0;
+}
+
+static __inline uint32_t
+le32dec(const void *pp) {
+uint8_t const *p = (uint8_t const *)pp;
+return (((unsigned)p[3] << 24) | (p[2] << 16) | (p[1] << 8) | p[0]);
+}
+static __inline uint64_t
+le64dec(const void *pp) {
+uint8_t const *p = (uint8_t const *)pp;
+return (((uint64_t)le32dec(p + 4) << 32) | le32dec(p));
+}
+#define le64toh(x)      ((uint64_t)(x))
+static __inline void
+le32enc(void *pp, uint32_t u) {
+uint8_t *p = (uint8_t *)pp;
+p[0] = u & 0xff;
+p[1] = (u >> 8) & 0xff;
+p[2] = (u >> 16) & 0xff;
+p[3] = (u >> 24) & 0xff;
+}
+static __inline void
+le64enc(void *pp, uint64_t u) {
+uint8_t *p = (uint8_t *)pp;
+le32enc(p, (uint32_t)(u & 0xffffffffU));
+le32enc(p + 4, (uint32_t)(u >> 32));
+}
+
+
+void SipHash_SetKey(SIPHASH_CTX *ctx, const uint8_t key[16]) {
 	ctx->v[0] = 0x736f6d6570736575ull;
 	ctx->v[1] = 0x646f72616e646f6dull;
 	ctx->v[2] = 0x6c7967656e657261ull;
 	ctx->v[3] = 0x7465646279746573ull;
-	ctx->buf.b64 = 0;
-	ctx->bytes = 0;
-	ctx->buflen = 0;
-}
-
-void SipHash_SetKey(SIPHASH_CTX *ctx, const uint8_t key[16]) {
 	uint64_t k[2];
 	k[0] = le64dec(&key[0]);
 	k[1] = le64dec(&key[8]);
@@ -76,38 +95,7 @@ void SipHash_Update(SIPHASH_CTX *ctx, const void *src, size_t len) {
 	size_t rem;
 	s = src;
 	ctx->bytes += len;
-	/*
-	 * Push length smaller than block size into buffer or
-	 * fill up the buffer if there is already something
-	 * in it.
-	 */
-	if (ctx->buflen > 0 || len < 8)
-		len -= SipBuf(ctx, &s, len, 0);
-	if (len == 0)
-		return;
-
-	rem = len & 0x7;
-	len >>= 3;
-	/* Optimze for 64bit aligned/unaligned access. */
-	if (((uintptr_t)s & 0x7) == 0) {
-		for (p = (const uint64_t *)s; len > 0; len--, p++) {
-			m = le64toh(*p);
-			ctx->v[3] ^= m;
-			SipRounds(ctx, 0);
-			ctx->v[0] ^= m;
-		}
-		s = (const uint8_t *)p;
-	} else {
-		for (; len > 0; len--, s += 8) {
-			m = le64dec(s);
-			ctx->v[3] ^= m;
-			SipRounds(ctx, 0);
-			ctx->v[0] ^= m;
-		}
-	}
-	/* Push remainder into buffer. */
-	if (rem > 0)
-		(void)SipBuf(ctx, &s, rem, 0);
+	SipBuf(ctx, &s, len, 0);
 }
 
 void SipHash_Final(void *dst, SIPHASH_CTX *ctx) {

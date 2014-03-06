@@ -431,26 +431,115 @@ More research is needed to determine the limits of parallelizability.
 \bibliographystyle{IEEEtran}
 \bibliography{cuckoo}
 
-\section{Appendix A: cuckoo.c Source Code}
+\section{Appendix A: cuckoo.h Header File}
 \footnotesize
 \begin{verbatim}
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2014 John Tromp
 
-#include "cuckoo.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <unistd.h>
+#include <assert.h>
+#include <pthread.h>
+#include <openssl/sha.h> // if openssl absent, use #include "sha256.c"
+
+// proof-of-work parameters
+#ifndef SIZEMULT 
+#define SIZEMULT 1
+#endif
+#ifndef SIZESHIFT 
+#define SIZESHIFT 20
+#endif
+#ifndef PROOFSIZE
+#define PROOFSIZE 42
+#endif
+
+#define SIZE (SIZEMULT*((unsigned)1<<SIZESHIFT))
+// relatively prime partition sizes
+#define PARTU (SIZE/2+1)
+#define PARTV (SIZE/2-1)
+
+typedef uint64_t u64;
+typedef struct {
+  u64 v[4];
+} siphash_ctx;
+ 
+#define ROTL(x,b) (u64)( ((x) << (b)) | ( (x) >> (64 - (b))) )
+#define SIPROUND \
+  do { \
+    v0 += v1; v1=ROTL(v1,13); v1 ^= v0; v0=ROTL(v0,32); \
+    v2 += v3; v3=ROTL(v3,16); v3 ^= v2; \
+    v0 += v3; v3=ROTL(v3,21); v3 ^= v0; \
+    v2 += v1; v1=ROTL(v1,17); v1 ^= v2; v2=ROTL(v2,32); \
+  } while(0)
+ 
+// SipHash-2-4 specialized to precomputed key and 4 byte nonces
+u64 siphash24(siphash_ctx *ctx, unsigned nonce) {
+  u64 b = ( ( u64 )4 ) << 56 | nonce;
+  u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ b;
+  SIPROUND; SIPROUND;
+  v0 ^= b;
+  v2 ^= 0xff;
+  SIPROUND; SIPROUND; SIPROUND; SIPROUND;
+  return v0 ^ v1 ^ v2  ^ v3;
+}
+
+// generate edge in cuckoo graph
+void sipedge(siphash_ctx *ctx, unsigned nonce, unsigned *pu, unsigned *pv) {
+  u64 sip = siphash24(ctx, nonce);
+  *pu = 1 +         (unsigned)(sip % PARTU);
+  *pv = 1 + PARTU + (unsigned)(sip % PARTV);
+}
+
+#define U8TO64_LE(p) \
+  (((u64)((p)[0])      ) | ((u64)((p)[1]) <<  8) | \
+   ((u64)((p)[2]) << 16) | ((u64)((p)[3]) << 24) | \
+   ((u64)((p)[4]) << 32) | ((u64)((p)[5]) << 40) | \
+   ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
+ 
+// derive siphash key from header
+void setheader(siphash_ctx *ctx, char *header) {
+  unsigned char hdrkey[32];
+  SHA256((unsigned char *)header, strlen(header), hdrkey);
+  u64 k0 = U8TO64_LE(hdrkey);
+  u64 k1 = U8TO64_LE(hdrkey+8);
+  ctx->v[0] = k0 ^ 0x736f6d6570736575ULL;
+  ctx->v[1] = k1 ^ 0x646f72616e646f6dULL;
+  ctx->v[2] = k0 ^ 0x6c7967656e657261ULL;
+  ctx->v[3] = k1 ^ 0x7465646279746573ULL;
+}
+
+typedef struct {
+  unsigned *cuckoo;
+  pthread_mutex_t setsol;
+  unsigned (*sols)[PROOFSIZE];
+  unsigned maxsols;
+  unsigned nsols;
+  siphash_ctx sip_ctx;
+  unsigned easiness;
+  int nthreads;
+} cuckoo_ctx;
+
+typedef struct {
+  int id;
+  pthread_t thread;
+  cuckoo_ctx *ctx;
+} thread_ctx;
+
 // algorithm parameters
 #define MAXPATHLEN 8192
-#define MAXSOLS 8
 
-unsigned *cuckoo;
-
-unsigned path(unsigned u, unsigned *us) {
-  unsigned nu;
+int path(unsigned *cuckoo, unsigned u, unsigned *us) {
+  int nu;
   for (nu = 0; u; u = cuckoo[u]) {
     if (++nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
-      assert(nu < MAXPATHLEN);
-      printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
+      if (nu < 0)
+        printf("maximum path length exceeded\n");
+      else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
       pthread_exit(NULL);
     }
     us[nu] = u;
@@ -463,48 +552,50 @@ unsigned path(unsigned u, unsigned *us) {
 #define SOLMODV (SOLMODU-1)
 
 void storedge(u64 uv, u64 *usck, u64 *vsck) {
-  int i = uv % SOLMODU;
-  if (usck[i]) {
-    i = uv % SOLMODV;
-    assert(!vsck[i]);
-    vsck[i] = uv;
+  int j, i = uv % SOLMODU;
+  u64 uvi = usck[i]; 
+  if (uvi) {
+    if (vsck[j = uv % SOLMODV]) {
+      vsck[uvi % SOLMODV] = uvi;
+    } else {
+      vsck[j] = uv;
+      return;
+    }
   } else usck[i] = uv;
 }
 
-pthread_mutex_t setsol = PTHREAD_MUTEX_INITIALIZER;
-unsigned sols[MAXSOLS][PROOFSIZE], nsols;
-
-void solution(unsigned *us, unsigned nu, unsigned *vs, unsigned nv) {
+void solution(cuckoo_ctx *ctx, unsigned *us, int nu, unsigned *vs, int nv) {
   u64 *usck = (u64 *)&us[PROOFSIZE], *vsck = (u64 *)&vs[PROOFSIZE];
   unsigned u, v, n;
   for (int i=0; i<SOLMODU; i++)
     usck[i] = vsck[i] = 0L;
   storedge((u64)*us<<32 | *vs, usck, vsck);
   while (nu--)
-    storedge((u64)us[nu+1&~1]<<32 | us[nu|1], usck, vsck); // u's in even position; v's in odd
+    storedge((u64)us[(nu+1)&~1]<<32 | us[nu|1], usck, vsck); // u's in even position; v's in odd
   while (nv--)
-    storedge((u64)vs[nv|1]<<32 | vs[nv+1&~1], usck, vsck); // u's in odd position; v's in even
-  pthread_mutex_lock(&setsol);
-  for (unsigned nonce = n = 0; nonce < EASINESS ; nonce++) {
-    sipedge(nonce, &u, &v);
+    storedge((u64)vs[nv|1]<<32 | vs[(nv+1)&~1], usck, vsck); // u's in odd position; v's in even
+  pthread_mutex_lock(&ctx->setsol);
+  for (unsigned nonce = n = 0; nonce < ctx->easiness; nonce++) {
+    sipedge(&ctx->sip_ctx, nonce, &u, &v);
     u64 *c, uv = (u64)u<<32 | v;
     if (*(c = &usck[uv % SOLMODU]) == uv || *(c = &vsck[uv % SOLMODV]) == uv) {
-      sols[nsols][n++] = nonce;
+      ctx->sols[ctx->nsols][n++] = nonce;
       *c = 0;
     }
   }
-  nsols++;
-  pthread_mutex_unlock(&setsol);
+  ctx->nsols++;
+  pthread_mutex_unlock(&ctx->setsol);
   assert(n == PROOFSIZE);
 }
 
-pthread_t threads[NTHREADS];
-
-void *worker(void *tp) {
-  int t = (pthread_t *)tp - threads;
-  unsigned us[MAXPATHLEN], nu, u, vs[MAXPATHLEN], nv, v; 
-  for (unsigned nonce = t; nonce < EASINESS; nonce += NTHREADS) {
-    sipedge(nonce, us, vs);
+void *worker(void *vp) {
+  thread_ctx *tp = (thread_ctx *)vp;
+  cuckoo_ctx *ctx = tp->ctx;
+  unsigned *cuckoo = ctx->cuckoo;
+  unsigned us[MAXPATHLEN], u, vs[MAXPATHLEN], v; 
+  int nu, nv;
+  for (unsigned nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
+    sipedge(&ctx->sip_ctx, nonce, us, vs);
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
 #ifdef SHOW
@@ -513,13 +604,13 @@ void *worker(void *tp) {
       else            printf("%2d:%02d ",j,cuckoo[j]);
     printf(" %x (%d,%d)\n", nonce,*us,*vs);
 #endif
-    if (us[nu = path(u, us)] == vs[nv = path(v, vs)]) {
+    if (us[nu = path(cuckoo, u, us)] == vs[nv = path(cuckoo, v, vs)]) {
       int min = nu < nv ? nu : nv;
       for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
       int len = nu + nv + 1;
-      printf("% 4d-cycle found at %d:%d%%\n", len, t, (int)(nonce*100L/EASINESS));
-      if (len == PROOFSIZE && nsols < MAXSOLS)
-        solution(us, nu, vs, nv);
+      printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (int)(nonce*100L/ctx->easiness));
+      if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
+        solution(ctx, us, nu, vs, nv);
       continue;
     }
     if (nu < nv) {
@@ -535,114 +626,96 @@ void *worker(void *tp) {
   pthread_exit(NULL);
 }
 
-int main(int argc, char **argv) {
-  assert(SIZE < 1L<<32);
-  cuckoo = calloc(1+SIZE, sizeof(unsigned));
-  assert(cuckoo);
-  char *header = argc >= 2 ? argv[1] : "";
-  setheader(header);
-  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %u nodes and %u edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, EASINESS);
-  for (int t = 0; t < NTHREADS; t++)
-    assert(pthread_create(&threads[t], NULL, worker, (void *)&threads[t]) == 0);
-  for (int t = 0; t < NTHREADS; t++)
-    assert(pthread_join(threads[t], NULL) == 0);
-  for (int s = 0; s < nsols; s++) {
-    printf("Solution");
-    for (int i = 0; i < PROOFSIZE; i++)
-      printf(" %x", sols[s][i]);
-    printf("\n");
+int verify(unsigned nonces[PROOFSIZE], char *header, int easipct) {
+  int easiness = (unsigned)(easipct * (u64)SIZE / 100);
+  siphash_ctx ctx;
+  setheader(&ctx, header);
+  unsigned us[PROOFSIZE], vs[PROOFSIZE], i = 0, n;
+  for (n = 0; n < PROOFSIZE; n++) {
+    if (n) assert(nonces[n-1] < nonces[n]);
+    assert(nonces[n] < easiness);
+    sipedge(&ctx, nonces[n], &us[n], &vs[n]);
   }
-  return 0;
+  do {  // follow cycle until we return to i==0; n edges left to visit
+    int j = i;
+    for (int k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
+      if (k != i && vs[k] == vs[i]) {
+        if (j != i)
+          return 0;
+        j = k;
+    }
+    if (j == i)
+      return 0;
+    i = j;
+    for (int k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
+      if (k != j && us[k] == us[j]) {
+        if (i != j)
+          return 0;
+        i = k;
+    }
+    if (i == j)
+      return 0;
+    n -= 2;
+  } while (i);
+  return n == 0;
 }
 \end{verbatim}
 
-\section{Appendix B: cuckoo.h Header File}
+\section{Appendix B: cuckoo.c Source Code}
 \footnotesize
 \begin{verbatim}
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2014 John Tromp
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-#include <assert.h>
-#include <pthread.h>
-#include <openssl/sha.h>
+#include "cuckoo.h"
 
-// proof-of-work parameters
-#ifndef SIZEMULT 
-#define SIZEMULT 1
-#endif
-#ifndef SIZESHIFT 
-#define SIZESHIFT 20
-#endif
-#ifndef EASINESS 
-#define EASINESS (SIZE/2)
-#endif
-#ifndef PROOFSIZE 
-#define PROOFSIZE 42
-#endif
-// algorithm parameters
-#ifndef NTHREADS
-#define NTHREADS 1
-#endif
-
-#define SIZE (SIZEMULT*((unsigned)1<<SIZESHIFT))
-// relatively prime partition sizes
-#define PARTU (SIZE/2+1)
-#define PARTV (SIZE/2-1)
-
-typedef uint64_t u64;
- 
-#define ROTL(x,b) (u64)( ((x) << (b)) | ( (x) >> (64 - (b))) )
- 
-#define SIPROUND \
-  do { \
-    v0 += v1; v1=ROTL(v1,13); v1 ^= v0; v0=ROTL(v0,32); \
-    v2 += v3; v3=ROTL(v3,16); v3 ^= v2; \
-    v0 += v3; v3=ROTL(v3,21); v3 ^= v0; \
-    v2 += v1; v1=ROTL(v1,17); v1 ^= v2; v2=ROTL(v2,32); \
-  } while(0)
- 
-// SipHash-2-4 specialized to precomputed key and 4 byte nonces
-u64 siphash24( unsigned nonce, u64 v0, u64 v1, u64 v2, u64 v3) {
-  u64 b = ( ( u64 )4 ) << 56 | nonce;
-  v3 ^= b;
-  SIPROUND; SIPROUND;
-  v0 ^= b;
-  v2 ^= 0xff;
-  SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return v0 ^ v1 ^ v2  ^ v3;
-}
-
-u64 v0 = 0x736f6d6570736575ULL, v1 = 0x646f72616e646f6dULL,
-    v2 = 0x6c7967656e657261ULL, v3 = 0x7465646279746573ULL;
-
-#define U8TO64_LE(p) \
-  (((u64)((p)[0])      ) | ((u64)((p)[1]) <<  8) | \
-   ((u64)((p)[2]) << 16) | ((u64)((p)[3]) << 24) | \
-   ((u64)((p)[4]) << 32) | ((u64)((p)[5]) << 40) | \
-   ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
- 
-// derive siphash key from header
-void setheader(char *header) {
-  unsigned char hdrkey[32];
-  SHA256((unsigned char *)header, strlen(header), hdrkey);
-  u64 k0 = U8TO64_LE( hdrkey ); u64 k1 = U8TO64_LE( hdrkey + 8 );
-  v3 ^= k1; v2 ^= k0; v1 ^= k1; v0 ^= k0;
-}
-
-u64 siphash(unsigned nonce) {
-  return siphash24(nonce, v0, v1, v2, v3);
-}
-
-// generate edge in cuckoo graph
-void sipedge(unsigned nonce, unsigned *pu, unsigned *pv) {
-  u64 sip = siphash(nonce);
-  *pu = 1 +         (unsigned)(sip % PARTU);
-  *pv = 1 + PARTU + (unsigned)(sip % PARTV);
+int main(int argc, char **argv) {
+  assert(SIZE < 1L<<32);
+  cuckoo_ctx ctx;
+  ctx.nthreads = 1;
+  ctx.maxsols = 8;
+  char *header = "";
+  int c, easipct = 50;
+  while ((c = getopt (argc, argv, "e:h:m:t:")) != -1) {
+    switch (c) {
+      case 'e':
+        easipct = atoi(optarg);
+        break;
+      case 'h':
+        header = optarg;
+        break;
+      case 'm':
+        ctx.maxsols = atoi(optarg);
+        break;
+      case 't':
+        ctx.nthreads = atoi(optarg);
+        break;
+    }
+  }
+  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d%% edges and %d threads\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct, ctx.nthreads);
+  assert(easipct >= 0 && easipct <= 100);
+  ctx.easiness = (unsigned)(easipct * (u64)SIZE / 100);
+  setheader(&ctx.sip_ctx, header);
+  assert(ctx.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
+  assert(ctx.sols = calloc(ctx.maxsols, PROOFSIZE*sizeof(unsigned)));
+  ctx.nsols = 0;
+  thread_ctx *threads = calloc(ctx.nthreads, sizeof(thread_ctx));
+  assert(threads);
+  for (int t = 0; t < ctx.nthreads; t++) {
+    threads[t].id = t;
+    threads[t].ctx = &ctx;
+    assert(pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]) == 0);
+  }
+  for (int t = 0; t < ctx.nthreads; t++)
+    assert(pthread_join(threads[t].thread, NULL) == 0);
+  for (int s = 0; s < ctx.nsols; s++) {
+    printf("Solution");
+    for (int i = 0; i < PROOFSIZE; i++)
+      printf(" %x", ctx.sols[s][i]);
+    printf("\n");
+  }
+  return 0;
 }
 \end{verbatim}
 
@@ -655,31 +728,31 @@ void sipedge(unsigned nonce, unsigned *pu, unsigned *pv) {
 #include "cuckoo.h"
 
 int main(int argc, char **argv) {
-  char *header = argc >= 2 ? argv[1] : "";
-  setheader(header);
-  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d nodes and %d edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, EASINESS);
-  assert(scanf("Solution") == 0);
-  unsigned nonces[PROOFSIZE], us[PROOFSIZE], vs[PROOFSIZE], i = 0, n;
-  for (n = 0; n < PROOFSIZE; n++) {
-    assert(scanf(" %x", &nonces[n]) == 1);
-    if (n) assert(nonces[n-1] < nonces[n]);
-    assert(nonces[n] < EASINESS);
-    sipedge(nonces[n], &us[n], &vs[n]);
+  char *header;
+  int c, easipct = 50;
+  while ((c = getopt (argc, argv, "e:h:")) != -1) {
+    switch (c) {
+      case 'e':
+        easipct = atoi(optarg);
+        break;
+          case 'h':
+        header = optarg;
+        break;
+    }
   }
-  do {  // follow cycle until we return to i==0; n edges left to visit
-    int j = i;
-    for (int k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
-      if (k != i && vs[k] == vs[i]) { assert(j == i); j = k; }
-    assert(j != i);
-    i = j;
-    for (int k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
-      if (k != j && us[k] == us[j]) { assert(i == j); i = k; }
-    assert(i != j);
-    n -= 2;
-  } while (i);
-  assert(n == 0);
-  printf("Verified with cyclehash=");
+  int easiness = (unsigned)(easipct * (u64)SIZE / 100);
+  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d nodes and %d edges\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, SIZE, easiness);
+  assert(scanf("Solution") == 0);
+  unsigned nonces[PROOFSIZE];
+  for (int n = 0; n < PROOFSIZE; n++)
+    assert(scanf(" %x", &nonces[n]) == 1);
+  int ok = verify(nonces, header, easiness);
+  if (!ok) {
+    printf("FAILED\n");
+    exit(1);
+  }
+  printf("Verified with cyclehash ");
   unsigned char cyclehash[32];
   SHA256((unsigned char *)nonces, sizeof(nonces), cyclehash);
   for (int i=0; i<32; i++)
