@@ -26,6 +26,24 @@ typedef struct {
   u64 v[4];
 } siphash_ctx;
  
+#define U8TO64_LE(p) \
+  (((u64)((p)[0])      ) | ((u64)((p)[1]) <<  8) | \
+   ((u64)((p)[2]) << 16) | ((u64)((p)[3]) << 24) | \
+   ((u64)((p)[4]) << 32) | ((u64)((p)[5]) << 40) | \
+   ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
+ 
+// derive siphash key from header
+void setheader(siphash_ctx *ctx, char *header) {
+  unsigned char hdrkey[32];
+  SHA256((unsigned char *)header, strlen(header), hdrkey);
+  u64 k0 = U8TO64_LE(hdrkey);
+  u64 k1 = U8TO64_LE(hdrkey+8);
+  ctx->v[0] = k0 ^ 0x736f6d6570736575ULL;
+  ctx->v[1] = k1 ^ 0x646f72616e646f6dULL;
+  ctx->v[2] = k0 ^ 0x6c7967656e657261ULL;
+  ctx->v[3] = k1 ^ 0x7465646279746573ULL;
+}
+
 #define ROTL(x,b) (u64)( ((x) << (b)) | ( (x) >> (64 - (b))) )
 #define SIPROUND \
   do { \
@@ -53,24 +71,7 @@ void sipedge(siphash_ctx *ctx, unsigned nonce, unsigned *pu, unsigned *pv) {
   *pv = 1 + PARTU + (unsigned)(sip % PARTV);
 }
 
-#define U8TO64_LE(p) \
-  (((u64)((p)[0])      ) | ((u64)((p)[1]) <<  8) | \
-   ((u64)((p)[2]) << 16) | ((u64)((p)[3]) << 24) | \
-   ((u64)((p)[4]) << 32) | ((u64)((p)[5]) << 40) | \
-   ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
- 
-// derive siphash key from header
-void setheader(siphash_ctx *ctx, char *header) {
-  unsigned char hdrkey[32];
-  SHA256((unsigned char *)header, strlen(header), hdrkey);
-  u64 k0 = U8TO64_LE(hdrkey);
-  u64 k1 = U8TO64_LE(hdrkey+8);
-  ctx->v[0] = k0 ^ 0x736f6d6570736575ULL;
-  ctx->v[1] = k1 ^ 0x646f72616e646f6dULL;
-  ctx->v[2] = k0 ^ 0x6c7967656e657261ULL;
-  ctx->v[3] = k1 ^ 0x7465646279746573ULL;
-}
-
+// verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
 int verify(unsigned nonces[PROOFSIZE], char *header, int easiness) {
   siphash_ctx ctx;
   setheader(&ctx, header);
