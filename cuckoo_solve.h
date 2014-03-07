@@ -40,8 +40,8 @@ int path(unsigned *cuckoo, unsigned u, unsigned *us) {
   return nu;
 }
 
-// largest odd number of u64's that fit in MAXPATHLEN-PROOFSIZE unsigned's
-#define SOLMODU ((MAXPATHLEN-PROOFSIZE-2)/2 | 1)
+// largest number of u64's that fit in MAXPATHLEN-PROOFSIZE unsigned's
+#define SOLMODU ((MAXPATHLEN-PROOFSIZE)/2)
 #define SOLMODV (SOLMODU-1)
 
 void storedge(u64 uv, u64 *usck, u64 *vsck) {

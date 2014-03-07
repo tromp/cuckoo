@@ -17,7 +17,7 @@
 #endif
 
 #define SIZE (SIZEMULT*((unsigned)1<<SIZESHIFT))
-// relatively prime partition sizes
+// relatively prime partition sizes, assuming SIZESHIFT >= 2
 #define PARTU (SIZE/2+1)
 #define PARTV (SIZE/2-1)
 
