@@ -2,6 +2,7 @@
 // Copyright (c) 2013-2014 John Tromp
 
 #include "cuckoo.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
