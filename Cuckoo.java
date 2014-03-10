@@ -22,11 +22,15 @@ public class Cuckoo {
 
   long v[] = new long[4];
 
+  public static long u8(byte b) {
+    return (long)(b) & 0xff;
+  }
+
   public static long u8to64(byte[] p, int i) {
-    return (long) p[i++]       | (long) p[i++] <<  8 |
-           (long) p[i++] << 16 | (long) p[i++] << 24 |
-           (long) p[i++] << 32 | (long) p[i++] << 40 |
-           (long) p[i++] << 48 | (long) p[i++] << 56 ;
+    return u8(p[i  ])       | u8(p[i+1]) <<  8 |
+           u8(p[i+2]) << 16 | u8(p[i+3]) << 24 |
+           u8(p[i+4]) << 32 | u8(p[i+5]) << 40 |
+           u8(p[i+6]) << 48 | u8(p[i+7]) << 56 ;
   }
 
   public void setheader(byte[] header) {
@@ -118,10 +122,8 @@ public class Cuckoo {
         return false;
       edges[n] = new Edge();
       sipedge(nonces[n], edges[n]);
-      System.out.println("nonces[" + n + "] = " + nonces[n] + " (" + edges[n].u + "," + edges[n].v + ")");
     }
     do {  // follow cycle until we return to i==0; n edges left to visit
-      System.out.println("round " + n);
       int j = i;
       for (int k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
         if (k != i && edges[k].v == edges[i].v) {
@@ -150,9 +152,9 @@ public class Cuckoo {
     String header = "";
     int c, i, easipct = 50;
     for (i = 0; i < argv.length; i++) {
-      if (argv[i] == "-e") {
+      if (argv[i].equals("-e")) {
         easipct = Integer.parseInt(argv[++i]);
-      } else if (argv[i] == "-h") {
+      } else if (argv[i].equals("-h")) {
         header = argv[++i];
       }
     }
