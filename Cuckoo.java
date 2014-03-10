@@ -3,6 +3,7 @@
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Scanner;
 
 class Edge {
   int u;
@@ -114,9 +115,12 @@ public class Cuckoo {
     for (n = 0; n < PROOFSIZE; n++) {
       if (nonces[n] >= easiness || (n != 0  && nonces[n] <= nonces[n-1]))
         return false;
+      edges[n] = new Edge();
       sipedge(nonces[n], edges[n]);
+      System.out.println("nonces[" + n + "] = " + nonces[n] + " (" + edges[n].u + "," + edges[n].v + ")");
     }
     do {  // follow cycle until we return to i==0; n edges left to visit
+      System.out.println("round " + n);
       int j = i;
       for (int k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
         if (k != i && edges[k].v == edges[i].v) {
@@ -141,6 +145,37 @@ public class Cuckoo {
   }
 
   public static void main(String argv[]) {
-    System.out.println("Hello, Cuckoo!");
+    Cuckoo cuckoo = new Cuckoo();
+    String header = "";
+    int c, i, easipct = 50;
+    for (i = 0; i < argv.length; i++) {
+      if (argv[i] == "-e") {
+        easipct = Integer.parseInt(argv[++i]);
+      } else if (argv[i] == "-h") {
+        header = argv[++i];
+      }
+    }
+    System.out.println("Verifying size " + PROOFSIZE + " proof for cuckoo" + SIZEMULT + SIZESHIFT + "(\"" + header + "\") with " + easipct + "% edges");
+    Scanner sc = new Scanner(System.in);
+    sc.next();
+    int nonces[] = new int[PROOFSIZE];
+    for (int n = 0; n < PROOFSIZE; n++) {
+      nonces[n] = Integer.parseInt(sc.next(), 16);
+    }
+    int easiness = (int)(easipct * (long)SIZE / 100L);
+    Boolean ok = cuckoo.verify(nonces, header.getBytes(), easiness);
+    if (!ok) {
+      System.out.println("FAILED");
+      System.exit(1);
+    }
+    System.out.print("Verified with cyclehash ");
+    byte[] cyclehash;
+    try {
+      cyclehash = MessageDigest.getInstance("SHA-256").digest(header.getBytes());
+      for (i=0; i<32; i++)
+        System.out.print(cyclehash[i]);
+      System.out.println("");
+    } catch(NoSuchAlgorithmException e) {
+    }
   }
 }
