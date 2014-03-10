@@ -4,6 +4,7 @@
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
+import com.google.common.primitives.UnsignedLongs;
 
 class Edge {
   int u;
@@ -103,8 +104,8 @@ public class Cuckoo {
   // generate edge in cuckoo graph
   public void sipedge(int nonce, Edge e) {
     long sip = siphash24(nonce);
-    e.u = 1 +         (int)(sip % PARTU);
-    e.v = 1 + PARTU + (int)(sip % PARTV);
+    e.u = 1 +         (int)UnsignedLongs.remainder(sip, (long)PARTU);
+    e.v = 1 + PARTU + (int)UnsignedLongs.remainder(sip, (long)PARTV);
   }
   
   // verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
