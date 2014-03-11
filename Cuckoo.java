@@ -5,6 +5,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
 import com.google.common.primitives.UnsignedLongs;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.nio.ByteOrder;
 
 class Edge {
   int u;
@@ -172,11 +175,14 @@ public class Cuckoo {
       System.exit(1);
     }
     System.out.print("Verified with cyclehash ");
+    ByteBuffer buf = ByteBuffer.allocate(PROOFSIZE*4).order(ByteOrder.LITTLE_ENDIAN);
+    IntBuffer intBuffer = buf.asIntBuffer();
+    intBuffer.put(nonces);
     byte[] cyclehash;
     try {
-      cyclehash = MessageDigest.getInstance("SHA-256").digest(header.getBytes());
+      cyclehash = MessageDigest.getInstance("SHA-256").digest(buf.array());
       for (i=0; i<32; i++)
-        System.out.print(cyclehash[i]);
+        System.out.print(String.format("%02x",((int)cyclehash[i] & 0xff)));
       System.out.println("");
     } catch(NoSuchAlgorithmException e) {
     }
