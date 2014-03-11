@@ -175,9 +175,8 @@ public class Cuckoo {
       System.exit(1);
     }
     System.out.print("Verified with cyclehash ");
-    ByteBuffer buf = ByteBuffer.allocate(PROOFSIZE*4).order(ByteOrder.LITTLE_ENDIAN);
-    IntBuffer intBuffer = buf.asIntBuffer();
-    intBuffer.put(nonces);
+    ByteBuffer buf = ByteBuffer.allocate(PROOFSIZE*4);
+    buf.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().put(nonces);
     byte[] cyclehash;
     try {
       cyclehash = MessageDigest.getInstance("SHA-256").digest(buf.array());
