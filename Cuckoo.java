@@ -4,7 +4,6 @@
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
-import com.google.common.primitives.UnsignedLongs;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.ByteOrder;
@@ -48,6 +47,13 @@ public class Cuckoo {
       v[3] = k1 ^ 0x7465646279746573L;
     } catch(NoSuchAlgorithmException e) {
     }
+  }
+
+  // return u % m with a considered unsigned, assuming m > 0
+  private static int remainder(long u, int m) {
+    int i = (int)((u >>> 1) % m);
+    int j = (i << 1) + (int)(u & 1);
+    return j < m ? j : j - m;
   }
 
   public long siphash24(int nonce) {
@@ -111,8 +117,8 @@ public class Cuckoo {
   // generate edge in cuckoo graph
   public void sipedge(int nonce, Edge e) {
     long sip = siphash24(nonce);
-    e.u = 1 +         (int)UnsignedLongs.remainder(sip, (long)PARTU);
-    e.v = 1 + PARTU + (int)UnsignedLongs.remainder(sip, (long)PARTV);
+    e.u = 1 +         remainder(sip, PARTU);
+    e.v = 1 + PARTU + remainder(sip, PARTV);
   }
   
   // verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
