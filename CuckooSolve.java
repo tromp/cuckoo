@@ -55,7 +55,6 @@ class CuckooSolve {
       storedge((long)us[(nu+1)&~1]<<32 | us[nu|1], usck, vsck); // u's in even position; v's in odd
     while (nv--)
       storedge((long)vs[nv|1]<<32 | vs[(nv+1)&~1], usck, vsck); // u's in odd position; v's in even
-    pthread_mutex_lock(&ctx->setsol);
     for (unsigned nonce = n = 0; nonce < ctx->easiness; nonce++) {
       sipedge(&ctx->sip_ctx, nonce, &u, &v);
       long *c, uv = (long)u<<32 | v;
@@ -66,46 +65,42 @@ class CuckooSolve {
     }
     if (n == PROOFSIZE)
       ctx->nsols++;
-    else printf("Only recovered %d nonces\n", n);
-    pthread_mutex_unlock(&ctx->setsol);
+    else System.out.println("Only recovered " + n + " nonces");
   }
-  
-  void *worker(void *vp) {
-    thread_ctx *tp = (thread_ctx *)vp;
-    cuckoo_ctx *ctx = tp->ctx;
-    unsigned *cuckoo = ctx->cuckoo;
-    unsigned us[MAXPATHLEN], u, vs[MAXPATHLEN], v; 
-    int nu, nv;
-    for (unsigned nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
-      sipedge(&ctx->sip_ctx, nonce, us, vs);
-      if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
+}
+
+public class CuckooWorker implements Runnable {
+  int id;
+  CuckooSolve solve;
+
+  public voic run() {
+    int[] cuckoo = solve.cuckoo;
+    int[] us = new int[MAXPATHLEN], vs = new int[MAXPATHLEN]
+    int u, v, nu, nv;
+    for (int nonce = id; nonce < solve.easiness; nonce += solve.nthreads) {
+      solve.graph.sipedge(nonce, us, vs);
+      if ((u = cuckoo[us[0]]) == vs[0] || (v = cuckoo[vs[0]]) == us[0])
         continue; // ignore duplicate edges
-  #ifdef SHOW
-      for (int j=1; j<=SIZE; j++)
-        if (!cuckoo[j]) printf("%2d:   ",j);
-        else            printf("%2d:%02d ",j,cuckoo[j]);
-      printf(" %x (%d,%d)\n", nonce,*us,*vs);
-  #endif
-      if (us[nu = path(cuckoo, u, us)] == vs[nv = path(cuckoo, v, vs)]) {
+      if (us[nu = solve.path(cuckoo, u, us)] == vs[nv = solve.path(cuckoo, v, vs)]) {
         int min = nu < nv ? nu : nv;
         for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
         int len = nu + nv + 1;
-        printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (int)(nonce*100L/ctx->easiness));
-        if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
-          solution(ctx, us, nu, vs, nv);
+        System.out.println(" " + len + "-cycle found at " + id + ":" + (int)(nonce*100L/ctx->easiness) + "%");
+        if (len == PROOFSIZE && solve.nsols < solve.maxsols)
+          solve.solution(us, nu, vs, nv);
         continue;
       }
       if (nu < nv) {
         while (nu--)
           cuckoo[us[nu+1]] = us[nu];
-        cuckoo[*us] = *vs;
+        cuckoo[us[0]] = vs[0];
       } else {
         while (nv--)
           cuckoo[vs[nv+1]] = vs[nv];
-        cuckoo[*vs] = *us;
+        cuckoo[vs[0]] = us[0];
       }
     }
-    pthread_exit(NULL);
+    Thread.currentThread().interrupt();
   }
 
   public static void main(String argv[]) {
@@ -119,23 +114,23 @@ class CuckooSolve {
         easipct = Integer.parseInt(argv[++i]);
       } else if (argv[i].equals("-h")) {
         header = argv[++i];
-      if (argv[i].equals("-m")) {
+      } else if (argv[i].equals("-m")) {
         maxsols = Integer.parseInt(argv[++i]);
       }
     }
     assert easipct >= 0 && easipct <= 100;
     System.out.println("Looking for " + PROOFSIZE + "-cycle on cuckoo" + SIZEMULT + SIZESHIFT + "(\"" + header + "\") with " + easipct + "% edges and " + nthreads + " threads");
-    cuckoo_ctx ctx;
-    setheader(&ctx.sip_ctx, header);
-    ctx.easiness = (unsigned)(easipct * (long)SIZE / 100);
-    assert(ctx.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
-    assert(ctx.sols = calloc(maxsols, PROOFSIZE*sizeof(unsigned)));
-    ctx.maxsols = maxsols;
-    ctx.nsols = 0;
-    ctx.nthreads = nthreads;
-    pthread_mutex_init(&ctx.setsol, NULL);
+    solve = new Solve;
+    solve.graph.setheader(header.getBytes());
+    solve.easiness = (unsigned)(easipct * (long)SIZE / 100);
+    assert(solve.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
+    assert(solve.sols = calloc(maxsols, PROOFSIZE*sizeof(unsigned)));
+    solve.maxsols = maxsols;
+    solve.nsols = 0;
+    solve.nthreads = nthreads;
+    pthread_mutex_init(&solve.setsol, NULL);
   
-    thread_ctx *threads = calloc(nthreads, sizeof(thread_ctx));
+    thread_solve *threads = calloc(nthreads, sizeof(thread_ctx));
     assert(threads);
     for (int t = 0; t < nthreads; t++) {
       threads[t].id = t;
@@ -144,10 +139,10 @@ class CuckooSolve {
     }
     for (int t = 0; t < nthreads; t++)
       assert(pthread_join(threads[t].thread, NULL) == 0);
-    for (int s = 0; s < ctx.nsols; s++) {
+    for (int s = 0; s < solve.nsols; s++) {
       printf("Solution");
       for (int i = 0; i < PROOFSIZE; i++)
-        printf(" %x", ctx.sols[s][i]);
+        printf(" %x", solve.sols[s][i]);
       printf("\n");
     }
     return 0;
