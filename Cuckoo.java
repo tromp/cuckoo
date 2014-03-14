@@ -15,7 +15,7 @@ class Edge {
 
 public class Cuckoo {
   public static final int SIZEMULT = 1;
-  public static final int SIZESHIFT = 20;
+  public static final int SIZESHIFT = 30;
   public static final int PROOFSIZE = 42;
   public static final int SIZE = SIZEMULT*(1<<SIZESHIFT);
   // relatively prime partition sizes, assuming SIZESHIFT >= 2
@@ -35,7 +35,7 @@ public class Cuckoo {
            u8(p[i+6]) << 48 | u8(p[i+7]) << 56 ;
   }
 
-  public void setheader(byte[] header) {
+  public Cuckoo(byte[] header) {
     byte[] hdrkey;
     try {
       hdrkey = MessageDigest.getInstance("SHA-256").digest(header);
@@ -47,13 +47,6 @@ public class Cuckoo {
       v[3] = k1 ^ 0x7465646279746573L;
     } catch(NoSuchAlgorithmException e) {
     }
-  }
-
-  // return u % m with a considered unsigned, assuming m > 0
-  private static int remainder(long u, int m) {
-    int i = (int)((u >>> 1) % m);
-    int j = (i << 1) + (int)(u & 1);
-    return j < m ? j : j - m;
   }
 
   public long siphash24(int nonce) {
@@ -114,6 +107,13 @@ public class Cuckoo {
     return v0 ^ v1 ^ v2 ^ v3;
   }
 
+  // return u % m with a considered unsigned, assuming m > 0
+  private static int remainder(long u, int m) {
+    int i = (int)((u >>> 1) % m);
+    int j = (i << 1) + (int)(u & 1);
+    return j < m ? j : j - m;
+  }
+
   // generate edge in cuckoo graph
   public void sipedge(int nonce, Edge e) {
     long sip = siphash24(nonce);
@@ -121,9 +121,8 @@ public class Cuckoo {
     e.v = 1 + PARTU + remainder(sip, PARTV);
   }
   
-  // verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
-  public Boolean verify(int[] nonces, byte[] header, int easiness) {
-    setheader(header);
+  // verify that (ascending) nonces, all less than easiness, form a cycle in graph
+  public Boolean verify(int[] nonces, int easiness) {
     Edge edges[] = new Edge[PROOFSIZE];
     int i = 0, n;
     for (n = 0; n < PROOFSIZE; n++) {
@@ -157,7 +156,6 @@ public class Cuckoo {
   }
 
   public static void main(String argv[]) {
-    Cuckoo cuckoo = new Cuckoo();
     String header = "";
     int c, i, easipct = 50;
     for (i = 0; i < argv.length; i++) {
@@ -175,7 +173,8 @@ public class Cuckoo {
       nonces[n] = Integer.parseInt(sc.next(), 16);
     }
     int easiness = (int)(easipct * (long)SIZE / 100L);
-    Boolean ok = cuckoo.verify(nonces, header.getBytes(), easiness);
+    Cuckoo cuckoo = new Cuckoo(header.getBytes());
+    Boolean ok = cuckoo.verify(nonces, easiness);
     if (!ok) {
       System.out.println("FAILED");
       System.exit(1);
