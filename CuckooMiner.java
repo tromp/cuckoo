@@ -38,23 +38,6 @@ class CuckooSolve {
     return nu;
   }
   
-  // largest number of long's that fit in MAXPATHLEN-Cuckoo.PROOFSIZE unsigned's
-  static final int SOLMODU = (MAXPATHLEN-Cuckoo.PROOFSIZE)/2;
-  static final int SOLMODV = SOLMODU-1;
-  
-  private void storedge(long uv, long[] usck, long[] vsck) {
-    int j, i = (int)(uv % SOLMODU);
-    long uvi = usck[i]; 
-    if (uvi != 0) {
-      if (vsck[j = (int)(uv % SOLMODV)] != 0) {
-        vsck[(int)(uvi % SOLMODV)] = uvi;
-      } else {
-        vsck[j] = uv;
-        return;
-      }
-    } else usck[i] = uv;
-  }
-  
   public synchronized void solution(int[] us, int nu, int[] vs, int nv) {
     Set<Edge> cycle = new HashSet<Edge>();
     int c, n;
