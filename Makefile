@@ -38,3 +38,6 @@ cuckoo130:	cuckoo.h cuckoo_solve.h cuckoo.c Makefile
 cuckoo729:	cuckoo.h cuckoo_solve.h cuckoo.c Makefile
 	cc -o cuckoo729 -DSIZEMULT=7 -DSIZESHIFT=29 cuckoo.c ${FLAGS}
 
+java:	Cuckoo.java CuckooMiner.java Makefile
+	javac -O Cuckoo.java CuckooMiner.java
+	java CuckooMiner -h 6 | tail -1 | java Cuckoo -h 6
