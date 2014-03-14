@@ -11,6 +11,20 @@ import java.nio.ByteOrder;
 class Edge {
   int u;
   int v;
+
+  public Edge(int x, int y) {
+    u = x;
+    v = y;
+  }
+
+  public int hashCode() {
+    return u^v;
+  }
+
+  public boolean equals(Object o) {
+    Edge f = (Edge)o;
+    return u==f.u && v==f.v;
+  }
 }
 
 public class Cuckoo {
@@ -115,10 +129,10 @@ public class Cuckoo {
   }
 
   // generate edge in cuckoo graph
-  public void sipedge(int nonce, Edge e) {
+  public Edge sipedge(int nonce) {
     long sip = siphash24(nonce);
-    e.u = 1 +         remainder(sip, PARTU);
-    e.v = 1 + PARTU + remainder(sip, PARTV);
+    return new Edge(1 +         remainder(sip, PARTU),
+                    1 + PARTU + remainder(sip, PARTV));
   }
   
   // verify that (ascending) nonces, all less than easiness, form a cycle in graph
@@ -128,8 +142,7 @@ public class Cuckoo {
     for (n = 0; n < PROOFSIZE; n++) {
       if (nonces[n] >= easiness || (n != 0  && nonces[n] <= nonces[n-1]))
         return false;
-      edges[n] = new Edge();
-      sipedge(nonces[n], edges[n]);
+      edges[n] = sipedge(nonces[n]);
     }
     do {  // follow cycle until we return to i==0; n edges left to visit
       int j = i;

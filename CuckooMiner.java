@@ -1,6 +1,9 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2014 John Tromp
 
+import java.util.Set;
+import java.util.HashSet;
+
 class CuckooSolve {
   static final int MAXPATHLEN = 8192;
   Cuckoo graph;
@@ -53,24 +56,18 @@ class CuckooSolve {
   }
   
   public synchronized void solution(int[] us, int nu, int[] vs, int nv) {
-    long[] usck = new long[SOLMODU];
-    long[] vsck = new long[SOLMODV];
-    Edge e = new Edge();
+    Set<Edge> cycle = new HashSet<Edge>();
     int c, n;
-    storedge((long)us[0]<<32 | vs[0], usck, vsck);
-    while (nu-- != 0)
-      storedge((long)us[(nu+1)&~1]<<32 | us[nu|1], usck, vsck); // u's in even position; v's in odd
-    while (nv-- != 0)
-      storedge((long)vs[nv|1]<<32 | vs[(nv+1)&~1], usck, vsck); // u's in odd position; v's in even
+    cycle.add(new Edge(us[0],vs[0]));
+    while (nu-- != 0) // u's in even position; v's in odd
+      cycle.add(new Edge(us[(nu+1)&~1],us[nu|1]));
+    while (nv-- != 0) // u's in odd position; v's in even
+      cycle.add(new Edge(vs[nv|1],vs[(nv+1)&~1]));
     for (int nonce = n = 0; nonce < easiness; nonce++) {
-      graph.sipedge(nonce, e);
-      long uv = (long)e.u<<32 | e.v;
-      if (usck[c = (int)(uv % SOLMODU)] == uv) {
+      Edge e = graph.sipedge(nonce);
+      if (cycle.contains(e)) {
         sols[nsols][n++] = nonce;
-        usck[c] = 0;
-      } else if (vsck[c = (int)(uv % SOLMODV)] == uv) {
-        sols[nsols][n++] = nonce;
-        vsck[c] = 0;
+        cycle.remove(e);
       }
     }
     if (n == Cuckoo.PROOFSIZE)
@@ -92,9 +89,8 @@ public class CuckooMiner implements Runnable {
     int[] cuckoo = solve.cuckoo;
     int[] us = new int[CuckooSolve.MAXPATHLEN], vs = new int[CuckooSolve.MAXPATHLEN];
     int u, v, nu, nv;
-    Edge e = new Edge();
     for (int nonce = id; nonce < solve.easiness; nonce += solve.nthreads) {
-      solve.graph.sipedge(nonce, e);
+      Edge e = solve.graph.sipedge(nonce);
       us[0] = e.u;
       vs[0] = e.v;
       if ((u = cuckoo[us[0]]) == vs[0] || (v = cuckoo[vs[0]]) == us[0])
