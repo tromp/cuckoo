@@ -1,0 +1,2160 @@
+1
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:71%
+ 214-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 0:83%
+  18-cycle found at 0:86%
+ 206-cycle found at 0:98%
+ 512-cycle found at 0:99%
+ 222-cycle found at 0:99%
+ 1872-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:81%
+   8-cycle found at 0:98%
+ 312-cycle found at 0:99%
+ 366-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:77%
+  22-cycle found at 0:94%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 0:98%
+ 394-cycle found at 0:99%
+ 256-cycle found at 0:99%
+ 240-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 0:96%
+  48-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 0:84%
+   8-cycle found at 0:96%
+  66-cycle found at 0:97%
+  60-cycle found at 0:98%
+ 196-cycle found at 0:99%
+ 604-cycle found at 0:99%
+ 126-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:61%
+   6-cycle found at 0:73%
+   4-cycle found at 0:79%
+  10-cycle found at 0:92%
+  62-cycle found at 0:95%
+  60-cycle found at 0:98%
+ 1082-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 0:97%
+ 316-cycle found at 0:99%
+
+real	29m7.920s
+user	28m51.548s
+sys	0m14.721s
+2
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:71%
+ 214-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 0:83%
+  18-cycle found at 0:86%
+ 206-cycle found at 0:98%
+ 222-cycle found at 0:98%
+ 512-cycle found at 0:99%
+ 1872-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 1:98%
+   4-cycle found at 0:81%
+ 312-cycle found at 0:97%
+ 366-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:77%
+  22-cycle found at 0:87%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 0:98%
+ 394-cycle found at 0:99%
+ 256-cycle found at 0:99%
+ 240-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 0:96%
+  48-cycle found at 0:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 0:84%
+ 196-cycle found at 0:96%
+   8-cycle found at 0:96%
+ 126-cycle found at 0:97%
+  66-cycle found at 0:97%
+  60-cycle found at 0:98%
+ 604-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 1:79%
+   4-cycle found at 0:61%
+   6-cycle found at 0:73%
+  10-cycle found at 0:92%
+  62-cycle found at 0:95%
+  60-cycle found at 0:98%
+ 1082-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 0:93%
+ 316-cycle found at 0:98%
+
+real	16m47.885s
+user	22m43.133s
+sys	0m14.537s
+3
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:70%
+ 214-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 2:78%
+  18-cycle found at 2:86%
+ 222-cycle found at 0:97%
+ 206-cycle found at 0:98%
+ 512-cycle found at 0:99%
+ 1872-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:81%
+   8-cycle found at 0:98%
+ 312-cycle found at 2:98%
+ 366-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:77%
+  22-cycle found at 2:94%
+ 120-cycle found at 2:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 2:76%
+ 394-cycle found at 2:98%
+ 256-cycle found at 2:99%
+ 240-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 2:96%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 2:84%
+   8-cycle found at 0:84%
+  66-cycle found at 0:95%
+  60-cycle found at 0:96%
+ 126-cycle found at 0:98%
+ 196-cycle found at 0:99%
+ 604-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 2:46%
+   6-cycle found at 2:73%
+   4-cycle found at 0:79%
+  10-cycle found at 2:92%
+  62-cycle found at 0:91%
+  60-cycle found at 0:97%
+ 1082-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 0:97%
+ 316-cycle found at 2:99%
+
+real	10m39.209s
+user	21m19.212s
+sys	0m14.921s
+4
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:71%
+ 214-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 0:83%
+  18-cycle found at 2:86%
+ 206-cycle found at 2:98%
+ 222-cycle found at 2:98%
+ 512-cycle found at 2:99%
+ 1872-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 1:98%
+   4-cycle found at 0:81%
+ 312-cycle found at 2:97%
+ 366-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 3:77%
+  22-cycle found at 3:89%
+ 120-cycle found at 3:97%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+ 394-cycle found at 2:98%
+   8-cycle found at 2:98%
+ 256-cycle found at 2:99%
+ 240-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 2:92%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 2:84%
+  60-cycle found at 0:98%
+ 196-cycle found at 2:94%
+  66-cycle found at 2:95%
+   8-cycle found at 2:96%
+ 126-cycle found at 2:97%
+ 604-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 1:79%
+   4-cycle found at 2:61%
+   6-cycle found at 0:73%
+  10-cycle found at 2:92%
+  62-cycle found at 2:95%
+  60-cycle found at 2:97%
+ 1082-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 0:93%
+ 316-cycle found at 0:98%
+
+real	8m39.623s
+user	20m59.139s
+sys	0m14.653s
+5
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:71%
+ 214-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 0:83%
+  18-cycle found at 2:86%
+ 206-cycle found at 3:97%
+ 222-cycle found at 2:99%
+ 1872-cycle found at 3:99%
+ 512-cycle found at 3:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:81%
+   8-cycle found at 0:98%
+ 312-cycle found at 2:99%
+ 366-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:77%
+  22-cycle found at 0:89%
+ 120-cycle found at 4:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 2:76%
+ 394-cycle found at 4:98%
+ 256-cycle found at 4:99%
+ 240-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 4:94%
+  48-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:82%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 0:79%
+  22-cycle found at 4:84%
+ 196-cycle found at 2:96%
+  60-cycle found at 4:96%
+  66-cycle found at 4:97%
+ 604-cycle found at 2:99%
+ 126-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:61%
+   6-cycle found at 4:66%
+   4-cycle found at 4:79%
+  10-cycle found at 2:92%
+  60-cycle found at 4:94%
+  62-cycle found at 4:95%
+ 1082-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 2:97%
+ 316-cycle found at 4:99%
+
+real	6m29.621s
+user	21m6.043s
+sys	0m14.361s
+6
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:70%
+ 214-cycle found at 5:97%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 4:83%
+  18-cycle found at 2:86%
+ 206-cycle found at 4:98%
+ 222-cycle found at 4:98%
+ 512-cycle found at 4:99%
+ 1872-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 3:98%
+   4-cycle found at 0:81%
+ 312-cycle found at 4:97%
+ 366-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:77%
+  22-cycle found at 0:87%
+ 120-cycle found at 4:94%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 4:98%
+ 394-cycle found at 2:98%
+ 256-cycle found at 2:99%
+ 240-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 2:96%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 4:84%
+ 126-cycle found at 2:97%
+ 196-cycle found at 4:96%
+   8-cycle found at 4:96%
+  66-cycle found at 4:97%
+  60-cycle found at 4:98%
+ 604-cycle found at 4:98%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 3:79%
+   4-cycle found at 4:61%
+   6-cycle found at 2:73%
+  10-cycle found at 2:92%
+  62-cycle found at 2:95%
+  60-cycle found at 4:98%
+ 1082-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 0:93%
+ 316-cycle found at 4:98%
+
+real	5m47.983s
+user	21m26.272s
+sys	0m14.441s
+7
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:71%
+ 214-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 5:77%
+   4-cycle found at 2:78%
+  18-cycle found at 4:86%
+ 222-cycle found at 6:96%
+ 206-cycle found at 6:98%
+ 512-cycle found at 6:98%
+ 1872-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 2:81%
+   8-cycle found at 0:98%
+ 312-cycle found at 6:97%
+ 366-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:77%
+  22-cycle found at 4:94%
+ 120-cycle found at 2:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 6:83%
+ 240-cycle found at 4:99%
+ 256-cycle found at 4:99%
+ 394-cycle found at 6:98%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 0:94%
+  48-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:82%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 2:84%
+  60-cycle found at 4:96%
+   8-cycle found at 4:96%
+ 196-cycle found at 2:97%
+  66-cycle found at 2:97%
+ 126-cycle found at 2:99%
+ 604-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 6:46%
+   6-cycle found at 2:66%
+   4-cycle found at 0:67%
+  62-cycle found at 0:94%
+  10-cycle found at 4:92%
+  60-cycle found at 0:97%
+ 1082-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 4:93%
+ 316-cycle found at 6:99%
+
+real	4m52.119s
+user	21m27.208s
+sys	0m14.525s
+8
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:71%
+ 214-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 4:77%
+   4-cycle found at 4:83%
+  18-cycle found at 2:86%
+ 206-cycle found at 4:97%
+ 512-cycle found at 2:99%
+ 222-cycle found at 4:98%
+ 1872-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 5:98%
+   4-cycle found at 0:81%
+ 312-cycle found at 4:97%
+ 366-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 7:77%
+  22-cycle found at 3:89%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 6:98%
+ 394-cycle found at 4:99%
+ 256-cycle found at 0:99%
+ 240-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 6:92%
+  48-cycle found at 6:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 6:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 4:84%
+ 196-cycle found at 4:96%
+   8-cycle found at 2:96%
+ 126-cycle found at 6:97%
+  66-cycle found at 4:97%
+  60-cycle found at 0:98%
+ 604-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 5:79%
+   4-cycle found at 6:61%
+   6-cycle found at 0:73%
+  10-cycle found at 2:92%
+  62-cycle found at 6:95%
+  60-cycle found at 6:97%
+ 1082-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 4:93%
+ 316-cycle found at 6:98%
+
+real	4m30.493s
+user	22m8.687s
+sys	0m14.613s
+9
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:70%
+ 214-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 3:77%
+   4-cycle found at 7:83%
+  18-cycle found at 2:86%
+ 206-cycle found at 6:96%
+ 222-cycle found at 4:98%
+ 1872-cycle found at 8:99%
+ 512-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 3:81%
+ 312-cycle found at 6:97%
+   8-cycle found at 6:98%
+ 366-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:77%
+  22-cycle found at 2:94%
+ 120-cycle found at 6:97%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 8:76%
+ 240-cycle found at 4:99%
+ 394-cycle found at 8:98%
+ 256-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 2:96%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 2:71%
+   8-cycle found at 6:79%
+  66-cycle found at 4:97%
+  60-cycle found at 4:97%
+ 604-cycle found at 6:99%
+ 196-cycle found at 6:99%
+ 126-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 5:73%
+   4-cycle found at 4:60%
+   4-cycle found at 2:67%
+  62-cycle found at 0:91%
+  10-cycle found at 2:92%
+  60-cycle found at 4:95%
+ 1082-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 6:93%
+ 316-cycle found at 8:97%
+
+real	3m55.929s
+user	21m45.170s
+sys	0m14.525s
+10
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:71%
+ 214-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 0:83%
+  18-cycle found at 2:86%
+ 222-cycle found at 2:98%
+ 206-cycle found at 6:98%
+ 1872-cycle found at 8:99%
+ 512-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 5:98%
+   4-cycle found at 0:81%
+ 312-cycle found at 8:97%
+ 366-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:77%
+  22-cycle found at 8:87%
+ 120-cycle found at 8:91%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 6:98%
+ 394-cycle found at 6:99%
+ 256-cycle found at 4:99%
+ 240-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 2:97%
+  24-cycle found at 0:92%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 8:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 4:84%
+ 196-cycle found at 2:96%
+   8-cycle found at 6:96%
+ 126-cycle found at 6:97%
+  66-cycle found at 4:97%
+  60-cycle found at 8:98%
+ 604-cycle found at 8:98%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 9:79%
+   4-cycle found at 0:61%
+   6-cycle found at 6:73%
+  10-cycle found at 2:92%
+  62-cycle found at 4:95%
+  60-cycle found at 6:98%
+ 1082-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 8:93%
+ 316-cycle found at 6:98%
+
+real	3m41.491s
+user	21m37.421s
+sys	0m14.469s
+11
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 10:71%
+ 214-cycle found at 8:96%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 5:77%
+  18-cycle found at 6:78%
+   4-cycle found at 4:83%
+ 206-cycle found at 6:98%
+ 222-cycle found at 6:98%
+ 512-cycle found at 8:99%
+ 1872-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 3:81%
+   8-cycle found at 1:98%
+ 366-cycle found at 10:97%
+ 312-cycle found at 10:97%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:77%
+  22-cycle found at 4:94%
+ 120-cycle found at 8:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 0:98%
+ 394-cycle found at 6:98%
+ 256-cycle found at 10:99%
+ 240-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 2:89%
+  24-cycle found at 8:87%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 8:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 8:84%
+   8-cycle found at 6:84%
+  60-cycle found at 4:98%
+  66-cycle found at 8:97%
+ 196-cycle found at 6:99%
+ 604-cycle found at 8:98%
+ 126-cycle found at 8:98%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 10:61%
+   6-cycle found at 4:64%
+   4-cycle found at 2:79%
+  10-cycle found at 6:92%
+  62-cycle found at 10:94%
+  60-cycle found at 6:98%
+ 1082-cycle found at 10:98%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 4:97%
+ 316-cycle found at 8:99%
+
+real	3m17.542s
+user	21m25.828s
+sys	0m14.489s
+12
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:71%
+ 214-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 4:83%
+  18-cycle found at 2:86%
+ 222-cycle found at 8:97%
+ 206-cycle found at 10:98%
+ 512-cycle found at 10:99%
+ 1872-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 9:98%
+   4-cycle found at 0:81%
+ 312-cycle found at 6:97%
+ 366-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 7:77%
+  22-cycle found at 0:87%
+ 120-cycle found at 10:94%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+ 394-cycle found at 4:98%
+   8-cycle found at 10:98%
+ 240-cycle found at 10:99%
+ 256-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 2:97%
+  24-cycle found at 8:96%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 4:84%
+ 196-cycle found at 4:96%
+ 126-cycle found at 2:97%
+   8-cycle found at 10:96%
+  66-cycle found at 4:97%
+  60-cycle found at 4:98%
+ 604-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 9:79%
+   4-cycle found at 10:61%
+   6-cycle found at 8:73%
+  10-cycle found at 2:92%
+  62-cycle found at 2:95%
+  60-cycle found at 4:98%
+ 1082-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 0:93%
+ 316-cycle found at 4:98%
+
+real	3m9.051s
+user	22m25.524s
+sys	0m14.537s
+13
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 6:70%
+ 214-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+  18-cycle found at 6:78%
+   4-cycle found at 12:83%
+ 206-cycle found at 10:97%
+ 222-cycle found at 8:98%
+ 512-cycle found at 10:99%
+ 1872-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 3:98%
+   4-cycle found at 2:81%
+ 366-cycle found at 6:99%
+ 312-cycle found at 12:98%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 3:77%
+  22-cycle found at 4:87%
+ 120-cycle found at 10:97%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 10:98%
+ 394-cycle found at 12:98%
+ 240-cycle found at 12:99%
+ 256-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 12:89%
+  24-cycle found at 8:96%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 2:84%
+  66-cycle found at 2:97%
+  60-cycle found at 2:97%
+ 126-cycle found at 6:95%
+   8-cycle found at 12:96%
+ 196-cycle found at 9:99%
+ 604-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 6:61%
+   6-cycle found at 8:73%
+   4-cycle found at 8:79%
+  10-cycle found at 2:92%
+  62-cycle found at 2:95%
+  60-cycle found at 4:98%
+ 1082-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 10:97%
+ 316-cycle found at 6:99%
+
+real	2m51.140s
+user	22m15.979s
+sys	0m14.497s
+14
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:71%
+ 214-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 12:77%
+   4-cycle found at 8:83%
+  18-cycle found at 4:86%
+ 206-cycle found at 6:98%
+ 222-cycle found at 12:98%
+ 512-cycle found at 10:99%
+ 1872-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 2:81%
+ 312-cycle found at 10:96%
+   8-cycle found at 7:98%
+ 366-cycle found at 5:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 11:77%
+  22-cycle found at 6:87%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+ 240-cycle found at 4:99%
+ 256-cycle found at 12:97%
+   8-cycle found at 12:98%
+ 394-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 2:97%
+  24-cycle found at 6:96%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 12:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 8:84%
+  66-cycle found at 2:97%
+ 196-cycle found at 10:96%
+   8-cycle found at 4:96%
+ 126-cycle found at 6:97%
+  60-cycle found at 12:98%
+ 604-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 5:79%
+   4-cycle found at 8:61%
+   6-cycle found at 8:73%
+  10-cycle found at 12:79%
+  62-cycle found at 6:95%
+  60-cycle found at 8:98%
+ 1082-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 4:93%
+ 316-cycle found at 10:98%
+
+real	2m44.494s
+user	22m30.252s
+sys	0m14.825s
+15
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 10:71%
+ 214-cycle found at 12:97%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 10:83%
+  18-cycle found at 2:86%
+ 222-cycle found at 14:97%
+ 206-cycle found at 12:97%
+ 512-cycle found at 10:99%
+ 1872-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:81%
+   8-cycle found at 0:98%
+ 312-cycle found at 8:98%
+ 366-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:77%
+  22-cycle found at 8:94%
+ 120-cycle found at 14:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 1:98%
+ 394-cycle found at 6:99%
+ 240-cycle found at 14:99%
+ 256-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 10:92%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 8:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 4:84%
+   8-cycle found at 6:84%
+  60-cycle found at 6:93%
+ 196-cycle found at 8:96%
+  66-cycle found at 4:97%
+ 126-cycle found at 2:99%
+ 604-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 9:79%
+   4-cycle found at 10:61%
+   6-cycle found at 4:66%
+  10-cycle found at 2:92%
+  60-cycle found at 12:91%
+  62-cycle found at 14:95%
+ 1082-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 12:97%
+ 316-cycle found at 14:99%
+
+real	2m32.067s
+user	22m33.873s
+sys	0m14.685s
+16
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:71%
+ 214-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 12:77%
+   4-cycle found at 12:83%
+  18-cycle found at 2:86%
+ 206-cycle found at 10:98%
+ 222-cycle found at 14:98%
+ 512-cycle found at 6:99%
+ 1872-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 13:98%
+   4-cycle found at 8:81%
+ 312-cycle found at 8:97%
+ 366-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 15:77%
+  22-cycle found at 0:87%
+ 120-cycle found at 8:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 6:98%
+ 394-cycle found at 12:99%
+ 256-cycle found at 8:99%
+ 240-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 6:97%
+  24-cycle found at 8:96%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 14:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 12:84%
+  60-cycle found at 0:98%
+ 196-cycle found at 12:96%
+   8-cycle found at 10:96%
+ 126-cycle found at 14:97%
+  66-cycle found at 12:97%
+ 604-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 6:61%
+   4-cycle found at 13:79%
+   6-cycle found at 0:73%
+  10-cycle found at 2:92%
+  62-cycle found at 6:95%
+  60-cycle found at 12:98%
+ 1082-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 4:93%
+ 316-cycle found at 6:98%
+
+real	2m25.137s
+user	22m33.961s
+sys	0m14.333s
+17
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 6:71%
+ 214-cycle found at 10:97%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 6:77%
+   4-cycle found at 0:83%
+  18-cycle found at 0:86%
+ 206-cycle found at 12:98%
+ 222-cycle found at 2:99%
+ 512-cycle found at 14:99%
+ 1872-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 15:81%
+   8-cycle found at 13:98%
+ 366-cycle found at 0:99%
+ 312-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 6:77%
+  22-cycle found at 10:94%
+ 120-cycle found at 10:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 2:98%
+ 394-cycle found at 14:99%
+ 240-cycle found at 14:99%
+ 256-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 0:94%
+  48-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 10:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 12:84%
+   8-cycle found at 2:96%
+ 196-cycle found at 4:97%
+  66-cycle found at 12:97%
+  60-cycle found at 4:98%
+ 604-cycle found at 12:99%
+ 126-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 13:61%
+   6-cycle found at 12:66%
+   4-cycle found at 2:79%
+  10-cycle found at 9:79%
+  60-cycle found at 9:85%
+  62-cycle found at 0:91%
+ 1082-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 14:81%
+ 316-cycle found at 16:98%
+
+real	2m17.458s
+user	22m59.978s
+sys	0m14.565s
+18
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 10:71%
+ 214-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 12:77%
+   4-cycle found at 16:83%
+  18-cycle found at 2:86%
+ 206-cycle found at 16:98%
+ 222-cycle found at 14:98%
+ 1872-cycle found at 16:99%
+ 512-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 15:98%
+   4-cycle found at 12:81%
+ 312-cycle found at 6:97%
+ 366-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:77%
+  22-cycle found at 6:87%
+ 120-cycle found at 12:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 10:98%
+ 394-cycle found at 12:99%
+ 256-cycle found at 14:99%
+ 240-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 2:96%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 10:84%
+ 196-cycle found at 12:96%
+   8-cycle found at 10:96%
+ 126-cycle found at 8:97%
+  66-cycle found at 16:97%
+  60-cycle found at 16:98%
+ 604-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 10:61%
+   4-cycle found at 3:79%
+   6-cycle found at 14:73%
+  10-cycle found at 2:92%
+  62-cycle found at 14:95%
+  60-cycle found at 10:98%
+ 1082-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 6:93%
+ 316-cycle found at 16:98%
+
+real	2m12.726s
+user	23m22.328s
+sys	0m14.553s
+19
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 14:71%
+ 214-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 9:77%
+   4-cycle found at 7:83%
+  18-cycle found at 4:86%
+ 206-cycle found at 12:98%
+ 222-cycle found at 8:99%
+ 512-cycle found at 12:98%
+ 1872-cycle found at 16:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 15:98%
+   4-cycle found at 12:81%
+ 312-cycle found at 12:98%
+ 366-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:77%
+  22-cycle found at 8:87%
+ 120-cycle found at 4:93%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 2:98%
+ 394-cycle found at 10:98%
+ 240-cycle found at 16:99%
+ 256-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 2:90%
+  24-cycle found at 2:94%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 17:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 14:84%
+   8-cycle found at 8:84%
+  66-cycle found at 6:97%
+ 196-cycle found at 12:97%
+  60-cycle found at 14:98%
+ 126-cycle found at 8:98%
+ 604-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 6:61%
+   6-cycle found at 12:73%
+   4-cycle found at 16:79%
+  10-cycle found at 2:92%
+  62-cycle found at 14:95%
+  60-cycle found at 8:98%
+ 1082-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 8:81%
+ 316-cycle found at 12:99%
+
+real	2m7.553s
+user	23m15.335s
+sys	0m14.621s
+20
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:71%
+ 214-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 0:83%
+  18-cycle found at 2:86%
+ 206-cycle found at 6:98%
+ 222-cycle found at 4:98%
+ 512-cycle found at 10:99%
+ 1872-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 5:98%
+   4-cycle found at 0:81%
+ 312-cycle found at 8:97%
+ 366-cycle found at 8:97%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 11:77%
+  22-cycle found at 8:87%
+ 120-cycle found at 6:94%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 6:98%
+ 394-cycle found at 16:99%
+ 256-cycle found at 4:99%
+ 240-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 2:97%
+  24-cycle found at 16:96%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 18:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 4:84%
+  60-cycle found at 8:98%
+ 196-cycle found at 12:96%
+   8-cycle found at 6:96%
+ 126-cycle found at 6:97%
+  66-cycle found at 4:97%
+ 604-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 10:61%
+   4-cycle found at 9:79%
+   6-cycle found at 16:73%
+  10-cycle found at 2:92%
+  62-cycle found at 14:95%
+  60-cycle found at 16:98%
+ 1082-cycle found at 12:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 8:93%
+ 316-cycle found at 12:98%
+
+real	2m1.751s
+user	23m40.097s
+sys	0m14.661s
+21
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 16:71%
+ 214-cycle found at 20:90%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 0:76%
+   4-cycle found at 12:77%
+   4-cycle found at 1:83%
+ 206-cycle found at 20:92%
+ 222-cycle found at 20:96%
+ 512-cycle found at 1:98%
+ 1872-cycle found at 1:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 9:81%
+   8-cycle found at 0:98%
+ 312-cycle found at 1:91%
+ 366-cycle found at 20:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:77%
+  22-cycle found at 1:83%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 19:98%
+ 256-cycle found at 20:88%
+ 240-cycle found at 20:89%
+ 394-cycle found at 20:97%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 20:96%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 11:82%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 1:84%
+ 196-cycle found at 10:96%
+   8-cycle found at 4:96%
+  60-cycle found at 1:97%
+  66-cycle found at 16:97%
+ 126-cycle found at 16:99%
+ 604-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+  10-cycle found at 11:92%
+   6-cycle found at 8:73%
+   4-cycle found at 12:79%
+   4-cycle found at 1:61%
+  60-cycle found at 1:98%
+  62-cycle found at 20:95%
+ 1082-cycle found at 20:95%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 0:97%
+ 316-cycle found at 17:94%
+
+real	2m7.563s
+user	23m57.462s
+sys	0m14.501s
+22
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 10:71%
+ 214-cycle found at 21:97%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 16:77%
+   4-cycle found at 4:83%
+  18-cycle found at 20:86%
+ 206-cycle found at 21:92%
+ 222-cycle found at 21:96%
+ 512-cycle found at 21:98%
+ 1872-cycle found at 21:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 21:55%
+   8-cycle found at 1:98%
+ 366-cycle found at 19:88%
+ 312-cycle found at 19:93%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 15:77%
+  22-cycle found at 1:83%
+ 120-cycle found at 19:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 0:98%
+ 240-cycle found at 19:87%
+ 394-cycle found at 19:95%
+ 256-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 19:82%
+  48-cycle found at 21:90%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 8:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 16:96%
+  60-cycle found at 1:90%
+  22-cycle found at 19:75%
+  66-cycle found at 19:91%
+ 196-cycle found at 21:96%
+ 126-cycle found at 19:98%
+ 604-cycle found at 21:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 10:61%
+   6-cycle found at 14:73%
+  10-cycle found at 6:92%
+   4-cycle found at 19:67%
+  62-cycle found at 21:94%
+  60-cycle found at 19:95%
+ 1082-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 19:61%
+ 316-cycle found at 19:99%
+
+real	2m58.165s
+user	24m10.883s
+sys	0m14.801s
+23
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:70%
+ 214-cycle found at 19:93%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 8:77%
+   4-cycle found at 2:83%
+  18-cycle found at 19:76%
+ 512-cycle found at 21:96%
+ 206-cycle found at 21:97%
+ 222-cycle found at 19:91%
+ 1872-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 16:81%
+   8-cycle found at 1:98%
+ 366-cycle found at 19:89%
+ 312-cycle found at 19:93%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 19:47%
+  22-cycle found at 6:89%
+ 120-cycle found at 21:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+ 256-cycle found at 19:88%
+ 240-cycle found at 19:92%
+   8-cycle found at 21:98%
+ 394-cycle found at 19:96%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 20:88%
+  24-cycle found at 19:83%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 20:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 22:51%
+   8-cycle found at 21:79%
+  60-cycle found at 19:84%
+ 196-cycle found at 21:85%
+  66-cycle found at 21:91%
+ 604-cycle found at 21:96%
+ 126-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 15:79%
+   6-cycle found at 4:66%
+   4-cycle found at 19:60%
+  62-cycle found at 20:91%
+  10-cycle found at 20:92%
+  60-cycle found at 21:94%
+ 1082-cycle found at 19:98%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 19:81%
+ 316-cycle found at 19:96%
+
+real	3m2.307s
+user	24m43.729s
+sys	0m14.485s
+24
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 20:70%
+ 214-cycle found at 23:90%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 12:77%
+   4-cycle found at 4:83%
+  18-cycle found at 0:76%
+ 206-cycle found at 19:97%
+ 512-cycle found at 19:98%
+ 1872-cycle found at 23:99%
+ 222-cycle found at 23:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 21:98%
+   4-cycle found at 0:81%
+ 312-cycle found at 0:96%
+ 366-cycle found at 0:96%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 7:77%
+  22-cycle found at 0:87%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 19:83%
+ 240-cycle found at 19:94%
+ 256-cycle found at 19:98%
+ 394-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 1:85%
+  48-cycle found at 19:90%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 14:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 0:66%
+  66-cycle found at 23:82%
+   8-cycle found at 0:84%
+  60-cycle found at 23:89%
+ 126-cycle found at 19:99%
+ 196-cycle found at 0:96%
+ 604-cycle found at 23:98%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 8:73%
+   4-cycle found at 22:61%
+  10-cycle found at 19:68%
+   4-cycle found at 21:79%
+  62-cycle found at 23:85%
+  60-cycle found at 19:95%
+ 1082-cycle found at 0:97%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 19:81%
+ 316-cycle found at 23:99%
+
+real	2m57.365s
+user	25m54.053s
+sys	0m14.385s
+25
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 20:35%
+ 214-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 21:49%
+   4-cycle found at 20:83%
+  18-cycle found at 23:78%
+ 206-cycle found at 23:93%
+ 512-cycle found at 23:98%
+ 222-cycle found at 0:97%
+ 1872-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 23:55%
+ 312-cycle found at 23:97%
+   8-cycle found at 0:98%
+ 366-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 6:77%
+  22-cycle found at 23:87%
+ 120-cycle found at 23:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 3:62%
+ 256-cycle found at 21:99%
+ 394-cycle found at 21:99%
+ 240-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 0:87%
+  24-cycle found at 0:92%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 8:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 21:63%
+ 196-cycle found at 19:91%
+ 126-cycle found at 23:92%
+  60-cycle found at 21:93%
+   8-cycle found at 21:96%
+  66-cycle found at 23:97%
+ 604-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 20:60%
+  10-cycle found at 20:79%
+   6-cycle found at 19:66%
+   4-cycle found at 19:79%
+  60-cycle found at 23:88%
+  62-cycle found at 19:89%
+ 1082-cycle found at 19:98%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 22:97%
+ 316-cycle found at 23:98%
+
+real	2m47.383s
+user	26m28.243s
+sys	0m14.793s
+26
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 14:71%
+ 214-cycle found at 25:97%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 12:83%
+   4-cycle found at 0:77%
+  18-cycle found at 19:78%
+ 206-cycle found at 19:96%
+ 222-cycle found at 0:97%
+ 512-cycle found at 2:99%
+ 1872-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 3:98%
+   4-cycle found at 2:81%
+ 312-cycle found at 25:98%
+ 366-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 3:77%
+  22-cycle found at 23:84%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 10:98%
+ 256-cycle found at 23:96%
+ 240-cycle found at 21:98%
+ 394-cycle found at 25:98%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 0:77%
+  24-cycle found at 21:85%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 2:79%
+  22-cycle found at 2:84%
+  66-cycle found at 23:91%
+ 126-cycle found at 23:99%
+ 196-cycle found at 19:97%
+  60-cycle found at 2:97%
+ 604-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 20:46%
+   6-cycle found at 25:64%
+   4-cycle found at 21:79%
+  10-cycle found at 2:92%
+  60-cycle found at 0:94%
+  62-cycle found at 2:95%
+ 1082-cycle found at 2:98%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 23:97%
+ 316-cycle found at 19:99%
+
+real	2m30.769s
+user	27m41.768s
+sys	0m14.617s
+27
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 19:71%
+ 214-cycle found at 19:95%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 3:77%
+   4-cycle found at 23:78%
+  18-cycle found at 2:86%
+ 1872-cycle found at 0:97%
+ 206-cycle found at 19:97%
+ 222-cycle found at 2:97%
+ 512-cycle found at 21:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 12:81%
+   8-cycle found at 6:98%
+ 312-cycle found at 19:99%
+ 366-cycle found at 25:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 25:47%
+  22-cycle found at 26:89%
+ 120-cycle found at 2:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 19:98%
+ 240-cycle found at 25:98%
+ 394-cycle found at 0:97%
+ 256-cycle found at 23:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 2:84%
+  24-cycle found at 2:96%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  60-cycle found at 19:82%
+  22-cycle found at 23:84%
+  66-cycle found at 25:89%
+ 126-cycle found at 19:91%
+ 196-cycle found at 0:94%
+   8-cycle found at 19:96%
+ 604-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 12:79%
+   4-cycle found at 22:60%
+  10-cycle found at 25:65%
+   6-cycle found at 23:73%
+  62-cycle found at 19:94%
+  60-cycle found at 19:98%
+ 1082-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 0:97%
+ 316-cycle found at 21:99%
+
+real	2m24.277s
+user	27m39.748s
+sys	0m14.329s
+28
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 24:70%
+ 214-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 27:49%
+  18-cycle found at 0:76%
+   4-cycle found at 2:78%
+ 512-cycle found at 23:96%
+ 222-cycle found at 19:97%
+ 206-cycle found at 23:98%
+ 1872-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 16:81%
+ 312-cycle found at 19:94%
+   8-cycle found at 21:98%
+ 366-cycle found at 27:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 21:54%
+  22-cycle found at 25:94%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 27:83%
+ 240-cycle found at 19:96%
+ 394-cycle found at 0:96%
+ 256-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 21:94%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 25:82%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 20:84%
+  22-cycle found at 4:66%
+  60-cycle found at 25:96%
+  66-cycle found at 6:92%
+ 604-cycle found at 6:96%
+ 126-cycle found at 6:97%
+ 196-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 8:73%
+   4-cycle found at 22:61%
+   4-cycle found at 21:67%
+  10-cycle found at 23:68%
+  62-cycle found at 2:86%
+  60-cycle found at 27:88%
+ 1082-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 4:93%
+ 316-cycle found at 21:99%
+
+real	2m12.476s
+user	28m15.882s
+sys	0m14.617s
+29
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 7:71%
+ 214-cycle found at 4:94%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 19:49%
+   4-cycle found at 23:83%
+  18-cycle found at 4:86%
+ 206-cycle found at 4:97%
+ 512-cycle found at 23:99%
+ 1872-cycle found at 27:99%
+ 222-cycle found at 25:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 3:57%
+   8-cycle found at 25:71%
+ 312-cycle found at 23:98%
+ 366-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:77%
+  22-cycle found at 2:94%
+ 120-cycle found at 23:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 6:98%
+ 394-cycle found at 19:98%
+ 240-cycle found at 2:99%
+ 256-cycle found at 27:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 27:88%
+  24-cycle found at 19:96%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 22:82%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 2:79%
+  22-cycle found at 27:84%
+  66-cycle found at 25:97%
+  60-cycle found at 4:93%
+ 196-cycle found at 21:96%
+ 604-cycle found at 19:99%
+ 126-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 5:53%
+   6-cycle found at 7:73%
+   4-cycle found at 21:60%
+  10-cycle found at 0:65%
+  62-cycle found at 4:83%
+  60-cycle found at 27:98%
+ 1082-cycle found at 4:98%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 27:97%
+ 316-cycle found at 2:99%
+
+real	2m6.958s
+user	28m20.050s
+sys	0m14.401s
+30
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:70%
+ 214-cycle found at 27:97%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+   4-cycle found at 2:78%
+  18-cycle found at 2:86%
+ 206-cycle found at 21:96%
+ 512-cycle found at 0:97%
+ 222-cycle found at 2:98%
+ 1872-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 7:71%
+   4-cycle found at 0:81%
+ 312-cycle found at 23:98%
+ 366-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:77%
+  22-cycle found at 23:94%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 16:98%
+ 240-cycle found at 6:92%
+ 394-cycle found at 6:99%
+ 256-cycle found at 23:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 19:85%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 5:69%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 4:84%
+   8-cycle found at 6:84%
+  60-cycle found at 21:93%
+ 126-cycle found at 21:98%
+ 196-cycle found at 0:96%
+  66-cycle found at 4:97%
+ 604-cycle found at 27:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 9:79%
+   4-cycle found at 25:60%
+   6-cycle found at 4:66%
+  62-cycle found at 27:91%
+  10-cycle found at 2:92%
+  60-cycle found at 6:97%
+ 1082-cycle found at 6:98%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+ 316-cycle found at 23:96%
+  18-cycle found at 27:97%
+
+real	2m3.133s
+user	28m41.960s
+sys	0m14.561s
+31
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 25:71%
+ 214-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 30:77%
+  18-cycle found at 5:86%
+   4-cycle found at 4:83%
+ 512-cycle found at 26:98%
+ 222-cycle found at 23:99%
+ 206-cycle found at 0:98%
+ 1872-cycle found at 21:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 21:57%
+ 312-cycle found at 29:96%
+   8-cycle found at 2:98%
+ 366-cycle found at 25:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 6:47%
+  22-cycle found at 8:94%
+ 120-cycle found at 23:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 4:83%
+ 394-cycle found at 23:97%
+ 256-cycle found at 29:99%
+ 240-cycle found at 29:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 29:88%
+  24-cycle found at 6:96%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 19:69%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 23:64%
+  60-cycle found at 21:89%
+  66-cycle found at 29:91%
+   8-cycle found at 2:96%
+ 604-cycle found at 2:99%
+ 196-cycle found at 23:99%
+ 126-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 20:60%
+   6-cycle found at 4:66%
+   4-cycle found at 19:67%
+  10-cycle found at 23:68%
+  60-cycle found at 23:91%
+  62-cycle found at 0:95%
+ 1082-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 2:81%
+ 316-cycle found at 29:99%
+
+real	1m54.934s
+user	29m15.190s
+sys	0m14.601s
+32
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:71%
+ 214-cycle found at 8:91%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 18:78%
+   4-cycle found at 28:77%
+  18-cycle found at 18:86%
+ 206-cycle found at 6:97%
+ 512-cycle found at 19:98%
+ 222-cycle found at 4:98%
+ 1872-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 24:81%
+ 312-cycle found at 6:91%
+   8-cycle found at 29:98%
+ 366-cycle found at 8:94%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 29:54%
+  22-cycle found at 29:94%
+ 120-cycle found at 29:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 6:98%
+ 240-cycle found at 8:92%
+ 394-cycle found at 4:98%
+ 256-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 25:94%
+  48-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 30:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 25:63%
+   8-cycle found at 26:96%
+  66-cycle found at 8:91%
+  60-cycle found at 0:98%
+ 126-cycle found at 29:95%
+ 196-cycle found at 27:97%
+ 604-cycle found at 27:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 20:66%
+   4-cycle found at 21:53%
+   4-cycle found at 6:61%
+  10-cycle found at 10:79%
+  62-cycle found at 8:89%
+  60-cycle found at 10:91%
+ 1082-cycle found at 10:94%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 4:93%
+ 316-cycle found at 31:99%
+
+real	2m5.213s
+user	29m45.720s
+sys	0m14.437s
+33
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 11:70%
+ 214-cycle found at 8:96%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 29:66%
+   4-cycle found at 27:77%
+   4-cycle found at 29:78%
+ 206-cycle found at 0:97%
+ 222-cycle found at 6:94%
+ 512-cycle found at 6:97%
+ 1872-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 21:55%
+   8-cycle found at 28:71%
+ 366-cycle found at 23:94%
+ 312-cycle found at 4:97%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:77%
+  22-cycle found at 4:80%
+ 120-cycle found at 8:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 22:98%
+ 240-cycle found at 6:88%
+ 394-cycle found at 8:94%
+ 256-cycle found at 8:95%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 23:96%
+  48-cycle found at 23:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 8:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 6:84%
+  22-cycle found at 8:84%
+  66-cycle found at 6:95%
+  60-cycle found at 4:98%
+ 126-cycle found at 31:91%
+ 196-cycle found at 31:93%
+ 604-cycle found at 31:98%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 25:60%
+   6-cycle found at 25:66%
+   4-cycle found at 8:67%
+  10-cycle found at 25:68%
+  62-cycle found at 27:86%
+  60-cycle found at 25:94%
+ 1082-cycle found at 8:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 8:81%
+ 316-cycle found at 19:98%
+
+real	2m1.784s
+user	30m30.642s
+sys	0m14.517s
+34
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 6:71%
+ 214-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:83%
+   4-cycle found at 6:77%
+  18-cycle found at 0:86%
+ 206-cycle found at 29:98%
+ 512-cycle found at 10:97%
+ 222-cycle found at 10:98%
+ 1872-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 32:81%
+   8-cycle found at 13:98%
+ 366-cycle found at 0:97%
+ 312-cycle found at 31:98%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 23:77%
+  22-cycle found at 27:94%
+ 120-cycle found at 10:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+ 256-cycle found at 6:96%
+ 394-cycle found at 33:98%
+   8-cycle found at 2:98%
+ 240-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 4:83%
+  48-cycle found at 6:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 10:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 29:75%
+  66-cycle found at 8:89%
+   8-cycle found at 2:96%
+ 126-cycle found at 29:99%
+ 196-cycle found at 4:96%
+  60-cycle found at 4:98%
+ 604-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 30:61%
+  10-cycle found at 26:79%
+   4-cycle found at 19:79%
+   6-cycle found at 8:73%
+  60-cycle found at 25:95%
+  62-cycle found at 8:95%
+ 1082-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 11:97%
+ 316-cycle found at 10:97%
+
+real	1m55.690s
+user	31m24.622s
+sys	0m14.621s
+35
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 30:71%
+ 214-cycle found at 29:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 5:77%
+  18-cycle found at 8:78%
+   4-cycle found at 2:78%
+ 512-cycle found at 29:95%
+ 222-cycle found at 10:97%
+ 206-cycle found at 6:98%
+ 1872-cycle found at 29:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 30:81%
+   8-cycle found at 0:98%
+ 312-cycle found at 8:98%
+ 366-cycle found at 27:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 11:77%
+  22-cycle found at 25:89%
+ 120-cycle found at 6:93%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 26:98%
+ 394-cycle found at 4:97%
+ 240-cycle found at 6:97%
+ 256-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 2:97%
+  24-cycle found at 6:96%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 33:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  66-cycle found at 21:95%
+  22-cycle found at 29:84%
+   8-cycle found at 6:84%
+  60-cycle found at 33:98%
+ 604-cycle found at 10:99%
+ 126-cycle found at 2:99%
+ 196-cycle found at 33:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 15:61%
+   6-cycle found at 2:64%
+  10-cycle found at 32:92%
+   4-cycle found at 19:79%
+  62-cycle found at 6:83%
+  60-cycle found at 21:97%
+ 1082-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 12:81%
+ 316-cycle found at 33:98%
+
+real	1m52.383s
+user	32m7.476s
+sys	0m14.669s
+36
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 28:71%
+ 214-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 16:83%
+   4-cycle found at 27:49%
+  18-cycle found at 2:86%
+ 512-cycle found at 27:98%
+ 206-cycle found at 10:97%
+ 1872-cycle found at 2:99%
+ 222-cycle found at 23:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 33:57%
+ 312-cycle found at 4:97%
+ 366-cycle found at 4:97%
+   8-cycle found at 33:98%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 19:77%
+  22-cycle found at 29:94%
+ 120-cycle found at 29:96%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+ 240-cycle found at 25:98%
+ 394-cycle found at 12:99%
+ 256-cycle found at 6:97%
+   8-cycle found at 10:98%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 9:94%
+  48-cycle found at 2:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 21:75%
+   8-cycle found at 10:96%
+  66-cycle found at 21:91%
+ 126-cycle found at 27:98%
+ 196-cycle found at 21:97%
+  60-cycle found at 4:97%
+ 604-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 32:73%
+   4-cycle found at 10:61%
+   4-cycle found at 21:79%
+  62-cycle found at 19:94%
+  10-cycle found at 2:92%
+  60-cycle found at 31:95%
+ 1082-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 27:97%
+ 316-cycle found at 11:99%
+
+real	1m48.372s
+user	33m5.204s
+sys	0m14.093s
+37
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 0:70%
+ 214-cycle found at 12:97%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 5:77%
+   4-cycle found at 27:83%
+  18-cycle found at 8:86%
+ 206-cycle found at 8:96%
+ 222-cycle found at 33:98%
+ 512-cycle found at 27:98%
+ 1872-cycle found at 33:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 30:71%
+   4-cycle found at 22:81%
+ 312-cycle found at 2:97%
+ 366-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 8:77%
+  22-cycle found at 19:89%
+ 120-cycle found at 4:97%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 15:98%
+ 256-cycle found at 4:96%
+ 394-cycle found at 12:99%
+ 240-cycle found at 6:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 8:94%
+  48-cycle found at 10:97%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 36:82%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 29:84%
+  60-cycle found at 29:90%
+   8-cycle found at 33:96%
+ 196-cycle found at 36:95%
+  66-cycle found at 36:97%
+ 126-cycle found at 21:99%
+ 604-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 4:61%
+   4-cycle found at 15:79%
+   6-cycle found at 19:73%
+  10-cycle found at 27:92%
+  62-cycle found at 8:94%
+  60-cycle found at 12:98%
+ 1082-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 17:97%
+ 316-cycle found at 23:99%
+
+real	1m43.566s
+user	33m48.255s
+sys	0m14.617s
+38
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 4:70%
+ 214-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 28:77%
+   4-cycle found at 14:78%
+  18-cycle found at 4:86%
+ 222-cycle found at 4:97%
+ 206-cycle found at 8:97%
+ 512-cycle found at 6:99%
+ 1872-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 15:98%
+   4-cycle found at 12:81%
+ 312-cycle found at 6:97%
+ 366-cycle found at 35:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 19:77%
+  22-cycle found at 8:87%
+ 120-cycle found at 33:92%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+ 240-cycle found at 14:93%
+   8-cycle found at 2:98%
+ 394-cycle found at 29:98%
+ 256-cycle found at 0:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 21:94%
+  48-cycle found at 12:87%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 36:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 8:84%
+  22-cycle found at 2:84%
+  66-cycle found at 25:97%
+  60-cycle found at 31:96%
+ 196-cycle found at 31:97%
+ 604-cycle found at 12:98%
+ 126-cycle found at 27:98%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 6:61%
+   4-cycle found at 35:79%
+   6-cycle found at 12:73%
+  10-cycle found at 2:92%
+  62-cycle found at 14:95%
+  60-cycle found at 8:98%
+ 1082-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 3:97%
+ 316-cycle found at 31:99%
+
+real	1m40.273s
+user	34m27.677s
+sys	0m14.617s
+39
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 1:71%
+ 214-cycle found at 4:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 0:77%
+  18-cycle found at 6:78%
+   4-cycle found at 25:83%
+ 206-cycle found at 33:98%
+ 1872-cycle found at 14:99%
+ 222-cycle found at 2:99%
+ 512-cycle found at 10:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 3:98%
+   4-cycle found at 15:81%
+ 312-cycle found at 6:97%
+ 366-cycle found at 29:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 16:77%
+  22-cycle found at 29:94%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+ 256-cycle found at 4:99%
+   8-cycle found at 10:98%
+ 394-cycle found at 33:99%
+ 240-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  48-cycle found at 38:89%
+  24-cycle found at 27:94%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 2:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 33:75%
+  66-cycle found at 36:91%
+ 126-cycle found at 6:95%
+  60-cycle found at 0:96%
+ 196-cycle found at 6:97%
+   8-cycle found at 25:96%
+ 604-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 19:61%
+   6-cycle found at 38:64%
+   4-cycle found at 21:79%
+  10-cycle found at 2:92%
+  62-cycle found at 10:94%
+ 1082-cycle found at 10:98%
+  60-cycle found at 4:98%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 36:97%
+ 316-cycle found at 14:97%
+
+real	1m37.272s
+user	35m33.653s
+sys	0m14.661s
+40
+Looking for 42-cycle on cuckoo130("0") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 12:70%
+ 214-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("1") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 20:77%
+   4-cycle found at 2:78%
+  18-cycle found at 2:86%
+ 206-cycle found at 19:98%
+ 222-cycle found at 4:98%
+ 512-cycle found at 38:99%
+ 1872-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("2") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 5:98%
+   4-cycle found at 0:81%
+ 312-cycle found at 38:97%
+ 366-cycle found at 38:99%
+Looking for 42-cycle on cuckoo130("3") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 31:77%
+  22-cycle found at 8:87%
+ 120-cycle found at 0:98%
+Looking for 42-cycle on cuckoo130("4") with 1073741824 nodes and 536870912 edges
+   8-cycle found at 6:98%
+ 394-cycle found at 38:97%
+ 256-cycle found at 26:99%
+ 240-cycle found at 14:99%
+Looking for 42-cycle on cuckoo130("5") with 1073741824 nodes and 536870912 edges
+  24-cycle found at 22:92%
+  48-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("6") with 1073741824 nodes and 536870912 edges
+   6-cycle found at 38:91%
+Looking for 42-cycle on cuckoo130("7") with 1073741824 nodes and 536870912 edges
+  22-cycle found at 14:84%
+   8-cycle found at 16:84%
+ 196-cycle found at 23:93%
+  66-cycle found at 4:97%
+ 126-cycle found at 6:97%
+  60-cycle found at 0:97%
+ 604-cycle found at 2:99%
+Looking for 42-cycle on cuckoo130("8") with 1073741824 nodes and 536870912 edges
+   4-cycle found at 30:61%
+   6-cycle found at 16:73%
+   4-cycle found at 29:79%
+  10-cycle found at 2:92%
+  60-cycle found at 6:97%
+  62-cycle found at 14:95%
+ 1082-cycle found at 19:99%
+Looking for 42-cycle on cuckoo130("9") with 1073741824 nodes and 536870912 edges
+  18-cycle found at 10:81%
+ 316-cycle found at 6:98%
+
+real	1m35.487s
+user	36m16.860s
+sys	0m14.425s
