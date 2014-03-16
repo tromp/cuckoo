@@ -329,13 +329,13 @@ the cuckoo array at any time represents some, possibly cyclic, directed cuckoo g
 on a subset of proccessed nonces.
 % Analysing how these conflicts affect performance and the probabillity of finding cycles
 % is a topic for further research. 
-The right plot shows in green the speedup achieved by up to 40 threads on a dual Intel Xeon with
-10 hyperthreaded cores each.
+The right plot shows in green the speedup achieved by up to 40 threads on a dual Intel Xeon
+E5-2690 at 3GHz with 10 hyperthreaded cores each.
 Each datapoint represents 10 runs on $2^{30}$ nodes with headers "0" through "9".
 Although the speedup is sublinear at 26 for 40 threads, there are still clear gains to be made
 by using more threads.
 Attempting to predict what happens with more than 40 threads, we instead made each thread generate
-memory requests faster by reducing the number of rounds in \phash. This produced some unexpected
+memory requests faster by reducing the number of rounds in \hash. This produced some unexpected
 results which we're not sure how to explain, but show for completeness anyway.
 On $2^{20}$ nodes, aborts happened 0.03\% of the time with 2 threads, 0.1\% with 4 threads, 0.27\% with
 8 threars, and 0.2\% with 12 threads.
