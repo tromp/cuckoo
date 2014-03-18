@@ -5,7 +5,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Scanner;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.nio.ByteOrder;
 
 class Edge {
@@ -23,7 +22,7 @@ class Edge {
 
   public boolean equals(Object o) {
     Edge f = (Edge)o;
-    return u==f.u && v==f.v;
+    return u == f.u && v == f.v;
   }
 }
 
@@ -60,6 +59,8 @@ public class Cuckoo {
       v[2] = k0 ^ 0x6c7967656e657261L;
       v[3] = k1 ^ 0x7465646279746573L;
     } catch(NoSuchAlgorithmException e) {
+      System.out.println(e);
+      System.exit(1);
     }
   }
 
@@ -114,7 +115,7 @@ public class Cuckoo {
     return v0 ^ v1 ^ v2 ^ v3;
   }
 
-  // return u % m with a considered unsigned, assuming m > 0
+  // return u % m with u considered unsigned and assuming m > 0
   private static int remainder(long u, int m) {
     int i = (int)((u >>> 1) % m);
     int j = (i << 1) + (int)(u & 1);
@@ -163,7 +164,7 @@ public class Cuckoo {
 
   public static void main(String argv[]) {
     String header = "";
-    int c, i, easipct = 50;
+    int i, easipct = 50;
     for (i = 0; i < argv.length; i++) {
       if (argv[i].equals("-e")) {
         easipct = Integer.parseInt(argv[++i]);
@@ -195,6 +196,8 @@ public class Cuckoo {
         System.out.print(String.format("%02x",((int)cyclehash[i] & 0xff)));
       System.out.println("");
     } catch(NoSuchAlgorithmException e) {
+      System.out.println(e);
+      System.exit(1);
     }
   }
 }

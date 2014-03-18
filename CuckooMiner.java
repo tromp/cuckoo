@@ -131,7 +131,7 @@ public class CuckooMiner implements Runnable {
         threads[t].join();
       } catch (InterruptedException e) {
         System.out.println(e);
-        System.exit(0);
+        System.exit(1);
       }
     }
     for (int s = 0; s < solve.nsols; s++) {
