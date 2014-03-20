@@ -12,6 +12,9 @@ typedef struct {
   siphash_ctx sip_ctx;
   unsigned easiness;
   unsigned *cuckoo;
+#ifdef PRESIP
+  unsigned *uvs;
+#endif
   unsigned (*sols)[PROOFSIZE];
   unsigned maxsols;
   unsigned nsols;
@@ -69,7 +72,11 @@ void solution(cuckoo_ctx *ctx, unsigned *us, int nu, unsigned *vs, int nv) {
     storedge((u64)vs[nv|1]<<32 | vs[(nv+1)&~1], usck, vsck); // u's in odd position; v's in even
   pthread_mutex_lock(&ctx->setsol);
   for (unsigned nonce = n = 0; nonce < ctx->easiness; nonce++) {
+#ifdef PRESIP
+    u = ctx->uvs[2*nonce]; v = ctx->uvs[2*nonce+1];
+#else
     sipedge(&ctx->sip_ctx, nonce, &u, &v);
+#endif
     u64 *c, uv = (u64)u<<32 | v;
     if (*(c = &usck[uv % SOLMODU]) == uv || *(c = &vsck[uv % SOLMODV]) == uv) {
       ctx->sols[ctx->nsols][n++] = nonce;
@@ -89,7 +96,11 @@ void *worker(void *vp) {
   unsigned us[MAXPATHLEN], u, vs[MAXPATHLEN], v; 
   int nu, nv;
   for (unsigned nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
+#ifdef PRESIP
+    us[0] = ctx->uvs[2*nonce]; vs[0] = ctx->uvs[2*nonce+1];
+#else
     sipedge(&ctx->sip_ctx, nonce, us, vs);
+#endif
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
 #ifdef SHOW

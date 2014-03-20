@@ -36,6 +36,11 @@ int main(int argc, char **argv) {
   setheader(&ctx.sip_ctx, header);
   ctx.easiness = (unsigned)(easipct * (u64)SIZE / 100);
   assert(ctx.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
+#ifdef PRESIP
+  assert(ctx.uvs = calloc(2*ctx.easiness, sizeof(unsigned)));
+  for (unsigned nonce = 0; nonce < ctx.easiness; nonce++)
+    sipedge(&ctx.sip_ctx, nonce, &ctx.uvs[2*nonce], &ctx.uvs[2*nonce+1]);
+#endif
   assert(ctx.sols = calloc(maxsols, PROOFSIZE*sizeof(unsigned)));
   ctx.maxsols = maxsols;
   ctx.nsols = 0;
