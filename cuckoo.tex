@@ -327,16 +327,6 @@ Despite these conflicts, and the complete lack of synchronization between thread
 (apart from a solution recording mutex),
 the cuckoo array at any time represents some, possibly cyclic, directed cuckoo graph
 on a subset of proccessed nonces.
-% Analysing how these conflicts affect performance and the probabillity of finding cycles
-% is a topic for further research. 
-The right plot shows in green the speedup achieved by up to 40 threads on a dual Intel Xeon
-E5-2690 at 3GHz with 10 hyperthreaded cores each.
-Each datapoint represents 10 runs on $2^{30}$ nodes with headers "0" through "9".
-Although the speedup is sublinear at 26 for 40 threads, there are still clear gains to be made
-by using more threads.
-Attempting to predict what happens with more than 40 threads, we instead made each thread generate
-memory requests faster by reducing the number of rounds in \hash. This produced some unexpected
-results which we're not sure how to explain, but show for completeness anyway.
 On $2^{20}$ nodes, aborts happened 0.03\% of the time with 2 threads, 0.1\% with 4 threads, 0.27\% with
 8 threars, and 0.2\% with 12 threads.
 They overlooked 0.13\%, 0.31\%, 0.57\%, and 0.17\%, respectiverly, of the 42-cycles
@@ -344,6 +334,24 @@ found by the single-threaded runs.
 Empirically then, path conflicts have negligable effect on multi-threaded performance.
 The percentage of hashing to total runtime shows the same behaviour as in the single-threaded case,
 with a dual Xeon X5670 machine spending only 5.5\% of wallclock time on hashing with $2^{28}$ nodes.
+
+% Analysing how these conflicts affect performance and the probabillity of finding cycles
+% is a topic for further research. 
+The right plot shows in green the speedup achieved by up to 40 threads on a system with two Intel Xeon
+E5-2690 cpus, each which 10 hyperthreaded cores running at 3GHz.
+Each datapoint represents 10 runs on $2^{30}$ nodes with headers "0" through "9".
+Although the speedup is sublinear at 26 for 40 threads, it doesn't look like the memory interface
+is saturated yet. Since we don't have access to more than 40 threads, we tried two alternative
+approaches to see happens when the memory access frequency increases further,
+In the first approach we reduce the number of rounds in the \hash function,
+shown in red and blue.
+% checking that results are still random enough so as not to affect the distribution of cycle lengths.
+In the second approach we precompute all the hashes (doubling the memory use) in the main program,
+and then only count the runtime of running the threads using the precomputed edges,
+as shown in orange.
+This shows some sort of breakdown of the memory interface starting from 21 threads,
+which is presumably where hyperthreading starts to kick in.
+It is perhaps odd that such a hyperthreading transition is completely absent from the green line.
 
 \begin{center}
 \begin{tikzpicture}
@@ -404,17 +412,28 @@ with a dual Xeon X5670 machine spending only 5.5\% of wallclock time on hashing 
 (36,16.746) (37,17.242) (38,17.918) (39,18.225) (40,18.780) 
 };
 \addlegendentry{siphash-2-2}
+% \addplot [color=orange] coordinates {
+% (1,1.000) (2,1.716) (3,2.758) (4,3.366) (5,4.488) 
+% (6,5.020) (7,6.050) (8,6.479) (9,7.436) (10,7.968) 
+% (11,8.790) (12,9.312) (13,10.268) (14,10.688) (15,11.589) 
+% (16,11.937) (17,12.835) (18,13.374) (19,13.694) (20,14.393) 
+% (21,13.419) (22,9.770) (23,9.147) (24,10.018) (25,10.541) 
+% (26,11.660) (27,11.983) (28,13.337) (29,13.860) (30,14.887) 
+% (31,15.214) (32,14.130) (33,14.371) (34,15.349) (35,15.692) 
+% (36,16.242) (37,16.981) (38,17.522) (39,17.945) (40,18.598) 
+% };
+% \addlegendentry{siphash-1-2}
 \addplot [color=orange] coordinates {
-(1,1.000) (2,1.716) (3,2.758) (4,3.366) (5,4.488) 
-(6,5.020) (7,6.050) (8,6.479) (9,7.436) (10,7.968) 
-(11,8.790) (12,9.312) (13,10.268) (14,10.688) (15,11.589) 
-(16,11.937) (17,12.835) (18,13.374) (19,13.694) (20,14.393) 
-(21,13.419) (22,9.770) (23,9.147) (24,10.018) (25,10.541) 
-(26,11.660) (27,11.983) (28,13.337) (29,13.860) (30,14.887) 
-(31,15.214) (32,14.130) (33,14.371) (34,15.349) (35,15.692) 
-(36,16.242) (37,16.981) (38,17.522) (39,17.945) (40,18.598) 
+(1,1.000) (2,1.712) (3,2.805) (4,3.428) (5,4.396) 
+(6,5.152) (7,6.194) (8,6.655) (9,7.820) (10,8.245) 
+(11,9.424) (12,9.986) (13,10.417) (14,9.504) (15,12.722) 
+(16,13.477) (17,14.356) (18,15.078) (19,15.602) (20,16.117) 
+(21,10.547) (22,8.559) (23,8.864) (24,10.274) (25,10.760) 
+(26,11.915) (27,13.263) (28,14.735) (29,14.326) (30,14.162) 
+(31,15.923) (32,15.268) (33,16.536) (34,17.369) (35,18.049) 
+(36,18.371) (37,20.241) (38,20.545) (39,20.656) (40,16.951) 
 };
-\addlegendentry{siphash-1-2}
+\addlegendentry{precomputed}
 \end{axis}
 \end{tikzpicture}
 \end{center}
