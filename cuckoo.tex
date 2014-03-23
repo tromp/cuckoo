@@ -22,7 +22,7 @@ Originally introduced as a spam fighting measure,
 where the effort is the price paid by an email sender for demanding the recipient's attention,
 they now form one of the cornerstones of crypto-currencies.
 
-Bitcoin\cite{nakamoto2009bitcoin} uses hashcash\cite{back2002} as proof-of-work for
+Bitcoin~\cite{nakamoto2009bitcoin} uses hashcash~\cite{back2002} as proof-of-work for
 new blocks of transactions, which requires finding a nonce value such that
 twofold application of the cryptographic hash function SHA256
 to this nonce (and the rest of the block header) results in a number with many
@@ -91,7 +91,7 @@ is of a special nature that can be turned into a concise and easily verified pro
 Enter the cuckoo hashtable.
 
 \section{Cuckoo hashing}
-Introduced by Rasmus Pagh and Flemming Friche Rodler\cite{Pagh04cuckoohashing},
+Introduced by Rasmus Pagh and Flemming Friche Rodler~\cite{Pagh04cuckoohashing},
 a cuckoo hashtable consists of two same-sized
 tables each with its own hash function mapping a key to a table location,
 providing two possible locations for each key.
@@ -195,6 +195,19 @@ If not, then we keep the graph acyclic by ignoring the edge.
 There is some probability of overlooking other $L$-cycles
 through that edge, but in the important case of having few cycles
 in the cuckoo graph to begin with, it hardly affects the rate of solution finding.
+
+\section{Union-find}
+The above representation of the directed cuckoo graph is an example of
+a {\em disjoint-set data structure}~\cite{wikidsds2014}, and our algorithm is
+closely related to the well known union-find algorithm, where the find operation
+determines which subset an element is in, and the union operation joins two subsets
+into a single one. For each edge addition to the cuckoo graph we perforn the equivalent
+of two find operaations and one union operation.
+The difference is that the union-find algorithm is free to add
+directed edges between arbitrary elements. Thus it can join two subsets by adding an edge
+from one root to another, with no need to reverse any edges. Conversely, our algorithm
+can be seen as the first one that solves the union-find problem by maintaining
+a direction on all union operations while keeping the maximum outdegree at 1.
 
 \section{Implementation and performance}
 The C-program listed in the Appendix is also available online at
