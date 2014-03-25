@@ -313,11 +313,10 @@ I conjecture that this problem doesn't allow for a time-memory trade-off. If
 one were to store only a fraction $p$ of $V_0$ and $V_1$, then one would have
 to reject a fraction $p^2$ of generated edges, drastically reducing the odds of
 finding cycles for $p<1/\sqrt{2}$ (the reduction being exponential in cycle length).
-There is one obvious trade-off in the other direction. By doubling the memory
-used, nonces can be stored alongside the directed edges, which would save the
-effort of recovering them in the current slow manner. The speedup only
-applies to solution finding runs though, so a better use of that memory would be to run
-another copy in parallel.
+There is a trade-off in the other direction, at least on certain platforms.
+By precomputing all the siphashes (with option -p) in a big array, total runtime
+may be reduced by more than 20\%, despite the extra memory accesses. We currently
+lack a good explanation of this behaviour.
 
 \section{Parallelization}
 The implementation allows the number of threads to be set with -DNTHREADS.

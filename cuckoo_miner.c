@@ -10,9 +10,10 @@ int main(int argc, char **argv) {
   assert(SIZE < 1L<<32);
   int nthreads = 1;
   int maxsols = 8;
+  int presip = 0;
   char *header = "";
   int c, easipct = 50;
-  while ((c = getopt (argc, argv, "e:h:m:t:")) != -1) {
+  while ((c = getopt (argc, argv, "e:h:m:t:p")) != -1) {
     switch (c) {
       case 'e':
         easipct = atoi(optarg);
@@ -26,6 +27,9 @@ int main(int argc, char **argv) {
       case 't':
         nthreads = atoi(optarg);
         break;
+      case 'p':
+        presip = 1;
+        break;
     }
   }
   assert(easipct >= 0 && easipct <= 100);
@@ -36,11 +40,11 @@ int main(int argc, char **argv) {
   setheader(&ctx.sip_ctx, header);
   ctx.easiness = (unsigned)(easipct * (u64)SIZE / 100);
   assert(ctx.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
-#ifdef PRESIP
-  assert(ctx.uvs = calloc(2*ctx.easiness, sizeof(unsigned)));
-  for (unsigned nonce = 0; nonce < ctx.easiness; nonce++)
-    sipedge(&ctx.sip_ctx, nonce, &ctx.uvs[2*nonce], &ctx.uvs[2*nonce+1]);
-#endif
+  if (presip) {
+    assert(ctx.uvs = calloc(2*ctx.easiness, sizeof(unsigned)));
+    for (unsigned nonce = 0; nonce < ctx.easiness; nonce++)
+      sipedge(&ctx.sip_ctx, nonce, &ctx.uvs[2*nonce], &ctx.uvs[2*nonce+1]);
+  } else ctx.uvs = 0;
   assert(ctx.sols = calloc(maxsols, PROOFSIZE*sizeof(unsigned)));
   ctx.maxsols = maxsols;
   ctx.nsols = 0;
