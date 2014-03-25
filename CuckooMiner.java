@@ -9,15 +9,23 @@ class CuckooSolve {
   Cuckoo graph;
   int easiness;
   int[] cuckoo;
+  int[] uvs;
   int[][] sols;
   int nsols;
   int nthreads;
 
-  public CuckooSolve(byte[] hdr, int en, int ms, int nt) {
+  public CuckooSolve(byte[] hdr, int en, int ms, int nt, boolean ps) {
     graph = new Cuckoo(hdr);
     easiness = en;
     sols = new int[ms][Cuckoo.PROOFSIZE];
     cuckoo = new int[1+Cuckoo.SIZE];
+    if (ps) {
+      uvs = new int[2*easiness];
+      for (int nonce = 0; nonce < easiness; nonce++) {
+        Edge e = graph.sipedge(nonce);
+        uvs[2*nonce] = e.u; uvs[2*nonce+1] = e.v;
+      }
+    }
     assert cuckoo != null;
     nsols = 0;
     nthreads = nt;
@@ -47,7 +55,9 @@ class CuckooSolve {
     while (nv-- != 0) // u's in odd position; v's in even
       cycle.add(new Edge(vs[nv|1],vs[(nv+1)&~1]));
     for (int nonce = n = 0; nonce < easiness; nonce++) {
-      Edge e = graph.sipedge(nonce);
+      Edge e = uvs==null
+        ? graph.sipedge(nonce)
+        : new Edge(uvs[2*nonce],uvs[2*nonce+1]);
       if (cycle.contains(e)) {
         sols[nsols][n++] = nonce;
         cycle.remove(e);
@@ -73,9 +83,12 @@ public class CuckooMiner implements Runnable {
     int[] us = new int[CuckooSolve.MAXPATHLEN], vs = new int[CuckooSolve.MAXPATHLEN];
     int u, v, nu, nv;
     for (int nonce = id; nonce < solve.easiness; nonce += solve.nthreads) {
-      Edge e = solve.graph.sipedge(nonce);
-      us[0] = e.u;
-      vs[0] = e.v;
+      if (solve.uvs==null) {
+        Edge e = solve.graph.sipedge(nonce);
+        us[0] = e.u; vs[0] = e.v;
+      } else {
+        us[0] = solve.uvs[2*nonce]; vs[0] = solve.uvs[2*nonce+1];
+      }
       if ((u = cuckoo[us[0]]) == vs[0] || (v = cuckoo[vs[0]]) == us[0])
         continue; // ignore duplicate edges
       if (us[nu = solve.path(u, us)] == vs[nv = solve.path(v, vs)]) {
@@ -104,6 +117,7 @@ public class CuckooMiner implements Runnable {
     assert Cuckoo.SIZE > 0;
     int nthreads = 1;
     int maxsols = 8;
+    boolean presip = false;
     String header = "";
     int c, easipct = 50;
     for (int i = 0; i < argv.length; i++) {
@@ -115,11 +129,13 @@ public class CuckooMiner implements Runnable {
         maxsols = Integer.parseInt(argv[++i]);
       } else if (argv[i].equals("-t")) {
         nthreads = Integer.parseInt(argv[++i]);
+      } else if (argv[i].equals("-p")) {
+        presip = true;
       }
     }
     assert easipct >= 0 && easipct <= 100;
     System.out.println("Looking for " + Cuckoo.PROOFSIZE + "-cycle on cuckoo" + Cuckoo.SIZEMULT + Cuckoo.SIZESHIFT + "(\"" + header + "\") with " + easipct + "% edges and " + nthreads + " threads");
-    CuckooSolve solve = new CuckooSolve(header.getBytes(), (int)(easipct * (long)Cuckoo.SIZE / 100), maxsols, nthreads);
+    CuckooSolve solve = new CuckooSolve(header.getBytes(), (int)(easipct * (long)Cuckoo.SIZE / 100), maxsols, nthreads, presip);
   
     Thread[] threads = new Thread[nthreads];
     for (int t = 0; t < nthreads; t++) {

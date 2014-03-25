@@ -28,7 +28,7 @@ class Edge {
 
 public class Cuckoo {
   public static final int SIZEMULT = 1;
-  public static final int SIZESHIFT = 20;
+  public static final int SIZESHIFT = 28;
   public static final int PROOFSIZE = 42;
   public static final int SIZE = SIZEMULT*(1<<SIZESHIFT);
   // relatively prime partition sizes, assuming SIZESHIFT >= 2
