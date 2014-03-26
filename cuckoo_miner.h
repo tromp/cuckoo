@@ -89,7 +89,7 @@ void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
   cuckoo_ctx *ctx = tp->ctx;
   unsigned *cuckoo = ctx->cuckoo;
-  unsigned us[MAXPATHLEN], u, vs[MAXPATHLEN], v, uvpre[2*PRESIP], npre = 0; 
+  unsigned us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP], npre = 0; 
   for (unsigned nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
 #if PRESIP==0
     sipedge(&ctx->sip_ctx, nonce, us, vs);
@@ -101,7 +101,8 @@ void *worker(void *vp) {
     *us = uvpre[2*i];
     *vs = uvpre[2*i+1];
 #endif
-    if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
+    unsigned u = cuckoo[*us], v = cuckoo[*vs];
+    if (u == *vs || v == *us)
       continue; // ignore duplicate edges
 #ifdef SHOW
     for (int j=1; j<=SIZE; j++)

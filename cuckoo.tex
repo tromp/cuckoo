@@ -361,7 +361,7 @@ This shows some sort of breakdown of the memory interface starting from 21 threa
 which is presumably where hyperthreading starts to kick in.
 It is perhaps odd that such a hyperthreading transition is completely absent from the green line.
 Since the hash precomputation showed a significant speedup, the implementation was changed
-to make it the default. Reproduce the other curves requires compilation with -DPRESIP=1.
+to make it the default. Reproducing the other curves requires compilation with -DPRESIP=0 for C or setting CuckooSolve.PRESIP=1 for java.
 
 \begin{center}
 \begin{tikzpicture}
