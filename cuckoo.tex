@@ -215,9 +215,12 @@ The C-program listed in the Appendix is also available online at
 proof verifier and the latest version of this paper. `make test' tests everything.
 `make example' reproduces the example shown above.
 The main program uses 32 bits per node to represent the directed cuckoo graph,
-plus about 64 KB per thread for 2 auxiliary arrays that not only record traversed paths,
+plus about 40 KB per thread for 3 auxiliary arrays.
+The {\tt us} and {\tt vs} arrays not only record traversed paths,
 but also double as a mini cuckoo table used for storing edges of a solution cycle,
 allowing easy recovery of the proof nonces.
+The {\tt uvpre} array precomputes edges in blocks of 1024, which was found (inexplicably)
+to save up to 30\% runtime.
 The left plot below shows both the total runtime in seconds and the runtime of just
 the hash computation, as a function of (log)size. The latter is purely
 linear, while the former is superlinear due to increasing memory latency
@@ -313,13 +316,9 @@ I conjecture that this problem doesn't allow for a time-memory trade-off. If
 one were to store only a fraction $p$ of $V_0$ and $V_1$, then one would have
 to reject a fraction $p^2$ of generated edges, drastically reducing the odds of
 finding cycles for $p<1/\sqrt{2}$ (the reduction being exponential in cycle length).
-There is a trade-off in the other direction, at least on certain platforms.
-By precomputing all the siphashes (with option -p) in a big array, total runtime
-may be reduced by up to 30\%, despite the extra memory accesses. We currently
-lack a good explanation of this behaviour.
 
 \section{Parallelization}
-The implementation allows the number of threads to be set with -DNTHREADS.
+The implementation allows the number of threads to be set with option {\tt -t}.
 For $0\leq t < T$, thread $t$ processes all nonces $t \bmod T$.
 Parallelization presents some algorithmic challenges. Paths from an edge's two endpoints
 are not well-defined when other edge additions and path reversals are still in progress.
@@ -331,7 +330,8 @@ edge $(10 \rightarrow 5)$ hasn't been reversed yet.
 As a result, $(3 \rightarrow 15)$ will be added, not realizing it creates a cyle.
 Thus, in a parallel implementation, path following can no longer be assumed to terminate.
 Instead of using a cycle detection algorithm such as~\cite{1980-brent-cycles}, our implementation
-notices when the path length exceeds MAXPATHLEN, and reports wether this is due to a path conflict.
+notices when the path length exceeds MAXPATHLEN (4096 by default),
+and reports wether this is due to a path conflict.
 The left plot below shows the average number of times that either of the two roots
 for a nonce occurred a given number of nonces ago, showing that there are potentially
 about $10T$ such conflicts.
@@ -347,23 +347,21 @@ Empirically then, path conflicts have negligable effect on multi-threaded perfor
 The percentage of hashing to total runtime shows the same behaviour as in the single-threaded case,
 with a dual Xeon X5670 machine spending only 5.5\% of wallclock time on hashing with $2^{28}$ nodes.
 
-% Analysing how these conflicts affect performance and the probabillity of finding cycles
-% is a topic for further research. 
 The right plot shows in green the speedup achieved by up to 40 threads on a system with two Intel Xeon
 E5-2690 cpus, each which 10 hyperthreaded cores running at 3GHz.
 Each datapoint represents 10 runs on $2^{30}$ nodes with headers "0" through "9".
 Although the speedup is sublinear at 26 for 40 threads, it doesn't look like the memory interface
 is saturated yet. Since we don't have access to more than 40 threads, we tried two alternative
 approaches to see happens when the memory access frequency increases further,
-In the first approach we reduce the number of rounds in the \hash function,
-shown in red and blue.
-% checking that results are still random enough so as not to affect the distribution of cycle lengths.
-In the second approach we precompute all the hashes (doubling the memory use) in the main program,
-and then only count the runtime of running the threads using the precomputed edges,
-as shown in orange.
+In the first approach we reduce the number of rounds in the \hash function, shown in red and blue.
+We checked with 10,000 test-runs on cuckoo125 that reducing the number of siphash rounds
+has no noticeable effect on cycle length distribution.
+In the second approach we precompute all the hashes, shown in orange.
 This shows some sort of breakdown of the memory interface starting from 21 threads,
 which is presumably where hyperthreading starts to kick in.
 It is perhaps odd that such a hyperthreading transition is completely absent from the green line.
+Since the hash precomputation showed a significant speedup, the implementation was changed
+to make it the default. Reproduce the other curves requires compilation with -DPRESIP=1.
 
 \begin{center}
 \begin{tikzpicture}

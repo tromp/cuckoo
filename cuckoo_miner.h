@@ -6,13 +6,15 @@
 #include <pthread.h>
 
 // algorithm parameters
-#define MAXPATHLEN 8192
+#define MAXPATHLEN 4096
+#ifndef PRESIP
+#define PRESIP 1024
+#endif
 
 typedef struct {
   siphash_ctx sip_ctx;
   unsigned easiness;
   unsigned *cuckoo;
-  unsigned *uvs;
   unsigned (*sols)[PROOFSIZE];
   unsigned maxsols;
   unsigned nsols;
@@ -70,9 +72,7 @@ void solution(cuckoo_ctx *ctx, unsigned *us, int nu, unsigned *vs, int nv) {
     storedge((u64)vs[nv|1]<<32 | vs[(nv+1)&~1], usck, vsck); // u's in odd position; v's in even
   pthread_mutex_lock(&ctx->setsol);
   for (unsigned nonce = n = 0; nonce < ctx->easiness; nonce++) {
-    if (ctx->uvs) {
-      u = ctx->uvs[2*nonce]; v = ctx->uvs[2*nonce+1];
-    } else sipedge(&ctx->sip_ctx, nonce, &u, &v);
+    sipedge(&ctx->sip_ctx, nonce, &u, &v);
     u64 *c, uv = (u64)u<<32 | v;
     if (*(c = &usck[uv % SOLMODU]) == uv || *(c = &vsck[uv % SOLMODV]) == uv) {
       ctx->sols[ctx->nsols][n++] = nonce;
@@ -89,12 +89,18 @@ void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
   cuckoo_ctx *ctx = tp->ctx;
   unsigned *cuckoo = ctx->cuckoo;
-  unsigned us[MAXPATHLEN], u, vs[MAXPATHLEN], v; 
-  int nu, nv;
+  unsigned us[MAXPATHLEN], u, vs[MAXPATHLEN], v, uvpre[2*PRESIP], npre = 0; 
   for (unsigned nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
-  if (ctx->uvs) {
-    us[0] = ctx->uvs[2*nonce]; vs[0] = ctx->uvs[2*nonce+1];
-  } else sipedge(&ctx->sip_ctx, nonce, us, vs);
+#if PRESIP==0
+    sipedge(&ctx->sip_ctx, nonce, us, vs);
+#else
+    if (!npre)
+      for (unsigned n = nonce; npre < PRESIP; npre++, n += ctx->nthreads)
+        sipedge(&ctx->sip_ctx, n, &uvpre[2*npre], &uvpre[2*npre+1]);
+    unsigned i = PRESIP - npre--;
+    *us = uvpre[2*i];
+    *vs = uvpre[2*i+1];
+#endif
     if ((u = cuckoo[*us]) == *vs || (v = cuckoo[*vs]) == *us)
       continue; // ignore duplicate edges
 #ifdef SHOW
@@ -103,7 +109,8 @@ void *worker(void *vp) {
       else            printf("%2d:%02d ",j,cuckoo[j]);
     printf(" %x (%d,%d)\n", nonce,*us,*vs);
 #endif
-    if (us[nu = path(cuckoo, u, us)] == vs[nv = path(cuckoo, v, vs)]) {
+    int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+    if (us[nu] == vs[nv]) {
       int min = nu < nv ? nu : nv;
       for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
       int len = nu + nv + 1;
