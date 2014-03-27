@@ -6,7 +6,7 @@
 #include <pthread.h>
 
 // algorithm parameters
-#define MAXPATHLEN 4096
+#define MAXPATHLEN 6144
 #ifndef PRESIP
 #define PRESIP 1024
 #endif
