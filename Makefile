@@ -32,11 +32,17 @@ cuckoo128:	cuckoo.h cuckoo_miner.h cuckoo_miner.c Makefile
 speedup:	cuckoo128 Makefile
 	for i in {1..4}; do echo $$i; (time for j in {0..6}; do ./cuckoo128 -t $$i -h $$j; done) 2>&1; done > speedup
 
-speedup130:	cuckoo130 Makefile
-	for i in {1..40}; do echo $$i; (time for j in {0..9}; do ./cuckoo130 -t $$i -h $$j; done) 2>&1; done > speedup
-
 cuckoo130:	cuckoo.h cuckoo_miner.h cuckoo_miner.c Makefile
 	cc -o cuckoo130 -DSIZEMULT=1 -DSIZESHIFT=30 cuckoo_miner.c ${FLAGS}
+
+speedup130:	cuckoo130 Makefile
+	for i in {1..64}; do echo $$i; (time for j in {0..9}; do ./cuckoo130 -t $$i -h $$j; done) 2>&1; done > speedup130
+
+cuckoo130p0:	cuckoo.h cuckoo_miner.h cuckoo_miner.c Makefile
+	cc -o cuckoo130p0 -DPRESIP=0 -DSIZEMULT=1 -DSIZESHIFT=30 cuckoo_miner.c ${FLAGS}
+
+speedup130p0:	cuckoo130p0 Makefile
+	for i in {1..64}; do echo $$i; (time for j in {0..9}; do ./cuckoo130p0 -t $$i -h $$j; done) 2>&1; done > speedup130p0
 
 cuckoo729:	cuckoo.h cuckoo_miner.h cuckoo_miner.c Makefile
 	cc -o cuckoo729 -DSIZEMULT=7 -DSIZESHIFT=29 cuckoo_miner.c ${FLAGS}
