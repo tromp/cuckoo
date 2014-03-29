@@ -64,4 +64,4 @@ cuda128:	cuda_miner.cu Makefile
 	nvcc -o cuda128 -DSIZEMULT=1 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lcrypto
 
 speedupcuda:	cuda128
-	for i in 1 2 4 8 16 32 64 128 256 512; do echo $$i; (time for j in {0..6}; do ./cuda120 -t $$i -h $$j; done) 2>&1; done > speedupcuda
+	for i in 1 2 4 8 16 32 64 128 256 512; do echo $$i; (time for j in {0..6}; do ./cuda128 -t $$i -h $$j; done) 2>&1; done > speedupcuda
