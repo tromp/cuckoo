@@ -8,15 +8,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <assert.h>
-// #include <helper_cuda.h>
-
-#define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true) {
-  if (code != cudaSuccess) {
-    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-    if (abort) exit(code);
-  }
-}
 
 // proof-of-work parameters
 #ifndef SIZEMULT 
@@ -24,9 +15,6 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true) {
 #endif
 #ifndef SIZESHIFT 
 #define SIZESHIFT 20
-#endif
-#ifndef PROOFSIZE
-#define PROOFSIZE 42
 #endif
 
 #define SIZE (SIZEMULT*((unsigned)1<<SIZESHIFT))
@@ -54,117 +42,64 @@ typedef struct {
     v2 += v1; v1=ROTL(v1,17); v1 ^= v2; v2=ROTL(v2,32); \
   } while(0)
  
-// SipHash-2-4 specialized to precomputed key and 4 byte nonces
-__device__ u64 siphash24(siphash_ctx *ctx, unsigned nonce) {
+typedef struct {
+  int len;
+  int id;
+  int pct;
+} cycle;
+
+typedef struct {
+  siphash_ctx sip_ctx;
+  unsigned easiness;
+  unsigned *cuckoo;
+  cycle *cycles;
+  unsigned maxcycles;
+  unsigned ncycles;
+  int nthreads;
+} cuckoo_ctx;
+
+// algorithm parameters
+#define MAXPATHLEN 4096
+
+// generate edge in cuckoo graph
+__device__ void sipedge(siphash_ctx *ctx, unsigned nonce, unsigned *pu, unsigned *pv) {
   u64 b = ( ( u64 )4 ) << 56 | nonce;
   u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ b;
   SIPROUND; SIPROUND;
   v0 ^= b;
   v2 ^= 0xff;
   SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return v0 ^ v1 ^ v2  ^ v3;
-}
-
-// generate edge in cuckoo graph
-__device__ void sipedge(siphash_ctx *ctx, unsigned nonce, unsigned *pu, unsigned *pv) {
-  u64 sip = siphash24(ctx, nonce);
+  u64 sip = v0 ^ v1 ^ v2  ^ v3;
   *pu = 1 +         (unsigned)(sip % PARTU);
   *pv = 1 + PARTU + (unsigned)(sip % PARTV);
 }
 
-// algorithm parameters
-#define MAXPATHLEN 1024
-#ifndef PRESIP
-#define PRESIP 0
-#endif
-
-typedef struct {
-  siphash_ctx sip_ctx;
-  unsigned easiness;
-  unsigned *cuckoo;
-  unsigned (*sols)[PROOFSIZE];
-  unsigned maxsols;
-  unsigned nsols;
-  int nthreads;
-} cuckoo_ctx;
-
-__device__ int path(unsigned *cuckoo, unsigned u, unsigned *us) {
-  int nu;
-  for (nu = 0; u; u = cuckoo[u]) {
-    if (++nu >= MAXPATHLEN) {
-      --nu;
-      break;
-    }
-    us[nu] = u;
-  }
-  return nu;
-}
-
-// largest number of u64's that fit in MAXPATHLEN-PROOFSIZE unsigned's
-#define SOLMODU ((MAXPATHLEN-PROOFSIZE)/2)
-#define SOLMODV (SOLMODU-1)
-
-__device__ void storedge(u64 uv, u64 *usck, u64 *vsck) {
-  int j, i = uv % SOLMODU;
-  u64 uvi = usck[i]; 
-  if (uvi) {
-    if (vsck[j = uv % SOLMODV]) {
-      vsck[uvi % SOLMODV] = uvi;
-    } else {
-      vsck[j] = uv;
-      return;
-    }
-  } else usck[i] = uv;
-}
-
-__device__ void solution(cuckoo_ctx *ctx, unsigned *us, int nu, unsigned *vs, int nv) {
-  u64 *usck = (u64 *)&us[PROOFSIZE], *vsck = (u64 *)&vs[PROOFSIZE];
-  unsigned u, v, n;
-  for (int i=0; i<SOLMODU; i++)
-    usck[i] = vsck[i] = 0L;
-  storedge((u64)*us<<32 | *vs, usck, vsck);
-  while (nu--)
-    storedge((u64)us[(nu+1)&~1]<<32 | us[nu|1], usck, vsck); // u's in even position; v's in odd
-  while (nv--)
-    storedge((u64)vs[nv|1]<<32 | vs[(nv+1)&~1], usck, vsck); // u's in odd position; v's in even
-  for (unsigned nonce = n = 0; nonce < ctx->easiness; nonce++) {
-    sipedge(&ctx->sip_ctx, nonce, &u, &v);
-    u64 *c, uv = (u64)u<<32 | v;
-    if (*(c = &usck[uv % SOLMODU]) == uv || *(c = &vsck[uv % SOLMODV]) == uv) {
-      ctx->sols[ctx->nsols][n++] = nonce;
-      *c = 0;
-    }
-  }
-  if (n == PROOFSIZE)
-    ctx->nsols++;
-}
-
 __global__ void worker(cuckoo_ctx *ctx) {
-  unsigned *cuckoo = ctx->cuckoo;
+  cuckoo_ctx local = *ctx;
+  unsigned *cuckoo = local.cuckoo;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  unsigned us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP], npre = 0; 
-  for (unsigned nonce = id; nonce < ctx->easiness; nonce += ctx->nthreads) {
-#if PRESIP==0
-    sipedge(&ctx->sip_ctx, nonce, us, vs);
-#else
-    if (!npre)
-      for (unsigned n = nonce; npre < PRESIP; npre++, n += ctx->nthreads)
-        sipedge(&ctx->sip_ctx, n, &uvpre[2*npre], &uvpre[2*npre+1]);
-    unsigned i = PRESIP - npre--;
-    *us = uvpre[2*i];
-    *vs = uvpre[2*i+1];
-#endif
+  unsigned us[MAXPATHLEN], vs[MAXPATHLEN];
+  for (unsigned nonce = id; nonce < local.easiness; nonce += local.nthreads) {
+    sipedge(&local.sip_ctx, nonce, us, vs);
     unsigned u = cuckoo[*us], v = cuckoo[*vs];
     if (u == *vs || v == *us)
       continue; // ignore duplicate edges
-    int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+    int nu, nv;
+    for (nu = 0; u; u = cuckoo[u]) {
+      if (++nu >= MAXPATHLEN) return;
+      us[nu] = u;
+    }
+    for (nv = 0; v; v = cuckoo[v]) {
+      if (++nv >= MAXPATHLEN) return;
+      vs[nv] = v;
+    }
     if (us[nu] == vs[nv]) {
       int min = nu < nv ? nu : nv;
       for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-      int len = nu + nv + 1;
-      // printf("% 4d-cycle found at %d:%d%%\n", len, id, (int)(nonce*100L/ctx->easiness));
-      if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
-        solution(ctx, us, nu, vs, nv);
+      cycle *c = &local.cycles[ctx->ncycles++];
+      c->len = nu + nv + 1;
+      c->id = id;
+      c->pct = (int)(nonce*100L/local.easiness);
       continue;
     }
     if (nu < nv) {
@@ -177,11 +112,6 @@ __global__ void worker(cuckoo_ctx *ctx) {
       cuckoo[*vs] = *us;
     }
   }
-  // ctx->sols[ctx->nsols][0] = 42;
-  // ctx->sols[ctx->nsols][1] = 0;
-  // for (int i=0; i<=SIZE; i++)
-    // ctx->sols[ctx->nsols][1] |= cuckoo[i];
-  // ctx->nsols++;
 }
 
 // derive siphash key from header
@@ -196,10 +126,18 @@ void setheader(siphash_ctx *ctx, char *header) {
   ctx->v[3] = k1 ^ 0x7465646279746573ULL;
 }
 
+#define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true) {
+  if (code != cudaSuccess) {
+    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+    if (abort) exit(code);
+  }
+}
+
 int main(int argc, char **argv) {
   assert(SIZE < 1L<<32);
   int nthreads = 1;
-  int maxsols = 8;
+  int maxcycles = 16;
   char *header = "";
   int c, easipct = 50;
   while ((c = getopt (argc, argv, "e:h:m:t:")) != -1) {
@@ -211,7 +149,7 @@ int main(int argc, char **argv) {
         header = optarg;
         break;
       case 'm':
-        maxsols = atoi(optarg);
+        maxcycles = atoi(optarg);
         break;
       case 't':
         nthreads = atoi(optarg);
@@ -219,18 +157,18 @@ int main(int argc, char **argv) {
     }
   }
   assert(easipct >= 0 && easipct <= 100);
-  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d%% edges and %d threads\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct, nthreads);
+  printf("Looking for cycles on cuckoo%d%d(\"%s\") with %d%% edges and %d threads\n",
+               SIZEMULT, SIZESHIFT, header, easipct, nthreads);
 
   cuckoo_ctx ctx;
   setheader(&ctx.sip_ctx, header);
   ctx.easiness = (unsigned)(easipct * (u64)SIZE / 100);
-  ctx.maxsols = maxsols;
-  ctx.nsols = 0;
+  ctx.maxcycles = maxcycles;
+  ctx.ncycles = 0;
   ctx.nthreads = nthreads;
   checkCudaErrors(cudaMalloc((void**)&ctx.cuckoo, (1+SIZE) * sizeof(unsigned)));
   checkCudaErrors(cudaMemset(ctx.cuckoo, 0, (1+SIZE) * sizeof(unsigned)));
-  checkCudaErrors(cudaMalloc((void**)&ctx.sols, maxsols*PROOFSIZE*sizeof(unsigned)));
+  checkCudaErrors(cudaMalloc((void**)&ctx.cycles, maxcycles*sizeof(cycle)));
 
   cuckoo_ctx *device_ctx;
   checkCudaErrors(cudaMalloc((void**)&device_ctx, sizeof(cuckoo_ctx)));
@@ -238,18 +176,14 @@ int main(int argc, char **argv) {
 
   worker<<<nthreads,1>>>(device_ctx);
   cudaMemcpy(&ctx, device_ctx, sizeof(cuckoo_ctx), cudaMemcpyDeviceToHost);
-  unsigned (*sols)[PROOFSIZE];
-  sols = (unsigned (*)[PROOFSIZE])calloc(maxsols, PROOFSIZE*sizeof(unsigned));
-  cudaMemcpy(sols, ctx.sols, maxsols*PROOFSIZE*sizeof(unsigned), cudaMemcpyDeviceToHost);
+  cycle *cycles;
+  cycles = (cycle *)calloc(maxcycles, sizeof(cycle));
+  cudaMemcpy(cycles, ctx.cycles, maxcycles*sizeof(cycle), cudaMemcpyDeviceToHost);
 
-  for (int s = 0; s < ctx.nsols; s++) {
-    printf("Solution");
-    for (int i = 0; i < PROOFSIZE; i++)
-      printf(" %x", sols[s][i]);
-    printf("\n");
-  }
+  for (int s = 0; s < ctx.ncycles; s++)
+    printf("% 4d-cycle found at %d:%d%%\n", cycles[s].len, cycles[s].id, cycles[s].pct);
   checkCudaErrors(cudaFree(device_ctx));
-  checkCudaErrors(cudaFree(ctx.sols));
+  checkCudaErrors(cudaFree(ctx.cycles));
   checkCudaErrors(cudaFree(ctx.cuckoo));
   return 0;
 }

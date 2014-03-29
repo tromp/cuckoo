@@ -57,5 +57,11 @@ java:	Cuckoo.class CuckooMiner.class Makefile
 	java CuckooMiner -h 6 | tail -1 | java Cuckoo -h 6
 
 cuda:	cuda_miner.cu Makefile
-	nvcc -o cuda_miner -DPROOFSIZE=6 -DSIZEMULT=1 -DSIZESHIFT=4 -arch sm_30 cuda_miner.cu -lcrypto
-	./cuda_miner -e 100 -h header
+	nvcc -o cuda -DSIZEMULT=1 -DSIZESHIFT=4 -arch sm_20 cuda_miner.cu -lcrypto
+	./cuda -e 100 -h header
+
+cuda128:	cuda_miner.cu Makefile
+	nvcc -o cuda128 -DSIZEMULT=1 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lcrypto
+
+speedupcuda:	cuda128
+	for i in 1 2 4 8 16 32 64 128 256 512; do echo $$i; (time for j in {0..6}; do ./cuda120 -t $$i -h $$j; done) 2>&1; done > speedupcuda
