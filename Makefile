@@ -55,3 +55,7 @@ CuckooMiner.class:	Cuckoo.java CuckooMiner.java Makefile
 
 java:	Cuckoo.class CuckooMiner.class Makefile
 	java CuckooMiner -h 6 | tail -1 | java Cuckoo -h 6
+
+cuda:	cuda_miner.cu Makefile
+	nvcc -o cuda_miner -DPROOFSIZE=6 -DSIZEMULT=1 -DSIZESHIFT=4 -arch sm_30 cuda_miner.cu -lcrypto
+	./cuda_miner -e 100 -h header
