@@ -12,90 +12,111 @@
 \maketitle
 
 \begin{abstract}
-We introduce the first trivially verifiable, scalable and tmto\footnote{time-memory trade-off}-hard proof-of-work system.
+We introduce the first trivially verifiable, scalable and
+tmto\footnote{time-memory trade-off}-hard proof-of-work system.
 \end{abstract}
 
 \section{Introduction}
-A ``proof of work'' (PoW) system allows a verifier to check with
-negligible effort that a prover has expended a large amount of computational effort.
+A ``proof of work'' (PoW) system allows a verifier to check with negligible
+effort that a prover has expended a large amount of computational effort.
 Originally introduced as a spam fighting measure, 
-where the effort is the price paid by an email sender for demanding the recipient's attention,
-they now form one of the cornerstones of crypto-currencies.
+where the effort is the price paid by an email sender for demanding the
+recipient's attention, they now form one of the cornerstones of
+crypto-currencies.
 
-Bitcoin~\cite{nakamoto2009bitcoin} uses hashcash~\cite{back2002} as proof-of-work for
-new blocks of transactions, which requires finding a nonce value such that
+As proof-of-work for new blocks of transactions,
+Bitcoin~\cite{nakamoto2009bitcoin} uses hashcash~\cite{back2002}.
+This requires finding a nonce value such that
 twofold application of the cryptographic hash function SHA256
-to this nonce (and the rest of the block header) results in a number with many
-leading 0s.  The bitcoin protocol dynamically adjust this ``difficulty'' number
-so as to maintain a 10-minute average block interval. Starting out at 32 leading zeroes in 2009,
-the number has steadily climbed and is currently at 64, representing
-an incredible $2^{64}/10$ double-hashes per minute. This exponential growth of hashing power
-is enabled by the highly-parallellizable nature of the hashcash proof-of-work.
-which saw desktop cpus out-performed by graphics-cards (GPUs),
-these in turn by field-programmable gate arrays (FPGAs),
-and finally by custom designed chips (ASICs).
+to this nonce (and the rest of the block header) results in a number with
+many leading 0s. The bitcoin protocol dynamically adjust this ``difficulty''
+number so as to maintain a 10-minute average block interval. Starting out at
+32 leading zeroes in 2009, the number has steadily climbed and is currently
+at 64, representing an incredible $2^{64}/10$ double-hashes per minute.
+This growth was enabled by the migration of hash computation from 
+desktop processors (CPUs) to graphics-card procecssors (GPUs),
+to field-programmable gate arrays (FPGAs), and finally to custom designed
+chips (ASICs).
 
-Downsides of this development include high investment costs, rapid obsolesence,
-centralization of mining power, and large power consumption.
-This has led people to look for alternative proof-of-work systems that resist parallelizability
-and require a nontrivial amount of memory, aiming to keep commodity hardware competitive.
+Downsides of this development include high investment costs, rapid
+obsolesence, centralization of mining power, and large power consumption.
+Although ASICs are the most energy-efficient way of computing hashes,
+the tiny amount of die-space needed for a single SHA256 circuit allows
+a huge number of them (e.g. 1440 on KnC's Neptune) to be crammed onto a
+single chip, consuming 100s of Watts and requiring ample cooling.
+Thus, energy costs dominate the economics of mining.
 
-Litecoin replaces the SHA256 hash function in hashcash by a single round version of the
-{\em scrypt} key derivation function. Its memory requirement of 128KB is a compromise
-between computation-hardness for the prover and verification efficiency for the verifier.
-Although designed to be GPU-resistant, GPUs are now at least an order of magnitude faster
-than CPUs for Litecoin mining, and ASICs have appeared on the market in early 2014.
+This has led people to look for alternative proof-of-work systems
+that, by requiring a nontrivial amount of memory, resist such
+massive parallelizability, and narrow the performance gap
+with commodity hardware. Memory chips, in the form of DRAM,
+have only a tiny portion of their circuitry active at any time,
+and thus require orders of magnitude less power.
 
-Primecoin~\cite{king2013} is an interesting design based on finding long Cunningham chains
-of prime numbers, using a two-step process of filtering candidates by {\em sieving}, and applying
-pseudo-primality tests to remaining candidates. The most efficient implementations are still CPU based.
-Downsides to this proof-of-work are its complexity and the scope for algorithmic improvements
-that may be kept private. Its memory requirements, while larger than Litecoin's, are still modest.
+Litecoin replaces the SHA256 hash function in hashcash by a single round
+version of the {\em scrypt} key derivation function. Its memory requirement
+of 128KB is a compromise between computation-hardness for the prover and
+verification efficiency for the verifier. Although designed to be
+GPU-resistant, GPUs are now at least an order of magnitude faster
+than CPUs for Litecoin mining. ASICs first appeared on the market in early 2014 and are expected to dominate Litecoin mining by the fourth quarter.
 
-Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs as proof-of-work,
-the simplest way to combine scalable memory usage with trivial verifiability.
-Its memory requirements are not very strict though. as Bloom filters or rainbow tables
-can identify collisions, and parallellizes well.
+Primecoin~\cite{king2013} is an interesting design based on finding long
+Cunningham chains of prime numbers, using a two-step process of filtering
+candidates by {\em sieving}, and applying pseudo-primality tests to remaining
+candidates. The most efficient implementations are still CPU based.
+Downsides to this proof-of-work are its complexity and the scope for
+algorithmic improvements that may be kept private. Its memory requirements,
+while larger than Litecoin's, are still modest.
 
-Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
+Momentum~\cite{larimer2013} proposes finding birthday collisions of hash
+outputs as proof-of-work, the simplest way to combine scalable memory usage
+with trivial verifiability. Its memory requirements are not very strict
+though. as Bloom filters or rainbow tables can identify collisions, and
+parallellizes well.
+
+Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
+and present.
 
 \section{Memory latency; the great equalizer}
-While cpu-speed and memory bandwidth are highly variable across time and architectures,
-main memory latencies have remained relatively stable.
-This suggests making the proof-of-work system latency-bound to level the mining playing field.
+While cpu-speed and (sequential) memory bandwidth are highly variable across
+time and architectures, main memory latencies have remained relatively
+stable. This suggests making the proof-of-work system latency-bound to level
+the mining playing field.
 Ideally, it should have the following properties:
 \begin{description}
-\item[verify-trivial] A proof can be checked in microseconds rather than milliseconds.
-\item[scalable] The amount of memory needed is a parameter that can scale arbitrarily.
-\item[linear] Amount of computational steps and memory accesses are linear in the amount of memory.
-\item[tmto-hard] Using only half as much memory should incur several orders of magnitude slowdown.
-\item[random-access] RAM is accessed randomly, making bandwidth and caches irrelevant.
-\item[parallel-hard] No speedup is possible for parallel implementations.
-\item[simple] The algorithm should be sufficiently simple that one can be convinced of its optimality.
+\item[verify-trivial] A proof can be checked in microseconds rather than
+ milliseconds.
+\item[scalable] The amount of memory needed is a parameter that can scale
+  arbitrarily.
+\item[linear] Amount of computational steps and memory accesses
+  are linear in the amount of memory.
+\item[tmto-hard] Using only half as much memory should incur several orders
+  of magnitude slowdown.
+\item[random-access] RAM is accessed randomly, making
+  sequential bandwidth and caches mostly irrelevant.
+\item[parallel-hard] The algorithm cannot be parallellized within
+  a single instance, i.e. proof attempt).
+\item[simple] The algorithm should be sufficiently simple that one can be
+  convinced of its optimality.
 \end{description}
 Combined, these properties ensure that a proof-of-work system is entirely
-constrained by main memory latency\footnote{The memory requirement should
-exceed that of the largest available
-single-chip memory to enforce off-chip latencies. It should also be a
-significant fraction of the typical memory of a botnet computer, as sending the
-machine into swap-hell is likely to alert its owner.} and scales appropriately
-for any application.
+constrained by main memory latency and scales appropriately for any
+application.
 
 We introduce the very first proof-of-work system that is both verify-trivial
 and tmto-hard. Furthermore, it satisfies all other properties,
 except for parallel-hardness (see the later section on parallelizability).
 Amazingly, it amounts to little more than enumerating nonces and storing them
-in a hashtable. While all hashtables break down when trying to store more items than
-it was designed to handle, in one hashtable design in particular this breakdown
-is of a special nature that can be turned into a concise and easily verified proof.
-Enter the cuckoo hashtable.
+in a hashtable. While all hashtables break down when trying to store more
+items than it was designed to handle, in one hashtable design in particular
+this breakdown is of a special nature that can be turned into a concise and
+easily verified proof. Enter the cuckoo hashtable.
 
 \section{Cuckoo hashing}
-Introduced by Rasmus Pagh and Flemming Friche Rodler~\cite{Pagh04cuckoohashing},
-a cuckoo hashtable consists of two same-sized
-tables each with its own hash function mapping a key to a table location,
-providing two possible locations for each key.
-% (and constant lookup time).
+Introduced by Rasmus Pagh and Flemming Friche
+Rodler~\cite{Pagh04cuckoohashing}, a cuckoo hashtable consists of two
+same-sized tables each with its own hash function mapping a key to a table
+location, providing two possible locations for each key.
 Upon insertion of a new key, if both locations are already occupied by keys,
 then one is kicked out and inserted in its alternate location, possibly
 displacing yet another key, repeating the process until either a vacant
@@ -103,39 +124,45 @@ location is found, or some maximum number of iterations is reached.
 The latter can only happen once cycles have formed in the {\em Cuckoo graph}.
 This is a bipartite graph with a node for each location and an
 edge for every key, connecting the two locations it can reside at.
-This naturally suggests a proof-of-work problem, which we now formally define.
+This naturally suggests a proof-of-work problem, which we now formally
+define.
 
 \section{The proof-of-work function}
-Fix an (even) number of nodes $8 \leq N < 2^{32}$, a number of edges $N/4 < E \leq N$,
-and an (even) cycle length $4 \leq L < 256$.
-Function $\cuckoo$ maps any 128-bit key $k$ (the header digest) to a bipartite graph
-$G = (V_0 \cup V_1, E)$, where $V_0$ is the set of integers modulo $N_0=N/2+1$,
-$V_1$ is the set of integers modulo $N_1=N/2-1$, and $E$ has an edge between
-$\hash(k,n) \bmod N_0$ in $V_0$ and $\hash(k,n) \bmod N_1$ in $V_1$ for every
-nonce $0 \leq n < E$. A proof for $G$ is a subset of $L$ nonces whose
-corresponding edges form an $L$-cycle in $G$.
+Fix an (even) number of nodes $8 \leq N < 2^{32}$, a number of edges $N/4 < E
+\leq N$, and an (even) cycle length $4 \leq L < 256$.
+Function $\cuckoo$ maps any 128-bit key $k$ (the header digest) to a
+bipartite graph $G = (V_0 \cup V_1, E)$, where $V_0$ is the set of integers
+modulo $N_0=N/2+1$, $V_1$ is the set of integers modulo $N_1=N/2-1$, and $E$
+has an edge between $\hash(k,n) \bmod N_0$ in $V_0$ and $\hash(k,n) \bmod
+N_1$ in $V_1$ for every nonce $0 \leq n < E$. A proof for $G$ is a subset of
+$L$ nonces whose corresponding edges form an $L$-cycle in $G$.
 
 \section{Solving the proof-of-work problem}
 We enumerate the $E$ nonces, but instead of storing the nonce itself as a key
-in the Cuckoo hashtable, we store the alternate key location at the key location,
-and forget about the nonce.
-We thus maintain the {\em directed} cuckoo graph, in which the edge for a key
-is directed from the location where it resides to its alternate location.
-Moving a key to its alternate location thus corresponds to reversing its edge.
-The outdegree of every node in this graph is either 0 or 1.
-When there are no cycles yet, the graph is a {\em forest}, a disjoint union of trees.
-In each tree, all edges are directed, directly, or indirectly, to its {\em root},
-the only node in the tree with outdegree 0.
-Initially there are just $N$ singleton trees consisting of individual nodes which are all roots.
-Addition of a new key causes a cycle if and only if its two endpoints are nodes in the same tree,
-which we can test by following the path from each endpoint to its root.
-In case of different roots, we reverse all edges on the shorter of the two paths,
-and finally create the edge for the new key itself, thereby joining the two trees into one.
-The left diagram below shows the directed cuckoo graph for header `header' on $N=9+7$ nodes after adding edges
-$(3,16),(5,15),(6,16),(7,16),(5,10),(6,13),(6,12),(9,14)$ and $(4,14)$ (nodes with no incident edges are omitted for clarity).
-In order to add the 10th edge $(7,10)$, we follow the paths $7 \rightarrow 16 \rightarrow 3$ and $10 \rightarrow 5$
-to find different roots $3$ and $5$. Since the latter path is shorter, we reverse it to $5 \rightarrow 10$ so we can
-add the new edge as $(10 \rightarrow 7)$, resulting in the right diagram.
+in the Cuckoo hashtable, we store the alternate key location at the key
+location, and forget about the nonce.  We thus maintain the {\em directed}
+cuckoo graph, in which the edge for a key is directed from the location where
+it resides to its alternate location.  Moving a key to its alternate location
+thus corresponds to reversing its edge.  The outdegree of every node in this
+graph is either 0 or 1.  When there are no cycles yet, the graph is a {\em
+forest}, a disjoint union of trees.  In each tree, all edges are directed,
+directly, or indirectly, to its {\em root}, the only node in the tree with
+outdegree 0.  Initially there are just $N$ singleton trees consisting of
+individual nodes which are all roots.
+Addition of a new key causes a cycle if and only if its two endpoints are
+nodes in the same tree, which we can test by following the path from each
+endpoint to its root.
+In case of different roots, we reverse all edges on the shorter of the two
+paths, and finally create the edge for the new key itself, thereby joining
+the two trees into one.
+The left diagram below shows the directed cuckoo graph for header `header' on
+$N=9+7$ nodes after adding edges
+$(3,16),(5,15),(6,16),(7,16),(5,10),(6,13),(6,12),(9,14)$ and $(4,14)$ (nodes
+with no incident edges are omitted for clarity).
+In order to add the 10th edge $(7,10)$, we follow the paths $7 \rightarrow 16
+\rightarrow 3$ and $10 \rightarrow 5$ to find different roots $3$ and $5$.
+Since the latter path is shorter, we reverse it to $5 \rightarrow 10$ so we
+can add the new edge as $(10 \rightarrow 7)$, resulting in the right diagram.
 \begin{center}
 \begin{tikzpicture}[>=stealth]
 \node  (3) at (1, 2) [shape=circle,draw] {3};
@@ -184,8 +211,9 @@ add the new edge as $(10 \rightarrow 7)$, resulting in the right diagram.
 \draw [->] (10) -- (7);
 \end{tikzpicture}
 \end{center}
-When adding the 11th edge $(3,15)$, we find the singleton path $3$ and the path
-$15 \rightarrow 5 \rightarrow 10 \rightarrow 7 \rightarrow 16 \rightarrow 3$ with equal roots.
+When adding the 11th edge $(3,15)$, we find the singleton path $3$ and the
+path $15 \rightarrow 5 \rightarrow 10 \rightarrow 7 \rightarrow 16
+\rightarrow 3$ with equal roots.
 In this case, we can compute the length of the resulting cycle as
 1 plus the sum of the path-lengths to the node where the two paths first join.
 In the diagram, the paths first join at the root, and the cycle length is computed as $1+0+5=6$.
@@ -495,23 +523,34 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 \end{tikzpicture}
 \end{center}
 
-\section{Scaling memory beyond 16-32 GB}
-While the current algorithm can accomodate up to $N=2^{33}-2$ nodes by a simple change
-in implementation, a different idea is needed to scale beyond that.
+\section{Choice of memory size}
+The memory requirement should exceed that of the largest available
+single-chip memory to enforce off-chip latencies. It should also be a
+significant fraction of the typical memory of a botnet computer,
+With a significant risk of sending machines into swap-hell and
+likely alerting its owner, botnet operators will refrain from deploying
+Cuckoo Cycle, prefering other proof-of-work schemes whose smaller memory
+footprint allows them to stay under the radar.
+With memory sizes doubling roughly every 18 months, 16GB will become
+commonplace in a few years.
+While the current algorithm can accomodate up to $N=2^{33}-2$ nodes
+(32GB) by separately keeping track of which partition a vertex is in,
+a different idea is needed to scale beyond that.
 To that end, we propose to use $K$-partite graphs with edges only between
 partition $k$ and partition $(k+1) \bmod K$, where $k$ is fed into the hash
-function along with the header and nonce. With each partition consisting of at
-most $2^{31}-1$ nodes, the most significant bit is then available to distinguish
-edges to the two neighbouring partitions.
+function along with the header and nonce. With each partition consisting of
+at most $2^{31}-1$ nodes, the most significant bit is then available to
+distinguish edges to the two neighbouring partitions.
 Setting the size of partition 0 to be relatively prime to $2(K-1)$,
 and making each successive partition smaller by 2,
 ensures that neighbouring partition sizes are relatively prime.
 
 \section{Conclusion}
-Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency over computation.
-This promotes investment in low-power general purpose hardware (RAM) rather than investment
-in single purpose hardware coupled with high operational costs, making mining more sustainable.
-More research is needed to determine the limits of parallelizability.
+Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency
+over computation.  This promotes investment in low-power general purpose
+hardware (RAM) rather than investment in single purpose hardware coupled with
+high operational costs, making mining more sustainable.  More research is
+needed to determine the limits of parallelizability.
 
 \bibliographystyle{IEEEtran}
 \bibliography{cuckoo}
