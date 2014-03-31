@@ -2,9 +2,9 @@ UPDATE: Dave Anderson proposed an alternative algorithm on his blog
 
   http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
-that uses significantly less memory than mine at potentially only an
-order of magnitude slowdown. I hope to soon implement his algorithm
-and quantify the "tomato" (his pronouncable spelling of tmto, or time-memory trade-off).
+that uses significantly less memory than mine at potentially less than an
+order of magnitude slowdown. I hope to soon implement his algorithm and
+quantify the "tomato" (his pronouncable spelling of tmto, or time-memory trade-off).
 
 cuckoo
 ======
