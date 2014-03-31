@@ -5,6 +5,8 @@ UPDATE: Dave Anderson proposed an alternative algorithm on his blog
 that uses about (1/64+1/K) times the memory at roughly K times slowdown.
 I hope to soon implement his algorithm and verify this "tomato"
 (his pronouncable spelling of tmto, or time-memory trade-off).
+By setting K>=64 in this algorithm, Cuckoo Cycle would remain tmto-hard,
+assuming that at least one bit per nonce is required.
 
 cuckoo
 ======
