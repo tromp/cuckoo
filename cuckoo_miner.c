@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
 
   cuckoo_ctx ctx;
   setheader(&ctx.sip_ctx, header);
-  ctx.easiness = (unsigned)(easipct * (u64)SIZE / 100);
-  assert(ctx.cuckoo = calloc(1+SIZE, sizeof(unsigned)));
-  assert(ctx.sols = calloc(maxsols, PROOFSIZE*sizeof(unsigned)));
+  ctx.easiness = easipct * (u64)SIZE / 100;
+  assert(ctx.cuckoo = calloc(1+SIZE, sizeof(u64)));
+  assert(ctx.sols = calloc(maxsols, PROOFSIZE*sizeof(u64)));
   ctx.maxsols = maxsols;
   ctx.nsols = 0;
   ctx.nthreads = nthreads;
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
   for (int s = 0; s < ctx.nsols; s++) {
     printf("Solution");
     for (int i = 0; i < PROOFSIZE; i++)
-      printf(" %x", ctx.sols[s][i]);
+      printf(" %lx", ctx.sols[s][i]);
     printf("\n");
   }
   return 0;

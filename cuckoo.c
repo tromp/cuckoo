@@ -23,9 +23,9 @@ int main(int argc, char **argv) {
   printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d%% edges\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct);
   assert(scanf("Solution") == 0);
-  unsigned nonces[PROOFSIZE];
+  u64 nonces[PROOFSIZE];
   for (int n = 0; n < PROOFSIZE; n++)
-    assert(scanf(" %x", &nonces[n]) == 1);
+    assert(scanf(" %lx", &nonces[n]) == 1);
   int easiness = (unsigned)(easipct * (u64)SIZE / 100);
   int ok = verify(nonces, header, easiness);
   if (!ok) {

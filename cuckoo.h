@@ -10,13 +10,13 @@
 #define SIZEMULT 1
 #endif
 #ifndef SIZESHIFT 
-#define SIZESHIFT 20
+#define SIZESHIFT 25
 #endif
 #ifndef PROOFSIZE
 #define PROOFSIZE 42
 #endif
 
-#define SIZE (SIZEMULT*((unsigned)1<<SIZESHIFT))
+#define SIZE (SIZEMULT*(1UL<<SIZESHIFT))
 // relatively prime partition sizes, assuming SIZESHIFT >= 2
 #define PARTU (SIZE/2+1)
 #define PARTV (SIZE/2-1)
@@ -53,9 +53,9 @@ void setheader(siphash_ctx *ctx, char *header) {
     v2 += v1; v1=ROTL(v1,17); v1 ^= v2; v2=ROTL(v2,32); \
   } while(0)
  
-// SipHash-2-4 specialized to precomputed key and 4 byte nonces
-u64 siphash24(siphash_ctx *ctx, unsigned nonce) {
-  u64 b = ( ( u64 )4 ) << 56 | nonce;
+// SipHash-2-4 specialized to precomputed key and 7 byte nonces
+u64 siphash24(siphash_ctx *ctx, u64 nonce) {
+  u64 b = 7UL << 56 | nonce;
   u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ b;
   SIPROUND; SIPROUND;
   v0 ^= b;
@@ -65,21 +65,22 @@ u64 siphash24(siphash_ctx *ctx, unsigned nonce) {
 }
 
 // generate edge in cuckoo graph
-void sipedge(siphash_ctx *ctx, unsigned nonce, unsigned *pu, unsigned *pv) {
-  u64 sip = siphash24(ctx, nonce);
-  *pu = 1 +         (unsigned)(sip % PARTU);
-  *pv = 1 + PARTU + (unsigned)(sip % PARTV);
+void sipedge(siphash_ctx *ctx, u64 nonce, u64 *pu, u64 *pv) {
+  *pu = siphash24(ctx, 2*nonce  ) % PARTU;
+  *pv = siphash24(ctx, 2*nonce+1) % PARTV;
 }
 
 // verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
-int verify(unsigned nonces[PROOFSIZE], char *header, int easiness) {
+int verify(u64 nonces[PROOFSIZE], char *header, int easiness) {
   siphash_ctx ctx;
   setheader(&ctx, header);
-  unsigned us[PROOFSIZE], vs[PROOFSIZE], i = 0, n;
+  u64 us[PROOFSIZE], vs[PROOFSIZE];
+  unsigned i = 0, n;
   for (n = 0; n < PROOFSIZE; n++) {
     if (nonces[n] >= easiness || (n && nonces[n] <= nonces[n-1]))
       return 0;
     sipedge(&ctx, nonces[n], &us[n], &vs[n]);
+    vs[n] += PARTU;
   }
   do {  // follow cycle until we return to i==0; n edges left to visit
     int j = i;

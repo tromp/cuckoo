@@ -21,7 +21,7 @@ verify120:	cuckoo.h cuckoo.c Makefile
 	cc -o verify120 -DSIZEMULT=1 -DSIZESHIFT=20 cuckoo.c ${FLAGS}
 
 test:	cuckoo120 verify120 Makefile
-	./cuckoo120 -h 6 | tail -1 | ./verify120 -h 6
+	./cuckoo120 -h 4 | tail -1 | ./verify120 -h 4
 
 cuckoo125:	cuckoo.h cuckoo_miner.h cuckoo_miner.c Makefile
 	cc -o cuckoo125 -DSIZEMULT=1 -DSIZESHIFT=25 cuckoo_miner.c ${FLAGS}

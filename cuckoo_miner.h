@@ -13,9 +13,9 @@
 
 typedef struct {
   siphash_ctx sip_ctx;
-  unsigned easiness;
-  unsigned *cuckoo;
-  unsigned (*sols)[PROOFSIZE];
+  u64 easiness;
+  u64 *cuckoo;
+  u64 (*sols)[PROOFSIZE];
   unsigned maxsols;
   unsigned nsols;
   int nthreads;
@@ -28,7 +28,7 @@ typedef struct {
   cuckoo_ctx *ctx;
 } thread_ctx;
 
-int path(unsigned *cuckoo, unsigned u, unsigned *us) {
+int path(u64 *cuckoo, u64 u, u64 *us) {
   int nu;
   for (nu = 0; u; u = cuckoo[u]) {
     if (++nu >= MAXPATHLEN) {
@@ -43,8 +43,8 @@ int path(unsigned *cuckoo, unsigned u, unsigned *us) {
   return nu;
 }
 
-// largest number of u64's that fit in MAXPATHLEN-PROOFSIZE unsigned's
-#define SOLMODU ((MAXPATHLEN-PROOFSIZE)/2)
+// largest number of u64's that fit in MAXPATHLEN-PROOFSIZE u64's
+#define SOLMODU (MAXPATHLEN-PROOFSIZE)
 #define SOLMODV (SOLMODU-1)
 
 void storedge(u64 uv, u64 *usck, u64 *vsck) {
@@ -60,9 +60,10 @@ void storedge(u64 uv, u64 *usck, u64 *vsck) {
   } else usck[i] = uv;
 }
 
-void solution(cuckoo_ctx *ctx, unsigned *us, int nu, unsigned *vs, int nv) {
+void solution(cuckoo_ctx *ctx, u64 *us, int nu, u64 *vs, int nv) {
   u64 *usck = (u64 *)&us[PROOFSIZE], *vsck = (u64 *)&vs[PROOFSIZE];
-  unsigned u, v, n;
+  u64 u, v;
+  unsigned n;
   for (int i=0; i<SOLMODU; i++)
     usck[i] = vsck[i] = 0L;
   storedge((u64)*us<<32 | *vs, usck, vsck);
@@ -71,8 +72,9 @@ void solution(cuckoo_ctx *ctx, unsigned *us, int nu, unsigned *vs, int nv) {
   while (nv--)
     storedge((u64)vs[nv|1]<<32 | vs[(nv+1)&~1], usck, vsck); // u's in odd position; v's in even
   pthread_mutex_lock(&ctx->setsol);
-  for (unsigned nonce = n = 0; nonce < ctx->easiness; nonce++) {
+  for (u64 nonce = n = 0; nonce < ctx->easiness; nonce++) {
     sipedge(&ctx->sip_ctx, nonce, &u, &v);
+    u+=1; v+=1+PARTU;
     u64 *c, uv = (u64)u<<32 | v;
     if (*(c = &usck[uv % SOLMODU]) == uv || *(c = &vsck[uv % SOLMODV]) == uv) {
       ctx->sols[ctx->nsols][n++] = nonce;
@@ -88,27 +90,29 @@ void solution(cuckoo_ctx *ctx, unsigned *us, int nu, unsigned *vs, int nv) {
 void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
   cuckoo_ctx *ctx = tp->ctx;
-  unsigned *cuckoo = ctx->cuckoo;
-  unsigned us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP], npre = 0; 
-  for (unsigned nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
+  u64 *cuckoo = ctx->cuckoo;
+  u64 us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP];
+  unsigned npre = 0; 
+  for (u64 nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
 #if PRESIP==0
     sipedge(&ctx->sip_ctx, nonce, us, vs);
 #else
     if (!npre)
-      for (unsigned n = nonce; npre < PRESIP; npre++, n += ctx->nthreads)
+      for (u64 n = nonce; npre < PRESIP; npre++, n += ctx->nthreads)
         sipedge(&ctx->sip_ctx, n, &uvpre[2*npre], &uvpre[2*npre+1]);
     unsigned i = PRESIP - npre--;
     *us = uvpre[2*i];
     *vs = uvpre[2*i+1];
 #endif
-    unsigned u = cuckoo[*us], v = cuckoo[*vs];
+    *us+=1; *vs+=1+PARTU;
+    u64 u = cuckoo[*us], v = cuckoo[*vs];
     if (u == *vs || v == *us)
       continue; // ignore duplicate edges
 #ifdef SHOW
     for (int j=1; j<=SIZE; j++)
       if (!cuckoo[j]) printf("%2d:   ",j);
-      else            printf("%2d:%02d ",j,cuckoo[j]);
-    printf(" %x (%d,%d)\n", nonce,*us,*vs);
+      else            printf("%2d:%02ld ",j,cuckoo[j]);
+    printf(" %lx (%ld,%ld)\n", nonce,*us,*vs);
 #endif
     int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
     if (us[nu] == vs[nv]) {
