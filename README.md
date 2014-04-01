@@ -4,7 +4,7 @@ UPDATE: Dave Anderson proposed an alternative algorithm on his blog
 
 that uses about (1/64+1/K) times the memory at O(K) times slowdown.
 I re-implemented this "tomato" (his pronouncable spelling of tmto,
-or time-memory trade-off) in brnach "dave". Right now it only does
+or time-memory trade-off) in branch "dave". Right now it only does
 edge reduction. Interfacing to the old algorithm for cycle finding
 is non-trivial and needs some more thought.
 Cuckoo Cycle remains tmto-hard assuming that at least one bit per nonce is required.
