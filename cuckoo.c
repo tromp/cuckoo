@@ -8,7 +8,7 @@
 #include <assert.h>
 
 int main(int argc, char **argv) {
-  char *header = "";
+  const char *header = "";
   int c, easipct = 50;
   while ((c = getopt (argc, argv, "e:h:")) != -1) {
     switch (c) {
@@ -23,10 +23,10 @@ int main(int argc, char **argv) {
   printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d%% edges\n",
                PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct);
   assert(scanf("Solution") == 0);
-  u64 nonces[PROOFSIZE];
+  nonce_t nonces[PROOFSIZE];
   for (int n = 0; n < PROOFSIZE; n++)
     assert(scanf(" %lx", &nonces[n]) == 1);
-  int easiness = (unsigned)(easipct * (u64)SIZE / 100);
+  int easiness = (unsigned)(easipct * (node_t)SIZE / 100);
   int ok = verify(nonces, header, easiness);
   if (!ok) {
     printf("FAILED\n");

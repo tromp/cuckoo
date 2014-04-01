@@ -10,18 +10,22 @@ int main(int argc, char **argv) {
   assert(SIZE < 1L<<32);
   int nthreads = 1;
   int maxsols = 8;
-  char *header = "";
+  int ntrims = 8;
+  const char *header = "";
   int c, easipct = 50;
-  while ((c = getopt (argc, argv, "e:h:m:t:")) != -1) {
+  while ((c = getopt (argc, argv, "e:h:m:n:t:")) != -1) {
     switch (c) {
-      case 'e':
-        easipct = atoi(optarg);
-        break;
+      // case 'e':
+      //   easipct = atoi(optarg);
+      //   break;
       case 'h':
         header = optarg;
         break;
       case 'm':
         maxsols = atoi(optarg);
+        break;
+      case 'n':
+        ntrims = atoi(optarg);
         break;
       case 't':
         nthreads = atoi(optarg);
@@ -35,14 +39,16 @@ int main(int argc, char **argv) {
   cuckoo_ctx ctx;
   setheader(&ctx.sip_ctx, header);
   ctx.easiness = easipct * (u64)SIZE / 100;
-  assert(ctx.cuckoo = calloc(1+SIZE, sizeof(u64)));
-  assert(ctx.sols = calloc(maxsols, PROOFSIZE*sizeof(u64)));
+  assert(ctx.sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols, PROOFSIZE*sizeof(nonce_t)));
+
   ctx.maxsols = maxsols;
   ctx.nsols = 0;
   ctx.nthreads = nthreads;
-  pthread_mutex_init(&ctx.setsol, NULL);
+  ctx.ntrims = ntrims;
+  assert(pthread_barrier_init(&ctx.barry, NULL, nthreads) == 0);
+  assert(pthread_mutex_init(&ctx.setsol, NULL) == 0);
 
-  thread_ctx *threads = calloc(nthreads, sizeof(thread_ctx));
+  thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
   for (int t = 0; t < nthreads; t++) {
     threads[t].id = t;
@@ -51,7 +57,7 @@ int main(int argc, char **argv) {
   }
   for (int t = 0; t < nthreads; t++)
     assert(pthread_join(threads[t].thread, NULL) == 0);
-  for (int s = 0; s < ctx.nsols; s++) {
+  for (unsigned s = 0; s < ctx.nsols; s++) {
     printf("Solution");
     for (int i = 0; i < PROOFSIZE; i++)
       printf(" %lx", ctx.sols[s][i]);

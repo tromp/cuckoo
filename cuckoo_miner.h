@@ -4,23 +4,65 @@
 #include "cuckoo.h"
 #include <stdio.h>
 #include <pthread.h>
+#include <utility>
+#include <bitset>
+#include <set>
 
+#define EASINESS (SIZE/2)
 // algorithm parameters
 #define MAXPATHLEN 6144
 #ifndef PRESIP
 #define PRESIP 1024
 #endif
+#ifndef PART_BITS
+#define PART_BITS 1
+#endif
+#define PART_MASK ((1<<PART_BITS)-1)
+#define TWICE_SIZE (2*((PARTU + PART_MASK) >> PART_BITS))
 
-typedef struct {
+class twice_set {
+public:
+  std::bitset<TWICE_SIZE> cnt;
+
+  void reset() {
+    cnt.reset();
+  }
+
+  void set(node_t u) {
+    if (cnt.test(u*=2))
+      cnt.set(u+1);
+    else cnt.set(u);
+  }
+
+  bool test(node_t u) {
+    return cnt.test(2*u+1);
+  }
+};
+
+class cuckoo_ctx {
+public:
   siphash_ctx sip_ctx;
-  u64 easiness;
-  u64 *cuckoo;
-  u64 (*sols)[PROOFSIZE];
+  node_t easiness;
+  std::bitset<EASINESS> *alive;
+  twice_set *nonleaf;
+  nonce_t (*sols)[PROOFSIZE];
   unsigned maxsols;
   unsigned nsols;
   int nthreads;
+  int ntrims;
+  pthread_barrier_t barry;
   pthread_mutex_t setsol;
-} cuckoo_ctx;
+
+  cuckoo_ctx() {
+    alive = new std::bitset<EASINESS>;
+    nonleaf = new twice_set;
+  }
+
+  ~cuckoo_ctx() {
+    delete alive;
+    delete nonleaf;
+  }
+};
 
 typedef struct {
   int id;
@@ -28,7 +70,55 @@ typedef struct {
   cuckoo_ctx *ctx;
 } thread_ctx;
 
-int path(u64 *cuckoo, u64 u, u64 *us) {
+void barrier(pthread_barrier_t *barry) {
+  int rc = pthread_barrier_wait(barry);
+  if (rc != 0 && rc != PTHREAD_BARRIER_SERIAL_THREAD) {
+    printf("Could not wait on barrier\n");
+    pthread_exit(NULL);
+  }
+}
+
+void trim_edges(thread_ctx *tp, unsigned part) {
+  cuckoo_ctx *ctx = tp->ctx;
+  ctx->nonleaf->reset();
+  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
+    if (ctx->alive->test(nonce)) {
+      node_t u = sipedgeu(&ctx->sip_ctx, nonce);
+      if ((u & PART_MASK) == part)
+        ctx->nonleaf->set(u >> PART_BITS);
+    }
+  }
+  barrier(&ctx->barry);
+  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
+    if (ctx->alive->test(nonce)) {
+      node_t u = sipedgeu(&ctx->sip_ctx, nonce);
+      if ((u & PART_MASK) == part && !ctx->nonleaf->test(u >> PART_BITS)) {
+        ctx->alive->reset(nonce);
+      }
+    }
+  }
+  barrier(&ctx->barry);
+  ctx->nonleaf->reset();
+  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
+    if (ctx->alive->test(nonce)) {
+      node_t v = sipedgev(&ctx->sip_ctx, nonce);
+      if ((v & PART_MASK) == part)
+        ctx->nonleaf->set(v >> PART_BITS);
+    }
+  }
+  barrier(&ctx->barry);
+  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
+    if (ctx->alive->test(nonce)) {
+      node_t v = sipedgev(&ctx->sip_ctx, nonce);
+      if ((v & PART_MASK) == part && !ctx->nonleaf->test(v >> PART_BITS)) {
+        ctx->alive->reset(nonce);
+      }
+    }
+  }
+  barrier(&ctx->barry);
+}
+
+int path(node_t *cuckoo, node_t u, node_t *us) {
   int nu;
   for (nu = 0; u; u = cuckoo[u]) {
     if (++nu >= MAXPATHLEN) {
@@ -43,42 +133,24 @@ int path(u64 *cuckoo, u64 u, u64 *us) {
   return nu;
 }
 
-// largest number of u64's that fit in MAXPATHLEN-PROOFSIZE u64's
-#define SOLMODU (MAXPATHLEN-PROOFSIZE)
-#define SOLMODV (SOLMODU-1)
+typedef std::pair<node_t,node_t> edge;
 
-void storedge(u64 uv, u64 *usck, u64 *vsck) {
-  int j, i = uv % SOLMODU;
-  u64 uvi = usck[i]; 
-  if (uvi) {
-    if (vsck[j = uv % SOLMODV]) {
-      vsck[uvi % SOLMODV] = uvi;
-    } else {
-      vsck[j] = uv;
-      return;
-    }
-  } else usck[i] = uv;
-}
-
-void solution(cuckoo_ctx *ctx, u64 *us, int nu, u64 *vs, int nv) {
-  u64 *usck = (u64 *)&us[PROOFSIZE], *vsck = (u64 *)&vs[PROOFSIZE];
-  u64 u, v;
+void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
+  std::set<edge> cycle;
+  node_t u, v;
   unsigned n;
-  for (int i=0; i<SOLMODU; i++)
-    usck[i] = vsck[i] = 0L;
-  storedge((u64)*us<<32 | *vs, usck, vsck);
+  cycle.insert(edge(*us, *vs));
   while (nu--)
-    storedge((u64)us[(nu+1)&~1]<<32 | us[nu|1], usck, vsck); // u's in even position; v's in odd
+    cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
   while (nv--)
-    storedge((u64)vs[nv|1]<<32 | vs[(nv+1)&~1], usck, vsck); // u's in odd position; v's in even
+    cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   pthread_mutex_lock(&ctx->setsol);
-  for (u64 nonce = n = 0; nonce < ctx->easiness; nonce++) {
+  for (nonce_t nonce = n = 0; nonce < ctx->easiness; nonce++) {
     sipedge(&ctx->sip_ctx, nonce, &u, &v);
-    u+=1; v+=1+PARTU;
-    u64 *c, uv = (u64)u<<32 | v;
-    if (*(c = &usck[uv % SOLMODU]) == uv || *(c = &vsck[uv % SOLMODV]) == uv) {
+    edge e(u+1, v+1+PARTU);
+    if (cycle.find(e) != cycle.end()) {
       ctx->sols[ctx->nsols][n++] = nonce;
-      *c = 0;
+      cycle.erase(e);
     }
   }
   if (n == PROOFSIZE)
@@ -90,22 +162,33 @@ void solution(cuckoo_ctx *ctx, u64 *us, int nu, u64 *vs, int nv) {
 void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
   cuckoo_ctx *ctx = tp->ctx;
-  u64 *cuckoo = ctx->cuckoo;
-  u64 us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP];
+
+  ctx->alive->set();
+  for (int round=0; round < ctx->ntrims; round++) {
+    u64 cnt = ctx->alive->count();
+    if (tp->id == 0)
+      printf("round %d: %lu edges alive %d%%\n", round, cnt, (int)(cnt*100L/ctx->easiness));
+    for (unsigned part = 0; part <= PART_MASK; part++)
+      trim_edges(tp, part);
+  }
+  pthread_exit(NULL);
+
+  node_t *cuckoo = 0; // ctx->cuckoo;
+  node_t us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP];
   unsigned npre = 0; 
-  for (u64 nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
+  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
 #if PRESIP==0
     sipedge(&ctx->sip_ctx, nonce, us, vs);
 #else
     if (!npre)
-      for (u64 n = nonce; npre < PRESIP; npre++, n += ctx->nthreads)
+      for (nonce_t n = nonce; npre < PRESIP; npre++, n += ctx->nthreads)
         sipedge(&ctx->sip_ctx, n, &uvpre[2*npre], &uvpre[2*npre+1]);
     unsigned i = PRESIP - npre--;
     *us = uvpre[2*i];
     *vs = uvpre[2*i+1];
 #endif
     *us+=1; *vs+=1+PARTU;
-    u64 u = cuckoo[*us], v = cuckoo[*vs];
+    node_t u = cuckoo[*us], v = cuckoo[*vs];
     if (u == *vs || v == *us)
       continue; // ignore duplicate edges
 #ifdef SHOW

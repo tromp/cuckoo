@@ -22,6 +22,13 @@
 #define PARTV (SIZE/2-1)
 
 typedef uint64_t u64;
+#if SIZE < (1UL<<32)
+typedef uint32_t nonce_t;
+typedef uint32_t node_t;
+#else
+typedef u64 nonce_t;
+typedef u64 node_t;
+#endif
 typedef struct {
   u64 v[4];
 } siphash_ctx;
@@ -33,7 +40,7 @@ typedef struct {
    ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
  
 // derive siphash key from header
-void setheader(siphash_ctx *ctx, char *header) {
+void setheader(siphash_ctx *ctx, const char *header) {
   unsigned char hdrkey[32];
   SHA256((unsigned char *)header, strlen(header), hdrkey);
   u64 k0 = U8TO64_LE(hdrkey);
@@ -65,16 +72,24 @@ u64 siphash24(siphash_ctx *ctx, u64 nonce) {
 }
 
 // generate edge in cuckoo graph
-void sipedge(siphash_ctx *ctx, u64 nonce, u64 *pu, u64 *pv) {
+void sipedge(siphash_ctx *ctx, nonce_t nonce, node_t *pu, node_t *pv) {
   *pu = siphash24(ctx, 2*nonce  ) % PARTU;
   *pv = siphash24(ctx, 2*nonce+1) % PARTV;
 }
 
+node_t sipedgeu(siphash_ctx *ctx, nonce_t nonce) {
+  return siphash24(ctx, 2*nonce  ) % PARTU;
+}
+
+node_t sipedgev(siphash_ctx *ctx, nonce_t nonce) {
+  return siphash24(ctx, 2*nonce+1) % PARTV;
+}
+
 // verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
-int verify(u64 nonces[PROOFSIZE], char *header, int easiness) {
+int verify(nonce_t nonces[PROOFSIZE], const char *header, unsigned easiness) {
   siphash_ctx ctx;
   setheader(&ctx, header);
-  u64 us[PROOFSIZE], vs[PROOFSIZE];
+  node_t us[PROOFSIZE], vs[PROOFSIZE];
   unsigned i = 0, n;
   for (n = 0; n < PROOFSIZE; n++) {
     if (nonces[n] >= easiness || (n && nonces[n] <= nonces[n-1]))
@@ -83,8 +98,8 @@ int verify(u64 nonces[PROOFSIZE], char *header, int easiness) {
     vs[n] += PARTU;
   }
   do {  // follow cycle until we return to i==0; n edges left to visit
-    int j = i;
-    for (int k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
+    unsigned j = i;
+    for (unsigned k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
       if (k != i && vs[k] == vs[i]) {
         if (j != i)
           return 0;
@@ -93,7 +108,7 @@ int verify(u64 nonces[PROOFSIZE], char *header, int easiness) {
     if (j == i)
       return 0;
     i = j;
-    for (int k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
+    for (unsigned k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
       if (k != j && us[k] == us[j]) {
         if (i != j)
           return 0;
