@@ -26,40 +26,20 @@
 
 class twice_set {
 public:
-#ifdef COMBINE
   std::bitset<TWICE_SIZE> both;
-#else
-  std::bitset<ONCE_SIZE> once;
-  std::bitset<ONCE_SIZE> twice;
-#endif
 
   void reset() {
-#ifdef COMBINE
     both.reset();
-#else
-    once.reset();
-    twice.reset();
-#endif
   }
 
   void set(node_t u) {
-#ifdef COMBINE
     if (both.test(u*=2))
       both.set(u+1);
     else both.set(u);
-#else
-    if (once.test(u))
-      twice.set(u);
-    else once.set(u);
-#endif
   }
 
   bool test(node_t u) {
-#ifdef COMBINE
     return both.test(2*u+1);
-#else
-    return twice.test(u);
-#endif
   }
 };
 
