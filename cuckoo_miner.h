@@ -1,5 +1,7 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2014 John Tromp
+// The edge=trimming time-memory trade-off is due to Dave Anderson:
+// http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
 #include "cuckoo.h"
 #include <stdio.h>
@@ -8,7 +10,8 @@
 #include <bitset>
 #include <set>
 
-#define EASINESS (SIZE/2)
+// make EASINESS a multiple of 64 for bitset block access 
+#define EASINESS (SIZE/2 & -64)
 // algorithm parameters
 #define MAXPATHLEN 6144
 #ifndef PRESIP
@@ -18,24 +21,45 @@
 #define PART_BITS 1
 #endif
 #define PART_MASK ((1<<PART_BITS)-1)
-#define TWICE_SIZE (2*((PARTU + PART_MASK) >> PART_BITS))
+#define ONCE_SIZE ((PARTU + PART_MASK) >> PART_BITS)
+#define TWICE_SIZE (2*ONCE_SIZE)
 
 class twice_set {
 public:
-  std::bitset<TWICE_SIZE> cnt;
+#ifdef COMBINE
+  std::bitset<TWICE_SIZE> both;
+#else
+  std::bitset<ONCE_SIZE> once;
+  std::bitset<ONCE_SIZE> twice;
+#endif
 
   void reset() {
-    cnt.reset();
+#ifdef COMBINE
+    both.reset();
+#else
+    once.reset();
+    twice.reset();
+#endif
   }
 
   void set(node_t u) {
-    if (cnt.test(u*=2))
-      cnt.set(u+1);
-    else cnt.set(u);
+#ifdef COMBINE
+    if (both.test(u*=2))
+      both.set(u+1);
+    else both.set(u);
+#else
+    if (once.test(u))
+      twice.set(u);
+    else once.set(u);
+#endif
   }
 
   bool test(node_t u) {
-    return cnt.test(2*u+1);
+#ifdef COMBINE
+    return both.test(2*u+1);
+#else
+    return twice.test(u);
+#endif
   }
 };
 
@@ -78,43 +102,38 @@ void barrier(pthread_barrier_t *barry) {
   }
 }
 
+#define FORALL_LIVE_NONCES(NONCE) \
+  for (nonce_t block = tp->id*64; block < ctx->easiness; block += ctx->nthreads*64) {\
+    for (nonce_t NONCE = block; NONCE < block+64; NONCE++) {\
+      if (ctx->alive->test(NONCE))
+
 void trim_edges(thread_ctx *tp, unsigned part) {
   cuckoo_ctx *ctx = tp->ctx;
   ctx->nonleaf->reset();
-  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
-    if (ctx->alive->test(nonce)) {
-      node_t u = sipedgeu(&ctx->sip_ctx, nonce);
-      if ((u & PART_MASK) == part)
-        ctx->nonleaf->set(u >> PART_BITS);
-    }
-  }
+  FORALL_LIVE_NONCES(nonce) {
+    node_t u = sipedgeu(&ctx->sip_ctx, nonce);
+    if ((u & PART_MASK) == part)
+      ctx->nonleaf->set(u >> PART_BITS);
+  }}}
   barrier(&ctx->barry);
-  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
-    if (ctx->alive->test(nonce)) {
-      node_t u = sipedgeu(&ctx->sip_ctx, nonce);
-      if ((u & PART_MASK) == part && !ctx->nonleaf->test(u >> PART_BITS)) {
-        ctx->alive->reset(nonce);
-      }
-    }
-  }
+  FORALL_LIVE_NONCES(nonce) {
+    node_t u = sipedgeu(&ctx->sip_ctx, nonce);
+    if ((u & PART_MASK) == part && !ctx->nonleaf->test(u >> PART_BITS))
+    ctx->alive->reset(nonce);
+  }}}
   barrier(&ctx->barry);
   ctx->nonleaf->reset();
-  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
-    if (ctx->alive->test(nonce)) {
-      node_t v = sipedgev(&ctx->sip_ctx, nonce);
-      if ((v & PART_MASK) == part)
-        ctx->nonleaf->set(v >> PART_BITS);
-    }
-  }
+  FORALL_LIVE_NONCES(nonce) {
+    node_t v = sipedgev(&ctx->sip_ctx, nonce);
+    if ((v & PART_MASK) == part)
+      ctx->nonleaf->set(v >> PART_BITS);
+  }}}
   barrier(&ctx->barry);
-  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
-    if (ctx->alive->test(nonce)) {
-      node_t v = sipedgev(&ctx->sip_ctx, nonce);
-      if ((v & PART_MASK) == part && !ctx->nonleaf->test(v >> PART_BITS)) {
-        ctx->alive->reset(nonce);
-      }
-    }
-  }
+  FORALL_LIVE_NONCES(nonce) {
+    node_t v = sipedgev(&ctx->sip_ctx, nonce);
+    if ((v & PART_MASK) == part && !ctx->nonleaf->test(v >> PART_BITS))
+      ctx->alive->reset(nonce);
+  }}}
   barrier(&ctx->barry);
 }
 
