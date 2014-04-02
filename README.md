@@ -3,13 +3,18 @@ UPDATE: Dave Anderson proposed an alternative algorithm on his blog
   http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
 that uses about (1/64+1/K) times the memory at O(K) times slowdown.
+The slowdown is actually very minor; a little over 2 times at K=64.
 I re-implemented this "tomato" (his pronouncable spelling of tmto,
 or time-memory trade-off) in branch "dave". Right now it only does
 edge reduction. Interfacing to the old algorithm for cycle finding
-is non-trivial and needs some more thought.
-Cuckoo Cycle remains tmto-hard assuming that at least one bit per nonce is required.
-Because of the huge reduction in memory usage and some loss of speed,
-runtime/memory drops from 24s/GB to 3s/MB single threaded:-(
+is non-trivial and needs some more thought. That will become the new
+reference implementation, while the old one will remain as a somehwat
+faster memory-waster.
+
+Cuckoo Cycle remains tmto-hard assuming at least one bit per nonce is required.
+I offer a $1000 bounty for an implementation using less, with at most 100x slowdown.
+
+The README in branch dave updates items 1), 6), and 7) below.
 
 cuckoo
 ======
