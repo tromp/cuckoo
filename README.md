@@ -11,7 +11,7 @@ Cuckoo Cycle represents a breakthrough in three important ways:
 
 1) it performs only one very cheap siphash computation for one random accesses to memory,
 
-2) its memory requirement can be set arbitrarily and doesn't allow for any time-memory trade-off.
+2) its memory requirement can be set arbitrarily and appears to be time-memory trade-off resistant.
 
 3) verification of the proof of work is instant, requiring 2 sha256 and 42 siphash computations.
 
