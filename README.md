@@ -1,16 +1,3 @@
-UPDATE: Dave Anderson proposed an alternative algorithm on his blog
-
-  http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
-
-that uses about (1/64+1/K) times the memory at O(K) times slowdown.
-I re-implemented this "tomato" (his pronouncable spelling of tmto,
-or time-memory trade-off) in brnach "dave". Right now it only does
-edge reduction. Interfacing to the old algorithm for cycle finding
-is non-trivial and needs some more thought.
-Cuckoo Cycle remains tmto-hard assuming that at least one bit per nonce is required.
-Because of the huge reduction in memory usage and some loss of speed,
-runtime/memory drops from 24s/GB to 3s/MB single threaded:-(
-
 cuckoo
 ======
 
@@ -22,7 +9,7 @@ but relatively little power.
 
 Cuckoo Cycle represents a breakthrough in three important ways:
 
-1) it performs only one very cheap siphash computation for about 3.3 random accesses to memory,
+1) it performs only one very cheap siphash computation for one random accesses to memory,
 
 2) its memory requirement can be set arbitrarily and doesn't allow for any time-memory trade-off.
 
@@ -39,8 +26,8 @@ Other features:
    above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
    starts to fall sharply.
 
-6) running time for the current implementation on high end x86 is under 24s/GB single-threaded,
-   and under 3s/GB for 12 threads.
+6) running time for the new implementation on high end x86 is 1.6s/MB single-threaded,
+   and 4.5mins/GB for 8 threads. it will take a superior GPU implementation to make
+   Cuckoo Cycle requiring 1GB run in reasonable time.
 
-7) making cuckoo use a significant fraction of the typical memory of a botnet computer
-   will send it into swap-hell, and likely alert its owner.
+7) botnet resistance is out of the window:-(
