@@ -11,8 +11,9 @@ is non-trivial and needs some more thought. That will become the new
 reference implementation, while the old one will remain as a somehwat
 faster memory-waster.
 
-Cuckoo Cycle remains tmto-hard assuming at least one bit per nonce is required.
-I offer a $1000 bounty for an implementation using less, with at most 100x slowdown.
+Cuckoo Cycle remains tmto-hard if using less than one bit per nonce causes
+a 100x or more slowdown. I offer a $1000 bounty for a hardness disproving
+implementation.
 
 The README in branch dave updates items 1), 6), and 7) below.
 
