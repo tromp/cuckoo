@@ -33,8 +33,8 @@ int main(int argc, char **argv) {
     }
   }
   assert(easipct >= 0 && easipct <= 100);
-  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d%% edges and %d threads\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct, nthreads);
+  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d%% edges, %d trims, and %d threads\n",
+               PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct, ntrims, nthreads);
 
   cuckoo_ctx ctx;
   setheader(&ctx.sip_ctx, header);

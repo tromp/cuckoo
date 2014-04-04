@@ -166,7 +166,7 @@ void *worker(void *vp) {
   for (int round=0; round < ctx->ntrims; round++) {
     u64 cnt = ctx->alive->count();
     if (tp->id == 0)
-      printf("round %d: %lu edges alive %d%%\n", round, cnt, (int)(cnt*100L/ctx->easiness));
+      printf("round %d: load %d%%\n", round, (int)(6400L*cnt/ctx->easiness));
     for (unsigned part = 0; part <= PART_MASK; part++)
       trim_edges(tp, part);
   }
