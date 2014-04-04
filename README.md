@@ -1,5 +1,7 @@
 UPDATE: Dave Anderson proposed an alternative algorithm on his blog
+
   http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
+
 that uses about (1+K)/64 times the memory at roughly K times slowdown.
 I am (re-)implementing this "tomato" (his pronouncable spelling of tmto,
 or time-memory trade-off) in branch "dave", soon to become the new
