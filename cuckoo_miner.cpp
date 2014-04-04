@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
   ctx.nthreads = nthreads;
   ctx.ntrims = ntrims;
   assert(pthread_barrier_init(&ctx.barry, NULL, nthreads) == 0);
-  assert(pthread_mutex_init(&ctx.setsol, NULL) == 0);
+  // assert(pthread_mutex_init(&ctx.setsol, NULL) == 0);
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);

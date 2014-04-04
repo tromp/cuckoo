@@ -1,5 +1,5 @@
 # -Wno-deprecated-declarations shuts up Apple OSX clang
-FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L -O3 -pthread -l crypto
+FLAGS = -std=c++11 -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L -O3 -pthread -l crypto
 # leave out -l crypto if using sha256.c instead of openssl
 
 cuckoo:		cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile

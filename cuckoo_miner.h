@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <utility>
 #include <bitset>
+#include <atomic>
 #include <set>
 
 // make EASINESS a multiple of 64 for bitset block access 
@@ -19,6 +20,9 @@
 #endif
 #ifndef PART_BITS
 #define PART_BITS 1
+#endif
+#ifndef REDSHIFT
+#define REDSHIFT 8
 #endif
 #define PART_MASK ((1<<PART_BITS)-1)
 #define ONCE_SIZE ((PARTU + PART_MASK) >> PART_BITS)
@@ -43,19 +47,42 @@ public:
   }
 };
 
+typedef std::atomic<uint64_t> au64;
+
+class cuckoo_hash {
+public:
+  au64 *cuckoo;
+
+  cuckoo_hash() {
+    cuckoo = (au64 *)calloc(SIZE >> REDSHIFT, sizeof(au64));
+  }
+
+  ~cuckoo_hash() {
+    free(cuckoo);
+  }
+
+  void set(node_t u, node_t v) {
+  }
+
+  bool get(node_t u) {
+    return cuckoo[0]>>REDSHIFT;
+  }
+};
+
 class cuckoo_ctx {
 public:
   siphash_ctx sip_ctx;
   node_t easiness;
   std::bitset<EASINESS> *alive;
   twice_set *nonleaf;
+  cuckoo_hash *cuckoo;
   nonce_t (*sols)[PROOFSIZE];
   unsigned maxsols;
-  unsigned nsols;
+  std::atomic<unsigned> nsols;
   int nthreads;
   int ntrims;
   pthread_barrier_t barry;
-  pthread_mutex_t setsol;
+  // pthread_mutex_t setsol;
 
   cuckoo_ctx() {
     alive = new std::bitset<EASINESS>;
@@ -143,19 +170,19 @@ void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
     cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
   while (nv--)
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-  pthread_mutex_lock(&ctx->setsol);
+  // pthread_mutex_lock(&ctx->setsol);
+  unsigned soli = std::atomic_fetch_add_explicit(&ctx->nsols, 1U, std::memory_order_relaxed);
   for (nonce_t nonce = n = 0; nonce < ctx->easiness; nonce++) {
-    sipedge(&ctx->sip_ctx, nonce, &u, &v);
-    edge e(u+1, v+1+PARTU);
-    if (cycle.find(e) != cycle.end()) {
-      ctx->sols[ctx->nsols][n++] = nonce;
-      cycle.erase(e);
+    if (ctx->alive->test(nonce)) {
+      sipedge(&ctx->sip_ctx, nonce, &u, &v);
+      edge e(u+1, v+1+PARTU);
+      if (cycle.find(e) != cycle.end()) {
+        ctx->sols[soli][n++] = nonce;
+        cycle.erase(e);
+      }
     }
   }
-  if (n == PROOFSIZE)
-    ctx->nsols++;
-  else printf("Only recovered %d nonces\n", n);
-  pthread_mutex_unlock(&ctx->setsol);
+  // pthread_mutex_unlock(&ctx->setsol);
 }
 
 void *worker(void *vp) {
@@ -171,7 +198,11 @@ void *worker(void *vp) {
       trim_edges(tp, part);
   }
   pthread_exit(NULL);
-
+  if (tp->id == 0) {
+    free(ctx->nonleaf);
+    ctx->cuckoo = new cuckoo_hash();
+  }
+  barrier(&ctx->barry);
   node_t *cuckoo = 0; // ctx->cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP];
   unsigned npre = 0; 
