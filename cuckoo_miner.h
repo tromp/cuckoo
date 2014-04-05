@@ -4,12 +4,15 @@
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
 #include "cuckoo.h"
+#include "osx_barrier.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <utility>
 #include <bitset>
 #include <atomic>
 #include <set>
+#include <assert.h>
 
 // make EASINESS a multiple of 64 for bitset block access 
 #define EASINESS (SIZE/2 & -64)
@@ -24,6 +27,8 @@
 #ifndef REDSHIFT
 #define REDSHIFT 8
 #endif
+#define REDMASK ((1 << REDSHIFT) - 1)
+#define CUCKOO_SIZE ((1+SIZE+REDMASK) >> REDSHIFT)
 #define PART_MASK ((1<<PART_BITS)-1)
 #define ONCE_SIZE ((PARTU + PART_MASK) >> PART_BITS)
 #define TWICE_SIZE (2*ONCE_SIZE)
@@ -54,7 +59,8 @@ public:
   au64 *cuckoo;
 
   cuckoo_hash() {
-    cuckoo = (au64 *)calloc(SIZE >> REDSHIFT, sizeof(au64));
+    cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64));
+    assert(cuckoo);
   }
 
   ~cuckoo_hash() {
@@ -62,10 +68,29 @@ public:
   }
 
   void set(node_t u, node_t v) {
+    node_t ui = u >> REDSHIFT;
+    u64 old = 0, nuw = v << REDSHIFT | (u & REDMASK);;
+    for (;;) {
+      if (cuckoo[ui].compare_exchange_strong(old, nuw, std::memory_order_relaxed))
+        return;
+      if (((u^old) & REDMASK) == 0) {
+        cuckoo[ui] = nuw;
+        return;
+      }
+      ui = (ui+1) % CUCKOO_SIZE;
+    }
   }
 
-  bool get(node_t u) {
-    return cuckoo[0]>>REDSHIFT;
+  node_t get(node_t u) {
+    node_t ui = u >> REDSHIFT;
+    for (;;) {
+      u64 cu = cuckoo[ui];
+      if (!cu)
+        return 0;
+      if (((u^cu) & REDMASK) == 0)
+        return (node_t)(cu >> REDSHIFT);
+      ui = (ui+1) % CUCKOO_SIZE;
+    }
   }
 };
 
@@ -144,9 +169,9 @@ void trim_edges(thread_ctx *tp, unsigned part) {
   barrier(&ctx->barry);
 }
 
-int path(node_t *cuckoo, node_t u, node_t *us) {
+int path(cuckoo_hash *cuckoo, node_t u, node_t *us) {
   int nu;
-  for (nu = 0; u; u = cuckoo[u]) {
+  for (nu = 0; u; u = cuckoo->get(u)) {
     if (++nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
       if (nu < 0)
@@ -197,36 +222,23 @@ void *worker(void *vp) {
     for (unsigned part = 0; part <= PART_MASK; part++)
       trim_edges(tp, part);
   }
-  pthread_exit(NULL);
   if (tp->id == 0) {
-    free(ctx->nonleaf);
+    delete ctx->nonleaf;
     ctx->cuckoo = new cuckoo_hash();
   }
   barrier(&ctx->barry);
-  node_t *cuckoo = 0; // ctx->cuckoo;
-  node_t us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP];
-  unsigned npre = 0; 
-  for (nonce_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
-#if PRESIP==0
-    sipedge(&ctx->sip_ctx, nonce, us, vs);
-#else
-    if (!npre)
-      for (nonce_t n = nonce; npre < PRESIP; npre++, n += ctx->nthreads)
-        sipedge(&ctx->sip_ctx, n, &uvpre[2*npre], &uvpre[2*npre+1]);
-    unsigned i = PRESIP - npre--;
-    *us = uvpre[2*i];
-    *vs = uvpre[2*i+1];
-#endif
-    *us+=1; *vs+=1+PARTU;
-    node_t u = cuckoo[*us], v = cuckoo[*vs];
-    if (u == *vs || v == *us)
+  cuckoo_hash *cuckoo = ctx->cuckoo;
+  node_t us[MAXPATHLEN], vs[MAXPATHLEN];
+  FORALL_LIVE_NONCES(nonce) {
+    node_t u0, v0;
+    sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
+    u0 += 1        ;  // make non-zero
+    v0 += 1 + PARTU;  // make v's different from u's
+    node_t u = cuckoo->get(u0), v = cuckoo->get(v0);
+    if (u == v0 || v == u0)
       continue; // ignore duplicate edges
-#ifdef SHOW
-    for (int j=1; j<=SIZE; j++)
-      if (!cuckoo[j]) printf("%2d:   ",j);
-      else            printf("%2d:%02ld ",j,cuckoo[j]);
-    printf(" %lx (%ld,%ld)\n", nonce,*us,*vs);
-#endif
+    us[0] = u0;
+    vs[0] = v0;
     int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
     if (us[nu] == vs[nv]) {
       int min = nu < nv ? nu : nv;
@@ -239,13 +251,13 @@ void *worker(void *vp) {
     }
     if (nu < nv) {
       while (nu--)
-        cuckoo[us[nu+1]] = us[nu];
-      cuckoo[*us] = *vs;
+        cuckoo->set(us[nu+1], us[nu]);
+      cuckoo->set(u0, v0);
     } else {
       while (nv--)
-        cuckoo[vs[nv+1]] = vs[nv];
-      cuckoo[*vs] = *us;
+        cuckoo->set(vs[nv+1], vs[nv]);
+      cuckoo->set(v0, u0);
     }
-  }
+  }}}
   pthread_exit(NULL);
 }

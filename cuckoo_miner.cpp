@@ -2,7 +2,6 @@
 // Copyright (c) 2013-2014 John Tromp
 
 #include "cuckoo_miner.h"
-#include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
 
@@ -60,7 +59,7 @@ int main(int argc, char **argv) {
   for (unsigned s = 0; s < ctx.nsols; s++) {
     printf("Solution");
     for (int i = 0; i < PROOFSIZE; i++)
-      printf(" %lx", ctx.sols[s][i]);
+      printf(" %x", ctx.sols[s][i]);
     printf("\n");
   }
   return 0;
