@@ -14,9 +14,9 @@ int main(int argc, char **argv) {
   int c, easipct = 50;
   while ((c = getopt (argc, argv, "e:h:m:n:t:")) != -1) {
     switch (c) {
-      // case 'e':
-      //   easipct = atoi(optarg);
-      //   break;
+      case 'e':
+        easipct = atoi(optarg);
+        break;
       case 'h':
         header = optarg;
         break;

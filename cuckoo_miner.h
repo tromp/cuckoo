@@ -4,7 +4,7 @@
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
 #include "cuckoo.h"
-#include "osx_barrier.h"
+// #include "osx_barrier.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -14,8 +14,8 @@
 #include <set>
 #include <assert.h>
 
-// make EASINESS a multiple of 64 for bitset block access 
-#define EASINESS (SIZE/2 & -64)
+// OPTIMIZE LATER (to easiness)
+#define ALIVE_SIZE SIZE
 // algorithm parameters
 #define MAXPATHLEN 6144
 #ifndef PRESIP
@@ -25,7 +25,7 @@
 #define PART_BITS 1
 #endif
 #ifndef REDSHIFT
-#define REDSHIFT 8
+#define REDSHIFT 4
 #endif
 #define REDMASK ((1 << REDSHIFT) - 1)
 #define CUCKOO_SIZE ((1+SIZE+REDMASK) >> REDSHIFT)
@@ -69,11 +69,15 @@ public:
 
   void set(node_t u, node_t v) {
     node_t ui = u >> REDSHIFT;
-    u64 old = 0, nuw = v << REDSHIFT | (u & REDMASK);;
+    u64 nuw = v << REDSHIFT | (u & REDMASK);;
     for (;;) {
-      if (cuckoo[ui].compare_exchange_strong(old, nuw, std::memory_order_relaxed))
+      u64 old = 0;
+      if (cuckoo[ui].compare_exchange_strong(old, nuw, std::memory_order_relaxed)) {
+        printf("%d cuckoo[%d->%d]>>4 = %d\n",u,u>>4,ui,v);
         return;
+      }
       if (((u^old) & REDMASK) == 0) {
+        printf("%d cuckoo[%d->%d]>>4 = %d (was %d)\n",u,u>>4,ui,v,(int)(old>>4));
         cuckoo[ui] = nuw;
         return;
       }
@@ -98,7 +102,7 @@ class cuckoo_ctx {
 public:
   siphash_ctx sip_ctx;
   node_t easiness;
-  std::bitset<EASINESS> *alive;
+  std::bitset<ALIVE_SIZE> *alive;
   twice_set *nonleaf;
   cuckoo_hash *cuckoo;
   nonce_t (*sols)[PROOFSIZE];
@@ -110,13 +114,14 @@ public:
   // pthread_mutex_t setsol;
 
   cuckoo_ctx() {
-    alive = new std::bitset<EASINESS>;
+    alive = new std::bitset<ALIVE_SIZE>;
     nonleaf = new twice_set;
   }
 
   ~cuckoo_ctx() {
     delete alive;
-    delete nonleaf;
+    if (nonleaf)
+      delete nonleaf;
   }
 };
 
@@ -136,7 +141,7 @@ void barrier(pthread_barrier_t *barry) {
 
 #define FORALL_LIVE_NONCES(NONCE) \
   for (nonce_t block = tp->id*64; block < ctx->easiness; block += ctx->nthreads*64) {\
-    for (nonce_t NONCE = block; NONCE < block+64; NONCE++) {\
+    for (nonce_t NONCE = block; NONCE < block+64 && NONCE < ctx->easiness; NONCE++) {\
       if (ctx->alive->test(NONCE))
 
 void trim_edges(thread_ctx *tp, unsigned part) {
@@ -214,7 +219,8 @@ void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
   cuckoo_ctx *ctx = tp->ctx;
 
-  ctx->alive->set();
+  for (nonce_t n=0; n<ctx->easiness; n++)
+    ctx->alive->set(n);
   for (int round=0; round < ctx->ntrims; round++) {
     u64 cnt = ctx->alive->count();
     if (tp->id == 0)
@@ -223,7 +229,13 @@ void *worker(void *vp) {
       trim_edges(tp, part);
   }
   if (tp->id == 0) {
+    u64 cnt = ctx->alive->count();
+    if (cnt > CUCKOO_SIZE) {
+      printf("%ld alive exceeds CUCOKO_SIZE %ld\n",cnt, CUCKOO_SIZE);
+      exit(0);
+    }
     delete ctx->nonleaf;
+    ctx->nonleaf = 0;
     ctx->cuckoo = new cuckoo_hash();
   }
   barrier(&ctx->barry);
@@ -237,6 +249,7 @@ void *worker(void *vp) {
     node_t u = cuckoo->get(u0), v = cuckoo->get(v0);
     if (u == v0 || v == u0)
       continue; // ignore duplicate edges
+    printf("adding edge %x (%d,%d)\n",nonce,u0,v0);
     us[0] = u0;
     vs[0] = v0;
     int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
