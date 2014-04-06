@@ -1,21 +1,28 @@
 cuckoo
 ======
 
+Cuckoo Cycle is the first graph-theoretical Proof-Of-Work.
+Keyed hash functions define arbitrarily large random graphs,
+in which certain fixed size subgraphs occur with suitably small probability.
+Asking for a cycle, or a clique, is a close analogue of asking for
+a chain or cluster of primes numbers, which were adopted as the
+number-theoretic Proof-of-work in Primecoin and Riecoin.
+
+
 Mining is generally considered to be inherently power hungry but it need not be.
 It’s a consequence of making the proof of work computationally intensive.
-If computation is minimized in favor of random access to gigabytes of memory
-(incurring long latencies), then mining will require large investments in RAM
-but relatively little power.
+If computation is minimized in favor of random access to main memory
+(incurring long latencies), then mining will require relatively little power.
 
 Cuckoo Cycle represents a breakthrough in three important ways:
 
-1) it performs only one very cheap siphash computation for one random accesses to memory,
+1) it performs only one very cheap siphash computation for each random accesses to memory,
 
-2) its memory requirement can be set arbitrarily and appears to be time-memory trade-off resistant.
+2) its memory requirement can be set arbitrarily and appears to resist time-memory trade-offs.
 
 3) verification of the proof of work is instant, requiring 2 sha256 and 42 siphash computations.
 
-Runtime in Cuckoo Cycle is completely dominated by memory latency. It promotes the use
+Runtime in Cuckoo Cycle is dominated by memory latency. It promotes the use
 of commodity general-purpose hardware over custom designed single-purpose hardware.
 
 Other features:
@@ -26,8 +33,8 @@ Other features:
    above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
    starts to fall sharply.
 
-6) running time for the new implementation on high end x86 is 1.6s/MB single-threaded,
+6) running time new implementation on high end x86 is 1.6s/MB single-threaded,
    and 4.5mins/GB for 8 threads. it will take a superior GPU implementation to make
    Cuckoo Cycle requiring 1GB run in reasonable time.
 
-7) botnet resistance is out of the window:-(
+7) 
