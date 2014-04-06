@@ -32,20 +32,10 @@ int main(int argc, char **argv) {
     }
   }
   assert(easipct >= 0 && easipct <= 100);
-  printf("Looking for %d-cycle on cuckoo%d%d(\"%s\") with %d%% edges, %d trims, and %d threads\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct, ntrims, nthreads);
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with %d%% edges, %d trims, and %d threads\n",
+               PROOFSIZE, SIZESHIFT, header, easipct, ntrims, nthreads);
 
-  cuckoo_ctx ctx;
-  setheader(&ctx.sip_ctx, header);
-  ctx.easiness = easipct * (u64)SIZE / 100;
-  assert(ctx.sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols, PROOFSIZE*sizeof(nonce_t)));
-
-  ctx.maxsols = maxsols;
-  ctx.nsols = 0;
-  ctx.nthreads = nthreads;
-  ctx.ntrims = ntrims;
-  assert(pthread_barrier_init(&ctx.barry, NULL, nthreads) == 0);
-  // assert(pthread_mutex_init(&ctx.setsol, NULL) == 0);
+  cuckoo_ctx ctx(header, easipct * (u64)SIZE / 100, nthreads, ntrims, maxsols);
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
@@ -59,7 +49,7 @@ int main(int argc, char **argv) {
   for (unsigned s = 0; s < ctx.nsols; s++) {
     printf("Solution");
     for (int i = 0; i < PROOFSIZE; i++)
-      printf(" %x", ctx.sols[s][i]);
+      printf(" %llx", ctx.sols[s][i]);
     printf("\n");
   }
   return 0;

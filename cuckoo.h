@@ -6,9 +6,6 @@
 #include <openssl/sha.h> // if openssl absent, use #include "sha256.c"
 
 // proof-of-work parameters
-#ifndef SIZEMULT 
-#define SIZEMULT 1
-#endif
 #ifndef SIZESHIFT 
 #define SIZESHIFT 25
 #endif
@@ -16,19 +13,14 @@
 #define PROOFSIZE 42
 #endif
 
-#define SIZE (SIZEMULT*(1UL<<SIZESHIFT))
-// relatively prime partition sizes, assuming SIZESHIFT >= 2
-#define PARTU (SIZE/2+1)
-#define PARTV (SIZE/2-1)
+#define SIZE (1UL<<SIZESHIFT)
+#define HALFSIZE (SIZE/2)
+#define NODEMASK (HALFSIZE-1)
 
 typedef uint64_t u64;
-#if SIZE < (1UL<<32)
-typedef uint32_t nonce_t;
-typedef uint32_t node_t;
-#else
 typedef u64 nonce_t;
 typedef u64 node_t;
-#endif
+
 typedef struct {
   u64 v[4];
 } siphash_ctx;
@@ -54,53 +46,40 @@ void setheader(siphash_ctx *ctx, const char *header) {
 #define ROTL(x,b) (u64)( ((x) << (b)) | ( (x) >> (64 - (b))) )
 #define SIPROUND \
   do { \
-    v0 += v1; v1=ROTL(v1,13); v1 ^= v0; v0=ROTL(v0,32); \
-    v2 += v3; v3=ROTL(v3,16); v3 ^= v2; \
-    v0 += v3; v3=ROTL(v3,21); v3 ^= v0; \
-    v2 += v1; v1=ROTL(v1,17); v1 ^= v2; v2=ROTL(v2,32); \
+    v0 += v1; v2 += v3; v1 = ROTL(v1,13); \
+    v3 = ROTL(v3,16); v1 ^= v0; v3 ^= v2; \
+    v0 = ROTL(v0,32); v2 += v1; v0 += v3; \
+    v1 = ROTL(v1,17);   v3 = ROTL(v3,21); \
+    v1 ^= v2; v3 ^= v0; v2 = ROTL(v2,32); \
   } while(0)
  
-// SipHash-2-4 specialized to precomputed key and 7 byte nonces
+// SipHash-2-4 specialized to precomputed key and 8 byte nonces
 u64 siphash24(siphash_ctx *ctx, u64 nonce) {
-  u64 b = 7UL << 56 | nonce;
-  u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ b;
+  u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
   SIPROUND; SIPROUND;
-  v0 ^= b;
+  v0 ^= nonce;
   v2 ^= 0xff;
   SIPROUND; SIPROUND; SIPROUND; SIPROUND;
   return v0 ^ v1 ^ v2  ^ v3;
 }
 
-// generate edge in cuckoo graph
 void sipedge(siphash_ctx *ctx, nonce_t nonce, node_t *pu, node_t *pv) {
-#if PARTU < (1L<<32)
-  u64 sip = siphash24(ctx, nonce);
-  *pu = sip % PARTU;
-  *pv = sip % PARTV;
-#else
-  *pu = siphash24(ctx, 2*nonce  ) % PARTU;
-  *pv = siphash24(ctx, 2*nonce+1) % PARTV;
-#endif
+  *pu = siphash24(ctx, 2*nonce  ) & NODEMASK;
+  *pv = siphash24(ctx, 2*nonce+1) & NODEMASK;
 }
 
-node_t sipedgeu(siphash_ctx *ctx, nonce_t nonce) {
-#if PARTU < (1L<<32)
-  return siphash24(ctx, nonce  ) % PARTU;
-#else
-  return siphash24(ctx, 2*nonce  ) % PARTU;
-#endif
+// generate edge endpoint in cuckoo graph
+node_t sipedge_u(siphash_ctx *ctx, nonce_t nonce) {
+  return siphash24(ctx, 2*nonce  ) & NODEMASK;
 }
 
-node_t sipedgev(siphash_ctx *ctx, nonce_t nonce) {
-#if PARTU < (1L<<32)
-  return siphash24(ctx, nonce) % PARTV;
-#else
-  return siphash24(ctx, 2*nonce+1) % PARTV;
-#endif
+// generate edge endpoint in cuckoo graph
+node_t sipedge_v(siphash_ctx *ctx, nonce_t nonce) {
+  return siphash24(ctx, 2*nonce+1) & NODEMASK;
 }
 
 // verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
-int verify(nonce_t nonces[PROOFSIZE], const char *header, unsigned easiness) {
+int verify(nonce_t nonces[PROOFSIZE], const char *header, u64 easiness) {
   siphash_ctx ctx;
   setheader(&ctx, header);
   node_t us[PROOFSIZE], vs[PROOFSIZE];
@@ -109,7 +88,6 @@ int verify(nonce_t nonces[PROOFSIZE], const char *header, unsigned easiness) {
     if (nonces[n] >= easiness || (n && nonces[n] <= nonces[n-1]))
       return 0;
     sipedge(&ctx, nonces[n], &us[n], &vs[n]);
-    vs[n] += PARTU;
   }
   do {  // follow cycle until we return to i==0; n edges left to visit
     unsigned j = i;

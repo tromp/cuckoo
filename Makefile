@@ -1,51 +1,51 @@
 # -Wno-deprecated-declarations shuts up Apple OSX clang
-FLAGS = -std=c++11 -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L -O3 -pthread -l crypto
+FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L -O3 -pthread -l crypto
 # leave out -l crypto if using sha256.c instead of openssl
 
 cuckoo:		cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	g++ -o cuckoo -DSHOW -DPROOFSIZE=6 -DSIZEMULT=1 -DSIZESHIFT=4 cuckoo_miner.cpp ${FLAGS}
+	g++ -std=c++11 -o cuckoo -DSHOW -DPROOFSIZE=6 -DSIZESHIFT=4 cuckoo_miner.cpp ${FLAGS}
 
 example:	cuckoo
 	./cuckoo -e 100 -h header
 
 cuckoo110:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	g++ -o cuckoo110 -DSIZEMULT=1 -DSIZESHIFT=10 cuckoo_miner.cpp ${FLAGS}
+	g++ -std=c++11 -o cuckoo110 -DSIZESHIFT=10 cuckoo_miner.cpp ${FLAGS}
 
 cuckoo115:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	g++ -o cuckoo115 -DSIZEMULT=1 -DSIZESHIFT=15 cuckoo_miner.cpp ${FLAGS}
+	g++ -std=c++11 -o cuckoo115 -DSIZESHIFT=15 cuckoo_miner.cpp ${FLAGS}
 
 cuckoo120:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	g++ -o cuckoo120 -DSIZEMULT=1 -DSIZESHIFT=20 cuckoo_miner.cpp ${FLAGS}
+	g++ -std=c++11 -o cuckoo120 -DSIZESHIFT=20 cuckoo_miner.cpp ${FLAGS}
 
 verify120:	cuckoo.h cuckoo.c Makefile
-	g++ -o verify120 -DSIZEMULT=1 -DSIZESHIFT=20 cuckoo.c ${FLAGS}
+	cc  -o verify120 -DSIZESHIFT=20 cuckoo.c ${FLAGS}
 
 test:	cuckoo120 verify120 Makefile
 	./cuckoo120 -h 4 | tail -1 | ./verify120 -h 4
 
 cuckoo125:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	g++ -o cuckoo125 -DSIZEMULT=1 -DSIZESHIFT=25 cuckoo_miner.cpp ${FLAGS}
+	g++ -std=c++11 -o cuckoo125 -DSIZESHIFT=25 cuckoo_miner.cpp ${FLAGS}
 
 cuckoo128:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	g++ -o cuckoo128 -DSIZEMULT=1 -DSIZESHIFT=28 cuckoo_miner.cpp ${FLAGS}
+	g++ -std=c++11 -o cuckoo128 -DSIZESHIFT=28 cuckoo_miner.cpp ${FLAGS}
 
 speedup:	cuckoo128 Makefile
 	for i in {1..4}; do echo $$i; (time for j in {0..6}; do ./cuckoo128 -t $$i -h $$j; done) 2>&1; done > speedup
 
 cuckoo130:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	g++ -o cuckoo130 -DSIZEMULT=1 -DSIZESHIFT=30 cuckoo_miner.cpp ${FLAGS}
+	g++ -std=c++11 -o cuckoo130 -DSIZESHIFT=30 cuckoo_miner.cpp ${FLAGS}
 
 speedup130:	cuckoo130 Makefile
 	for i in {1..64}; do echo $$i; (time for j in {0..9}; do ./cuckoo130 -t $$i -h $$j; done) 2>&1; done > speedup130
 
 cuckoo130p0:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	g++ -o cuckoo130p0 -DPRESIP=0 -DSIZEMULT=1 -DSIZESHIFT=30 cuckoo_miner.cpp ${FLAGS}
+	g++ -std=c++11 -o cuckoo130p0 -DPRESIP=0 -DSIZESHIFT=30 cuckoo_miner.cpp ${FLAGS}
 
 speedup130p0:	cuckoo130p0 Makefile
 	for i in {1..64}; do echo $$i; (time for j in {0..9}; do ./cuckoo130p0 -t $$i -h $$j; done) 2>&1; done > speedup130p0
 
 cuckoo729:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	g++ -o cuckoo729 -DSIZEMULT=7 -DSIZESHIFT=29 cuckoo_miner.cpp ${FLAGS}
+	g++ -std=c++11 -o cuckoo729 -DSIZESHIFT=29 cuckoo_miner.cpp ${FLAGS}
 
 Cuckoo.class:	Cuckoo.java Makefile
 	javac -O Cuckoo.java
@@ -57,11 +57,11 @@ java:	Cuckoo.class CuckooMiner.class Makefile
 	java CuckooMiner -h 6 | tail -1 | java Cuckoo -h 6
 
 cuda:	cuda_miner.cu Makefile
-	nvcc -o cuda -DSIZEMULT=1 -DSIZESHIFT=4 -arch sm_20 cuda_miner.cu -lcrypto
+	nvcc -std=c++11 -o cuda -DSIZESHIFT=4 -arch sm_20 cuda_miner.cu -lcrypto
 	./cuda -e 100 -h header
 
 cuda128:	cuda_miner.cu Makefile
-	nvcc -o cuda128 -DSIZEMULT=1 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lcrypto
+	nvcc -std=c++11 -o cuda128 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lcrypto
 
 speedupcuda:	cuda128
 	for i in 1 2 4 8 16 32 64 128 256 512; do echo $$i; (time for j in {0..6}; do ./cuda128 -t $$i -h $$j; done) 2>&1; done > speedupcuda

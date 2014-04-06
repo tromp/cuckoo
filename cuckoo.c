@@ -25,8 +25,8 @@ int main(int argc, char **argv) {
   assert(scanf("Solution") == 0);
   nonce_t nonces[PROOFSIZE];
   for (int n = 0; n < PROOFSIZE; n++)
-    assert(scanf(" %lx", &nonces[n]) == 1);
-  int easiness = (unsigned)(easipct * (node_t)SIZE / 100);
+    assert(scanf(" %llx", &nonces[n]) == 1);
+  u64 easiness = easipct * SIZE / 100;
   int ok = verify(nonces, header, easiness);
   if (!ok) {
     printf("FAILED\n");
