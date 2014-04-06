@@ -164,13 +164,15 @@ public:
   cuckoo_ctx(const char* header, nonce_t easy_ness, int n_threads, int n_trims, int max_sols) {
     setheader(&sip_ctx, header);
     easiness = easy_ness;
-     nthreads = n_threads;
+    nthreads = n_threads;
 #ifdef HUGEFAST
     assert(fastcuckoo = (node_t *)calloc(1+SIZE, sizeof(node_t)));
+    alive = 0;
+    nonleaf = 0;
 #else
     alive = new shrinkingset(easiness, nthreads);
-#endif
     nonleaf = new twice_set;
+#endif
     ntrims = n_trims;
     assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
     assert(sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(nonce_t)));
@@ -267,7 +269,6 @@ typedef std::pair<node_t,node_t> edge;
 
 void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
   std::set<edge> cycle;
-  node_t u, v;
   unsigned n;
   cycle.insert(edge(*us, *vs));
   while (nu--)
@@ -276,9 +277,12 @@ void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   unsigned soli = std::atomic_fetch_add_explicit(&ctx->nsols, 1U, std::memory_order_relaxed);
   for (nonce_t nonce = n = 0; nonce < ctx->easiness; nonce++) {
+#ifdef HUGEFAST
+    {
+#else
     if (ctx->alive->test(nonce)) {
-      sipedge(&ctx->sip_ctx, nonce, &u, &v);
-      edge e(u+1, v+1+HALFSIZE);
+#endif
+      edge e(1+sipedge_u(&ctx->sip_ctx, nonce), 1+HALFSIZE+sipedge_v(&ctx->sip_ctx, nonce));
       if (cycle.find(e) != cycle.end()) {
         ctx->sols[soli][n++] = nonce;
         cycle.erase(e);
