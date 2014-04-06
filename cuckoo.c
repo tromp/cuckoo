@@ -20,8 +20,8 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  printf("Verifying size %d proof for cuckoo%d%d(\"%s\") with %d%% edges\n",
-               PROOFSIZE, SIZEMULT, SIZESHIFT, header, easipct);
+  printf("Verifying size %d proof for cuckoo%d(\"%s\") with %d%% edges\n",
+               PROOFSIZE, SIZESHIFT, header, easipct);
   assert(scanf("Solution") == 0);
   nonce_t nonces[PROOFSIZE];
   for (int n = 0; n < PROOFSIZE; n++)

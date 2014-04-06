@@ -3,13 +3,11 @@
 
 #include "cuckoo_miner.h"
 #include <unistd.h>
-#include <assert.h>
 
 int main(int argc, char **argv) {
-  assert(SIZE < 1L<<32);
   int nthreads = 1;
   int maxsols = 8;
-  int ntrims = 8;
+  int ntrims = 12;
   const char *header = "";
   int c, easipct = 50;
   while ((c = getopt (argc, argv, "e:h:m:n:t:")) != -1) {
@@ -34,9 +32,8 @@ int main(int argc, char **argv) {
   assert(easipct >= 0 && easipct <= 100);
   printf("Looking for %d-cycle on cuckoo%d(\"%s\") with %d%% edges, %d trims, and %d threads\n",
                PROOFSIZE, SIZESHIFT, header, easipct, ntrims, nthreads);
-
-  cuckoo_ctx ctx(header, easipct * (u64)SIZE / 100, nthreads, ntrims, maxsols);
-
+  u64 easiness = easipct * SIZE / 100;
+  cuckoo_ctx ctx(header, easiness, nthreads, ntrims, maxsols);
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
   for (int t = 0; t < nthreads; t++) {
