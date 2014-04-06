@@ -43,10 +43,11 @@ int main(int argc, char **argv) {
   }
   for (int t = 0; t < nthreads; t++)
     assert(pthread_join(threads[t].thread, NULL) == 0);
+  free(threads);
   for (unsigned s = 0; s < ctx.nsols; s++) {
     printf("Solution");
     for (int i = 0; i < PROOFSIZE; i++)
-      printf(" %llx", ctx.sols[s][i]);
+      printf(" %lx", ctx.sols[s][i]);
     printf("\n");
   }
   return 0;

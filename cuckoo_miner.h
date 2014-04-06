@@ -19,6 +19,9 @@
 
 // ok for size up to 2^32
 #define MAXPATHLEN 8192
+#ifndef PRESIP
+#define PRESIP 1024
+#endif
 #ifndef PART_BITS
 // #bits used to partition edge set processing to save memory
 // a value of 0 does no partitioning and is fastest
@@ -29,7 +32,7 @@
 #endif
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) == sizeof(twice_set), so
-// CUCKOO_SIZE * sizeof(u64) == TWICE_WORDS * sizeof(uint32_t)
+// CUCKOO_SIZE * sizeof(u64) == TWICE_WORDS * sizeof(u32)
 // CUCKOO_SIZE * 2 == TWICE_WORDS
 // (SIZE >> IDXSHIFT) * 2 == 2 * ONCE_BITS / 32
 // SIZE >> IDXSHIFT == HALFSIZE >> PART_BITS >> 5
@@ -48,13 +51,13 @@
 #define ONCE_BITS ((HALFSIZE + PART_MASK) >> PART_BITS)
 #define TWICE_WORDS ((2UL * ONCE_BITS + 31UL) / 32UL)
 
-typedef std::atomic<uint32_t> au32;
-typedef std::atomic<uint64_t> au64;
+typedef std::atomic<u32> au32;
+typedef std::atomic<u64> au64;
 
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
 public:
-  std::vector<uint32_t> bits;
+  std::vector<u32> bits;
   std::vector<u64> cnt;
 
   shrinkingset(nonce_t size, int nthreads) {
@@ -64,7 +67,7 @@ public:
   }
   u64 count() {
     u64 sum = 0L;
-    for (int i=0; i<cnt.size(); i++)
+    for (unsigned i=0; i<cnt.size(); i++)
       sum += cnt[i];
     return sum;
   }
@@ -94,11 +97,11 @@ public:
   }
   void set(node_t u) {
     node_t idx = u/16;
-    uint32_t bit = 1 << (2 * (u%16));
-    uint32_t old = std::atomic_fetch_or_explicit(&bits[idx], bit   , std::memory_order_relaxed);
+    u32 bit = 1 << (2 * (u%16));
+    u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit   , std::memory_order_relaxed);
     if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
   }
-  uint32_t test(node_t u) {
+  u32 test(node_t u) {
     return (bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2;
   }
 };
@@ -150,6 +153,7 @@ public:
   shrinkingset *alive;
   twice_set *nonleaf;
   cuckoo_hash *cuckoo;
+  node_t *fastcuckoo;
   nonce_t (*sols)[PROOFSIZE];
   unsigned maxsols;
   std::atomic<unsigned> nsols;
@@ -159,7 +163,13 @@ public:
 
   cuckoo_ctx(const char* header, nonce_t easy_ness, int n_threads, int n_trims, int max_sols) {
     setheader(&sip_ctx, header);
-    alive = new shrinkingset(easiness = easy_ness, nthreads = n_threads);
+    easiness = easy_ness;
+     nthreads = n_threads;
+#ifdef HUGEFAST
+    assert(fastcuckoo = (node_t *)calloc(1+SIZE, sizeof(node_t)));
+#else
+    alive = new shrinkingset(easiness, nthreads);
+#endif
     nonleaf = new twice_set;
     ntrims = n_trims;
     assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
@@ -167,7 +177,11 @@ public:
     nsols = 0;
   }
   ~cuckoo_ctx() {
+#ifdef HUGEFAST
+    // free(fastcuckoo);
+#else
     delete alive;
+#endif
     if (nonleaf)
       delete nonleaf;
     if (cuckoo)
@@ -228,9 +242,15 @@ void trim_edges(thread_ctx *tp, unsigned part) {
   barrier(&ctx->barry);
 }
 
+#ifdef HUGEFAST
+int path(node_t *cuckoo, node_t u, node_t *us) {
+  int nu;
+  for (nu = 0; u; u = cuckoo[u]) {
+#else
 int path(cuckoo_hash *cuckoo, node_t u, node_t *us) {
   int nu;
   for (nu = 0; u; u = cuckoo->get(u)) {
+#endif
     if (++nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
       if (nu < 0)
@@ -267,6 +287,7 @@ void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
   }
 }
 
+#ifndef HUGEFAST
 void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
   cuckoo_ctx *ctx = tp->ctx;
@@ -331,3 +352,56 @@ void *worker(void *vp) {
   }}}
   pthread_exit(NULL);
 }
+#else
+void *worker(void *vp) {
+  thread_ctx *tp = (thread_ctx *)vp;
+  cuckoo_ctx *ctx = tp->ctx;
+
+  node_t *cuckoo = ctx->fastcuckoo;
+  node_t us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP], npre = 0;
+  for (node_t nonce = tp->id; nonce < ctx->easiness; nonce += ctx->nthreads) {
+    node_t u0, v0;
+#if PRESIP==0
+    u0 = sipedge_u(&ctx->sip_ctx, nonce);
+    v0 = sipedge_v(&ctx->sip_ctx, nonce);
+#else
+    if (!npre) {
+      for (unsigned n = nonce; npre < PRESIP; npre++, n += ctx->nthreads) {
+        uvpre[2*npre  ] = sipedge_u(&ctx->sip_ctx, n);
+        uvpre[2*npre+1] = sipedge_v(&ctx->sip_ctx, n);
+      }
+    }
+    unsigned i = PRESIP - npre--;
+    u0 = uvpre[2*i];
+    v0 = uvpre[2*i+1];
+#endif
+    u0 += 1        ;  // make non-zero
+    v0 += 1 + HALFSIZE;  // make v's different from u's
+    node_t u = cuckoo[u0], v = cuckoo[v0];
+    if (u == v0 || v == u0)
+      continue; // ignore duplicate edges
+    us[0] = u0;
+    vs[0] = v0;
+    int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+    if (us[nu] == vs[nv]) {
+      int min = nu < nv ? nu : nv;
+      for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
+      int len = nu + nv + 1;
+      printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (int)(nonce*100L/ctx->easiness));
+      if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
+        solution(ctx, us, nu, vs, nv);
+      continue;
+    }
+    if (nu < nv) {
+      while (nu--)
+        cuckoo[us[nu+1]] = us[nu];
+      cuckoo[*us] = *vs;
+    } else {
+      while (nv--)
+        cuckoo[vs[nv+1]] = vs[nv];
+      cuckoo[*vs] = *us;
+    }
+  }
+  pthread_exit(NULL);
+}
+#endif
