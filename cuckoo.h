@@ -66,8 +66,9 @@ u64 siphash24(siphash_ctx *ctx, unsigned nonce) {
 
 // generate edge in cuckoo graph
 void sipedge(siphash_ctx *ctx, unsigned nonce, unsigned *pu, unsigned *pv) {
-  u64 sip = siphash24(ctx, nonce);
+  u64 sip = siphash24(ctx, 2*nonce);
   *pu = 1 +         (unsigned)(sip % PARTU);
+  sip = siphash24(ctx, 2*nonce+1);
   *pv = 1 + PARTU + (unsigned)(sip % PARTV);
 }
 
