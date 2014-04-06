@@ -25,7 +25,7 @@
 // a value of 1 partitions in two, making twice_set the
 // same size as shrinkingset at about 33% slowdown
 // higher values are not that interesting
-#define PART_BITS 1
+#define PART_BITS 0
 #endif
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) == sizeof(twice_set), so
