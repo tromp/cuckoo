@@ -6,14 +6,17 @@
 \newcommand{\hash}{{\rm siphash}}
 \usepackage{hyperref}
 \usepackage{listings}
-\title{Cuckoo Cycle: \protect\\ a memory-hard proof-of-work system}
+\title{Cuckoo Cycle: \protect\\ a graph-theoretic proof-of-work system}
 \author{John Tromp}
 \begin{document}
 \maketitle
 
 \begin{abstract}
-We introduce the first trivially verifiable, scalable and
-tmto\footnote{time-memory trade-off}-hard proof-of-work system.
+We introduce the first graph-theoretic proof-of-work system,
+based on finding cycles on large random graphs.
+Such problems are arbitrarily scalable trivially verifiable.
+Our implementation requires the use of 1 bit per edge.
+We hypothesize that using less causes superlinear slowdown.
 \end{abstract}
 
 \section{Introduction}
@@ -63,10 +66,10 @@ than CPUs for Litecoin mining. ASICs first appeared on the market in early 2014 
 Primecoin~\cite{king2013} is an interesting design based on finding long
 Cunningham chains of prime numbers, using a two-step process of filtering
 candidates by {\em sieving}, and applying pseudo-primality tests to remaining
-candidates. The most efficient implementations are still CPU based.
+candidates. GPU implementations that outperform CPU ones have recently appeared.
 Downsides to this proof-of-work are its complexity and the scope for
-algorithmic improvements that may be kept private. Its memory requirements,
-while larger than Litecoin's, are still modest.
+algorithmic improvements. Its memory requirements, while larger than Litecoin's,
+are still modest.
 
 Momentum~\cite{larimer2013} proposes finding birthday collisions of hash
 outputs as proof-of-work, the simplest way to combine scalable memory usage
@@ -103,8 +106,8 @@ Combined, these properties ensure that a proof-of-work system is entirely
 constrained by main memory latency and scales appropriately for any
 application.
 
-We introduce the very first proof-of-work system that is both verify-trivial
-and tmto-hard. Furthermore, it satisfies all other properties,
+We introduce the very first graph-theoretic proof-of-work system.
+which aims to satisfy most of the above properties,
 except for parallel-hardness (see the later section on parallelizability).
 Amazingly, it amounts to little more than enumerating nonces and storing them
 in a hashtable. While all hashtables break down when trying to store more
@@ -128,13 +131,13 @@ This naturally suggests a proof-of-work problem, which we now formally
 define.
 
 \section{The proof-of-work function}
-Fix an (even) number of nodes $8 \leq N < 2^{32}$, a number of edges $N/4 < E
-\leq N$, and an (even) cycle length $4 \leq L < 256$.
+Fix an (even) number of nodes $8 \leq N < 2^{64}$, a number of edges $N/4 < E
+\leq N$, and an (even) cycle length $4 \leq L < N$.
 Function $\cuckoo$ maps any 128-bit key $k$ (the header digest) to a
-bipartite graph $G = (V_0 \cup V_1, E)$, where $V_0$ is the set of integers
-modulo $N_0=N/2+1$, $V_1$ is the set of integers modulo $N_1=N/2-1$, and $E$
-has an edge between $\hash(k,n) \bmod N_0$ in $V_0$ and $\hash(k,n) \bmod
-N_1$ in $V_1$ for every nonce $0 \leq n < E$. A proof for $G$ is a subset of
+bipartite graph $G = (V_0 \cup V_1, E)$, where $V_0$ and $V_1$ are disjoint
+set of integers modulo $N/2$, and $E$ has an edge between $\hash(k,2*n) \bmod \frac{N}{2}$
+in $V_0$ and $\hash(k,n) \bmod \frac{N}{2}$ in $V_1$
+for every nonce $0 \leq n < E$. A proof for $G$ is a subset of
 $L$ nonces whose corresponding edges form an $L$-cycle in $G$.
 
 \section{Solving the proof-of-work problem}

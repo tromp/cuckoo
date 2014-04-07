@@ -17,7 +17,7 @@
 #define MAXPATHLEN 8192
 
 #ifdef TRIMEDGES
-#include "trimedgedata.h"
+#include "trim_edge_data.h"
 #else
 
 #ifndef PRESIP

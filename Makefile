@@ -83,5 +83,5 @@ cuda28:	cuda_miner.cu Makefile
 speedupcuda:	cuda28
 	for i in 1 2 4 8 16 32 64 128 256 512; do echo $$i; (time for j in {0..6}; do ./cuda28 -t $$i -h $$j; done) 2>&1; done > speedupcuda
 
-tar:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h trimedgedata.h Makefile
-	tar -cf cuckoo.tar cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h trimedgedata.h Makefile
+tar:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h trim_edge_data.h Makefile
+	tar -cf cuckoo.tar cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h trim_edge_data.h Makefile
