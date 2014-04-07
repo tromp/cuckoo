@@ -78,47 +78,72 @@ void barrier(pthread_barrier_t *barry) {
   }
 }
 
-#define FORALL_LIVE_NONCES(NONCE) \
-  for (nonce_t block = tp->id*32; block < ctx.easiness; block += ctx.nthreads*32) {\
-    for (nonce_t NONCE = block; NONCE < block+32 && NONCE < ctx.easiness; NONCE++) {\
-      if (alive.test(NONCE))
+#define LOGNBUCKETS	12
+#define NBUCKETS	(1 << LOGNBUCKETS)
+#define BUCKETSHIFT	(SIZESHIFT-1 - LOGNBUCKETS)
+#define BUCKETSIZE	16
 
-void trim_edges(thread_ctx *tp, unsigned part) {
+void trim_edges(thread_ctx *tp) {
   cuckoo_ctx &ctx = *tp->ctx;
   graph_data &data = ctx.data;
   shrinkingset &alive = *data.alive;
   twice_set &nonleaf = *data.nonleaf;
+  u32 bucketsizes[NBUCKETS];
+  node_t buckets[NBUCKETS][BUCKETSIZE];
+  node_t nonces[NBUCKETS][BUCKETSIZE];
 
-  if (tp->id == 0)
-    nonleaf.reset();
-  barrier(&ctx.barry);
-  FORALL_LIVE_NONCES(nonce) {
-    node_t u = sipedge_u(&ctx.sip_ctx, nonce);
-    if ((u & PART_MASK) == part)
-      nonleaf.set(u >> PART_BITS);
-  }}}
-  barrier(&ctx.barry);
-  FORALL_LIVE_NONCES(nonce) {
-    node_t u = sipedge_u(&ctx.sip_ctx, nonce);
-    if ((u & PART_MASK) == part && !nonleaf.test(u >> PART_BITS))
-    alive.reset(nonce, tp->id);
-  }}}
-  barrier(&ctx.barry);
-  if (tp->id == 0)
-    nonleaf.reset();
-  barrier(&ctx.barry);
-  FORALL_LIVE_NONCES(nonce) {
-    node_t v = sipedge_v(&ctx.sip_ctx, nonce);
-    if ((v & PART_MASK) == part)
-      nonleaf.set(v >> PART_BITS);
-  }}}
-  barrier(&ctx.barry);
-  FORALL_LIVE_NONCES(nonce) {
-    node_t v = sipedge_v(&ctx.sip_ctx, nonce);
-    if ((v & PART_MASK) == part && !nonleaf.test(v >> PART_BITS))
-      alive.reset(nonce, tp->id);
-  }}}
-  barrier(&ctx.barry);
+  for (unsigned part = 0; part <= PART_MASK; part++) {
+    for (int uorv = 0; uorv < 2; uorv++) {
+      if (tp->id == 0)
+        nonleaf.reset();
+      barrier(&ctx.barry);
+      for (int qkill = 0; qkill < 2; qkill++) {
+        for (int b=0; b < NBUCKETS; b++)
+          bucketsizes[b] = 0;
+        for (nonce_t block = tp->id*32; block < ctx.easiness; block += ctx.nthreads*32) {
+          u32 alive32 = alive.block(block); // GLOBAL 1 SEQ
+          for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
+            assert(alive.test(nonce) == (alive32&1));
+            if (alive.test(nonce)) {
+              node_t u = sipnode(&ctx.sip_ctx, nonce, uorv);
+              if ((u & PART_MASK) == part) {
+                u32 b = u >> BUCKETSHIFT;
+                u32 *bsize = &bucketsizes[b];
+                buckets[b][*bsize] = u >> PART_BITS;
+                nonces[b][*bsize] = nonce;
+                if (++*bsize == BUCKETSIZE) {
+                  *bsize = 0;
+                  for (int i=0; i<BUCKETSIZE; i++) {
+                    node_t ui = buckets[b][i];
+                    if (!qkill) {
+                      nonleaf.set(ui); // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
+                    } else {
+                      if (!nonleaf.test(ui)) // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
+// nonces[b][i] can be recoved from its last 16 or so bits and nonce, since they differ by at most 2^16
+                        alive.reset(nonces[b][i], tp->id); // GLOBAL SEQ 
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        for (int b=0; b < NBUCKETS; b++) {
+          int ni = bucketsizes[b];
+          for (int i=0; i<ni ; i++) {
+            node_t ui = buckets[b][i];
+            if (!qkill) {
+              nonleaf.set(ui);
+            } else {
+              if (!nonleaf.test(ui))
+                alive.reset(nonces[b][i], tp->id);
+            }
+          }
+        }
+        barrier(&ctx.barry);
+      }
+    }
+  }
 }
 #endif
 
@@ -153,7 +178,7 @@ void solution(cuckoo_ctx &ctx, node_t *us, int nu, node_t *vs, int nv) {
     if (ctx.data.alive->test(nonce))
 #endif
     {
-      edge e(1+sipedge_u(&ctx.sip_ctx, nonce), 1+HALFSIZE+sipedge_v(&ctx.sip_ctx, nonce));
+      edge e(1+sipnode(&ctx.sip_ctx, nonce, 0), 1+HALFSIZE+sipnode(&ctx.sip_ctx, nonce, 1));
       if (cycle.find(e) != cycle.end()) {
         ctx.sols[soli][n++] = nonce;
         cycle.erase(e);
@@ -168,10 +193,11 @@ void *worker(void *vp) {
 
 #ifdef TRIMEDGES
   shrinkingset &alive = *data.alive;
-  int load = 100;
+  int load = 100 * ctx.easiness / CUCKOO_SIZE;
+  if (tp->id == 0)
+    printf("initial load %d%%\n", load);
   for (int round=1; round <= ctx.ntrims; round++) {
-    for (unsigned part = 0; part <= PART_MASK; part++)
-      trim_edges(tp, part);
+    trim_edges(tp);
     if (tp->id == 0) {
       load = (int)(100 * alive.count() / CUCKOO_SIZE);
       printf("%d trims: load %d%%\n", round, load);
@@ -189,9 +215,11 @@ void *worker(void *vp) {
   barrier(&ctx.barry);
   cuckoo_hash &cuckoo = *data.cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-  FORALL_LIVE_NONCES(nonce) {
-    node_t u0, v0;
-    sipedge(&ctx.sip_ctx, nonce, &u0, &v0);
+  for (nonce_t block = tp->id*32; block < ctx.easiness; block += ctx.nthreads*32) {
+    for (nonce_t nonce = block; nonce < block+32 && nonce < ctx.easiness; nonce++) {
+      if (alive.test(nonce)) {
+        node_t u0, v0;
+        sipedge(&ctx.sip_ctx, nonce, &u0, &v0);
 #else
   node_t *cuckoo = data.cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN], uvpre[2*PRESIP], npre = 0;

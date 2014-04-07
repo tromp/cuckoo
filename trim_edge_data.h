@@ -59,6 +59,9 @@ public:
   bool test(node_t n) const {
     return !((bits[n/32] >> (n%32)) & 1);
   }
+  u32 block(node_t n) const {
+    return ~bits[n/32];
+  }
 };
 
 class twice_set {

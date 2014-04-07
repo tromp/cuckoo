@@ -68,19 +68,14 @@ u64 siphash24(siphash_ctx *ctx, u64 nonce) {
   return v0 ^ v1 ^ v2  ^ v3;
 }
 
+// generate edge endpoint in cuckoo graph
+node_t sipnode(siphash_ctx *ctx, nonce_t nonce, int uorv) {
+  return siphash24(ctx, 2*nonce + uorv) & NODEMASK;
+}
+
 void sipedge(siphash_ctx *ctx, nonce_t nonce, node_t *pu, node_t *pv) {
-  *pu = siphash24(ctx, 2*nonce  ) & NODEMASK;
-  *pv = siphash24(ctx, 2*nonce+1) & NODEMASK;
-}
-
-// generate edge endpoint in cuckoo graph
-node_t sipedge_u(siphash_ctx *ctx, nonce_t nonce) {
-  return siphash24(ctx, 2*nonce  ) & NODEMASK;
-}
-
-// generate edge endpoint in cuckoo graph
-node_t sipedge_v(siphash_ctx *ctx, nonce_t nonce) {
-  return siphash24(ctx, 2*nonce+1) & NODEMASK;
+  *pu = sipnode(ctx, nonce, 0);
+  *pv = sipnode(ctx, nonce, 1);
 }
 
 // verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
