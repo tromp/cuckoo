@@ -3,16 +3,11 @@ cuckoo
 
 Cuckoo Cycle is the first graph-theoretical Proof-Of-Work.
 Keyed hash functions define arbitrarily large random graphs,
-in which certain fixed size subgraphs occur with suitably small probability.
+in which certain fixed-size subgraphs occur with suitably small probability.
 Asking for a cycle, or a clique, is a close analogue of asking for
 a chain or cluster of primes numbers, which were adopted as the
-number-theoretic Proof-of-work in Primecoin and Riecoin.
+number-theoretic Proof-of-work in Primecoin and Riecoin, respectively.
 
-
-Mining is generally considered to be inherently power hungry but it need not be.
-It’s a consequence of making the proof of work computationally intensive.
-If computation is minimized in favor of random access to main memory
-(incurring long latencies), then mining will require relatively little power.
 
 Cuckoo Cycle represents a breakthrough in three important ways:
 
@@ -20,9 +15,9 @@ Cuckoo Cycle represents a breakthrough in three important ways:
 
 2) its memory requirement can be set arbitrarily and appears to resist time-memory trade-offs.
 
-3) verification of the proof of work is instant, requiring 2 sha256 and 42 siphash computations.
+3) verification of the proof of work is instant, requiring 2 sha256 and 42x2 siphash computations.
 
-Runtime in Cuckoo Cycle is dominated by memory latency. It promotes the use
+Runtime in Cuckoo Cycle is dominated by memory latency. This promotes the use
 of commodity general-purpose hardware over custom designed single-purpose hardware.
 
 Other features:
@@ -37,4 +32,5 @@ Other features:
    and 4.5mins/GB for 8 threads. it will take a superior GPU implementation to make
    Cuckoo Cycle requiring 1GB run in reasonable time.
 
-7) 
+7) it can optionally run without edge trimming, using about 21 times more memory, making
+   1.65 random memory accesses per siphash, with a speedup that grows with size.
