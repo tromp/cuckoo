@@ -384,15 +384,19 @@ Each datapoint represents 10 runs on $2^{30}$ nodes with headers "0" through "9"
 Although the speedup is sublinear at 26 for 40 threads, it doesn't look like the memory interface
 is saturated yet. Since we don't have access to more than 40 threads, we tried two alternative
 approaches to see happens when the memory access frequency increases further,
-In the first approach we reduce the number of rounds in the \hash function, shown in red and blue.
-We checked with 10,000 test-runs on cuckoo125 that reducing the number of siphash rounds
-has no noticeable effect on cycle length distribution.
+%In the first approach we reduce the number of rounds in the \hash function, shown in red and blue.
+%We checked with 10,000 test-runs on cuckoo125 that reducing the number of siphash rounds
+%has no noticeable effect on cycle length distribution.
 In the second approach we precompute all the hashes, shown in orange.
 This shows some sort of breakdown of the memory interface starting from 21 threads,
 which is presumably where hyperthreading starts to kick in.
 It is perhaps odd that such a hyperthreading transition is completely absent from the green line.
 Since the hash precomputation showed a significant speedup, the implementation was changed
-to make it the default. Reproducing the other curves requires compilation with -DPRESIP=0 for C or setting CuckooSolve.PRESIP=1 for java.
+to make it the default.
+Reproducing the other curves requires compilation with -DPRESIP=0 for C or setting CuckooSolve.PRESIP=1 for java.
+
+UPDATE: We added 3 curves for the new implementation with 21x reduced memory, tested up to 20 threads.
+This shows some really weird boost at the thread maximum.
 
 \begin{center}
 \begin{tikzpicture}
@@ -421,49 +425,26 @@ to make it the default. Reproducing the other curves requires compilation with -
 };
 \addlegendentry{siphash-2-4}
 \addplot [color=red] coordinates {
-(1,1.000) (2,1.700) (3,2.757) (4,3.322) (5,4.438) 
-(6,4.986) (7,5.961) (8,6.628) (9,7.426) (10,8.029) 
-(11,8.914) (12,9.377) (13,10.090) (14,10.549) (15,11.252) 
-(16,11.555) (17,12.451) (18,12.979) (19,13.388) (20,13.961) 
-(21,14.604) (22,11.605) (23,11.971) (24,10.761) (25,10.958) 
-(26,12.200) (27,12.501) (28,13.581) (29,13.831) (30,14.457) 
-(31,15.251) (32,15.361) (33,15.654) (34,16.192) (35,16.538) 
-(36,16.950) (37,17.885) (38,18.493) (39,18.822) (40,18.928) 
+(1,1.000) (2,1.921) (3,2.988) (4,3.757) (5,4.668) 
+(6,5.347) (7,6.138) (8,6.792) (9,7.504) (10,8.108) 
+(11,8.873) (12,9.380) (13,10.061) (14,10.543) (15,11.190) 
+(16,11.608) (17,12.231) (18,12.535) (19,13.008) (20,13.433) 
 };
-\addlegendentry{siphash-2-3}
-% \addplot [color=orange] coordinates {
-% (1,1.000) (2,1.713) (3,2.720) (4,3.319) (5,4.405) 
-% (6,4.984) (7,5.847) (8,6.324) (9,7.350) (10,7.817) 
-% (11,8.658) (12,9.181) (13,10.007) (14,10.511) (15,11.325) 
-% (16,11.785) (17,12.594) (18,13.050) (19,13.382) (20,14.081) 
-% (21,13.179) (22,9.398) (23,8.713) (24,9.777) (25,10.284) 
-% (26,11.384) (27,11.876) (28,12.824) (29,13.556) (30,14.216) 
-% (31,14.792) (32,13.778) (33,14.162) (34,14.759) (35,15.382) 
-% (36,15.894) (37,16.621) (38,17.198) (39,17.636) (40,17.950) 
-% };
-% \addlegendentry{siphash-1-1}
+\addlegendentry{speedup30}
+\addplot [color=purple] coordinates {
+(1,1.000) (2,1.186) (3,1.618) (4,2.449) (5,2.899) 
+(6,3.247) (7,3.326) (8,3.468) (9,3.661) (10,3.797) 
+(11,3.927) (12,4.961) (13,5.153) (14,5.299) (15,5.271) 
+(16,5.264) (17,5.208) (18,5.228) (19,5.219) (20,8.689) 
+};
+\addlegendentry{ketchup30}
 \addplot [color=blue] coordinates {
-(1,1.000) (2,1.721) (3,2.752) (4,3.360) (5,4.503) 
-(6,5.074) (7,5.989) (8,6.499) (9,7.445) (10,7.847) 
-(11,8.786) (12,8.938) (13,10.174) (14,10.761) (15,11.579) 
-(16,12.036) (17,12.826) (18,13.326) (19,13.588) (20,14.531) 
-(21,13.487) (22,9.856) (23,9.595) (24,10.016) (25,10.558) 
-(26,11.805) (27,12.161) (28,13.184) (29,14.075) (30,14.927) 
-(31,15.145) (32,14.726) (33,14.682) (34,15.405) (35,15.910) 
-(36,16.746) (37,17.242) (38,17.918) (39,18.225) (40,18.780) 
+(1,1.000) (2,1.361) (3,1.845) (4,2.758) (5,3.260) 
+(6,3.684) (7,3.848) (8,4.056) (9,4.289) (10,4.500) 
+(11,4.657) (12,5.774) (13,5.999) (14,6.219) (15,6.211) 
+(16,6.275) (17,6.329) (18,6.333) (19,6.346) (20,9.964) 
 };
-\addlegendentry{siphash-2-2}
-% \addplot [color=orange] coordinates {
-% (1,1.000) (2,1.716) (3,2.758) (4,3.366) (5,4.488) 
-% (6,5.020) (7,6.050) (8,6.479) (9,7.436) (10,7.968) 
-% (11,8.790) (12,9.312) (13,10.268) (14,10.688) (15,11.589) 
-% (16,11.937) (17,12.835) (18,13.374) (19,13.694) (20,14.393) 
-% (21,13.419) (22,9.770) (23,9.147) (24,10.018) (25,10.541) 
-% (26,11.660) (27,11.983) (28,13.337) (29,13.860) (30,14.887) 
-% (31,15.214) (32,14.130) (33,14.371) (34,15.349) (35,15.692) 
-% (36,16.242) (37,16.981) (38,17.522) (39,17.945) (40,18.598) 
-% };
-% \addlegendentry{siphash-1-2}
+\addlegendentry{ketchup30.1}
 \addplot [color=orange] coordinates {
 (1,1.000) (2,1.712) (3,2.805) (4,3.428) (5,4.396) 
 (6,5.152) (7,6.194) (8,6.655) (9,7.820) (10,8.245) 
@@ -565,7 +546,7 @@ needed to determine the limits of parallelizability.
 \section{Appendix B: cuckoo\_miner.h}
 \lstinputlisting{cuckoo_miner.h}
 
-\section{Appendix C: cuckoo\_miner.c}
-\lstinputlisting{cuckoo_miner.c}
+\section{Appendix C: cuckoo\_miner.cpp}
+\lstinputlisting{cuckoo_miner.cpp}
 
 \end{document}  
