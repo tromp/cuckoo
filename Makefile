@@ -28,9 +28,6 @@ cuckoo20:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 tomato20:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o tomato20 -DTRIMEDGES -DSIZESHIFT=20 cuckoo_miner.cpp
 
-fast20:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o fast20 -DHUGEFAST -DSIZESHIFT=20 cuckoo_miner.cpp
-
 verify20:	cuckoo.h cuckoo.c Makefile
 	$(CC) -o verify20 -DSIZESHIFT=20 cuckoo.c
 
