@@ -34,8 +34,4 @@ Other features:
    above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
    starts to fall sharply.
 
-6) running time on high end x86 is 1.8s/MB single-threaded, and 6min/GB for 8 threads.
-
-7) it can optionally run without edge trimming, using about 21 times more memory (!), making
-   1.65 random memory accesses per siphash, with a speedup that grows with size and #threads.
-   at size 2^{32} and 20 threads, it is almost 3 times faster.
+6) running time on high end x86 is 15min/GB single-threaded, and 1.5min/GB for 20 threads.
