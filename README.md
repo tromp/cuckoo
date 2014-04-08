@@ -34,4 +34,4 @@ Other features:
    above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
    starts to fall sharply.
 
-6) running time on high end x86 is 15min/GB single-threaded, and 1.5min/GB for 20 threads.
+6) running time on high end x86 is 9min/GB single-threaded, and 1min/GB for 20 threads.

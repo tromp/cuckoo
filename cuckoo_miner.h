@@ -49,9 +49,6 @@
 // tends to grow with sqrt size, hardly affected by trimming
 #define MAXPATHLEN (8 << (SIZESHIFT/2))
 
-typedef std::atomic<u32> au32;
-typedef std::atomic<u64> au64;
-
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
 public:
@@ -88,14 +85,12 @@ public:
 
 class twice_set {
 public:
+#ifdef ATOMIC
+  typedef std::atomic<u32> au32;
   au32 *bits;
 
   twice_set() {
-    bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32));
-    assert(bits);
-  }
-  ~twice_set() {
-    free(bits);
+    assert(bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32)));
   }
   void reset() {
     for (unsigned i=0; i<TWICE_WORDS; i++)
@@ -110,6 +105,29 @@ public:
   u32 test(node_t u) const {
     return (bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2;
   }
+#else
+  u32 *bits;
+
+  twice_set() {
+    assert(bits = (u32 *)calloc(TWICE_WORDS, sizeof(u32)));
+  }
+  void reset() {
+    for (unsigned i=0; i<TWICE_WORDS; i++)
+      bits[i] = 0;
+  }
+  void set(node_t u) {
+    node_t idx = u/16;
+    u32 bit = 1 << (2 * (u%16));
+    u32 old = bits[idx];
+    bits[idx] = old | (bit + (old & bit));
+  }
+  u32 test(node_t u) const {
+    return bits[u/16] >> (2 * (u%16)) & 2;
+  }
+#endif
+  ~twice_set() {
+    free(bits);
+  }
 };
 
 #define CUCKOO_SIZE (SIZE >> IDXSHIFT)
@@ -119,11 +137,11 @@ public:
 
 class cuckoo_hash {
 public:
+  typedef std::atomic<u64> au64;
   au64 *cuckoo;
 
   cuckoo_hash() {
-    cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64));
-    assert(cuckoo);
+    assert(cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64)));
   }
   ~cuckoo_hash() {
     free(cuckoo);
@@ -222,7 +240,6 @@ void trim_edges(thread_ctx *tp) {
         for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
           u32 alive32 = alive->block(block); // GLOBAL 1 SEQ
           for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
-            assert(alive->test(nonce) == (alive32&1));
             if (alive32 & 1) {
               node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
               if ((u & PART_MASK) == part) {
