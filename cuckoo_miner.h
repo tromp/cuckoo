@@ -295,7 +295,7 @@ void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
   unsigned soli = std::atomic_fetch_add_explicit(&ctx->nsols, 1U, std::memory_order_relaxed);
   for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
     if (ctx->alive->test(nonce)) {
-      edge e(1+sipnode(&ctx->sip_ctx, nonce, 0), 1+HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
+      edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
       if (cycle.find(e) != cycle.end()) {
         ctx->sols[soli][n++] = nonce;
         cycle.erase(e);
