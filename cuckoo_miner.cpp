@@ -6,15 +6,12 @@
 
 int main(int argc, char **argv) {
   int nthreads = 1;
-  int maxsols = 8;
-  int ntrims = 12;
+  int maxsols  = 8;
+  int ntrims   = 8;
   const char *header = "";
-  int c, easipct = 50;
-  while ((c = getopt (argc, argv, "e:h:m:n:t:")) != -1) {
+  int c;
+  while ((c = getopt (argc, argv, "h:m:n:t:")) != -1) {
     switch (c) {
-      case 'e':
-        easipct = atoi(optarg);
-        break;
       case 'h':
         header = optarg;
         break;
@@ -29,11 +26,9 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  assert(easipct >= 0 && easipct <= 100);
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with %d%% edges, %d trims, and %d threads\n",
-               PROOFSIZE, SIZESHIFT, header, easipct, ntrims, nthreads);
-  u64 easiness = easipct * SIZE / 100;
-  cuckoo_ctx ctx(header, easiness, nthreads, ntrims, maxsols);
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, and %d threads\n",
+               PROOFSIZE, SIZESHIFT, header, ntrims, nthreads);
+  cuckoo_ctx ctx(header, nthreads, ntrims, maxsols);
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
   for (int t = 0; t < nthreads; t++) {

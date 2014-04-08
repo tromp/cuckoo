@@ -20,11 +20,7 @@
 typedef uint32_t u32;
 typedef uint64_t u64;
 typedef u64 nonce_t;
-#ifdef TRIMEDGES
 typedef u64 node_t;
-#else
-typedef u32 node_t;
-#endif
 
 typedef struct {
   u64 v[4];

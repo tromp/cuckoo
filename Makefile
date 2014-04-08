@@ -4,28 +4,31 @@ FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L -O3 -pthrea
 CC = cc -std=c99 $(FLAGS)
 GPP = g++ -std=c++11 $(FLAGS)
 
-cuckoo:		cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 cuckoo_miner.cpp
+cuckoo4:	cuckoo.h cuckoo_miner.h simple_miner.cpp Makefile
+	$(GPP) -o cuckoo4 -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 simple_miner.cpp
 
-example:	cuckoo
-	./cuckoo -e 100 -h header -n 1
+cuckoo:		cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo -g -DSHOW -DLOGNBUCKETS=0 -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 cuckoo_miner.cpp
+
+example:	cuckoo4
+	./cuckoo4 -e 100 -h header
 
 cuckoo10:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo10 -DSIZESHIFT=10 cuckoo_miner.cpp
 
-tomato10:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp trim_edge_data.h Makefile
+tomato10:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o tomato10 -DTRIMEDGES -DSIZESHIFT=10 cuckoo_miner.cpp
 
 cuckoo15:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo15 -DSIZESHIFT=15 cuckoo_miner.cpp
 
-tomato15:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp trim_edge_data.h Makefile
+tomato15:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o tomato15 -DTRIMEDGES -DSIZESHIFT=15 cuckoo_miner.cpp
 
 cuckoo20:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo20 -DSIZESHIFT=20 cuckoo_miner.cpp
 
-tomato20:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp trim_edge_data.h Makefile
+tomato20:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o tomato20 -DTRIMEDGES -DSIZESHIFT=20 cuckoo_miner.cpp
 
 verify20:	cuckoo.h cuckoo.c Makefile
@@ -37,13 +40,13 @@ test:	cuckoo20 verify20 Makefile
 cuckoo25:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo25 -DSIZESHIFT=25 cuckoo_miner.cpp
 
-tomato25:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp trim_edge_data.h Makefile
+tomato25:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o tomato25 -DTRIMEDGES -DSIZESHIFT=25 cuckoo_miner.cpp
 
 cuckoo28:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28 -DSIZESHIFT=28 cuckoo_miner.cpp
 
-tomato28:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp trim_edge_data.h Makefile
+tomato28:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o tomato28 -DTRIMEDGES -DSIZESHIFT=28 cuckoo_miner.cpp
 
 speedup:	cuckoo28 Makefile
@@ -55,7 +58,7 @@ ketchup:	tomato28 Makefile
 cuckoo30:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo30 -DSIZESHIFT=30 cuckoo_miner.cpp
 
-tomato30:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp trim_edge_data.h Makefile
+tomato30:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o tomato30 -DTRIMEDGES -DSIZESHIFT=30 cuckoo_miner.cpp
 
 speedup30:	cuckoo30 Makefile
@@ -83,5 +86,5 @@ cuda28:	cuda_miner.cu Makefile
 speedupcuda:	cuda28
 	for i in 1 2 4 8 16 32 64 128 256 512; do echo $$i; (time for j in {0..6}; do ./cuda28 -t $$i -h $$j; done) 2>&1; done > speedupcuda
 
-tar:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h trim_edge_data.h Makefile
-	tar -cf cuckoo.tar cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h trim_edge_data.h Makefile
+tar:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h Makefile
+	tar -cf cuckoo.tar cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h Makefile
