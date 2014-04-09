@@ -46,8 +46,8 @@
 // SIZESHIFT-1 is limited to 64-KEYSHIFT
 #define CLUMPSHIFT 9
 #endif
-// tends to grow with sqrt size, hardly affected by trimming
-#define MAXPATHLEN (8 << (SIZESHIFT/2))
+// grow with cube root of size, hardly affected by trimming
+#define MAXPATHLEN (8 << (SIZESHIFT/3))
 
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
