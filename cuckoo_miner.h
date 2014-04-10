@@ -24,12 +24,12 @@
 // higher values are not that interesting
 #define PART_BITS 0
 #endif
-// L3 cache should exceed NBUCKETS buckets of BUCKETSIZE uint_64_t (2MB below)
+// L3 cache should exceed NBUCKETS buckets of BUCKETSIZE uint_64_t (0.5MB below)
 #ifndef LOGNBUCKETS
-#define LOGNBUCKETS	9
+#define LOGNBUCKETS	8
 #endif
 #ifndef BUCKETSIZE
-#define BUCKETSIZE	512
+#define BUCKETSIZE	256
 #endif
 
 #ifndef IDXSHIFT
@@ -206,6 +206,7 @@ typedef struct {
   int id;
   pthread_t thread;
   cuckoo_ctx *ctx;
+  u64 (* buckets)[BUCKETSIZE];
 } thread_ctx;
 
 void barrier(pthread_barrier_t *barry) {
@@ -224,10 +225,10 @@ void barrier(pthread_barrier_t *barry) {
 
 void trim_edges(thread_ctx *tp) {
   cuckoo_ctx *ctx = tp->ctx;
+  u64 (* buckets)[BUCKETSIZE] = tp->buckets;
   shrinkingset *alive = ctx->alive;
   twice_set *nonleaf = ctx->nonleaf;
   u32 bucketsizes[NBUCKETS];
-  u64 buckets[NBUCKETS][BUCKETSIZE];
 
   for (unsigned part = 0; part <= PART_MASK; part++) {
     for (int uorv = 0; uorv < 2; uorv++) {
@@ -322,6 +323,7 @@ void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
 
 void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
+  assert(tp->buckets = (u64 (*)[BUCKETSIZE])calloc(NBUCKETS * BUCKETSIZE, sizeof(u64)));
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset *alive = ctx->alive;
@@ -380,5 +382,6 @@ void *worker(void *vp) {
       }
     }
   }
+  free(tp->buckets);
   pthread_exit(NULL);
 }

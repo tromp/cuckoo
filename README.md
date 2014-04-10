@@ -23,7 +23,7 @@ Cuckoo Cycle represents a breakthrough in three important ways:
 
 3) verification of the proof of work is instant, requiring 2 sha256 and 42x2 siphash computations.
 
-Runtime in Cuckoo Cycle is dominated by memory latency. This promotes the use
+Runtime in Cuckoo Cycle is dominated by memory latency (67%). This promotes the use
 of commodity general-purpose hardware over custom designed single-purpose hardware.
 
 Other features:
