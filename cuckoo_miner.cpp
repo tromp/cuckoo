@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
   for (unsigned s = 0; s < ctx.nsols; s++) {
     printf("Solution");
     for (int i = 0; i < PROOFSIZE; i++)
-      printf(" %lx", ctx.sols[s][i]);
+      printf(" %lx", (long)ctx.sols[s][i]);
     printf("\n");
   }
   return 0;
