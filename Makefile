@@ -55,6 +55,15 @@ cuckoo30.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 speedup30:	cuckoo30 Makefile
 	for i in {1..64}; do echo $$i; (time for j in {0..9}; do ./cuckoo30 -t $$i -h $$j; done) 2>&1; done > speedup30
 
+cuckoo35:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo35 -DSIZESHIFT=35 cuckoo_miner.cpp
+
+cuckoo35.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo35.1 -DPART_BITS=1 -DSIZESHIFT=35 cuckoo_miner.cpp
+
+cuckoo35.2:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo35.2 -DPART_BITS=2 -DSIZESHIFT=35 cuckoo_miner.cpp
+
 Cuckoo.class:	Cuckoo.java Makefile
 	javac -O Cuckoo.java
 
