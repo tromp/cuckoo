@@ -8,16 +8,16 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 class Edge {
-  int u;
-  int v;
+  long u;
+  long v;
 
-  public Edge(int x, int y) {
+  public Edge(long x, long y) {
     u = x;
     v = y;
   }
 
   public int hashCode() {
-    return u^v;
+    return (int)(u^v);
   }
 
   public boolean equals(Object o) {
@@ -27,13 +27,11 @@ class Edge {
 }
 
 public class Cuckoo {
-  public static final int SIZEMULT = 1;
-  public static final int SIZESHIFT = 25;
+  public static final int SIZESHIFT = 20;
   public static final int PROOFSIZE = 42;
-  public static final int SIZE = SIZEMULT*(1<<SIZESHIFT);
-  // relatively prime partition sizes, assuming SIZESHIFT >= 2
-  public static final int PARTU  = SIZE/2+1;
-  public static final int PARTV  = SIZE/2-1;
+  public static final long SIZE = 1 << SIZESHIFT;
+  public static final long HALFSIZE  = SIZE/2;
+  public static final long NODEMASK  = HALFSIZE - 1;
 
   long v[] = new long[4];
 
@@ -64,9 +62,8 @@ public class Cuckoo {
     }
   }
 
-  public long siphash24(int nonce) {
-    long b = 4L << 56 | nonce;
-    long v0 = v[0], v1 = v[1], v2 = v[2], v3 = v[3] ^ b;
+  public long siphash24(long nonce) {
+    long v0 = v[0], v1 = v[1], v2 = v[2], v3 = v[3] ^ nonce;
 
     v0 += v1; v2 += v3; v1 = (v1 << 13) | v1 >>> 51;
                         v3 = (v3 << 16) | v3 >>> 48;
@@ -82,7 +79,7 @@ public class Cuckoo {
                         v3 = (v3 << 21) | v3 >>> 43;
     v1 ^= v2; v3 ^= v0; v2 = (v2 << 32) | v2 >>> 32;
 
-    v0 ^= b; v2 ^= 0xff;
+    v0 ^= nonce; v2 ^= 0xff;
 
     v0 += v1; v2 += v3; v1 = (v1 << 13) | v1 >>> 51;
                         v3 = (v3 << 16) | v3 >>> 48;
@@ -115,33 +112,30 @@ public class Cuckoo {
     return v0 ^ v1 ^ v2 ^ v3;
   }
 
-  // return u % m with u considered unsigned and assuming m > 0
-  private static int remainder(long u, int m) {
-    int i = (int)((u >>> 1) % m);
-    int j = (i << 1) + (int)(u & 1);
-    return j < m ? j : j - m;
-  }
-
   // generate edge in cuckoo graph
-  public Edge sipedge(int nonce) {
-    long sip = siphash24(nonce);
-    return new Edge(1 +         remainder(sip, PARTU),
-                    1 + PARTU + remainder(sip, PARTV));
+  public long sipnode(long nonce, int uorv) {
+    return siphash24(2*nonce + uorv) & NODEMASK;
+  }
+  
+  // generate edge in cuckoo graph
+  public Edge sipedge(long nonce) {
+    return new Edge(sipnode(nonce,0), sipnode(nonce,1));
   }
   
   // verify that (ascending) nonces, all less than easiness, form a cycle in graph
-  public Boolean verify(int[] nonces, int easiness) {
-    Edge edges[] = new Edge[PROOFSIZE];
+  public Boolean verify(long[] nonces, int easiness) {
+    long us[] = new long[PROOFSIZE], vs[] = new long[PROOFSIZE];
     int i = 0, n;
     for (n = 0; n < PROOFSIZE; n++) {
       if (nonces[n] >= easiness || (n != 0  && nonces[n] <= nonces[n-1]))
         return false;
-      edges[n] = sipedge(nonces[n]);
+      us[n] = sipnode(nonces[n],0);
+      vs[n] = sipnode(nonces[n],1);
     }
     do {  // follow cycle until we return to i==0; n edges left to visit
       int j = i;
       for (int k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
-        if (k != i && edges[k].v == edges[i].v) {
+        if (k != i && vs[k] == vs[i]) {
           if (j != i)
             return false;
           j = k;
@@ -150,7 +144,7 @@ public class Cuckoo {
         return false;
       i = j;
       for (int k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
-        if (k != j && edges[k].u == edges[j].u) {
+        if (k != j && us[k] == us[j]) {
           if (i != j)
             return false;
           i = k;
@@ -172,10 +166,10 @@ public class Cuckoo {
         header = argv[++i];
       }
     }
-    System.out.println("Verifying size " + PROOFSIZE + " proof for cuckoo" + SIZEMULT + SIZESHIFT + "(\"" + header + "\") with " + easipct + "% edges");
+    System.out.println("Verifying size " + PROOFSIZE + " proof for cuckoo" + SIZESHIFT + "(\"" + header + "\") with " + easipct + "% edges");
     Scanner sc = new Scanner(System.in);
     sc.next();
-    int nonces[] = new int[PROOFSIZE];
+    long nonces[] = new long[PROOFSIZE];
     for (int n = 0; n < PROOFSIZE; n++) {
       nonces[n] = Integer.parseInt(sc.next(), 16);
     }
@@ -187,8 +181,8 @@ public class Cuckoo {
       System.exit(1);
     }
     System.out.print("Verified with cyclehash ");
-    ByteBuffer buf = ByteBuffer.allocate(PROOFSIZE*4);
-    buf.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().put(nonces);
+    ByteBuffer buf = ByteBuffer.allocate(PROOFSIZE*8);
+    buf.order(ByteOrder.LITTLE_ENDIAN).asLongBuffer().put(nonces);
     byte[] cyclehash;
     try {
       cyclehash = MessageDigest.getInstance("SHA-256").digest(buf.array());

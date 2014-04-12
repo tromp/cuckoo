@@ -7,7 +7,7 @@
 int main(int argc, char **argv) {
   int nthreads = 1;
   int maxsols  = 8;
-  int ntrims   = 8;
+  int ntrims   = 8 << PART_BITS;
   const char *header = "";
   int c;
   while ((c = getopt (argc, argv, "h:m:n:t:")) != -1) {
@@ -26,8 +26,14 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, and %d threads\n",
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %d threads\n",
                PROOFSIZE, SIZESHIFT, header, ntrims, nthreads);
+  u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*4;
+  int edgeUnit, nodeUnit;
+  for (edgeUnit=0; edgeBytes >= 1024; edgeBytes>>=10,edgeUnit++) ;
+  for (nodeUnit=0; nodeBytes >= 1024; nodeBytes>>=10,nodeUnit++) ;
+  printf("Using %d%cB edge and %d%cB node memory.\n",
+     (int)edgeBytes, " KMGT"[edgeUnit], (int)nodeBytes, " KMGT"[nodeUnit]);
   cuckoo_ctx ctx(header, nthreads, ntrims, maxsols);
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);

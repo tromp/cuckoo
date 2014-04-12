@@ -49,29 +49,26 @@ speedup:	cuckoo28 Makefile
 cuckoo30:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo30 -DSIZESHIFT=30 cuckoo_miner.cpp
 
-cuckoo30.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo30.1 -DPART_BITS=1 -DSIZESHIFT=30 cuckoo_miner.cpp
-
 speedup30:	cuckoo30 Makefile
 	for i in {1..64}; do echo $$i; (time for j in {0..9}; do ./cuckoo30 -t $$i -h $$j; done) 2>&1; done > speedup30
 
-cuckoo35:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo35 -DSIZESHIFT=35 cuckoo_miner.cpp
+cuckoo32:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo32 -DSIZESHIFT=32 cuckoo_miner.cpp
 
-cuckoo35.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo35.1 -DPART_BITS=1 -DSIZESHIFT=35 cuckoo_miner.cpp
+cuckoo32.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo32.1 -DPART_BITS=1 -DSIZESHIFT=32 cuckoo_miner.cpp
 
-cuckoo35.2:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo35.2 -DPART_BITS=2 -DSIZESHIFT=35 cuckoo_miner.cpp
+cuckoo32.2:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo32.2 -DPART_BITS=2 -DSIZESHIFT=32 cuckoo_miner.cpp
 
 Cuckoo.class:	Cuckoo.java Makefile
 	javac -O Cuckoo.java
 
-CuckooMiner.class:	Cuckoo.java CuckooMiner.java Makefile
-	javac -O Cuckoo.java CuckooMiner.java
+SimpleMiner.class:	Cuckoo.java SimpleMiner.java Makefile
+	javac -O Cuckoo.java SimpleMiner.java
 
-java:	Cuckoo.class CuckooMiner.class Makefile
-	java CuckooMiner -h 6 | tail -1 | java Cuckoo -h 6
+java:	Cuckoo.class SimpleMiner.class Makefile
+	java SimpleMiner -h 85 | tail -1 | java Cuckoo -h 85
 
 cuda:	cuda_miner.cu Makefile
 	nvcc -std=c++11 -o cuda -DSIZESHIFT=4 -arch sm_20 cuda_miner.cu -lcrypto
