@@ -61,6 +61,9 @@ cuckoo32.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo32.2:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32.2 -DPART_BITS=2 -DSIZESHIFT=32 cuckoo_miner.cpp
 
+verify32:	cuckoo.h cuckoo.c Makefile
+	$(CC) -o verify32 -DSIZESHIFT=32 cuckoo.c
+
 Cuckoo.class:	Cuckoo.java Makefile
 	javac -O Cuckoo.java
 
