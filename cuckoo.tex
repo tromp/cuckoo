@@ -51,7 +51,12 @@ Recently, another prime-number based crypto-currency, Riecoin, was introduced, b
 on finding clusters rather than chains of prime numbers.
 
 \section{Graph-theoretic proofs-of-work}
-We propose to base proofs-of-work on finding certain subgraphs in large random graphs.
+We propose to base proofs-of-work on finding certain subgraphs in large pseudo-random graphs.
+In the Erd\H{o}s-R\'{e}nyi model, denoted $G(N,M)$, a graph is chosen uniformly at random
+from the collection of all graphs with $N$ nodes and $M$ edges. Instead, we choose edges
+deterministically from the output of a keyed hash function, whose key could be chosen
+uniformly at random. For a well-behaved hash function, these two classes of random graphs
+should have nearly identical  properties.
 Formally, fix a keyed hash function
 $h: \{0,1\}^K \times \{0,1\}^W_i \rightarrow \{0,1\}^W_o$/footnote{hash functions generally
 have arbitrary length inputs, but here we fix the input width at $W_i$ bits.},
@@ -75,6 +80,7 @@ and
 \begin{equation}
 E=\{(u_{h(k,2i) \bmod \frac{N}{2}}, v_{h(k,2i+1) \bmod \frac{N}{2}}) | i \in [0,\ldots,M-1]\}
 \end{equation}
+
 
 The expected number of occurances of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
 and in many cases it is roughly a function of the ratio $\frac{M}{N}$.
@@ -193,9 +199,9 @@ from one root to another, with no need to reverse any edges. Conversely, our alg
 can be seen as the first one that solves the union-find problem by maintaining
 a direction on all union operations while keeping the maximum outdegree at 1.
 
-\section{Cuckoo Cycle simple algorithm}
+\section{Cuckoo Cycle basic algorithm}
 The above algorithm for inserting edges and detecting cycles forms the basis
-for our first proof-of-work algorithm.
+for our basic proof-of-work algorithm.
 If a cycle of length $L$ is found, then we solved the problem, and recover the proof
 by storing the cycle edges in a set and enumerating nonces once more to see which ones
 generte edged in the set.
@@ -211,12 +217,7 @@ also has a Makefile, as well as the latest version of this paper.
 % `make test' tests everything.
 `make example' reproduces the example shown above.
 The simple program uses 32 bits per node to represent the directed cuckoo graph,
-plus about 56KB per thread for 3 auxiliary arrays.
-The {\tt us} and {\tt vs} arrays not only record traversed paths,
-but also double as a mini cuckoo table used for storing edges of a solution cycle,
-allowing easy recovery of the proof nonces.
-The {\tt uvpre} array precomputes edges in blocks of 1024, which was found (inexplicably)
-to save up to 30\% runtime.
+plus about 64KB per thread for 2 auxiliary arrays.
 The left plot below shows both the total runtime in seconds and the runtime of just
 the hash computation, as a function of (log)size. The latter is purely
 linear, while the former is superlinear due to increasing memory latency
@@ -256,10 +257,6 @@ as the percentage of hashing to total runtime, ending up around 5\%.
 \end{tikzpicture}
 \end{center}
 
-% A simultaneous multi-threading (SMT) implementation should be able to
-% completely hide the hash computations inside memory access latencies for the bigger sizes.
-On a 3.2GHz Intel Core i5, size $2^{20}$ takes 4MB and 0.025s, size
-$2^{25}$ takes 128MB and 2.5s, and size $2^{30}$ takes 4GB and 128s, or roughly half a minute per GB.
 The left plot below shows the probability of finding a 42-cycle as a function
 of the percentage edges/nodes (relative easiness), while the right plot shows the average number of
 memory reads and writes per edge as a function of the percentage
@@ -307,11 +304,14 @@ and we impose the additional constraint that the sha256 digest of the
 cycle nonces in ascending order be less than $T$, thus
 reducing the success probability by a factor $2^{256}/T$.
 
+\section{Edge Trimming}
+Dave Anderson~\cite{dga2014} suggested drastically reducing the number of edges
+our basic algorithm has to process, by repeatedly identifying nodes of degree one
+and eliminating its incident edge, which can never be part of a cycle.
+
+This is implemented in our main algorithm in cuckoo_miner.h
+
 \section{Memory-hardness}
-I conjecture that this problem doesn't allow for a time-memory trade-off. If
-one were to store only a fraction $p$ of $V_0$ and $V_1$, then one would have
-to reject a fraction $p^2$ of generated edges, drastically reducing the odds of
-finding cycles for $p<1/\sqrt{2}$ (the reduction being exponential in cycle length).
 
 \section{Parallelization}
 The implementation allows the number of threads to be set with option {\tt -t}.
