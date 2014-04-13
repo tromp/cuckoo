@@ -58,18 +58,22 @@ have arbitrary length inputs, but here we fix the input width at $W_i$ bits.},
 and a small graph $H$ as a target subgraph.
 Now pick a large number $N \leq 2^W_o$ as the number of nodes,
 and $M \leq 2^{W_i-1}$ as the number of edges.
-Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{0,\ldots,N-1\}$, and
+Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{v_0,\ldots,v_{N-1}\}$, and
 \begin{equation}
-E=\{(h(k,2i) \bmod N,h(k,2i+1) \bmod N) | i \in [0,\ldots,M-1]\}
+E=\{(v_{h(k,2i) \bmod N},v_{h(k,2i+1) \bmod N}) | i \in [0,\ldots,M-1]\}
 \end{equation}
+The inputs $i\ in [0,\ldots,M-1]$ are also called {\em nonces}.
 The graph has a {\em solution} if $H$ occurs as a subgraph.
 Denote the number of edges in h as $|H|$.
-A proof of solution is an ordered list of $|H|$ numbers that generate the edges of $H$'s occurance in $G$.
+A proof of solution is an ordered list of $|H|$ nonces that generate the edges
+of $H$'s occurance in $G$.
 Such a proof is verifiable in constant time, independent of $N$ and $M$.
 
 A simple variation generates random bipartite graphs:
+$G_k = (U \cup V,E)$ where $U=\{u_0,\ldots,u_{\frac{N}{2}-1}\}$, $V=\{v_0,\ldots,v_{\frac{N}{2}-1}\}$,
+and
 \begin{equation}
-E=\{(h(k,2i) \bmod \frac{N}{2}, \frac{N}{2} + (h(k,2i+1) \bmod \frac{N}{2}) | i \in [0,\ldots,M-1]\}
+E=\{(u_{h(k,2i) \bmod \frac{N}{2}}, v_{h(k,2i+1) \bmod \frac{N}{2}}) | i \in [0,\ldots,M-1]\}
 \end{equation}
 
 The expected number of occurances of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
@@ -96,13 +100,12 @@ location is found, or some maximum number of iterations is reached.
 The latter is bound to happen once cycles have formed in the {\em Cuckoo graph}.
 This is a bipartite graph with a node for each location and an
 edge for every key, connecting the two locations it can reside at.
-
-It follows that the hash based random bipartite graph construction of our
-proof-of-work scheme matches the underlying structure of Cuckoo hashing.
+It also matches the bipartite graph defined above if the cucko hashtable
+were based on function $h$.
 In fact, the insertion procedure suggest a simple algorithm for detecting cycles.
 
 \section{Cycle detection in Cuckoo hashing}
-We enumerate the $E$ nonces, but instead of storing the nonce itself as a key
+We enumerate the $M$ nonces, but instead of storing the nonce itself as a key
 in the Cuckoo hashtable, we store the alternate key location at the key
 location, and forget about the nonce.  We thus maintain the {\em directed}
 cuckoo graph, in which the edge for a key is directed from the location where
@@ -119,74 +122,63 @@ endpoint to its root.
 In case of different roots, we reverse all edges on the shorter of the two
 paths, and finally create the edge for the new key itself, thereby joining
 the two trees into one.
-The left diagram below shows the directed cuckoo graph for header `header' on
-$N=9+7$ nodes after adding edges
-$(3,16),(5,15),(6,16),(7,16),(5,10),(6,13),(6,12),(9,14)$ and $(4,14)$ (nodes
+The left diagram below shows the directed cuckoo graph for header `39' on
+$N=8+8$ nodes after adding edges
+$(1,15),(2,12),(4,10),(2,15),(6,13),(5,10)$ and $(2,14)$ (nodes
 with no incident edges are omitted for clarity).
-In order to add the 10th edge $(7,10)$, we follow the paths $7 \rightarrow 16
-\rightarrow 3$ and $10 \rightarrow 5$ to find different roots $3$ and $5$.
-Since the latter path is shorter, we reverse it to $5 \rightarrow 10$ so we
-can add the new edge as $(10 \rightarrow 7)$, resulting in the right diagram.
+In order to add the 8th edge $(5,13)$, we follow the paths $5 \rightarrow 10
+\rightarrow 4$ and $13 \rightarrow 6$ to find different roots $4$ and $6$.
+Since the latter path is shorter, we reverse it to $6 \rightarrow 13$ so we
+can add the new edge as $(13 \rightarrow 5)$. In order to add to 9th edge
+$(5,14)$ we now find the path from $5$ to be the shorter one, so we reverse
+that and add the new edge as $(5 \rightarrow 14)$, resulting in the right diagram.
 \begin{center}
 \begin{tikzpicture}[>=stealth]
-\node  (3) at (1, 2) [shape=circle,draw] {3};
-\node  (4) at (2, 2) [shape=circle,draw] {4};
-\node  (5) at (3, 2) [shape=circle,draw] {5};
-\node  (6) at (4, 2) [shape=circle,draw] {6};
-\node  (7) at (5, 2) [shape=circle,draw] {7};
-\node  (9) at (6, 2) [shape=circle,draw] {9};
+\node  (1) at (1, 2) [shape=circle,draw] {1};
+\node  (2) at (2, 2) [shape=circle,draw] {2};
+\node  (4) at (3, 2) [shape=circle,draw] {4};
+\node  (5) at (4, 2) [shape=circle,draw] {5};
+\node  (6) at (5, 2) [shape=circle,draw] {6};
 \node (10) at (1,-1) [shape=circle,draw] {10};
 \node (12) at (2,-1) [shape=circle,draw] {12};
 \node (13) at (3,-1) [shape=circle,draw] {13};
 \node (14) at (4,-1) [shape=circle,draw] {14};
 \node (15) at (5,-1) [shape=circle,draw] {15};
-\node (16) at (6,-1) [shape=circle,draw] {16};
-\draw [->] (16) -- (3);
-\draw [->] (15) -- (5);
-\draw [->]  (6) -- (16);
-\draw [->]  (7) -- (16);
-\draw [->] (10) -- (5);
+\draw [->] (15) -- (1);
+\draw [->] (12) -- (2);
+\draw [->] (10) -- (4);
+\draw [->]  (2) -- (15);
 \draw [->] (13) -- (6);
-\draw [->] (12) -- (6);
-\draw [->] (14) -- (9);
-\draw [->]  (4) -- (14);
-\end{tikzpicture}\hspace{3cm}\begin{tikzpicture}[>=stealth]
-\node  (3) at (1, 2) [shape=circle,draw] {3};
-\node  (4) at (2, 2) [shape=circle,draw] {4};
-\node  (5) at (3, 2) [shape=circle,draw] {5};
-\node  (6) at (4, 2) [shape=circle,draw] {6};
-\node  (7) at (5, 2) [shape=circle,draw] {7};
-\node  (9) at (6, 2) [shape=circle,draw] {9};
-\node (10) at (1,-1) [shape=circle,draw] {10};
-\node (12) at (2,-1) [shape=circle,draw] {12};
-\node (13) at (3,-1) [shape=circle,draw] {13};
-\node (14) at (4,-1) [shape=circle,draw] {14};
-\node (15) at (5,-1) [shape=circle,draw] {15};
-\node (16) at (6,-1) [shape=circle,draw] {16};
-\draw [->] (16) -- (3);
-\draw [->] (15) -- (5);
-\draw [->]  (6) -- (16);
-\draw [->]  (7) -- (16);
 \draw [->]  (5) -- (10);
-\draw [->] (13) -- (6);
-\draw [->] (12) -- (6);
-\draw [->] (14) -- (9);
-\draw [->]  (4) -- (14);
-\draw [->] (10) -- (7);
+\draw [->] (14) -- (2);
+\end{tikzpicture}\hspace{3cm}\begin{tikzpicture}[>=stealth]
+\node  (1) at (1, 2) [shape=circle,draw] {1};
+\node  (2) at (2, 2) [shape=circle,draw] {2};
+\node  (4) at (3, 2) [shape=circle,draw] {4};
+\node  (5) at (4, 2) [shape=circle,draw] {5};
+\node  (6) at (5, 2) [shape=circle,draw] {6};
+\node (10) at (1,-1) [shape=circle,draw] {10};
+\node (12) at (2,-1) [shape=circle,draw] {12};
+\node (13) at (3,-1) [shape=circle,draw] {13};
+\node (14) at (4,-1) [shape=circle,draw] {14};
+\node (15) at (5,-1) [shape=circle,draw] {15};
+\draw [->] (15) -- (1);
+\draw [->] (12) -- (2);
+\draw [->]  (4) -- (10);
+\draw [->]  (2) -- (15);
+\draw [->]  (6) -- (13);
+\draw [->] (10) -- (5);
+\draw [->] (14) -- (2);
+\draw [->] (13) -- (5);
+\draw [->]  (5) -- (14);
 \end{tikzpicture}
 \end{center}
-When adding the 11th edge $(3,15)$, we find the singleton path $3$ and the
-path $15 \rightarrow 5 \rightarrow 10 \rightarrow 7 \rightarrow 16
-\rightarrow 3$ with equal roots.
+When adding the 10th edge $(4,12)$, we find the paths $4 \rightarrow 10
+\rightarrow 5 \rightarrow 14 \rightarrow 2 \rightarrow 15 \rightarrow 1$ and
+$12 \rightarrow 2 \rightarrow 15 \rightarrow  1$ with equal roots.
 In this case, we can compute the length of the resulting cycle as
 1 plus the sum of the path-lengths to the node where the two paths first join.
-In the diagram, the paths first join at the root, and the cycle length is computed as $1+0+5=6$.
-If the cycle length equals $L$, then we solved the problem, and recover the proof
-by enumerating nonces once more and checking which ones formed the cycle.
-If not, then we keep the graph acyclic by ignoring the edge.
-There is some probability of overlooking other $L$-cycles
-through that edge, but in the important case of having few cycles
-in the cuckoo graph to begin with, it hardly affects the rate of solution finding.
+In the diagram, the paths first join at $2$, and the cycle length is computed as $1+4+1=6$.
 
 \section{Union-find}
 The above representation of the directed cuckoo graph is an example of
@@ -201,12 +193,24 @@ from one root to another, with no need to reverse any edges. Conversely, our alg
 can be seen as the first one that solves the union-find problem by maintaining
 a direction on all union operations while keeping the maximum outdegree at 1.
 
-\section{Implementation and performance}
-The C-program listed in the Appendix is also available online at
-\url{https://github.com/tromp/cuckoo} together with a Makefile,
-proof verifier and the latest version of this paper. `make test' tests everything.
+\section{Cuckoo Cycle simple algorithm}
+The above algorithm for inserting edges and detecting cycles forms the basis
+for our first proof-of-work algorithm.
+If a cycle of length $L$ is found, then we solved the problem, and recover the proof
+by storing the cycle edges in a set and enumerating nonces once more to see which ones
+generte edged in the set.
+If a cycle of a different length is found, then we keep the graph acyclic by ignoring the edge.
+There is some probability of overlooking other $L$-cycles
+through that edge, but in the important case of having few cycles
+in the cuckoo graph to begin with, it hardly affects the rate of solution finding.
+
+This algorithm is available online at \url{https://github.com/tromp/cuckoo}
+as either the C-program simple_miner.cpp or the Java program SimpleMiner.java.
+A proof verifier is available as cuckoo.c or Cuckoo.java, while the repository
+also has a Makefile, as well as the latest version of this paper.
+% `make test' tests everything.
 `make example' reproduces the example shown above.
-The main program uses 32 bits per node to represent the directed cuckoo graph,
+The simple program uses 32 bits per node to represent the directed cuckoo graph,
 plus about 56KB per thread for 3 auxiliary arrays.
 The {\tt us} and {\tt vs} arrays not only record traversed paths,
 but also double as a mini cuckoo table used for storing edges of a solution cycle,
