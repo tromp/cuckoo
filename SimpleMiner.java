@@ -6,7 +6,6 @@ import java.util.HashSet;
 
 class CuckooSolve {
   static final int MAXPATHLEN = 4096;
-  static final int PRESIP = 1024;
   Cuckoo graph;
   int easiness;
   int[] cuckoo;
@@ -41,7 +40,7 @@ class CuckooSolve {
   
   public synchronized void solution(int[] us, int nu, int[] vs, int nv) {
     Set<Edge> cycle = new HashSet<Edge>();
-    int c, n;
+    int n;
     cycle.add(new Edge(us[0],vs[0]-Cuckoo.HALFSIZE));
     while (nu-- != 0) // u's in even position; v's in odd
       cycle.add(new Edge(us[(nu+1)&~1],us[nu|1]-Cuckoo.HALFSIZE));
@@ -105,7 +104,7 @@ public class SimpleMiner implements Runnable {
     int nthreads = 1;
     int maxsols = 8;
     String header = "";
-    int c, easipct = 50;
+    int easipct = 50;
     for (int i = 0; i < argv.length; i++) {
       if (argv[i].equals("-e")) {
         easipct = Integer.parseInt(argv[++i]);

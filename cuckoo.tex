@@ -13,9 +13,9 @@
 
 \begin{abstract}
 We introduce the first graph-theoretic proof-of-work system,
-based on finding cycles on large random graphs.
-Such problems are arbitrarily scalable trivially verifiable.
-Our implementation requires the use of 1 bit per edge.
+based on finding cycles in large random graphs.
+Such problems are arbitrarily scalable and trivially verifiable.
+Our implementation uses 1 bit per edge, and up to 1 bit per node.
 We hypothesize that using less causes superlinear slowdown.
 \end{abstract}
 
@@ -28,92 +28,61 @@ recipient's attention, they now form one of the cornerstones of
 crypto-currencies.
 
 As proof-of-work for new blocks of transactions,
-Bitcoin~\cite{nakamoto2009bitcoin} uses hashcash~\cite{back2002}.
+Bitcoin~\cite{nakamoto2009bitcoin} adopted Adam Back's hashcash~\cite{back2002} proof-of-work.
 This requires finding a nonce value such that
-twofold application of the cryptographic hash function SHA256
+application of a cryptographic hash function (twofold SHA256 in Bitcoin's case)
 to this nonce (and the rest of the block header) results in a number with
-many leading 0s. The bitcoin protocol dynamically adjust this ``difficulty''
-number so as to maintain a 10-minute average block interval. Starting out at
-32 leading zeroes in 2009, the number has steadily climbed and is currently
-at 64, representing an incredible $2^{64}/10$ double-hashes per minute.
-This growth was enabled by the migration of hash computation from 
-desktop processors (CPUs) to graphics-card procecssors (GPUs),
-to field-programmable gate arrays (FPGAs), and finally to custom designed
-chips (ASICs).
+many leading 0s. The number of leading 0s is dynamically adjusted by the protocol
+so as to maintain a certain average block interval (10-minutes for Bitcoin).
 
-Downsides of this development include high investment costs, rapid
-obsolesence, centralization of mining power, and large power consumption.
-Although ASICs are the most energy-efficient way of computing hashes,
-the tiny amount of die-space needed for a single SHA256 circuit allows
-a huge number of them (e.g. 1440 on KnC's Neptune) to be crammed onto a
-single chip, consuming 100s of Watts and requiring ample cooling.
-Thus, energy costs dominate the economics of mining.
+Since Bitcoin, many other crypto-currencies have adopted hashcash, with various
+choices of underlying hash function. the most well-known being {\em scrypt} as
+used in Litecoin.
 
-This has led people to look for alternative proof-of-work systems
-that, by requiring a nontrivial amount of memory, resist such
-massive parallelizability, and narrow the performance gap
-with commodity hardware. Memory chips, in the form of DRAM,
-have only a tiny portion of their circuitry active at any time,
-and thus require orders of magnitude less power.
-
-Litecoin replaces the SHA256 hash function in hashcash by a single round
-version of the {\em scrypt} key derivation function. Its memory requirement
-of 128KB is a compromise between computation-hardness for the prover and
-verification efficiency for the verifier. Although designed to be
-GPU-resistant, GPUs are now at least an order of magnitude faster
-than CPUs for Litecoin mining. ASICs first appeared on the market in early 2014 and are expected to dominate Litecoin mining by the fourth quarter.
-
-Primecoin~\cite{king2013} is an interesting design based on finding long
-Cunningham chains of prime numbers, using a two-step process of filtering
+Primecoin~\cite{king2013} introduced the notion of a number-theoretic proof-of-work,
+as the first alternative to hashcash among crypto-currencies.
+This requires finding long chains of nearly doubled prime numbers, with a certain
+relation to the block header.
+Current algorithms use a two-step process of filtering
 candidates by {\em sieving}, and applying pseudo-primality tests to remaining
-candidates. GPU implementations that outperform CPU ones have recently appeared.
-Downsides to this proof-of-work are its complexity and the scope for
-algorithmic improvements. Its memory requirements, while larger than Litecoin's,
-are still modest.
+candidates. Unlike hashcash, current algorithms for Primecoin are somewhat complex and
+involve many trade-offs.
+Recently, another prime-number based crypto-currency, Riecoin, was introduced, based
+on finding clusters rather than chains of prime numbers.
 
-Momentum~\cite{larimer2013} proposes finding birthday collisions of hash
-outputs as proof-of-work, the simplest way to combine scalable memory usage
-with trivial verifiability. Its memory requirements are not very strict
-though. as Bloom filters or rainbow tables can identify collisions, and
-parallellizes well.
+\section{Graph-theoretic proofs-of-work}
+We propose to base proofs-of-work on finding certain subgraphs in large random graphs.
+Formally, fix a keyed hash function
+$h: \{0,1\}^K \times \{0,1\}^W_i \rightarrow \{0,1\}^W_o$/footnote{hash functions generally
+have arbitrary length inputs, but here we fix the input width at $W_i$ bits.},
+and a small graph $H$ as a target subgraph.
+Now pick a large number $N \leq 2^W_o$ as the number of nodes,
+and $M \leq 2^{W_i-1}$ as the number of edges.
+Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{0,\ldots,N-1\}$, and
+\begin{equation}
+E=\{(h(k,2i) \bmod N,h(k,2i+1) \bmod N) | i \in [0,\ldots,M-1]\}
+\end{equation}
+The graph has a {\em solution} if $H$ occurs as a subgraph.
+Denote the number of edges in h as $|H|$.
+A proof of solution is an ordered list of $|H|$ numbers that generate the edges of $H$'s occurance in $G$.
+Such a proof is verifiable in constant time, independent of $N$ and $M$.
 
-Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
-and present.
+A simple variation generates random bipartite graphs:
+\begin{equation}
+E=\{(h(k,2i) \bmod \frac{N}{2}, \frac{N}{2} + (h(k,2i+1) \bmod \frac{N}{2}) | i \in [0,\ldots,M-1]\}
+\end{equation}
 
-\section{Memory latency; the great equalizer}
-While cpu-speed and (sequential) memory bandwidth are highly variable across
-time and architectures, main memory latencies have remained relatively
-stable. This suggests making the proof-of-work system latency-bound to level
-the mining playing field.
-Ideally, it should have the following properties:
-\begin{description}
-\item[verify-trivial] A proof can be checked in microseconds rather than
- milliseconds.
-\item[scalable] The amount of memory needed is a parameter that can scale
-  arbitrarily.
-\item[linear] Amount of computational steps and memory accesses
-  are linear in the amount of memory.
-\item[tmto-hard] Using only half as much memory should incur several orders
-  of magnitude slowdown.
-\item[random-access] RAM is accessed randomly, making
-  sequential bandwidth and caches mostly irrelevant.
-\item[parallel-hard] The algorithm cannot be parallellized within
-  a single instance, i.e. proof attempt).
-\item[simple] The algorithm should be sufficiently simple that one can be
-  convinced of its optimality.
-\end{description}
-Combined, these properties ensure that a proof-of-work system is entirely
-constrained by main memory latency and scales appropriately for any
-application.
+The expected number of occurances of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
+and in many cases it is roughly a function of the ratio $\frac{M}{N}$.
+For fixed $N$, the function is monotonically increasing in $M$.
+To make the proof-of-work challenging, one chooses a value of $M$ that yields less than one
+expected solution (but not much less).
 
-We introduce the very first graph-theoretic proof-of-work system.
-which aims to satisfy most of the above properties,
-except for parallel-hardness (see the later section on parallelizability).
-Amazingly, it amounts to little more than enumerating nonces and storing them
-in a hashtable. While all hashtables break down when trying to store more
-items than it was designed to handle, in one hashtable design in particular
-this breakdown is of a special nature that can be turned into a concise and
-easily verified proof. Enter the cuckoo hashtable.
+\section{Cuckoo Cycle}
+Perhaps the simplest possible choice of subgraph is the {\em cycle}.
+The reason for calling the resulting proof-of-work Cuckoo Cycle is that
+inserting numbers in a Cuckoo hashtable naturally leads to forming cycles
+in random bipartite graphs!
 
 \section{Cuckoo hashing}
 Introduced by Rasmus Pagh and Flemming Friche
@@ -124,23 +93,15 @@ Upon insertion of a new key, if both locations are already occupied by keys,
 then one is kicked out and inserted in its alternate location, possibly
 displacing yet another key, repeating the process until either a vacant
 location is found, or some maximum number of iterations is reached.
-The latter can only happen once cycles have formed in the {\em Cuckoo graph}.
+The latter is bound to happen once cycles have formed in the {\em Cuckoo graph}.
 This is a bipartite graph with a node for each location and an
 edge for every key, connecting the two locations it can reside at.
-This naturally suggests a proof-of-work problem, which we now formally
-define.
 
-\section{The proof-of-work function}
-Fix an (even) number of nodes $8 \leq N < 2^{64}$, a number of edges $N/4 < E
-\leq N$, and an (even) cycle length $4 \leq L < N$.
-Function $\cuckoo$ maps any 128-bit key $k$ (the header digest) to a
-bipartite graph $G = (V_0 \cup V_1, E)$, where $V_0$ and $V_1$ are disjoint
-set of integers modulo $N/2$, and $E$ has an edge between $\hash(k,2*n) \bmod \frac{N}{2}$
-in $V_0$ and $\hash(k,n) \bmod \frac{N}{2}$ in $V_1$
-for every nonce $0 \leq n < E$. A proof for $G$ is a subset of
-$L$ nonces whose corresponding edges form an $L$-cycle in $G$.
+It follows that the hash based random bipartite graph construction of our
+proof-of-work scheme matches the underlying structure of Cuckoo hashing.
+In fact, the insertion procedure suggest a simple algorithm for detecting cycles.
 
-\section{Solving the proof-of-work problem}
+\section{Cycle detection in Cuckoo hashing}
 We enumerate the $E$ nonces, but instead of storing the nonce itself as a key
 in the Cuckoo hashtable, we store the alternate key location at the key
 location, and forget about the nonce.  We thus maintain the {\em directed}
@@ -400,62 +361,60 @@ This shows some really weird boost at the thread maximum.
 
 \begin{center}
 \begin{tikzpicture}
-\begin{axis}[ymin=0, legend pos=south west]
-\addplot[color=blue] coordinates {
-(1,13.17)(1,13.61) (2,13.72) (3,13.76) (4,13.69) (5,13.48) (6,13.47) (7,13.73) (8,13.57) (9,13.52) (10,13.67) (11,13.65) (12,13.48) (13,13.45) (14,13.35) (15,13.64) (16,13.57) (17,13.31) (18,13.35) (19,13.48) (20,13.24) (21,13.40) (22,13.33) (23,13.36) (24,13.30) (25,13.33) (26,13.45) (27,13.47) (28,13.36) (29,13.12) (30,13.44) (31,13.24) (32,13.27) (33,13.26) (34,13.30) (35,13.22) (36,13.21) (37,13.19) (38,13.13) (39,13.09) (40,13.04) (41,13.13) (42,13.13) (43,13.14) (44,13.27) (45,13.16) (46,13.25) (47,13.04) (48,13.07) (49,13.12) (50,13.04) (51,12.89) (52,13.01) (53,13.02) (54,13.02) (55,12.78) (56,12.98) (57,12.90) (58,12.75) (59,12.82) (60,12.86) (61,12.91) (62,13.01) (63,12.78) };
-\addlegendentry{25}
-\addplot[color=red] coordinates {
-(1,11.29) (2,11.31) (3,11.17) (4,11.13) (5,11.21) (6,11.03) (7,10.98) (8,10.87) (9,10.97) (10,10.80) (11,10.92) (12,10.76) (13,10.64) (14,10.75) (15,10.78) (16,10.66) (17,10.65) (18,10.60) (19,10.62) (20,10.56) (21,10.52) (22,10.44) (23,10.43) (24,10.44) (25,10.38) (26,10.46) (27,10.30) (28,10.20) (29,10.16) (30,10.33) (31,10.35) (32,10.13) (33,10.12) (34,10.25) (35,10.22) (36,10.23) (37,10.07) (38,10.29) (39, 9.96) (40,10.11) (41,10.07) (42,10.05) (43,10.09) (44,10.02) (45, 9.91) (46,10.05) (47, 9.92) (48,10.03) (49, 9.82) (50,10.01) (51, 9.90) (52,10.02) (53, 9.76) (54, 9.72) (55, 9.74) (56, 9.81) (57, 9.54) (58, 9.73) (59, 9.79) (60, 9.54) (61, 9.71) (62, 9.70) (63, 9.82) };
-\addlegendentry{20}
-\addplot[color=green] coordinates {
-(1, 8.97) (2, 8.77) (3, 8.66) (4, 8.58) (5, 8.38) (6, 8.27) (7, 8.18) (8, 8.12) (9, 7.95) (10, 7.97) (11, 7.76) (12, 7.70) (13, 7.65) (14, 7.57) (15, 7.51) (16, 7.44) (17, 7.40) (18, 7.33) (19, 7.20) (20, 7.24) (21, 7.14) (22, 7.07) (23, 7.02) (24, 7.00) (25, 6.93) (26, 6.91) (27, 6.84) (28, 6.83) (29, 6.74) (30, 6.79) (31, 6.69) (32, 6.67) (33, 6.64) (34, 6.54) (35, 6.50) (36, 6.54) (37, 6.52) (38, 6.48) (39, 6.41) (40, 6.38) (41, 6.35) (42, 6.34) (43, 6.31) (44, 6.35) (45, 6.23) (46, 6.17) (47, 6.21) (48, 6.21) (49, 6.16) (50, 6.11) (51, 6.06) (52, 6.04) (53, 6.05) (54, 6.01) (55, 6.02) (56, 5.98) (57, 5.95) (58, 5.92) (59, 5.92) (60, 5.88) (61, 5.86) (62, 5.88) (63, 5.86) };
-\addlegendentry{15}
-\end{axis}
-\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}
 \begin{axis}[ymin=0, legend pos=north west]
 \addplot [color=green] coordinates {
-(1,1.000) (2,1.820) (3,2.858) (4,3.560) (5,4.700) 
-(6,5.374) (7,6.249) (8,6.904) (9,7.895) (10,8.332) 
-(11,9.382) (12,10.091) (13,11.025) (14,11.586) (15,12.477) 
-(16,12.929) (17,13.928) (18,14.517) (19,14.998) (20,15.832) 
-(21,16.521) (22,16.834) (23,17.677) (24,17.501) (25,17.971) 
-(26,18.374) (27,19.012) (28,19.412) (29,19.894) (30,20.537) 
-(31,21.143) (32,21.790) (33,22.298) (34,22.979) (35,23.469) 
-(36,24.050) (37,24.642) (38,25.279) (39,25.647) (40,26.190) 
-};
-\addlegendentry{siphash-2-4}
-\addplot [color=red] coordinates {
 (1,1.000) (2,1.921) (3,2.988) (4,3.757) (5,4.668) 
 (6,5.347) (7,6.138) (8,6.792) (9,7.504) (10,8.108) 
 (11,8.873) (12,9.380) (13,10.061) (14,10.543) (15,11.190) 
 (16,11.608) (17,12.231) (18,12.535) (19,13.008) (20,13.433) 
 };
 \addlegendentry{speedup30}
-\addplot [color=purple] coordinates {
-(1,1.000) (2,1.186) (3,1.618) (4,2.449) (5,2.899) 
-(6,3.247) (7,3.326) (8,3.468) (9,3.661) (10,3.797) 
-(11,3.927) (12,4.961) (13,5.153) (14,5.299) (15,5.271) 
-(16,5.264) (17,5.208) (18,5.228) (19,5.219) (20,8.689) 
-};
-\addlegendentry{ketchup30}
 \addplot [color=blue] coordinates {
-(1,1.000) (2,1.361) (3,1.845) (4,2.758) (5,3.260) 
-(6,3.684) (7,3.848) (8,4.056) (9,4.289) (10,4.500) 
-(11,4.657) (12,5.774) (13,5.999) (14,6.219) (15,6.211) 
-(16,6.275) (17,6.329) (18,6.333) (19,6.346) (20,9.964) 
+(1,1.336) (2,2.179) (3,3.148) (4,3.984) (5,4.781) 
+(6,5.462) (7,6.061) (8,6.706) (9,7.354) (10,7.876) 
+(11,8.333) (12,9.036) (13,9.457) (14,9.838) (15,10.250) 
+(16,10.713) (17,11.048) (18,11.479) (19,11.736) (20,12.088) 
 };
-\addlegendentry{ketchup30.1}
-\addplot [color=orange] coordinates {
-(1,1.000) (2,1.712) (3,2.805) (4,3.428) (5,4.396) 
-(6,5.152) (7,6.194) (8,6.655) (9,7.820) (10,8.245) 
-(11,9.424) (12,9.986) (13,10.417) (14,9.504) (15,12.722) 
-(16,13.477) (17,14.356) (18,15.078) (19,15.602) (20,16.117) 
-(21,10.547) (22,8.559) (23,8.864) (24,10.274) (25,10.760) 
-(26,11.915) (27,13.263) (28,14.735) (29,14.326) (30,14.162) 
-(31,15.923) (32,15.268) (33,16.536) (34,17.369) (35,18.049) 
-(36,18.371) (37,20.241) (38,20.545) (39,20.656) (40,16.951) 
+\addlegendentry{speedup30.0}
+\addplot [color=purple] coordinates {
+(1,0.795) (2,1.416) (3,2.082) (4,2.683) (5,3.255) 
+(6,3.762) (7,4.285) (8,4.759) (9,5.222) (10,5.639) 
+(11,6.105) (12,6.605) (13,7.033) (14,7.400) (15,7.821) 
+(16,8.144) (17,8.583) (18,9.014) (19,9.303) (20,9.585) 
 };
-\addlegendentry{precomputed}
+\addlegendentry{speedup30.1}
+\addplot [color=red] coordinates {
+(1,0.498) (2,0.919) (3,1.373) (4,1.761) (5,2.176) 
+(6,2.538) (7,2.913) (8,3.234) (9,3.599) (10,3.883) 
+(11,4.239) (12,4.527) (13,4.903) (14,5.234) (15,5.570) 
+(16,5.845) (17,6.194) (18,6.511) (19,6.661) (20,7.003) 
+};
+\addlegendentry{speedup30.2}
+\end{axis}
+\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}
+\begin{axis}[ymin=0, legend pos=north west]
+\addplot [color=green] coordinates {
+(1,1.000) (2,1.752) (3,2.813) (4,3.439) (5,5.810) 
+(6,6.762) (7,7.732) (8,8.669) (9,9.646) (10,10.460) 
+(11,11.348) (12,12.077) (13,13.107) (14,13.663) (15,14.698) 
+(16,15.363) (17,16.202) (18,16.623) (19,17.446) (20,18.207) 
+};
+\addlegendentry{speedup32}
+\addplot [color=blue] coordinates {
+(1,2.337) (2,3.767) (3,5.445) (4,6.949) (5,8.319) 
+(6,9.432) (7,10.462) (8,11.632) (9,12.648) (10,13.658) 
+(11,14.717) (12,15.652) (13,16.461) (14,17.286) (15,18.063) 
+(16,18.393) (17,19.149) (18,19.647) (19,20.169) (20,20.761) 
+};
+\addlegendentry{speedup32.0}
+\addplot [color=purple] coordinates {
+(1,1.343) (2,2.404) (3,3.534) (4,4.526) (5,5.570) 
+(6,6.410) (7,7.367) (8,8.208) (9,9.085) (10,9.932) 
+(11,10.707) (12,11.590) (13,12.297) (14,12.954) (15,13.647) 
+(16,14.294) (17,15.060) (18,15.718) (19,16.371) (20,16.804) 
+};
+\addlegendentry{speedup32.1}
+
 \end{axis}
 \end{tikzpicture}
 \end{center}
@@ -528,6 +487,79 @@ distinguish edges to the two neighbouring partitions.
 Setting the size of partition 0 to be relatively prime to $2(K-1)$,
 and making each successive partition smaller by 2,
 ensures that neighbouring partition sizes are relatively prime.
+
+\section{Memory latency; the great equalizer}
+While cpu-speed and (sequential) memory bandwidth are highly variable across
+time and architectures, main memory latencies have remained relatively
+stable. This suggests making the proof-of-work system latency-bound in order
+to level the mining playing field.
+We introduce the very first graph-theoretic proof-of-work system.
+which aims to satisfy most of the above properties,
+except for parallel-hardness (see the later section on parallelizability).
+Amazingly, it amounts to little more than enumerating nonces and storing them
+in a hashtable. While all hashtables break down when trying to store more
+items than it was designed to handle, in one hashtable design in particular
+this breakdown is of a special nature that can be turned into a concise and
+easily verified proof. Enter the cuckoo hashtable.
+
+\section{Related work}
+As proof-of-work for new blocks of transactions,
+Bitcoin~\cite{nakamoto2009bitcoin} uses hashcash~\cite{back2002}.
+This requires finding a nonce value such that
+twofold application of the cryptographic hash function SHA256
+to this nonce (and the rest of the block header) results in a number with
+many leading 0s. The bitcoin protocol dynamically adjust this ``difficulty''
+number so as to maintain a 10-minute average block interval.
+
+Starting out at
+32 leading zeroes in 2009, the number has steadily climbed and is currently
+at 64, representing an incredible $2^{64}/10$ double-hashes per minute.
+This growth was enabled by the migration of hash computation from 
+desktop processors (CPUs) to graphics-card procecssors (GPUs),
+to field-programmable gate arrays (FPGAs), and finally to custom designed
+chips (ASICs).
+
+Downsides of this development include high investment costs, rapid
+obsolesence, centralization of mining power, and large power consumption.
+Although ASICs are the most energy-efficient way of computing hashes,
+the tiny amount of die-space needed for a single SHA256 circuit allows
+a huge number of them (e.g. 1440 on KnC's Neptune) to be crammed onto a
+single chip, consuming 100s of Watts and requiring ample cooling.
+Thus, energy costs dominate the economics of mining.
+
+This has led people to look for alternative proof-of-work systems
+that, by requiring a nontrivial amount of memory, resist such
+massive parallelizability, and narrow the performance gap
+with commodity hardware. Memory chips, in the form of DRAM,
+have only a small portion of their circuitry active at any
+time\footnote{this applies to each of the 8 or so {\em banks} that make up the memory in each chip,
+while operating in parallel} and thus require orders of magnitude less power.
+
+Litecoin replaces the SHA256 hash function in hashcash by a single round
+version of the {\em scrypt} key derivation function. Its memory requirement
+of 128KB is a compromise between computation-hardness for the prover and
+verification efficiency for the verifier. Although designed to be
+GPU-resistant, GPUs are now at least an order of magnitude faster
+than CPUs for Litecoin mining. ASICs first appeared on the market in early 2014
+and are expected to dominate Litecoin mining by the fourth quarter.
+
+Primecoin~\cite{king2013} is the first example of a number-theoretic proof-of-work.
+an interesting number-theoretdesign based on finding long
+Cunningham chains of prime numbers, using a two-step process of filtering
+candidates by {\em sieving}, and applying pseudo-primality tests to remaining
+candidates. GPU implementations that outperform CPU ones have recently appeared.
+Downsides to this proof-of-work are its complexity and the scope for
+algorithmic improvements. Its memory requirements, while larger than Litecoin's,
+are still modest.
+
+Momentum~\cite{larimer2013} proposes finding birthday collisions of hash
+outputs as proof-of-work, the simplest way to combine scalable memory usage
+with trivial verifiability. Its memory requirements are not very strict
+though. as Bloom filters or rainbow tables can identify collisions, and
+parallellizes well.
+
+Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
+and present.
 
 \section{Conclusion}
 Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency
