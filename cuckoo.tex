@@ -89,9 +89,11 @@ expected solution (but not much less).
 
 \section{Cuckoo Cycle}
 The simplest possible choice of subgraph is a fully connected one, or a {\em clique}.
-While an interesting choice, akin to the number-theoretic notion of a prime-cluster
+While an interesting choice, akin to the number-theoretic notion of a prime-cluster,
 as used in Riecoin, we leave its consideration to a future paper.
 In this paper we focus on what is perhaps the next-simplest possible choice, the {\em cycle}.
+Sepcifically, we propose the hash function \hash with a $K=128$ bit key, $W_i = W_O = 64$ input
+and output bits, $N<2^{64}$ a 2-power, $M=N/2$, and $H$ a 42-cycle (more on that in a later section).
 The reason for calling the resulting proof-of-work Cuckoo Cycle is that
 inserting numbers in a Cuckoo hashtable naturally leads to forming cycles
 in random bipartite graphs!
