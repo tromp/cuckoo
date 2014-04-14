@@ -11,7 +11,7 @@ cuckoo:		cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo -g -DSHOW -DLOGNBUCKETS=0 -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 cuckoo_miner.cpp
 
 example:	cuckoo4
-	./cuckoo4 -e 100 -h header
+	./cuckoo4 -e 66 -h 39
 
 cuckoo10:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo10 -DSIZESHIFT=10 cuckoo_miner.cpp

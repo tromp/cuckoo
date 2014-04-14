@@ -17,7 +17,6 @@
 #define HALFSIZE (SIZE/2)
 #define NODEMASK (HALFSIZE-1)
 
-typedef uint32_t u32;
 typedef uint64_t u64;
 typedef u64 nonce_t;
 typedef u64 node_t;

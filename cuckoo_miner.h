@@ -49,6 +49,8 @@
 // grow with cube root of size, hardly affected by trimming
 #define MAXPATHLEN (8 << (SIZESHIFT/3))
 
+typedef uint32_t u32;
+
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
 public:

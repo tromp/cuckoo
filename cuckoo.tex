@@ -16,7 +16,7 @@ We introduce the first graph-theoretic proof-of-work system,
 based on finding cycles in large random graphs.
 Such problems are arbitrarily scalable and trivially verifiable.
 Our implementation uses 1 bit per edge, and up to 1 bit per node.
-We hypothesize that using less causes superlinear slowdown.
+We hypothesize that using significantly less causes superlinear slowdown.
 \end{abstract}
 
 \section{Introduction}
@@ -43,10 +43,9 @@ Primecoin~\cite{king2013} introduced the notion of a number-theoretic proof-of-w
 as the first alternative to hashcash among crypto-currencies.
 This requires finding long chains of nearly doubled prime numbers, with a certain
 relation to the block header.
-Current algorithms use a two-step process of filtering
-candidates by {\em sieving}, and applying pseudo-primality tests to remaining
-candidates. Unlike hashcash, current algorithms for Primecoin are somewhat complex and
-involve many trade-offs.
+Current algorithms use a two-step process of filtering candidates by {\em sieving},
+and applying pseudo-primality tests to remaining candidates.
+These algorithms are somewhat complex and involve many trade-offs.
 Recently, another prime-number based crypto-currency, Riecoin, was introduced, based
 on finding clusters rather than chains of prime numbers.
 
@@ -135,7 +134,8 @@ with no incident edges are omitted for clarity).
 In order to add the 8th edge $(5,13)$, we follow the paths $5 \rightarrow 10
 \rightarrow 4$ and $13 \rightarrow 6$ to find different roots $4$ and $6$.
 Since the latter path is shorter, we reverse it to $6 \rightarrow 13$ so we
-can add the new edge as $(13 \rightarrow 5)$. In order to add to 9th edge
+can add the new edge as $(13 \rightarrow 5)$, resulting in the middle diagram.
+In order to add to 9th edge
 $(5,14)$ we now find the path from $5$ to be the shorter one, so we reverse
 that and add the new edge as $(5 \rightarrow 14)$, resulting in the right diagram.
 \begin{center}
@@ -157,7 +157,26 @@ that and add the new edge as $(5 \rightarrow 14)$, resulting in the right diagra
 \draw [->] (13) -- (6);
 \draw [->]  (5) -- (10);
 \draw [->] (14) -- (2);
-\end{tikzpicture}\hspace{3cm}\begin{tikzpicture}[>=stealth]
+\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}[>=stealth]
+\node  (1) at (1, 2) [shape=circle,draw] {1};
+\node  (2) at (2, 2) [shape=circle,draw] {2};
+\node  (4) at (3, 2) [shape=circle,draw] {4};
+\node  (5) at (4, 2) [shape=circle,draw] {5};
+\node  (6) at (5, 2) [shape=circle,draw] {6};
+\node (10) at (1,-1) [shape=circle,draw] {10};
+\node (12) at (2,-1) [shape=circle,draw] {12};
+\node (13) at (3,-1) [shape=circle,draw] {13};
+\node (14) at (4,-1) [shape=circle,draw] {14};
+\node (15) at (5,-1) [shape=circle,draw] {15};
+\draw [->] (15) -- (1);
+\draw [->] (12) -- (2);
+\draw [->] (10) -- (4);
+\draw [->]  (2) -- (15);
+\draw [->]  (6) -- (13);
+\draw [->]  (5) -- (10);
+\draw [->] (14) -- (2);
+\draw [->] (13) -- (5);
+\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}[>=stealth]
 \node  (1) at (1, 2) [shape=circle,draw] {1};
 \node  (2) at (2, 2) [shape=circle,draw] {2};
 \node  (4) at (3, 2) [shape=circle,draw] {4};
@@ -211,7 +230,7 @@ through that edge, but in the important case of having few cycles
 in the cuckoo graph to begin with, it hardly affects the rate of solution finding.
 
 This algorithm is available online at \url{https://github.com/tromp/cuckoo}
-as either the C-program simple_miner.cpp or the Java program SimpleMiner.java.
+as either the C-program simple\_miner.cpp or the Java program SimpleMiner.java.
 A proof verifier is available as cuckoo.c or Cuckoo.java, while the repository
 also has a Makefile, as well as the latest version of this paper.
 % `make test' tests everything.
@@ -307,61 +326,73 @@ reducing the success probability by a factor $2^{256}/T$.
 \section{Edge Trimming}
 Dave Anderson~\cite{dga2014} suggested drastically reducing the number of edges
 our basic algorithm has to process, by repeatedly identifying nodes of degree one
-and eliminating its incident edge, which can never be part of a cycle.
+and eliminating its incident edge. Such {\em leaf edges} can never be part of a cycle.
+This works whenever the number of edges $M$, is at most half the number of nodes $N$,
+since the expected degree of a node is then at most 1.
 
-This is implemented in our main algorithm in cuckoo_miner.h
+This is implemented in our main algorithm in cuckoo\_miner.h
+It maintains a set of {\em alive} edges as a bit vector. Initially all edges are alive.
+In each of a given number of trimming rounds, it shrinks this set as follows.
+A vector of 2-bit degree counters, one per u-node, is initialzed to all zeroes.
+Next, for all alive edges, compute its u-endpoint and increase the corresponding counter,
+capping the value at 2.
+Next, for all alive edges, compute its u-endpoint and if the corresponding counter is less than 2,
+set the edge to be not-alive.
+These steps are repeated for the other partition, of v-nodes.
+Preprocessor symbol PART\_BITS allows for trading-off node counter storage for time,
+by processing the nodes in multiple passes depending on the value of their least significant bits.
+The memory usage is $M$ bits for the alive set and $N / 2^{\mbox{PART\_BITS}}$ for the counters.
+
+After all edge trimming rounds, the counter memory is freed, and allocated to a
+custom cuckoo\_hashtable that presents the same interface as the simple array in
+the basic algorithm, but gets by with much fewer locations, as long as its {\em load},
+the ratio of remaining edges to number of locations, is significantly less than 1.
+
+The number of trimming rounds, which can be set with option {\tt -n} defaults to
+$2^{3+\mbox{PART\_BITS}}$, which should suffice to get the load below $50\%$.
 
 \section{Memory-hardness}
+Reducing memory usage to a $\frac{1}{2}$ bit per edge is quite challenging.
+One approach is to color one quarter of edges red and the rest blue,
+with the goal of trimming enough red edges so that
+their alive set is sufficiently sparse to allow compression of its bitvector.
+We will proceed on several levels $1,\ldots$ where level $l$ uses $M/2^{1+l}+M/c$ bits,
+for some appropriate constant $c>>1$. This way, total storage over a fixed number of levels
+will be approapriately bounded.
+On level one we repeatedlt trim red leaf edges until most remaining red edges
+are separated from leaves by at least one blue edge. At the next level we identify
+s fraction of blue edges (call them dark blue) that have an endpoint with
+only one adjacent (alive) red edge.
+Then we identify dark blue leaf edges, and go back a level to identify red edges adjacent
+to only dark blue leaf edges, which can now be trimmed. Level 2 must be iterated as
+many times as necessary to cover all blue edges.
+If repeatedly eliminating red edges seperated from leaves by a single blue edge is not
+enough for compression, then we need to recurse a level deeper, to find red edges separated
+by 2 blue edges.
+When the red set can finally be compressed, they can be recolored to blue, and another
+fraction of blue edges recolored to red to undergo the same treatment.
+Altogether, this appears like a rather convoluted process that will likely
+cause a superlinear slowdown.
 
 \section{Parallelization}
 The implementation allows the number of threads to be set with option {\tt -t}.
 For $0\leq t < T$, thread $t$ processes all nonces $t \bmod T$.
-Parallelization presents some algorithmic challenges. Paths from an edge's two endpoints
+Parallelization in the basic algorithm presents some minor algorithmic challenges.
+Paths from an edge's two endpoints
 are not well-defined when other edge additions and path reversals are still in progress.
 One example of such a path conflict is the check for duplicate edges yielding a false negative,
 if in between checking the two endpoints, another thread reverses a path through those nodes.
-Another is the addition of edges $(7,10)$ and $(3,15)$ in the example diagrams.
-If these were to happen in parallel, then the path from $15$ will likely end at $5$ because
-edge $(10 \rightarrow 5)$ hasn't been reversed yet.
-As a result, $(3 \rightarrow 15)$ will be added, not realizing it creates a cyle.
+Another is the inadvertant creation of cycles when a reversal in progress hamper's another thread's
+path following causing it to overlook root equality.
 Thus, in a parallel implementation, path following can no longer be assumed to terminate.
 Instead of using a cycle detection algorithm such as~\cite{1980-brent-cycles}, our implementation
-notices when the path length exceeds MAXPATHLEN (4096 by default),
+notices when the path length exceeds MAXPATHLEN (8192 by default),
 and reports wether this is due to a path conflict.
-The left plot below shows the average number of times that either of the two roots
-for a nonce occurred a given number of nonces ago, showing that there are potentially
-about $10T$ such conflicts.
-Despite these conflicts, and the complete lack of synchronization between threads
-(apart from a solution recording mutex),
-the cuckoo array at any time represents some, possibly cyclic, directed cuckoo graph
-on a subset of proccessed nonces.
-On $2^{20}$ nodes, aborts happened 0.03\% of the time with 2 threads, 0.1\% with 4 threads, 0.27\% with
-8 threars, and 0.2\% with 12 threads.
-They overlooked 0.13\%, 0.31\%, 0.57\%, and 0.17\%, respectiverly, of the 42-cycles
-found by the single-threaded runs.
-Empirically then, path conflicts have negligable effect on multi-threaded performance.
-The percentage of hashing to total runtime shows the same behaviour as in the single-threaded case,
-with a dual Xeon X5670 machine spending only 5.5\% of wallclock time on hashing with $2^{28}$ nodes.
 
-The right plot shows in green the speedup achieved by up to 40 threads on a system with two Intel Xeon
-E5-2690 cpus, each which 10 hyperthreaded cores running at 3GHz.
-Each datapoint represents 10 runs on $2^{30}$ nodes with headers "0" through "9".
-Although the speedup is sublinear at 26 for 40 threads, it doesn't look like the memory interface
-is saturated yet. Since we don't have access to more than 40 threads, we tried two alternative
-approaches to see happens when the memory access frequency increases further,
-%In the first approach we reduce the number of rounds in the \hash function, shown in red and blue.
-%We checked with 10,000 test-runs on cuckoo125 that reducing the number of siphash rounds
-%has no noticeable effect on cycle length distribution.
-In the second approach we precompute all the hashes, shown in orange.
-This shows some sort of breakdown of the memory interface starting from 21 threads,
-which is presumably where hyperthreading starts to kick in.
-It is perhaps odd that such a hyperthreading transition is completely absent from the green line.
-Since the hash precomputation showed a significant speedup, the implementation was changed
-to make it the default.
-Reproducing the other curves requires compilation with -DPRESIP=0 for C or setting CuckooSolve.PRESIP=1 for java.
+In the main algorithm, cycle detection only takes a small fraction of total runtime and
+the conflicts above could be avoided altogether by running the cycle detection single threaded.
+We therefore turn our attention to parallelization of edge trimming.
 
-UPDATE: We added 3 curves for the new implementation with 21x reduced memory, tested up to 20 threads.
-This shows some really weird boost at the thread maximum.
 
 \begin{center}
 \begin{tikzpicture}
@@ -424,12 +455,10 @@ This shows some really weird boost at the thread maximum.
 \end{center}
 
 \section{Choice of cycle length}
-Extremely small cycle lengths risk the feasability of alternative datastructures that
-are more memory-efficient. For example, for $L=2$ the problem reduces to finding a birthday collision
+Extremely small cycle lengths risk the feasability of alternative algorithms with better performance.
+For example, for $L=2$ the problem reduces to finding a birthday collision
 as in the Momentum proof-of-work.
 It is conceivable however that the Cuckoo representation is already optimal for $L=4$.
-Such small values still harm the TMTO resistance though, as mentioned in the previous paragraph,
-and may reduce parallelization resistance.
 In order to keep proof size manageable, the cycle length should not be too large either.
 We consider 20-64 to be a healthy range, which averages to 42.
 The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
@@ -470,53 +499,36 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 \end{tikzpicture}
 \end{center}
 
-\section{Choice of memory size}
-The memory requirement should exceed that of the largest available
-single-chip memory to enforce off-chip latencies. It should also be a
-significant fraction of the typical memory of a botnet computer,
-With a significant risk of sending machines into swap-hell and
-likely alerting its owner, botnet operators will refrain from deploying
-Cuckoo Cycle, prefering other proof-of-work schemes whose smaller memory
-footprint allows them to stay under the radar.
-With memory sizes doubling roughly every 18 months, 16GB will become
-commonplace in a few years.
-While the current algorithm can accomodate up to $N=2^{33}-2$ nodes
-(32GB) by separately keeping track of which partition a vertex is in,
-a different idea is needed to scale beyond that.
-To that end, we propose to use $K$-partite graphs with edges only between
-partition $k$ and partition $(k+1) \bmod K$, where $k$ is fed into the hash
-function along with the header and nonce. With each partition consisting of
-at most $2^{31}-1$ nodes, the most significant bit is then available to
-distinguish edges to the two neighbouring partitions.
-Setting the size of partition 0 to be relatively prime to $2(K-1)$,
-and making each successive partition smaller by 2,
-ensures that neighbouring partition sizes are relatively prime.
+% \section{Choice of memory size}
+% The memory requirement should exceed that of the largest available
+% single-chip memory to enforce off-chip latencies.
+% It should also be a
+% significant fraction of the typical memory of a botnet computer,
+% With a significant risk of sending machines into swap-hell and
+% likely alerting its owner, botnet operators will refrain from deploying
+% Cuckoo Cycle, prefering other proof-of-work schemes whose smaller memory
+% footprint allows them to stay under the radar.
+% With memory sizes doubling roughly every 18 months, 16GB will become
+% commonplace in a few years.
+The main implementation can easily handle $N=2^{43}$ nodes which uses 1TB of memory.
 
-\section{Memory latency; the great equalizer}
-While cpu-speed and (sequential) memory bandwidth are highly variable across
-time and architectures, main memory latencies have remained relatively
-stable. This suggests making the proof-of-work system latency-bound in order
-to level the mining playing field.
-We introduce the very first graph-theoretic proof-of-work system.
-which aims to satisfy most of the above properties,
-except for parallel-hardness (see the later section on parallelizability).
-Amazingly, it amounts to little more than enumerating nonces and storing them
-in a hashtable. While all hashtables break down when trying to store more
-items than it was designed to handle, in one hashtable design in particular
-this breakdown is of a special nature that can be turned into a concise and
-easily verified proof. Enter the cuckoo hashtable.
+% \section{Memory latency; the great equalizer}
+% While cpu-speed and (sequential) memory bandwidth are highly variable across
+% time and architectures, main memory latencies have remained relatively
+% stable. This suggests making the proof-of-work system latency-bound in order
+% to level the mining playing field.
+% We introduce the very first graph-theoretic proof-of-work system.
+% which aims to satisfy most of the above properties,
+% except for parallel-hardness (see the later section on parallelizability).
+% Amazingly, it amounts to little more than enumerating nonces and storing them
+% in a hashtable. While all hashtables break down when trying to store more
+% items than it was designed to handle, in one hashtable design in particular
+% this breakdown is of a special nature that can be turned into a concise and
+% easily verified proof. Enter the cuckoo hashtable.
 
-\section{Related work}
-As proof-of-work for new blocks of transactions,
-Bitcoin~\cite{nakamoto2009bitcoin} uses hashcash~\cite{back2002}.
-This requires finding a nonce value such that
-twofold application of the cryptographic hash function SHA256
-to this nonce (and the rest of the block header) results in a number with
-many leading 0s. The bitcoin protocol dynamically adjust this ``difficulty''
-number so as to maintain a 10-minute average block interval.
-
-Starting out at
-32 leading zeroes in 2009, the number has steadily climbed and is currently
+\section{Computation versus memory}
+Starting out at 32 leading zeroes in 2009, Bitcoin difficulty
+has steadily climbed and is currently
 at 64, representing an incredible $2^{64}/10$ double-hashes per minute.
 This growth was enabled by the migration of hash computation from 
 desktop processors (CPUs) to graphics-card procecssors (GPUs),
@@ -547,15 +559,6 @@ GPU-resistant, GPUs are now at least an order of magnitude faster
 than CPUs for Litecoin mining. ASICs first appeared on the market in early 2014
 and are expected to dominate Litecoin mining by the fourth quarter.
 
-Primecoin~\cite{king2013} is the first example of a number-theoretic proof-of-work.
-an interesting number-theoretdesign based on finding long
-Cunningham chains of prime numbers, using a two-step process of filtering
-candidates by {\em sieving}, and applying pseudo-primality tests to remaining
-candidates. GPU implementations that outperform CPU ones have recently appeared.
-Downsides to this proof-of-work are its complexity and the scope for
-algorithmic improvements. Its memory requirements, while larger than Litecoin's,
-are still modest.
-
 Momentum~\cite{larimer2013} proposes finding birthday collisions of hash
 outputs as proof-of-work, the simplest way to combine scalable memory usage
 with trivial verifiability. Its memory requirements are not very strict
@@ -566,11 +569,11 @@ Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
 and present.
 
 \section{Conclusion}
-Cuckoo Cycle is an elegant proof-of-work design emphasizing memory latency
-over computation.  This promotes investment in low-power general purpose
-hardware (RAM) rather than investment in single purpose hardware coupled with
-high operational costs, making mining more sustainable.  More research is
-needed to determine the limits of parallelizability.
+Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines scalable
+memory requirements with instant verifiability. It's also the first proof-of-work in
+which memory latency dominates the runtime, promoting investment in low-power general purpose
+hardware (DRAM) rather than single purpose high-power hardware.
+More research is needed to determine the effectiveness of GPUs for running Cuckoo Cycle.
 
 \bibliographystyle{IEEEtran}
 \bibliography{cuckoo}
@@ -579,10 +582,10 @@ needed to determine the limits of parallelizability.
 \section{Appendix A: cuckoo.h}
 \lstinputlisting{cuckoo.h}
 
-\section{Appendix B: cuckoo\_miner.h}
-\lstinputlisting{cuckoo_miner.h}
+%\section{Appendix B: cuckoo\_miner.h}
+%\lstinputlisting{cuckoo_miner.h}
 
-\section{Appendix C: cuckoo\_miner.cpp}
-\lstinputlisting{cuckoo_miner.cpp}
+%\section{Appendix C: cuckoo\_miner.cpp}
+%\lstinputlisting{cuckoo_miner.cpp}
 
 \end{document}  
