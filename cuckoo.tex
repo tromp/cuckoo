@@ -88,7 +88,10 @@ To make the proof-of-work challenging, one chooses a value of $M$ that yields le
 expected solution (but not much less).
 
 \section{Cuckoo Cycle}
-Perhaps the simplest possible choice of subgraph is the {\em cycle}.
+The simplest possible choice of subgraph is a fully connected one, or a {\em clique}.
+While an interesting choice, akin to the number-theoretic notion of a prime-cluster
+as used in Riecoin, we leave its consideration to a future paper.
+In this paper we focus on what is perhaps the next-simplest possible choice, the {\em cycle}.
 The reason for calling the resulting proof-of-work Cuckoo Cycle is that
 inserting numbers in a Cuckoo hashtable naturally leads to forming cycles
 in random bipartite graphs!
@@ -571,9 +574,11 @@ and present.
 \section{Conclusion}
 Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines scalable
 memory requirements with instant verifiability. It's also the first proof-of-work in
-which memory latency dominates the runtime, promoting investment in low-power general purpose
-hardware (DRAM) rather than single purpose high-power hardware.
-More research is needed to determine the effectiveness of GPUs for running Cuckoo Cycle.
+which memory latency dominates the runtime.
+This could lead to mining costs being domimated in turn by DRAM investments,
+changing the economics of mining in ways that require further study.
+More research is also needed to determine the effectiveness of GPUs and FPGAs
+at running Cuckoo Cycle.
 
 \bibliographystyle{IEEEtran}
 \bibliography{cuckoo}
