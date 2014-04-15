@@ -7,7 +7,7 @@ in which certain fixed-size subgraphs occur with suitably small probability.
 Asking for a cycle, or a clique, is a close analogue of asking for
 a chain or cluster of primes numbers, which were adopted as the
 number-theoretic proof-of-work in Primecoin and Riecoin, respectively.
-The latest implementaton incorporates a huge memory savings proposed by Dave Anderson in
+The latest implementaton incorporates a huge memory savings proposed by Dave Andersen in
 
 http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
