@@ -49,8 +49,26 @@ speedup:	cuckoo28 Makefile
 cuckoo30:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo30 -DSIZESHIFT=30 cuckoo_miner.cpp
 
+cuckoo30.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo30.1 -DPART_BITS=1 -DSIZESHIFT=30 cuckoo_miner.cpp
+
+cuckoo30.2:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo30.2 -DPART_BITS=2 -DSIZESHIFT=30 cuckoo_miner.cpp
+
+cuckoo30.3:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo30.3 -DPART_BITS=3 -DSIZESHIFT=30 cuckoo_miner.cpp
+
 speedup30:	cuckoo30 Makefile
-	for i in {1..64}; do echo $$i; (time for j in {0..9}; do ./cuckoo30 -t $$i -h $$j; done) 2>&1; done > speedup30
+	for i in {1..4}; do echo $$i; (time for j in {0..9}; do ./cuckoo30 -t $$i -h $$j; done) 2>&1; done > speedup30
+
+speedup30.1:	cuckoo30.1 Makefile
+	for i in {1..4}; do echo $$i; (time for j in {0..9}; do ./cuckoo30.1 -t $$i -h $$j; done) 2>&1; done > speedup30.1
+
+speedup30.2:	cuckoo30.2 Makefile
+	for i in {1..4}; do echo $$i; (time for j in {0..9}; do ./cuckoo30.2 -t $$i -h $$j; done) 2>&1; done > speedup30.2
+
+speedup30.3:	cuckoo30.3 Makefile
+	for i in {1..4}; do echo $$i; (time for j in {0..9}; do ./cuckoo30.3 -t $$i -h $$j; done) 2>&1; done > speedup30.3
 
 cuckoo32:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32 -DSIZESHIFT=32 cuckoo_miner.cpp

@@ -7,7 +7,7 @@
 int main(int argc, char **argv) {
   int nthreads = 1;
   int maxsols  = 8;
-  int ntrims   = 8 << PART_BITS;
+  int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
   const char *header = "";
   int c;
   while ((c = getopt (argc, argv, "h:m:n:t:")) != -1) {
