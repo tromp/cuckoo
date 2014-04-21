@@ -18,8 +18,6 @@ Cuckoo Cycle represents a breakthrough in three important ways:
 
 2) (intended) memory usage grows linearly with graph size, which can be set arbitrarily.
    there may be very limited opportunity to reduce memory usage without undue slowdown.
-   A $1000 bounty is offered for an implementation using half the memory of -DPART_BITS=1
-   at less than 100x slowdown._
 
 3) verification of the proof of work is instant, requiring 2 sha256 and 42x2 siphash computations.
 
