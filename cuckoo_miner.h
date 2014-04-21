@@ -41,11 +41,6 @@
 // IDXSHIFT == 1 + PART_BITS + 5
 #define IDXSHIFT (PART_BITS + 6)
 #endif
-#ifndef CLUMPSHIFT
-// 2^CLUMPSHIFT should exceed maximum index drift (ui++) in cuckoo_hash
-// SIZESHIFT-1 is limited to 64-KEYSHIFT
-#define CLUMPSHIFT 9
-#endif
 // grow with cube root of size, hardly affected by trimming
 #define MAXPATHLEN (8 << (SIZESHIFT/3))
 
@@ -134,8 +129,10 @@ public:
 
 #define CUCKOO_SIZE (SIZE >> IDXSHIFT)
 #define CUCKOO_MASK (CUCKOO_SIZE - 1)
-#define KEYSHIFT (IDXSHIFT + CLUMPSHIFT)
-#define KEYMASK ((1 << KEYSHIFT) - 1)
+// number of (least significant) key bits that survives leftshift by SIZESHIFT
+#define KEYBITS (64-SIZESHIFT)
+#define KEYMASK ((1L << KEYBITS) - 1)
+#define MAXDRIFT (1L << (KEYBITS - IDXSHIFT))
 
 class cuckoo_hash {
 public:
@@ -149,12 +146,12 @@ public:
     free(cuckoo);
   }
   void set(node_t u, node_t v) {
-    u64 niew = (u64)v << KEYSHIFT | (u & KEYMASK);;
+    u64 niew = (u64)u << SIZESHIFT | v;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
       u64 old = 0;
       if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
         return;
-      if (((u^old) & KEYMASK) == 0) {
+      if ((old >> SIZESHIFT) == (u & KEYMASK)) {
         cuckoo[ui].store(niew, std::memory_order_relaxed);
         return;
       }
@@ -165,8 +162,10 @@ public:
       u64 cu = cuckoo[ui].load(std::memory_order_relaxed);
       if (!cu)
         return 0;
-      if (((u^cu) & KEYMASK) == 0)
-        return (node_t)(cu >> KEYSHIFT);
+      if ((cu >> SIZESHIFT) == (u & KEYMASK)) {
+        assert(((ui - (u >> IDXSHIFT)) & CUCKOO_MASK) < MAXDRIFT);
+        return (node_t)(cu & (SIZE-1));
+      }
     }
   }
 };
