@@ -1,5 +1,385 @@
-20
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+1
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3188%
+round 1 part V0 load 3180%
+round 2 part U0 load 3180%
+round 2 part V0 load 3180%
+round 3 part U0 load 3180%
+round 3 part V0 load 3180%
+round 4 part U0 load 3180%
+round 4 part V0 load 3180%
+round 5 part U0 load 3180%
+round 5 part V0 load 3180%
+round 6 part U0 load 3180%
+round 6 part V0 load 3180%
+round 7 part U0 load 3180%
+round 7 part V0 load 3180%
+round 8 part U0 load 3180%
+round 8 part V0 load 3180%
+overloaded! exiting...2
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3176%
+round 1 part V0 load 3161%
+round 2 part U0 load 3161%
+round 2 part V0 load 3161%
+round 3 part U0 load 3161%
+round 3 part V0 load 3161%
+round 4 part U0 load 3161%
+round 4 part V0 load 3161%
+round 5 part U0 load 3161%
+round 5 part V0 load 3161%
+round 6 part U0 load 3161%
+round 6 part V0 load 3161%
+round 7 part U0 load 3161%
+round 7 part V0 load 3161%
+round 8 part U0 load 3161%
+round 8 part V0 load 3161%
+overloaded! exiting...3
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3164%
+round 1 part V0 load 3142%
+round 2 part U0 load 3141%
+round 2 part V0 load 3141%
+round 3 part U0 load 3141%
+round 3 part V0 load 3141%
+round 4 part U0 load 3141%
+round 4 part V0 load 3141%
+round 5 part U0 load 3141%
+round 5 part V0 load 3141%
+round 6 part U0 load 3141%
+round 6 part V0 load 3141%
+round 7 part U0 load 3141%
+round 7 part V0 load 3141%
+round 8 part U0 load 3141%
+round 8 part V0 load 3141%
+overloaded! exiting...4
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3152%
+round 1 part V0 load 3122%
+round 2 part U0 load 3122%
+round 2 part V0 load 3122%
+round 3 part U0 load 3122%
+round 3 part V0 load 3122%
+round 4 part U0 load 3122%
+round 4 part V0 load 3122%
+round 5 part U0 load 3122%
+round 5 part V0 load 3122%
+round 6 part U0 load 3122%
+round 6 part V0 load 3122%
+round 7 part U0 load 3122%
+round 7 part V0 load 3122%
+round 8 part U0 load 3122%
+round 8 part V0 load 3122%
+overloaded! exiting...5
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3141%
+round 1 part V0 load 3103%
+round 2 part U0 load 3102%
+round 2 part V0 load 3102%
+round 3 part U0 load 3102%
+round 3 part V0 load 3102%
+round 4 part U0 load 3102%
+round 4 part V0 load 3102%
+round 5 part U0 load 3102%
+round 5 part V0 load 3102%
+round 6 part U0 load 3102%
+round 6 part V0 load 3102%
+round 7 part U0 load 3102%
+round 7 part V0 load 3102%
+round 8 part U0 load 3102%
+round 8 part V0 load 3102%
+overloaded! exiting...6
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3129%
+round 1 part V0 load 3083%
+round 2 part U0 load 3082%
+round 2 part V0 load 3082%
+round 3 part U0 load 3082%
+round 3 part V0 load 3082%
+round 4 part U0 load 3082%
+round 4 part V0 load 3082%
+round 5 part U0 load 3082%
+round 5 part V0 load 3082%
+round 6 part U0 load 3082%
+round 6 part V0 load 3082%
+round 7 part U0 load 3082%
+round 7 part V0 load 3082%
+round 8 part U0 load 3082%
+round 8 part V0 load 3082%
+overloaded! exiting...7
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3117%
+round 1 part V0 load 3064%
+round 2 part U0 load 3062%
+round 2 part V0 load 3062%
+round 3 part U0 load 3062%
+round 3 part V0 load 3062%
+round 4 part U0 load 3062%
+round 4 part V0 load 3062%
+round 5 part U0 load 3062%
+round 5 part V0 load 3062%
+round 6 part U0 load 3062%
+round 6 part V0 load 3062%
+round 7 part U0 load 3062%
+round 7 part V0 load 3062%
+round 8 part U0 load 3062%
+round 8 part V0 load 3062%
+overloaded! exiting...8
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3105%
+round 1 part V0 load 3044%
+round 2 part U0 load 3042%
+round 2 part V0 load 3042%
+round 3 part U0 load 3042%
+round 3 part V0 load 3042%
+round 4 part U0 load 3042%
+round 4 part V0 load 3042%
+round 5 part U0 load 3042%
+round 5 part V0 load 3042%
+round 6 part U0 load 3042%
+round 6 part V0 load 3042%
+round 7 part U0 load 3042%
+round 7 part V0 load 3042%
+round 8 part U0 load 3042%
+round 8 part V0 load 3042%
+overloaded! exiting...9
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3094%
+round 1 part V0 load 3024%
+round 2 part U0 load 3022%
+round 2 part V0 load 3022%
+round 3 part U0 load 3022%
+round 3 part V0 load 3022%
+round 4 part U0 load 3022%
+round 4 part V0 load 3022%
+round 5 part U0 load 3022%
+round 5 part V0 load 3022%
+round 6 part U0 load 3022%
+round 6 part V0 load 3022%
+round 7 part U0 load 3022%
+round 7 part V0 load 3022%
+round 8 part U0 load 3022%
+round 8 part V0 load 3022%
+overloaded! exiting...10
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3082%
+round 1 part V0 load 3005%
+round 2 part U0 load 3002%
+round 2 part V0 load 3002%
+round 3 part U0 load 3002%
+round 3 part V0 load 3002%
+round 4 part U0 load 3002%
+round 4 part V0 load 3002%
+round 5 part U0 load 3002%
+round 5 part V0 load 3002%
+round 6 part U0 load 3002%
+round 6 part V0 load 3002%
+round 7 part U0 load 3002%
+round 7 part V0 load 3002%
+round 8 part U0 load 3002%
+round 8 part V0 load 3002%
+overloaded! exiting...11
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3070%
+round 1 part V0 load 2985%
+round 2 part U0 load 2981%
+round 2 part V0 load 2981%
+round 3 part U0 load 2981%
+round 3 part V0 load 2981%
+round 4 part U0 load 2981%
+round 4 part V0 load 2981%
+round 5 part U0 load 2981%
+round 5 part V0 load 2981%
+round 6 part U0 load 2981%
+round 6 part V0 load 2981%
+round 7 part U0 load 2981%
+round 7 part V0 load 2981%
+round 8 part U0 load 2981%
+round 8 part V0 load 2981%
+overloaded! exiting...12
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3058%
+round 1 part V0 load 2965%
+round 2 part U0 load 2961%
+round 2 part V0 load 2961%
+round 3 part U0 load 2961%
+round 3 part V0 load 2961%
+round 4 part U0 load 2961%
+round 4 part V0 load 2961%
+round 5 part U0 load 2961%
+round 5 part V0 load 2961%
+round 6 part U0 load 2961%
+round 6 part V0 load 2961%
+round 7 part U0 load 2961%
+round 7 part V0 load 2961%
+round 8 part U0 load 2961%
+round 8 part V0 load 2961%
+overloaded! exiting...13
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3046%
+round 1 part V0 load 2945%
+round 2 part U0 load 2940%
+round 2 part V0 load 2940%
+round 3 part U0 load 2940%
+round 3 part V0 load 2940%
+round 4 part U0 load 2940%
+round 4 part V0 load 2940%
+round 5 part U0 load 2940%
+round 5 part V0 load 2940%
+round 6 part U0 load 2940%
+round 6 part V0 load 2940%
+round 7 part U0 load 2940%
+round 7 part V0 load 2940%
+round 8 part U0 load 2940%
+round 8 part V0 load 2940%
+overloaded! exiting...14
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3035%
+round 1 part V0 load 2925%
+round 2 part U0 load 2919%
+round 2 part V0 load 2919%
+round 3 part U0 load 2919%
+round 3 part V0 load 2919%
+round 4 part U0 load 2919%
+round 4 part V0 load 2919%
+round 5 part U0 load 2919%
+round 5 part V0 load 2919%
+round 6 part U0 load 2919%
+round 6 part V0 load 2919%
+round 7 part U0 load 2919%
+round 7 part V0 load 2919%
+round 8 part U0 load 2919%
+round 8 part V0 load 2919%
+overloaded! exiting...15
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3023%
+round 1 part V0 load 2905%
+round 2 part U0 load 2899%
+round 2 part V0 load 2898%
+round 3 part U0 load 2898%
+round 3 part V0 load 2898%
+round 4 part U0 load 2898%
+round 4 part V0 load 2898%
+round 5 part U0 load 2898%
+round 5 part V0 load 2898%
+round 6 part U0 load 2898%
+round 6 part V0 load 2898%
+round 7 part U0 load 2898%
+round 7 part V0 load 2898%
+round 8 part U0 load 2898%
+round 8 part V0 load 2898%
+overloaded! exiting...16
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 3011%
+round 1 part V0 load 2885%
+round 2 part U0 load 2878%
+round 2 part V0 load 2877%
+round 3 part U0 load 2877%
+round 3 part V0 load 2877%
+round 4 part U0 load 2877%
+round 4 part V0 load 2877%
+round 5 part U0 load 2877%
+round 5 part V0 load 2877%
+round 6 part U0 load 2877%
+round 6 part V0 load 2877%
+round 7 part U0 load 2877%
+round 7 part V0 load 2877%
+round 8 part U0 load 2877%
+round 8 part V0 load 2877%
+overloaded! exiting...17
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 2999%
+round 1 part V0 load 2865%
+round 2 part U0 load 2856%
+round 2 part V0 load 2856%
+round 3 part U0 load 2856%
+round 3 part V0 load 2856%
+round 4 part U0 load 2856%
+round 4 part V0 load 2856%
+round 5 part U0 load 2856%
+round 5 part V0 load 2856%
+round 6 part U0 load 2856%
+round 6 part V0 load 2856%
+round 7 part U0 load 2856%
+round 7 part V0 load 2856%
+round 8 part U0 load 2856%
+round 8 part V0 load 2856%
+overloaded! exiting...18
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 2988%
+round 1 part V0 load 2845%
+round 2 part U0 load 2835%
+round 2 part V0 load 2834%
+round 3 part U0 load 2834%
+round 3 part V0 load 2834%
+round 4 part U0 load 2834%
+round 4 part V0 load 2834%
+round 5 part U0 load 2834%
+round 5 part V0 load 2834%
+round 6 part U0 load 2834%
+round 6 part V0 load 2834%
+round 7 part U0 load 2834%
+round 7 part V0 load 2834%
+round 8 part U0 load 2834%
+round 8 part V0 load 2834%
+overloaded! exiting...19
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
+Using 64MB edge and 128MB node memory.
+initial load 3200%
+round 1 part U0 load 2976%
+round 1 part V0 load 2824%
+round 2 part U0 load 2814%
+round 2 part V0 load 2813%
+round 3 part U0 load 2813%
+round 3 part V0 load 2813%
+round 4 part U0 load 2813%
+round 4 part V0 load 2813%
+round 5 part U0 load 2813%
+round 5 part V0 load 2813%
+round 6 part U0 load 2813%
+round 6 part V0 load 2813%
+round 7 part U0 load 2813%
+round 7 part V0 load 2813%
+round 8 part U0 load 2813%
+round 8 part V0 load 2813%
+overloaded! exiting...20
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2964%
@@ -10,8 +390,16 @@ round 3 part U0 load 2791%
 round 3 part V0 load 2791%
 round 4 part U0 load 2791%
 round 4 part V0 load 2791%
+round 5 part U0 load 2791%
+round 5 part V0 load 2791%
+round 6 part U0 load 2791%
+round 6 part V0 load 2791%
+round 7 part U0 load 2791%
+round 7 part V0 load 2791%
+round 8 part U0 load 2791%
+round 8 part V0 load 2791%
 overloaded! exiting...21
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2952%
@@ -22,8 +410,16 @@ round 3 part U0 load 2769%
 round 3 part V0 load 2769%
 round 4 part U0 load 2769%
 round 4 part V0 load 2769%
+round 5 part U0 load 2769%
+round 5 part V0 load 2769%
+round 6 part U0 load 2769%
+round 6 part V0 load 2769%
+round 7 part U0 load 2769%
+round 7 part V0 load 2769%
+round 8 part U0 load 2769%
+round 8 part V0 load 2769%
 overloaded! exiting...22
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2941%
@@ -34,8 +430,16 @@ round 3 part U0 load 2747%
 round 3 part V0 load 2747%
 round 4 part U0 load 2747%
 round 4 part V0 load 2747%
+round 5 part U0 load 2747%
+round 5 part V0 load 2747%
+round 6 part U0 load 2747%
+round 6 part V0 load 2747%
+round 7 part U0 load 2747%
+round 7 part V0 load 2747%
+round 8 part U0 load 2747%
+round 8 part V0 load 2747%
 overloaded! exiting...23
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2929%
@@ -46,8 +450,16 @@ round 3 part U0 load 2725%
 round 3 part V0 load 2725%
 round 4 part U0 load 2725%
 round 4 part V0 load 2725%
+round 5 part U0 load 2725%
+round 5 part V0 load 2725%
+round 6 part U0 load 2725%
+round 6 part V0 load 2725%
+round 7 part U0 load 2725%
+round 7 part V0 load 2725%
+round 8 part U0 load 2725%
+round 8 part V0 load 2725%
 overloaded! exiting...24
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2917%
@@ -58,8 +470,16 @@ round 3 part U0 load 2703%
 round 3 part V0 load 2703%
 round 4 part U0 load 2703%
 round 4 part V0 load 2703%
+round 5 part U0 load 2703%
+round 5 part V0 load 2703%
+round 6 part U0 load 2703%
+round 6 part V0 load 2703%
+round 7 part U0 load 2703%
+round 7 part V0 load 2703%
+round 8 part U0 load 2703%
+round 8 part V0 load 2703%
 overloaded! exiting...25
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2905%
@@ -70,8 +490,16 @@ round 3 part U0 load 2681%
 round 3 part V0 load 2681%
 round 4 part U0 load 2681%
 round 4 part V0 load 2681%
+round 5 part U0 load 2681%
+round 5 part V0 load 2681%
+round 6 part U0 load 2681%
+round 6 part V0 load 2681%
+round 7 part U0 load 2681%
+round 7 part V0 load 2681%
+round 8 part U0 load 2681%
+round 8 part V0 load 2681%
 overloaded! exiting...26
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2893%
@@ -82,8 +510,16 @@ round 3 part U0 load 2658%
 round 3 part V0 load 2658%
 round 4 part U0 load 2658%
 round 4 part V0 load 2658%
+round 5 part U0 load 2658%
+round 5 part V0 load 2658%
+round 6 part U0 load 2658%
+round 6 part V0 load 2658%
+round 7 part U0 load 2658%
+round 7 part V0 load 2658%
+round 8 part U0 load 2658%
+round 8 part V0 load 2658%
 overloaded! exiting...27
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2882%
@@ -94,8 +530,16 @@ round 3 part U0 load 2635%
 round 3 part V0 load 2635%
 round 4 part U0 load 2635%
 round 4 part V0 load 2635%
+round 5 part U0 load 2635%
+round 5 part V0 load 2635%
+round 6 part U0 load 2635%
+round 6 part V0 load 2635%
+round 7 part U0 load 2635%
+round 7 part V0 load 2635%
+round 8 part U0 load 2635%
+round 8 part V0 load 2635%
 overloaded! exiting...28
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2870%
@@ -106,8 +550,16 @@ round 3 part U0 load 2612%
 round 3 part V0 load 2612%
 round 4 part U0 load 2612%
 round 4 part V0 load 2612%
+round 5 part U0 load 2612%
+round 5 part V0 load 2612%
+round 6 part U0 load 2612%
+round 6 part V0 load 2612%
+round 7 part U0 load 2612%
+round 7 part V0 load 2612%
+round 8 part U0 load 2612%
+round 8 part V0 load 2612%
 overloaded! exiting...29
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2858%
@@ -118,8 +570,16 @@ round 3 part U0 load 2589%
 round 3 part V0 load 2589%
 round 4 part U0 load 2589%
 round 4 part V0 load 2589%
+round 5 part U0 load 2589%
+round 5 part V0 load 2589%
+round 6 part U0 load 2589%
+round 6 part V0 load 2589%
+round 7 part U0 load 2589%
+round 7 part V0 load 2589%
+round 8 part U0 load 2589%
+round 8 part V0 load 2589%
 overloaded! exiting...30
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2846%
@@ -130,8 +590,16 @@ round 3 part U0 load 2566%
 round 3 part V0 load 2566%
 round 4 part U0 load 2566%
 round 4 part V0 load 2566%
+round 5 part U0 load 2566%
+round 5 part V0 load 2566%
+round 6 part U0 load 2566%
+round 6 part V0 load 2566%
+round 7 part U0 load 2566%
+round 7 part V0 load 2566%
+round 8 part U0 load 2566%
+round 8 part V0 load 2566%
 overloaded! exiting...31
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2835%
@@ -142,8 +610,16 @@ round 3 part U0 load 2543%
 round 3 part V0 load 2543%
 round 4 part U0 load 2543%
 round 4 part V0 load 2543%
+round 5 part U0 load 2543%
+round 5 part V0 load 2543%
+round 6 part U0 load 2543%
+round 6 part V0 load 2543%
+round 7 part U0 load 2543%
+round 7 part V0 load 2543%
+round 8 part U0 load 2543%
+round 8 part V0 load 2543%
 overloaded! exiting...32
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2823%
@@ -154,8 +630,16 @@ round 3 part U0 load 2519%
 round 3 part V0 load 2519%
 round 4 part U0 load 2519%
 round 4 part V0 load 2519%
+round 5 part U0 load 2519%
+round 5 part V0 load 2519%
+round 6 part U0 load 2519%
+round 6 part V0 load 2519%
+round 7 part U0 load 2519%
+round 7 part V0 load 2519%
+round 8 part U0 load 2519%
+round 8 part V0 load 2519%
 overloaded! exiting...33
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2811%
@@ -166,8 +650,16 @@ round 3 part U0 load 2495%
 round 3 part V0 load 2495%
 round 4 part U0 load 2495%
 round 4 part V0 load 2495%
+round 5 part U0 load 2495%
+round 5 part V0 load 2495%
+round 6 part U0 load 2495%
+round 6 part V0 load 2495%
+round 7 part U0 load 2495%
+round 7 part V0 load 2495%
+round 8 part U0 load 2495%
+round 8 part V0 load 2495%
 overloaded! exiting...34
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2799%
@@ -178,8 +670,16 @@ round 3 part U0 load 2471%
 round 3 part V0 load 2471%
 round 4 part U0 load 2471%
 round 4 part V0 load 2471%
+round 5 part U0 load 2471%
+round 5 part V0 load 2471%
+round 6 part U0 load 2471%
+round 6 part V0 load 2471%
+round 7 part U0 load 2471%
+round 7 part V0 load 2471%
+round 8 part U0 load 2471%
+round 8 part V0 load 2471%
 overloaded! exiting...35
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2787%
@@ -190,8 +690,16 @@ round 3 part U0 load 2447%
 round 3 part V0 load 2447%
 round 4 part U0 load 2447%
 round 4 part V0 load 2447%
+round 5 part U0 load 2447%
+round 5 part V0 load 2447%
+round 6 part U0 load 2447%
+round 6 part V0 load 2447%
+round 7 part U0 load 2447%
+round 7 part V0 load 2447%
+round 8 part U0 load 2447%
+round 8 part V0 load 2447%
 overloaded! exiting...36
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2776%
@@ -202,8 +710,16 @@ round 3 part U0 load 2423%
 round 3 part V0 load 2423%
 round 4 part U0 load 2423%
 round 4 part V0 load 2423%
+round 5 part U0 load 2423%
+round 5 part V0 load 2423%
+round 6 part U0 load 2423%
+round 6 part V0 load 2423%
+round 7 part U0 load 2423%
+round 7 part V0 load 2423%
+round 8 part U0 load 2423%
+round 8 part V0 load 2423%
 overloaded! exiting...37
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2764%
@@ -214,8 +730,16 @@ round 3 part U0 load 2398%
 round 3 part V0 load 2398%
 round 4 part U0 load 2398%
 round 4 part V0 load 2398%
+round 5 part U0 load 2398%
+round 5 part V0 load 2398%
+round 6 part U0 load 2398%
+round 6 part V0 load 2398%
+round 7 part U0 load 2398%
+round 7 part V0 load 2398%
+round 8 part U0 load 2398%
+round 8 part V0 load 2398%
 overloaded! exiting...38
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2752%
@@ -226,8 +750,16 @@ round 3 part U0 load 2374%
 round 3 part V0 load 2373%
 round 4 part U0 load 2373%
 round 4 part V0 load 2373%
+round 5 part U0 load 2373%
+round 5 part V0 load 2373%
+round 6 part U0 load 2373%
+round 6 part V0 load 2373%
+round 7 part U0 load 2373%
+round 7 part V0 load 2373%
+round 8 part U0 load 2373%
+round 8 part V0 load 2373%
 overloaded! exiting...39
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2740%
@@ -238,8 +770,16 @@ round 3 part U0 load 2349%
 round 3 part V0 load 2349%
 round 4 part U0 load 2348%
 round 4 part V0 load 2348%
+round 5 part U0 load 2348%
+round 5 part V0 load 2348%
+round 6 part U0 load 2348%
+round 6 part V0 load 2348%
+round 7 part U0 load 2348%
+round 7 part V0 load 2348%
+round 8 part U0 load 2348%
+round 8 part V0 load 2348%
 overloaded! exiting...40
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2729%
@@ -250,8 +790,16 @@ round 3 part U0 load 2324%
 round 3 part V0 load 2323%
 round 4 part U0 load 2323%
 round 4 part V0 load 2323%
+round 5 part U0 load 2323%
+round 5 part V0 load 2323%
+round 6 part U0 load 2323%
+round 6 part V0 load 2323%
+round 7 part U0 load 2323%
+round 7 part V0 load 2323%
+round 8 part U0 load 2323%
+round 8 part V0 load 2323%
 overloaded! exiting...41
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2717%
@@ -262,8 +810,16 @@ round 3 part U0 load 2298%
 round 3 part V0 load 2298%
 round 4 part U0 load 2298%
 round 4 part V0 load 2298%
+round 5 part U0 load 2298%
+round 5 part V0 load 2298%
+round 6 part U0 load 2298%
+round 6 part V0 load 2298%
+round 7 part U0 load 2298%
+round 7 part V0 load 2298%
+round 8 part U0 load 2298%
+round 8 part V0 load 2298%
 overloaded! exiting...42
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2705%
@@ -274,8 +830,16 @@ round 3 part U0 load 2273%
 round 3 part V0 load 2272%
 round 4 part U0 load 2272%
 round 4 part V0 load 2272%
+round 5 part U0 load 2272%
+round 5 part V0 load 2272%
+round 6 part U0 load 2272%
+round 6 part V0 load 2272%
+round 7 part U0 load 2272%
+round 7 part V0 load 2272%
+round 8 part U0 load 2272%
+round 8 part V0 load 2272%
 overloaded! exiting...43
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2693%
@@ -286,8 +850,16 @@ round 3 part U0 load 2247%
 round 3 part V0 load 2247%
 round 4 part U0 load 2247%
 round 4 part V0 load 2247%
+round 5 part U0 load 2247%
+round 5 part V0 load 2247%
+round 6 part U0 load 2247%
+round 6 part V0 load 2247%
+round 7 part U0 load 2247%
+round 7 part V0 load 2247%
+round 8 part U0 load 2247%
+round 8 part V0 load 2247%
 overloaded! exiting...44
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2682%
@@ -298,8 +870,16 @@ round 3 part U0 load 2221%
 round 3 part V0 load 2221%
 round 4 part U0 load 2221%
 round 4 part V0 load 2221%
+round 5 part U0 load 2221%
+round 5 part V0 load 2221%
+round 6 part U0 load 2221%
+round 6 part V0 load 2221%
+round 7 part U0 load 2221%
+round 7 part V0 load 2221%
+round 8 part U0 load 2221%
+round 8 part V0 load 2221%
 overloaded! exiting...45
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2670%
@@ -310,8 +890,16 @@ round 3 part U0 load 2195%
 round 3 part V0 load 2194%
 round 4 part U0 load 2194%
 round 4 part V0 load 2194%
+round 5 part U0 load 2194%
+round 5 part V0 load 2194%
+round 6 part U0 load 2194%
+round 6 part V0 load 2194%
+round 7 part U0 load 2194%
+round 7 part V0 load 2194%
+round 8 part U0 load 2194%
+round 8 part V0 load 2194%
 overloaded! exiting...46
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2658%
@@ -322,8 +910,16 @@ round 3 part U0 load 2169%
 round 3 part V0 load 2168%
 round 4 part U0 load 2168%
 round 4 part V0 load 2168%
+round 5 part U0 load 2168%
+round 5 part V0 load 2168%
+round 6 part U0 load 2168%
+round 6 part V0 load 2168%
+round 7 part U0 load 2168%
+round 7 part V0 load 2168%
+round 8 part U0 load 2168%
+round 8 part V0 load 2168%
 overloaded! exiting...47
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2646%
@@ -334,8 +930,16 @@ round 3 part U0 load 2142%
 round 3 part V0 load 2141%
 round 4 part U0 load 2141%
 round 4 part V0 load 2141%
+round 5 part U0 load 2141%
+round 5 part V0 load 2141%
+round 6 part U0 load 2141%
+round 6 part V0 load 2141%
+round 7 part U0 load 2141%
+round 7 part V0 load 2141%
+round 8 part U0 load 2141%
+round 8 part V0 load 2141%
 overloaded! exiting...48
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2634%
@@ -346,8 +950,16 @@ round 3 part U0 load 2115%
 round 3 part V0 load 2114%
 round 4 part U0 load 2114%
 round 4 part V0 load 2114%
+round 5 part U0 load 2114%
+round 5 part V0 load 2114%
+round 6 part U0 load 2114%
+round 6 part V0 load 2114%
+round 7 part U0 load 2114%
+round 7 part V0 load 2114%
+round 8 part U0 load 2114%
+round 8 part V0 load 2114%
 overloaded! exiting...49
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2623%
@@ -358,8 +970,16 @@ round 3 part U0 load 2088%
 round 3 part V0 load 2087%
 round 4 part U0 load 2087%
 round 4 part V0 load 2087%
+round 5 part U0 load 2087%
+round 5 part V0 load 2087%
+round 6 part U0 load 2087%
+round 6 part V0 load 2087%
+round 7 part U0 load 2087%
+round 7 part V0 load 2087%
+round 8 part U0 load 2087%
+round 8 part V0 load 2087%
 overloaded! exiting...50
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2611%
@@ -370,8 +990,16 @@ round 3 part U0 load 2061%
 round 3 part V0 load 2060%
 round 4 part U0 load 2059%
 round 4 part V0 load 2059%
+round 5 part U0 load 2059%
+round 5 part V0 load 2059%
+round 6 part U0 load 2059%
+round 6 part V0 load 2059%
+round 7 part U0 load 2059%
+round 7 part V0 load 2059%
+round 8 part U0 load 2059%
+round 8 part V0 load 2059%
 overloaded! exiting...51
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2599%
@@ -382,8 +1010,16 @@ round 3 part U0 load 2033%
 round 3 part V0 load 2032%
 round 4 part U0 load 2032%
 round 4 part V0 load 2032%
+round 5 part U0 load 2032%
+round 5 part V0 load 2032%
+round 6 part U0 load 2032%
+round 6 part V0 load 2032%
+round 7 part U0 load 2032%
+round 7 part V0 load 2032%
+round 8 part U0 load 2032%
+round 8 part V0 load 2032%
 overloaded! exiting...52
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2587%
@@ -394,8 +1030,16 @@ round 3 part U0 load 2005%
 round 3 part V0 load 2004%
 round 4 part U0 load 2004%
 round 4 part V0 load 2004%
+round 5 part U0 load 2004%
+round 5 part V0 load 2004%
+round 6 part U0 load 2004%
+round 6 part V0 load 2004%
+round 7 part U0 load 2004%
+round 7 part V0 load 2004%
+round 8 part U0 load 2004%
+round 8 part V0 load 2004%
 overloaded! exiting...53
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2576%
@@ -406,8 +1050,16 @@ round 3 part U0 load 1977%
 round 3 part V0 load 1976%
 round 4 part U0 load 1975%
 round 4 part V0 load 1975%
+round 5 part U0 load 1975%
+round 5 part V0 load 1975%
+round 6 part U0 load 1975%
+round 6 part V0 load 1975%
+round 7 part U0 load 1975%
+round 7 part V0 load 1975%
+round 8 part U0 load 1975%
+round 8 part V0 load 1975%
 overloaded! exiting...54
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2564%
@@ -418,8 +1070,16 @@ round 3 part U0 load 1949%
 round 3 part V0 load 1947%
 round 4 part U0 load 1947%
 round 4 part V0 load 1947%
+round 5 part U0 load 1947%
+round 5 part V0 load 1947%
+round 6 part U0 load 1947%
+round 6 part V0 load 1947%
+round 7 part U0 load 1947%
+round 7 part V0 load 1947%
+round 8 part U0 load 1947%
+round 8 part V0 load 1947%
 overloaded! exiting...55
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2552%
@@ -430,8 +1090,16 @@ round 3 part U0 load 1920%
 round 3 part V0 load 1919%
 round 4 part U0 load 1918%
 round 4 part V0 load 1918%
+round 5 part U0 load 1918%
+round 5 part V0 load 1918%
+round 6 part U0 load 1918%
+round 6 part V0 load 1918%
+round 7 part U0 load 1918%
+round 7 part V0 load 1918%
+round 8 part U0 load 1918%
+round 8 part V0 load 1918%
 overloaded! exiting...56
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2540%
@@ -442,8 +1110,16 @@ round 3 part U0 load 1891%
 round 3 part V0 load 1889%
 round 4 part U0 load 1889%
 round 4 part V0 load 1889%
+round 5 part U0 load 1889%
+round 5 part V0 load 1889%
+round 6 part U0 load 1889%
+round 6 part V0 load 1889%
+round 7 part U0 load 1889%
+round 7 part V0 load 1889%
+round 8 part U0 load 1889%
+round 8 part V0 load 1889%
 overloaded! exiting...57
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2529%
@@ -454,8 +1130,16 @@ round 3 part U0 load 1862%
 round 3 part V0 load 1860%
 round 4 part U0 load 1860%
 round 4 part V0 load 1859%
+round 5 part U0 load 1859%
+round 5 part V0 load 1859%
+round 6 part U0 load 1859%
+round 6 part V0 load 1859%
+round 7 part U0 load 1859%
+round 7 part V0 load 1859%
+round 8 part U0 load 1859%
+round 8 part V0 load 1859%
 overloaded! exiting...58
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2517%
@@ -466,8 +1150,16 @@ round 3 part U0 load 1833%
 round 3 part V0 load 1830%
 round 4 part U0 load 1830%
 round 4 part V0 load 1830%
+round 5 part U0 load 1830%
+round 5 part V0 load 1830%
+round 6 part U0 load 1830%
+round 6 part V0 load 1830%
+round 7 part U0 load 1830%
+round 7 part V0 load 1830%
+round 8 part U0 load 1830%
+round 8 part V0 load 1830%
 overloaded! exiting...59
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2505%
@@ -478,8 +1170,16 @@ round 3 part U0 load 1803%
 round 3 part V0 load 1800%
 round 4 part U0 load 1800%
 round 4 part V0 load 1799%
+round 5 part U0 load 1799%
+round 5 part V0 load 1799%
+round 6 part U0 load 1799%
+round 6 part V0 load 1799%
+round 7 part U0 load 1799%
+round 7 part V0 load 1799%
+round 8 part U0 load 1799%
+round 8 part V0 load 1799%
 overloaded! exiting...60
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2493%
@@ -490,8 +1190,16 @@ round 3 part U0 load 1773%
 round 3 part V0 load 1770%
 round 4 part U0 load 1769%
 round 4 part V0 load 1769%
+round 5 part U0 load 1769%
+round 5 part V0 load 1769%
+round 6 part U0 load 1769%
+round 6 part V0 load 1769%
+round 7 part U0 load 1769%
+round 7 part V0 load 1769%
+round 8 part U0 load 1769%
+round 8 part V0 load 1769%
 overloaded! exiting...61
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2481%
@@ -502,8 +1210,16 @@ round 3 part U0 load 1743%
 round 3 part V0 load 1740%
 round 4 part U0 load 1739%
 round 4 part V0 load 1738%
+round 5 part U0 load 1738%
+round 5 part V0 load 1738%
+round 6 part U0 load 1738%
+round 6 part V0 load 1738%
+round 7 part U0 load 1738%
+round 7 part V0 load 1738%
+round 8 part U0 load 1738%
+round 8 part V0 load 1738%
 overloaded! exiting...62
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2470%
@@ -514,8 +1230,16 @@ round 3 part U0 load 1712%
 round 3 part V0 load 1709%
 round 4 part U0 load 1708%
 round 4 part V0 load 1707%
+round 5 part U0 load 1707%
+round 5 part V0 load 1707%
+round 6 part U0 load 1707%
+round 6 part V0 load 1707%
+round 7 part U0 load 1707%
+round 7 part V0 load 1707%
+round 8 part U0 load 1707%
+round 8 part V0 load 1707%
 overloaded! exiting...63
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2458%
@@ -526,8 +1250,16 @@ round 3 part U0 load 1681%
 round 3 part V0 load 1677%
 round 4 part U0 load 1676%
 round 4 part V0 load 1676%
+round 5 part U0 load 1676%
+round 5 part V0 load 1676%
+round 6 part U0 load 1676%
+round 6 part V0 load 1676%
+round 7 part U0 load 1676%
+round 7 part V0 load 1676%
+round 8 part U0 load 1676%
+round 8 part V0 load 1676%
 overloaded! exiting...64
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2446%
@@ -538,8 +1270,16 @@ round 3 part U0 load 1650%
 round 3 part V0 load 1646%
 round 4 part U0 load 1644%
 round 4 part V0 load 1644%
+round 5 part U0 load 1644%
+round 5 part V0 load 1644%
+round 6 part U0 load 1644%
+round 6 part V0 load 1644%
+round 7 part U0 load 1644%
+round 7 part V0 load 1644%
+round 8 part U0 load 1644%
+round 8 part V0 load 1644%
 overloaded! exiting...65
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2434%
@@ -550,8 +1290,16 @@ round 3 part U0 load 1618%
 round 3 part V0 load 1614%
 round 4 part U0 load 1612%
 round 4 part V0 load 1612%
+round 5 part U0 load 1612%
+round 5 part V0 load 1611%
+round 6 part U0 load 1611%
+round 6 part V0 load 1611%
+round 7 part U0 load 1611%
+round 7 part V0 load 1611%
+round 8 part U0 load 1611%
+round 8 part V0 load 1611%
 overloaded! exiting...66
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2423%
@@ -562,8 +1310,16 @@ round 3 part U0 load 1586%
 round 3 part V0 load 1581%
 round 4 part U0 load 1580%
 round 4 part V0 load 1579%
+round 5 part U0 load 1579%
+round 5 part V0 load 1579%
+round 6 part U0 load 1579%
+round 6 part V0 load 1579%
+round 7 part U0 load 1579%
+round 7 part V0 load 1579%
+round 8 part U0 load 1579%
+round 8 part V0 load 1579%
 overloaded! exiting...67
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2411%
@@ -574,8 +1330,16 @@ round 3 part U0 load 1554%
 round 3 part V0 load 1549%
 round 4 part U0 load 1547%
 round 4 part V0 load 1546%
+round 5 part U0 load 1546%
+round 5 part V0 load 1546%
+round 6 part U0 load 1546%
+round 6 part V0 load 1546%
+round 7 part U0 load 1546%
+round 7 part V0 load 1546%
+round 8 part U0 load 1546%
+round 8 part V0 load 1546%
 overloaded! exiting...68
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2399%
@@ -586,8 +1350,16 @@ round 3 part U0 load 1522%
 round 3 part V0 load 1516%
 round 4 part U0 load 1513%
 round 4 part V0 load 1513%
+round 5 part U0 load 1512%
+round 5 part V0 load 1512%
+round 6 part U0 load 1512%
+round 6 part V0 load 1512%
+round 7 part U0 load 1512%
+round 7 part V0 load 1512%
+round 8 part U0 load 1512%
+round 8 part V0 load 1512%
 overloaded! exiting...69
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2387%
@@ -598,8 +1370,16 @@ round 3 part U0 load 1489%
 round 3 part V0 load 1482%
 round 4 part U0 load 1480%
 round 4 part V0 load 1479%
+round 5 part U0 load 1479%
+round 5 part V0 load 1478%
+round 6 part U0 load 1478%
+round 6 part V0 load 1478%
+round 7 part U0 load 1478%
+round 7 part V0 load 1478%
+round 8 part U0 load 1478%
+round 8 part V0 load 1478%
 overloaded! exiting...70
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2376%
@@ -610,8 +1390,16 @@ round 3 part U0 load 1456%
 round 3 part V0 load 1448%
 round 4 part U0 load 1446%
 round 4 part V0 load 1445%
+round 5 part U0 load 1444%
+round 5 part V0 load 1444%
+round 6 part U0 load 1444%
+round 6 part V0 load 1444%
+round 7 part U0 load 1444%
+round 7 part V0 load 1444%
+round 8 part U0 load 1444%
+round 8 part V0 load 1444%
 overloaded! exiting...71
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2364%
@@ -622,8 +1410,16 @@ round 3 part U0 load 1422%
 round 3 part V0 load 1414%
 round 4 part U0 load 1411%
 round 4 part V0 load 1410%
+round 5 part U0 load 1409%
+round 5 part V0 load 1409%
+round 6 part U0 load 1409%
+round 6 part V0 load 1409%
+round 7 part U0 load 1409%
+round 7 part V0 load 1409%
+round 8 part U0 load 1409%
+round 8 part V0 load 1409%
 overloaded! exiting...72
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2352%
@@ -634,8 +1430,16 @@ round 3 part U0 load 1388%
 round 3 part V0 load 1379%
 round 4 part U0 load 1376%
 round 4 part V0 load 1375%
+round 5 part U0 load 1374%
+round 5 part V0 load 1374%
+round 6 part U0 load 1374%
+round 6 part V0 load 1374%
+round 7 part U0 load 1374%
+round 7 part V0 load 1374%
+round 8 part U0 load 1374%
+round 8 part V0 load 1374%
 overloaded! exiting...73
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2340%
@@ -646,8 +1450,16 @@ round 3 part U0 load 1354%
 round 3 part V0 load 1344%
 round 4 part U0 load 1340%
 round 4 part V0 load 1339%
+round 5 part U0 load 1338%
+round 5 part V0 load 1338%
+round 6 part U0 load 1338%
+round 6 part V0 load 1338%
+round 7 part U0 load 1338%
+round 7 part V0 load 1338%
+round 8 part U0 load 1338%
+round 8 part V0 load 1338%
 overloaded! exiting...74
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2328%
@@ -658,8 +1470,16 @@ round 3 part U0 load 1319%
 round 3 part V0 load 1309%
 round 4 part U0 load 1304%
 round 4 part V0 load 1303%
+round 5 part U0 load 1302%
+round 5 part V0 load 1302%
+round 6 part U0 load 1302%
+round 6 part V0 load 1302%
+round 7 part U0 load 1302%
+round 7 part V0 load 1302%
+round 8 part U0 load 1302%
+round 8 part V0 load 1302%
 overloaded! exiting...75
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2317%
@@ -670,8 +1490,16 @@ round 3 part U0 load 1284%
 round 3 part V0 load 1273%
 round 4 part U0 load 1268%
 round 4 part V0 load 1266%
+round 5 part U0 load 1265%
+round 5 part V0 load 1265%
+round 6 part U0 load 1265%
+round 6 part V0 load 1265%
+round 7 part U0 load 1265%
+round 7 part V0 load 1265%
+round 8 part U0 load 1265%
+round 8 part V0 load 1265%
 overloaded! exiting...76
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2305%
@@ -682,8 +1510,16 @@ round 3 part U0 load 1248%
 round 3 part V0 load 1236%
 round 4 part U0 load 1231%
 round 4 part V0 load 1229%
+round 5 part U0 load 1228%
+round 5 part V0 load 1227%
+round 6 part U0 load 1227%
+round 6 part V0 load 1227%
+round 7 part U0 load 1227%
+round 7 part V0 load 1227%
+round 8 part U0 load 1227%
+round 8 part V0 load 1227%
 overloaded! exiting...77
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2293%
@@ -694,8 +1530,16 @@ round 3 part U0 load 1212%
 round 3 part V0 load 1199%
 round 4 part U0 load 1193%
 round 4 part V0 load 1191%
+round 5 part U0 load 1190%
+round 5 part V0 load 1189%
+round 6 part U0 load 1189%
+round 6 part V0 load 1189%
+round 7 part U0 load 1189%
+round 7 part V0 load 1189%
+round 8 part U0 load 1189%
+round 8 part V0 load 1189%
 overloaded! exiting...78
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2281%
@@ -706,8 +1550,16 @@ round 3 part U0 load 1176%
 round 3 part V0 load 1162%
 round 4 part U0 load 1155%
 round 4 part V0 load 1153%
+round 5 part U0 load 1151%
+round 5 part V0 load 1151%
+round 6 part U0 load 1150%
+round 6 part V0 load 1150%
+round 7 part U0 load 1150%
+round 7 part V0 load 1150%
+round 8 part U0 load 1150%
+round 8 part V0 load 1150%
 overloaded! exiting...79
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2270%
@@ -718,8 +1570,16 @@ round 3 part U0 load 1139%
 round 3 part V0 load 1124%
 round 4 part U0 load 1117%
 round 4 part V0 load 1114%
+round 5 part U0 load 1112%
+round 5 part V0 load 1111%
+round 6 part U0 load 1111%
+round 6 part V0 load 1111%
+round 7 part U0 load 1111%
+round 7 part V0 load 1111%
+round 8 part U0 load 1111%
+round 8 part V0 load 1111%
 overloaded! exiting...80
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2258%
@@ -730,8 +1590,16 @@ round 3 part U0 load 1102%
 round 3 part V0 load 1085%
 round 4 part U0 load 1078%
 round 4 part V0 load 1074%
+round 5 part U0 load 1072%
+round 5 part V0 load 1072%
+round 6 part U0 load 1071%
+round 6 part V0 load 1071%
+round 7 part U0 load 1071%
+round 7 part V0 load 1071%
+round 8 part U0 load 1071%
+round 8 part V0 load 1071%
 overloaded! exiting...81
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2246%
@@ -742,8 +1610,16 @@ round 3 part U0 load 1065%
 round 3 part V0 load 1047%
 round 4 part U0 load 1038%
 round 4 part V0 load 1034%
+round 5 part U0 load 1032%
+round 5 part V0 load 1031%
+round 6 part U0 load 1030%
+round 6 part V0 load 1030%
+round 7 part U0 load 1030%
+round 7 part V0 load 1030%
+round 8 part U0 load 1030%
+round 8 part V0 load 1030%
 overloaded! exiting...82
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2234%
@@ -754,8 +1630,16 @@ round 3 part U0 load 1027%
 round 3 part V0 load 1007%
 round 4 part U0 load 998%
 round 4 part V0 load 993%
+round 5 part U0 load 991%
+round 5 part V0 load 990%
+round 6 part U0 load 989%
+round 6 part V0 load 989%
+round 7 part U0 load 989%
+round 7 part V0 load 989%
+round 8 part U0 load 988%
+round 8 part V0 load 988%
 overloaded! exiting...83
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2223%
@@ -766,8 +1650,16 @@ round 3 part U0 load 989%
 round 3 part V0 load 967%
 round 4 part U0 load 957%
 round 4 part V0 load 951%
+round 5 part U0 load 949%
+round 5 part V0 load 947%
+round 6 part U0 load 947%
+round 6 part V0 load 946%
+round 7 part U0 load 946%
+round 7 part V0 load 946%
+round 8 part U0 load 946%
+round 8 part V0 load 946%
 overloaded! exiting...84
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2211%
@@ -778,8 +1670,16 @@ round 3 part U0 load 950%
 round 3 part V0 load 927%
 round 4 part U0 load 915%
 round 4 part V0 load 909%
+round 5 part U0 load 906%
+round 5 part V0 load 905%
+round 6 part U0 load 904%
+round 6 part V0 load 903%
+round 7 part U0 load 903%
+round 7 part V0 load 903%
+round 8 part U0 load 903%
+round 8 part V0 load 903%
 overloaded! exiting...85
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2199%
@@ -790,8 +1690,16 @@ round 3 part U0 load 910%
 round 3 part V0 load 886%
 round 4 part U0 load 873%
 round 4 part V0 load 866%
+round 5 part U0 load 863%
+round 5 part V0 load 861%
+round 6 part U0 load 860%
+round 6 part V0 load 859%
+round 7 part U0 load 859%
+round 7 part V0 load 859%
+round 8 part U0 load 859%
+round 8 part V0 load 859%
 overloaded! exiting...86
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2187%
@@ -802,8 +1710,16 @@ round 3 part U0 load 871%
 round 3 part V0 load 844%
 round 4 part U0 load 830%
 round 4 part V0 load 822%
+round 5 part U0 load 818%
+round 5 part V0 load 816%
+round 6 part U0 load 815%
+round 6 part V0 load 814%
+round 7 part U0 load 814%
+round 7 part V0 load 814%
+round 8 part U0 load 814%
+round 8 part V0 load 814%
 overloaded! exiting...87
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2175%
@@ -814,8 +1730,16 @@ round 3 part U0 load 831%
 round 3 part V0 load 802%
 round 4 part U0 load 786%
 round 4 part V0 load 778%
+round 5 part U0 load 773%
+round 5 part V0 load 771%
+round 6 part U0 load 769%
+round 6 part V0 load 768%
+round 7 part U0 load 768%
+round 7 part V0 load 768%
+round 8 part U0 load 768%
+round 8 part V0 load 768%
 overloaded! exiting...88
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2164%
@@ -826,8 +1750,16 @@ round 3 part U0 load 790%
 round 3 part V0 load 759%
 round 4 part U0 load 742%
 round 4 part V0 load 733%
+round 5 part U0 load 727%
+round 5 part V0 load 724%
+round 6 part U0 load 723%
+round 6 part V0 load 722%
+round 7 part U0 load 721%
+round 7 part V0 load 721%
+round 8 part U0 load 720%
+round 8 part V0 load 720%
 overloaded! exiting...89
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2152%
@@ -838,8 +1770,16 @@ round 3 part U0 load 749%
 round 3 part V0 load 716%
 round 4 part U0 load 697%
 round 4 part V0 load 687%
+round 5 part U0 load 680%
+round 5 part V0 load 677%
+round 6 part U0 load 675%
+round 6 part V0 load 674%
+round 7 part U0 load 673%
+round 7 part V0 load 672%
+round 8 part U0 load 672%
+round 8 part V0 load 672%
 overloaded! exiting...90
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2140%
@@ -850,8 +1790,16 @@ round 3 part U0 load 707%
 round 3 part V0 load 672%
 round 4 part U0 load 652%
 round 4 part V0 load 640%
+round 5 part U0 load 633%
+round 5 part V0 load 628%
+round 6 part U0 load 626%
+round 6 part V0 load 624%
+round 7 part U0 load 623%
+round 7 part V0 load 623%
+round 8 part U0 load 623%
+round 8 part V0 load 622%
 overloaded! exiting...91
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2128%
@@ -862,8 +1810,16 @@ round 3 part U0 load 665%
 round 3 part V0 load 627%
 round 4 part U0 load 605%
 round 4 part V0 load 592%
+round 5 part U0 load 584%
+round 5 part V0 load 579%
+round 6 part U0 load 576%
+round 6 part V0 load 574%
+round 7 part U0 load 573%
+round 7 part V0 load 572%
+round 8 part U0 load 572%
+round 8 part V0 load 571%
 overloaded! exiting...92
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2117%
@@ -874,8 +1830,16 @@ round 3 part U0 load 623%
 round 3 part V0 load 582%
 round 4 part U0 load 558%
 round 4 part V0 load 543%
+round 5 part U0 load 534%
+round 5 part V0 load 528%
+round 6 part U0 load 525%
+round 6 part V0 load 522%
+round 7 part U0 load 521%
+round 7 part V0 load 520%
+round 8 part U0 load 519%
+round 8 part V0 load 519%
 overloaded! exiting...93
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2105%
@@ -886,8 +1850,16 @@ round 3 part U0 load 580%
 round 3 part V0 load 536%
 round 4 part U0 load 510%
 round 4 part V0 load 494%
+round 5 part U0 load 483%
+round 5 part V0 load 477%
+round 6 part U0 load 472%
+round 6 part V0 load 469%
+round 7 part U0 load 468%
+round 7 part V0 load 466%
+round 8 part U0 load 465%
+round 8 part V0 load 465%
 overloaded! exiting...94
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2093%
@@ -898,8 +1870,16 @@ round 3 part U0 load 537%
 round 3 part V0 load 490%
 round 4 part U0 load 462%
 round 4 part V0 load 444%
+round 5 part U0 load 432%
+round 5 part V0 load 424%
+round 6 part U0 load 419%
+round 6 part V0 load 415%
+round 7 part U0 load 413%
+round 7 part V0 load 411%
+round 8 part U0 load 410%
+round 8 part V0 load 409%
 overloaded! exiting...95
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2081%
@@ -910,8 +1890,16 @@ round 3 part U0 load 493%
 round 3 part V0 load 443%
 round 4 part U0 load 412%
 round 4 part V0 load 392%
+round 5 part U0 load 379%
+round 5 part V0 load 370%
+round 6 part U0 load 364%
+round 6 part V0 load 359%
+round 7 part U0 load 356%
+round 7 part V0 load 354%
+round 8 part U0 load 353%
+round 8 part V0 load 352%
 overloaded! exiting...96
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2069%
@@ -922,8 +1910,16 @@ round 3 part U0 load 449%
 round 3 part V0 load 396%
 round 4 part U0 load 363%
 round 4 part V0 load 340%
+round 5 part U0 load 325%
+round 5 part V0 load 315%
+round 6 part U0 load 308%
+round 6 part V0 load 302%
+round 7 part U0 load 298%
+round 7 part V0 load 296%
+round 8 part U0 load 293%
+round 8 part V0 load 292%
 overloaded! exiting...97
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2058%
@@ -934,8 +1930,16 @@ round 3 part U0 load 404%
 round 3 part V0 load 348%
 round 4 part U0 load 312%
 round 4 part V0 load 288%
+round 5 part U0 load 271%
+round 5 part V0 load 259%
+round 6 part U0 load 250%
+round 6 part V0 load 244%
+round 7 part U0 load 239%
+round 7 part V0 load 235%
+round 8 part U0 load 233%
+round 8 part V0 load 230%
 overloaded! exiting...98
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2046%
@@ -946,8 +1950,16 @@ round 3 part U0 load 359%
 round 3 part V0 load 300%
 round 4 part U0 load 261%
 round 4 part V0 load 234%
+round 5 part U0 load 216%
+round 5 part V0 load 202%
+round 6 part U0 load 192%
+round 6 part V0 load 184%
+round 7 part U0 load 178%
+round 7 part V0 load 173%
+round 8 part U0 load 170%
+round 8 part V0 load 167%
 overloaded! exiting...99
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2034%
@@ -958,8 +1970,16 @@ round 3 part U0 load 313%
 round 3 part V0 load 251%
 round 4 part U0 load 209%
 round 4 part V0 load 181%
+round 5 part U0 load 160%
+round 5 part V0 load 144%
+round 6 part U0 load 133%
+round 6 part V0 load 124%
+round 7 part U0 load 116%
+round 7 part V0 load 111%
+round 8 part U0 load 106%
+round 8 part V0 load 102%
 overloaded! exiting...100
-Looking for 42-cycle on cuckoo30("0") with 50% edges, 4 trims, 3 threads
+Looking for 42-cycle on cuckoo30("0") with 50% edges, 8 trims, 3 threads
 Using 64MB edge and 128MB node memory.
 initial load 3200%
 round 1 part U0 load 2022%
@@ -970,4 +1990,14 @@ round 3 part U0 load 267%
 round 3 part V0 load 201%
 round 4 part U0 load 157%
 round 4 part V0 load 126%
-overloaded! exiting...
+round 5 part U0 load 104%
+round 5 part V0 load 87%
+round 6 part U0 load 74%
+round 6 part V0 load 63%
+round 7 part U0 load 55%
+round 7 part V0 load 48%
+round 8 part U0 load 43%
+round 8 part V0 load 38%
+  58-cycle found at 2:98%
+  60-cycle found at 2:99%
+ 426-cycle found at 1:99%
