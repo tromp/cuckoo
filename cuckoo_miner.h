@@ -239,7 +239,8 @@ void trim_edges(thread_ctx *tp, int round) {
       for (int qkill = 0; qkill < 2; qkill++) {
         for (int b=0; b < NBUCKETS; b++)
           bucketsizes[b] = 0;
-        for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+        nonce_t end = qkill ? HALFSIZE*FRAC/100 : HALFSIZE;
+        for (nonce_t block = tp->id*32; block < end; block += ctx->nthreads*32) {
           u32 alive32 = alive->block(block); // GLOBAL 1 SEQ
           for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
             if (alive32 & 1) {
