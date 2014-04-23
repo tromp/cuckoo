@@ -344,40 +344,87 @@ capping the value at 2.
 Next, for all alive edges, compute its u-endpoint and if the corresponding counter is less than 2,
 set the edge to be not-alive.
 These steps are repeated for the other partition, of v-nodes.
-Preprocessor symbol PART\_BITS allows for trading-off node counter storage for time,
+Preprocessor symbol PART\_BITS, whose value we'll denote as $B$,
+allows for trading-off node counter storage for time,
 by processing the nodes in multiple passes depending on the value of their least significant bits.
-The memory usage is $M$ bits for the alive set and $N / 2^{\mbox{PART\_BITS}}$ for the counters.
+The memory usage is $M$ bits for the alive set and $N / 2^{B}$ for the counters.
 
 After all edge trimming rounds, the counter memory is freed, and allocated to a
 custom cuckoo\_hashtable that presents the same interface as the simple array in
 the basic algorithm, but gets by with much fewer locations, as long as its {\em load},
 the ratio of remaining edges to number of locations, is significantly less than 1.
 
-The number of trimming rounds, which can be set with option {\tt -n} defaults to
-$2^{3+\mbox{PART\_BITS}}$, which should suffice to get the load below $50\%$.
+The number of trimming rounds, which can be set with option {\tt -n}, defaults to
+$2^{1+(B+3)*(B+4)/2}$, which achieves a load close to $50\%$.
 
 \section{Memory-hardness}
-Reducing memory usage to a $\frac{1}{2}$ bit per edge is quite challenging.
-One approach is to color one quarter of edges red and the rest blue,
-with the goal of trimming enough red edges so that
-their alive set is sufficiently sparse to allow compression of its bitvector.
-We will proceed on several levels $1,\ldots$ where level $l$ uses $M/2^{1+l}+M/c$ bits,
-for some appropriate constant $c>>1$. This way, total storage over a fixed number of levels
-will be approapriately bounded.
-On level one we repeatedlt trim red leaf edges until most remaining red edges
-are separated from leaves by at least one blue edge. At the next level we identify
-s fraction of blue edges (call them dark blue) that have an endpoint with
-only one adjacent (alive) red edge.
-Then we identify dark blue leaf edges, and go back a level to identify red edges adjacent
-to only dark blue leaf edges, which can now be trimmed. Level 2 must be iterated as
-many times as necessary to cover all blue edges.
-If repeatedly eliminating red edges seperated from leaves by a single blue edge is not
-enough for compression, then we need to recurse a level deeper, to find red edges separated
-by 2 blue edges.
-When the red set can finally be compressed, they can be recolored to blue, and another
-fraction of blue edges recolored to red to undergo the same treatment.
-Altogether, this appears like a rather convoluted process that will likely
-cause a superlinear slowdown.
+Reducing memory usage to a under 1 bit per edge is quite challenging.
+One approach is to maintain the set of alive edges in three parts:
+\begin{itemize}
+\item one part that has a density less than one-half and can be compressed using
+e.g. arithmetic coding.
+\item one part that is stored uncompressed.
+\item remaining edges are not stored and considered all alive.
+\end{itemize}
+Let's say we devote $A$ percent of $N/2$ bits (regular alive storage) to this, and another
+$B$ percent to vertex degree counters. The left plot below shows how well a given fraction
+of edges can be compressed (the entropy of live probabillty)
+by repeatedly removing leaf edges within this fraction. Most
+of this removal is achieved in 4 rounds of trimming, with each round of trimming requiring
+$2\cdot2\cdot\lceil \frac{2\cdot 100}{B} \rceil$ passes over all alive edges.
+(Re-)compressing the current stored fraction frees up some of $A$,
+which allows us to transfer part of the unstored edges into a new uncompressed part.
+Repeating this process will ultimately trim all but a small fraction of edges.
+The plot on the right shows how many passes are needed as a function of the total
+memory usage $A+B$ where the split between $A$ and $B$ is always chosen optimally.
+Clearly this time-memory trade-off is highly nonlinear and impractical below 50\%.
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[ymin=0, legend pos=south west]
+\addplot [color=blue] coordinates {
+( 1,0.9544) ( 2,0.9652) ( 3,0.9618) ( 4,0.9652) ( 5,0.9632)
+( 6,0.9618) ( 7,0.9608) ( 8,0.9600) ( 9,0.9594) (10,0.9589)
+(11,0.9565) (12,0.9563) (13,0.9544) (14,0.9528) (15,0.9513)
+(16,0.9500) (17,0.9488) (18,0.9464) (19,0.9455) (20,0.9435)
+(21,0.9415) (22,0.9398) (23,0.9381) (24,0.9366) (25,0.9352)
+(26,0.9328) (27,0.9305) (28,0.9284) (29,0.9263) (30,0.9244)
+(31,0.9226) (32,0.9199) (33,0.9173) (34,0.9149) (35,0.9125)
+(36,0.9103) (37,0.9072) (38,0.9043) (39,0.9014) (40,0.8987)
+(41,0.8960) (42,0.8926) (43,0.8902) (44,0.8869) (45,0.8830)
+(46,0.8800) (47,0.8762) (48,0.8725) (49,0.8690) (50,0.8647)
+(51,0.8613) (52,0.8571) (53,0.8523) (54,0.8484) (55,0.8437)
+(56,0.8392) (57,0.8339) (58,0.8295) (59,0.8236) (60,0.8186)
+(61,0.8129) (62,0.8073) (63,0.8017) (64,0.7954) (65,0.7884)
+(66,0.7823) (67,0.7755) (68,0.7679) (69,0.7604) (70,0.7529)
+(71,0.7447) (72,0.7366) (73,0.7277) (74,0.7189) (75,0.7093)
+(76,0.6988) (77,0.6884) (78,0.6772) (79,0.6660) (80,0.6539)
+(81,0.6410) (82,0.6271) (83,0.6132) (84,0.5984) (85,0.5825)
+(86,0.5656) (87,0.5476) (88,0.5274) (89,0.5070) (90,0.4842)
+(91,0.4600) (92,0.4342) (93,0.4056) (94,0.3739) (95,0.3399)
+(96,0.3006) (97,0.2566) (98,0.2085) (99,0.1531) (100,0.0930)
+};
+\addlegendentry{compression}
+\end{axis}
+\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}
+\begin{axis}[ymin=0, legend pos=north east]
+\addplot [color=red] coordinates {
+(46,6688) (47,5984) (48,5632) (49,5280) (50,4800)
+(51,4560) (52,4080) (53,3840) (54,3600) (55,3360)
+(56,3120) (57,2880) (58,2816) (59,2640) (60,2400)
+(61,2240) (62,2112) (63,1904) (64,1792) (65,1680)
+(66,1568) (67,1456) (68,1344) (69,1280) (70,1200)
+(71,1120) (72,1040) (73,960) (74,960) (75,880)
+(76,800) (77,768) (78,720) (79,640) (80,608)
+(81,544) (82,512) (83,480) (84,448) (85,400)
+(86,368) (87,320) (88,304) (89,272) (90,256)
+(91,240) (92,224) (93,208) (94,192) (95,192)
+(96,176) (97,160) (98,160) (99,160) (100,144)
+};
+\addlegendentry{tmto slowdown}
+\end{axis}
+\end{tikzpicture}
+\end{center}
 
 \section{Parallelization}
 The implementation allows the number of threads to be set with option {\tt -t}.
@@ -398,6 +445,7 @@ In the main algorithm, cycle detection only takes a small fraction of total runt
 the conflicts above could be avoided altogether by running the cycle detection single threaded.
 We therefore turn our attention to parallelization of edge trimming.
 
+To be expanded...
 
 \begin{center}
 \begin{tikzpicture}
