@@ -371,7 +371,8 @@ $B$ percent to vertex degree counters. The left plot below shows how well a give
 of edges can be compressed (the entropy of live probabillty)
 by repeatedly removing leaf edges within this fraction. Most
 of this removal is achieved in 4 rounds of trimming, with each round of trimming requiring
-$2\cdot2\cdot\lceil \frac{2\cdot 100}{B} \rceil$ passes over all alive edges.
+$2\cdot2\cdot\lceil \frac{2\cdot 100}{B} \rceil$ passes over all alive edges
+(one factor of 2 for $U \cup V$, another for writing and then reading degree counts).
 (Re-)compressing the current stored fraction frees up some of $A$,
 which allows us to transfer part of the unstored edges into a new uncompressed part.
 Repeating this process will ultimately trim all but a small fraction of edges.
