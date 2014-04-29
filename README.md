@@ -33,3 +33,7 @@ Other features:
    starts to fall sharply.
 
 6) running time on high end x86 is 9min/GB single-threaded, and 1min/GB for 20 threads.
+
+Please read the latest version of the whitepaper for more details:
+
+https://github.com/tromp/cuckoo/blob/master/cuckoo.pdf?raw=true
