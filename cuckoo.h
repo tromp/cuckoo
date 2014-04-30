@@ -17,6 +17,7 @@
 #define HALFSIZE (SIZE/2)
 #define NODEMASK (HALFSIZE-1)
 
+typedef uint32_t u32;
 typedef uint64_t u64;
 typedef u64 nonce_t;
 typedef u64 node_t;
@@ -64,7 +65,7 @@ u64 siphash24(siphash_ctx *ctx, u64 nonce) {
 }
 
 // generate edge endpoint in cuckoo graph
-node_t sipnode(siphash_ctx *ctx, nonce_t nonce, int uorv) {
+node_t sipnode(siphash_ctx *ctx, nonce_t nonce, u32 uorv) {
   return siphash24(ctx, 2*nonce + uorv) & NODEMASK;
 }
 
@@ -78,15 +79,15 @@ int verify(nonce_t nonces[PROOFSIZE], const char *header, u64 easiness) {
   siphash_ctx ctx;
   setheader(&ctx, header);
   node_t us[PROOFSIZE], vs[PROOFSIZE];
-  unsigned i = 0, n;
+  u32 i = 0, n;
   for (n = 0; n < PROOFSIZE; n++) {
     if (nonces[n] >= easiness || (n && nonces[n] <= nonces[n-1]))
       return 0;
     sipedge(&ctx, nonces[n], &us[n], &vs[n]);
   }
   do {  // follow cycle until we return to i==0; n edges left to visit
-    unsigned j = i;
-    for (unsigned k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
+    u32 j = i;
+    for (u32 k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
       if (k != i && vs[k] == vs[i]) {
         if (j != i)
           return 0;
@@ -95,7 +96,7 @@ int verify(nonce_t nonces[PROOFSIZE], const char *header, u64 easiness) {
     if (j == i)
       return 0;
     i = j;
-    for (unsigned k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
+    for (u32 k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
       if (k != j && us[k] == us[j]) {
         if (i != j)
           return 0;

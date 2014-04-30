@@ -2,7 +2,8 @@
 FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L -O3 -pthread -l crypto
 # leave out -l crypto if using sha256.c instead of openssl
 CC = cc -std=c99 $(FLAGS)
-GPP = g++ -std=c++11 $(FLAGS)
+GPP = g++ -std=c++11 -DATOMIC $(FLAGS)
+# leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
 
 cuckoo4:	cuckoo.h cuckoo_miner.h simple_miner.cpp Makefile
 	$(GPP) -o cuckoo4 -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 simple_miner.cpp

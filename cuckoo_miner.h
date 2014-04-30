@@ -12,7 +12,14 @@
 #include <pthread.h>
 #include <assert.h>
 #include <vector>
+#ifdef ATOMIC
 #include <atomic>
+typedef std::atomic<u32> au32;
+typedef std::atomic<u64> au64;
+#else
+typedef u32 au32;
+typedef u64 au64;
+#endif
 #include <set>
 
 // algorithm parameters
@@ -44,15 +51,13 @@
 // grow with cube root of size, hardly affected by trimming
 #define MAXPATHLEN (8 << (SIZESHIFT/3))
 
-typedef uint32_t u32;
-
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
 public:
   std::vector<u32> bits;
   std::vector<u64> cnt;
 
-  shrinkingset(int nthreads) {
+  shrinkingset(u32 nthreads) {
     nonce_t nwords = HALFSIZE/32;
     bits.resize(nwords);
     cnt.resize(nthreads);
@@ -60,11 +65,11 @@ public:
   }
   u64 count() const {
     u64 sum = 0L;
-    for (unsigned i=0; i<cnt.size(); i++)
+    for (u32 i=0; i<cnt.size(); i++)
       sum += cnt[i];
     return sum;
   }
-  void reset(nonce_t n, int thread) {
+  void reset(nonce_t n, u32 thread) {
     bits[n/32] |= 1 << (n%32);
     cnt[thread]--;
   }
@@ -82,39 +87,25 @@ public:
 
 class twice_set {
 public:
-#ifdef ATOMIC
-  typedef std::atomic<u32> au32;
   au32 *bits;
 
   twice_set() {
     assert(bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32)));
   }
   void reset() {
-    for (unsigned i=0; i<TWICE_WORDS; i++)
-      bits[i].store(0, std::memory_order_relaxed);
+    memset(bits, 0, TWICE_WORDS*sizeof(au32));
   }
   void set(node_t u) {
     node_t idx = u/16;
     u32 bit = 1 << (2 * (u%16));
-    u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit   , std::memory_order_relaxed);
+#ifdef ATOMIC
+    u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
     if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
   }
   u32 test(node_t u) const {
     return (bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2;
   }
 #else
-  u32 *bits;
-
-  twice_set() {
-    assert(bits = (u32 *)calloc(TWICE_WORDS, sizeof(u32)));
-  }
-  void reset() {
-    for (unsigned i=0; i<TWICE_WORDS; i++)
-      bits[i] = 0;
-  }
-  void set(node_t u) {
-    node_t idx = u/16;
-    u32 bit = 1 << (2 * (u%16));
     u32 old = bits[idx];
     bits[idx] = old | (bit + (old & bit));
   }
@@ -136,7 +127,6 @@ public:
 
 class cuckoo_hash {
 public:
-  typedef std::atomic<u64> au64;
   au64 *cuckoo;
 
   cuckoo_hash() {
@@ -148,18 +138,28 @@ public:
   void set(node_t u, node_t v) {
     u64 niew = (u64)u << SIZESHIFT | v;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
+#ifdef ATOMIC
       u64 old = 0;
       if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
         return;
       if ((old >> SIZESHIFT) == (u & KEYMASK)) {
         cuckoo[ui].store(niew, std::memory_order_relaxed);
+#else
+      u64 old = cuckoo[ui];
+      if (old == 0 || (old >> SIZESHIFT) == (u & KEYMASK)) {
+        cuckoo[ui] = niew;
+#endif
         return;
       }
     }
   }
   node_t operator[](node_t u) const {
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
+#ifdef ATOMIC
       u64 cu = cuckoo[ui].load(std::memory_order_relaxed);
+#else
+      u64 cu = cuckoo[ui];
+#endif
       if (!cu)
         return 0;
       if ((cu >> SIZESHIFT) == (u & KEYMASK)) {
@@ -177,13 +177,13 @@ public:
   twice_set *nonleaf;
   cuckoo_hash *cuckoo;
   nonce_t (*sols)[PROOFSIZE];
-  unsigned maxsols;
-  std::atomic<unsigned> nsols;
-  int nthreads;
-  int ntrims;
+  u32 maxsols;
+  au32 nsols;
+  u32 nthreads;
+  u32 ntrims;
   pthread_barrier_t barry;
 
-  cuckoo_ctx(const char* header, int n_threads, int n_trims, int max_sols) {
+  cuckoo_ctx(const char* header, u32 n_threads, u32 n_trims, u32 max_sols) {
     setheader(&sip_ctx, header);
     nthreads = n_threads;
     alive = new shrinkingset(nthreads);
@@ -204,7 +204,7 @@ public:
 };
 
 typedef struct {
-  int id;
+  u32 id;
   pthread_t thread;
   cuckoo_ctx *ctx;
   u64 (* buckets)[BUCKETSIZE];
@@ -224,20 +224,20 @@ void barrier(pthread_barrier_t *barry) {
 #define NODEPARTMASK	(NODEMASK >> PART_BITS)
 #define NONCETRUNC	(1L << (64 - NONCESHIFT))
 
-void trim_edges(thread_ctx *tp, int round) {
+void trim_edges(thread_ctx *tp, u32 round) {
   cuckoo_ctx *ctx = tp->ctx;
   u64 (* buckets)[BUCKETSIZE] = tp->buckets;
   shrinkingset *alive = ctx->alive;
   twice_set *nonleaf = ctx->nonleaf;
   u32 bucketsizes[NBUCKETS];
 
-  for (int uorv = 0; uorv < 2; uorv++) {
-    for (unsigned part = 0; part <= PART_MASK; part++) {
+  for (u32 uorv = 0; uorv < 2; uorv++) {
+    for (u32 part = 0; part <= PART_MASK; part++) {
       if (tp->id == 0)
         nonleaf->reset();
       barrier(&ctx->barry);
-      for (int qkill = 0; qkill < 2; qkill++) {
-        for (int b=0; b < NBUCKETS; b++)
+      for (u32 qkill = 0; qkill < 2; qkill++) {
+        for (u32 b=0; b < NBUCKETS; b++)
           bucketsizes[b] = 0;
         for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
           u32 alive32 = alive->block(block); // GLOBAL 1 SEQ
@@ -250,7 +250,7 @@ void trim_edges(thread_ctx *tp, int round) {
                 buckets[b][*bsize] = (nonce << NONCESHIFT) | (u >> PART_BITS);
                 if (++*bsize == BUCKETSIZE) {
                   *bsize = 0;
-                  for (int i=0; i<BUCKETSIZE; i++) {
+                  for (u32 i=0; i<BUCKETSIZE; i++) {
                     u64 bi = buckets[b][i];
                     if (!qkill) {
                       nonleaf->set(bi & NODEPARTMASK); // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
@@ -266,9 +266,9 @@ void trim_edges(thread_ctx *tp, int round) {
             }
           }
         }
-        for (int b=0; b < NBUCKETS; b++) {
-          int ni = bucketsizes[b];
-          for (int i=0; i<ni ; i++) {
+        for (u32 b=0; b < NBUCKETS; b++) {
+          u32 ni = bucketsizes[b];
+          for (u32 i=0; i<ni ; i++) {
             node_t bi = buckets[b][i];
             if (!qkill) {
               nonleaf->set(bi & NODEPARTMASK);
@@ -283,15 +283,15 @@ void trim_edges(thread_ctx *tp, int round) {
         barrier(&ctx->barry);
       }
       if (tp->id == 0) {
-        int load = (int)(100 * alive->count() / CUCKOO_SIZE);
+        u32 load = (u32)(100 * alive->count() / CUCKOO_SIZE);
         printf("round %d part %c%d load %d%%\n", round, "UV"[uorv], part, load);
       }
     }
   }
 }
 
-int path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
-  int nu;
+u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
+  u32 nu;
   for (nu = 0; u; u = cuckoo[u]) {
     if (++nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
@@ -307,15 +307,19 @@ int path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
 
 typedef std::pair<node_t,node_t> edge;
 
-void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
+void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
   std::set<edge> cycle;
-  unsigned n;
+  u32 n;
   cycle.insert(edge(*us, *vs));
   while (nu--)
     cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
   while (nv--)
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-  unsigned soli = std::atomic_fetch_add_explicit(&ctx->nsols, 1U, std::memory_order_relaxed);
+#ifdef ATOMIC
+  u32 soli = std::atomic_fetch_add_explicit(&ctx->nsols, 1U, std::memory_order_relaxed);
+#else
+  u32 soli = ctx->nsols++;
+#endif
   for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
     if (ctx->alive->test(nonce)) {
       edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
@@ -332,13 +336,13 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset *alive = ctx->alive;
-  int load = 100 * HALFSIZE / CUCKOO_SIZE;
+  u32 load = 100 * HALFSIZE / CUCKOO_SIZE;
   if (tp->id == 0)
     printf("initial load %d%%\n", load);
-  for (int round=1; round <= ctx->ntrims; round++)
+  for (u32 round=1; round <= ctx->ntrims; round++)
     trim_edges(tp, round);
   if (tp->id == 0) {
-    load = (int)(100 * alive->count() / CUCKOO_SIZE);
+    load = (u32)(100 * alive->count() / CUCKOO_SIZE);
     if (load >= 90) {
       printf("overloaded! exiting...");
       exit(0);
@@ -361,12 +365,12 @@ void *worker(void *vp) {
           continue; // ignore duplicate edges
         us[0] = u0;
         vs[0] = v0;
-        int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+        u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
-          int min = nu < nv ? nu : nv;
+          u32 min = nu < nv ? nu : nv;
           for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-          int len = nu + nv + 1;
-          printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (int)(nonce*100L/HALFSIZE));
+          u32 len = nu + nv + 1;
+          printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100L/HALFSIZE));
           if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
             solution(ctx, us, nu, vs, nv);
           continue;
