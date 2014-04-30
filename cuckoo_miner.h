@@ -325,9 +325,11 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
       edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
       if (cycle.find(e) != cycle.end()) {
         ctx->sols[soli][n++] = nonce;
-        cycle.erase(e);
+        if (PROOFSIZE > 2)
+          cycle.erase(e);
       }
     }
+  assert(n==PROOFSIZE);
 }
 
 void *worker(void *vp) {
@@ -361,8 +363,6 @@ void *worker(void *vp) {
         sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
         v0 += HALFSIZE;  // make v's different from u's
         node_t u = cuckoo[u0], v = cuckoo[v0];
-        if (u == v0 || v == u0)
-          continue; // ignore duplicate edges
         us[0] = u0;
         vs[0] = v0;
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
