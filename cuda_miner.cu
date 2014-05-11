@@ -68,15 +68,9 @@ __device__ node_t sipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
   return (v0 ^ v1 ^ v2  ^ v3) & NODEMASK;
 }
 
-__device__ void sipedge(siphash_ctx *ctx, nonce_t nonce, node_t *pu, node_t *pv) {
-  *pu = sipnode(ctx, nonce, 0);
-  *pv = sipnode(ctx, nonce, 1);
-}
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <vector>
 typedef u32 au32;
 typedef u64 au64;
 #include <set>
@@ -91,12 +85,6 @@ typedef u64 au64;
 #define PART_BITS 0
 #endif
 // L3 cache should exceed NBUCKETS buckets of BUCKETSIZE uint_64_t (0.5MB below)
-#ifndef LOGNBUCKETS
-#define LOGNBUCKETS	8
-#endif
-#ifndef BUCKETSIZE
-#define BUCKETSIZE	256
-#endif
 
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) == sizeof(twice_set), so
@@ -110,33 +98,35 @@ typedef u64 au64;
 // grow with cube root of size, hardly affected by trimming
 #define MAXPATHLEN (8 << (SIZESHIFT/3))
 
+#define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true) {
+  if (code != cudaSuccess) {
+    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+    if (abort) exit(code);
+  }
+}
+
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
 public:
-  std::vector<u32> bits;
-  std::vector<u64> cnt;
+  u32 *bits;
 
-  __device__ shrinkingset(u32 nthreads) {
+  shrinkingset() {
     nonce_t nwords = HALFSIZE/32;
-    bits.resize(nwords);
-    cnt.resize(nthreads);
-    cnt[0] = HALFSIZE;
+    checkCudaErrors(cudaMalloc((void**)&bits, nwords * sizeof(u32)));
+    checkCudaErrors(cudaMemset(bits, 0, nwords * sizeof(u32)));
   }
-  __device__ u64 count() const {
-    u64 sum = 0L;
-    for (u32 i=0; i<cnt.size(); i++)
-      sum += cnt[i];
-    return sum;
-  }
-  __device__ void reset(nonce_t n, u32 thread) {
+  __device__ void reset(nonce_t n) {
     bits[n/32] |= 1 << (n%32);
-    cnt[thread]--;
   }
   __device__ bool test(node_t n) const {
     return !((bits[n/32] >> (n%32)) & 1);
   }
   __device__ u32 block(node_t n) const {
     return ~bits[n/32];
+  }
+  ~shrinkingset() {
+    checkCudaErrors(cudaFree(bits));
   }
 };
 
@@ -148,11 +138,12 @@ class twice_set {
 public:
   au32 *bits;
 
-  __device__ twice_set() {
-    assert(bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32)));
+  twice_set() {
+    checkCudaErrors(cudaMalloc((void**)&bits, TWICE_WORDS * sizeof(au32)));
+    checkCudaErrors(cudaMemset(bits, 0, TWICE_WORDS * sizeof(au32)));
   }
   __device__ void reset() {
-    memset(bits, 0, TWICE_WORDS*sizeof(au32));
+    memset(bits, 0, TWICE_WORDS * sizeof(au32));
   }
   __device__ void set(node_t u) {
     node_t idx = u/16;
@@ -164,8 +155,8 @@ public:
   __device__ u32 test(node_t u) const {
     return (bits[u/16] >> (2 * (u%16))) & 2;
   }
-  __device__ ~twice_set() {
-    free(bits);
+  ~twice_set() {
+    checkCudaErrors(cudaFree(bits));
   }
 };
 
@@ -187,7 +178,7 @@ public:
     free(cuckoo);
   }
   void set(node_t u, node_t v) {
-    u64 old, niew = (u64)u << SIZESHIFT | v;
+    u64 niew = (u64)u << SIZESHIFT | v;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
 #ifdef ATOMIC
       u64 old = 0;
@@ -226,109 +217,70 @@ public:
   siphash_ctx sip_ctx;
   shrinkingset *alive;
   twice_set *nonleaf;
-  cuckoo_hash *cuckoo;
-  nonce_t (*sols)[PROOFSIZE];
-  u32 maxsols;
-  au32 nsols;
-  u32 nthreads;
+  int nthreads;
   u32 ntrims;
-  pthread_barrier_t barry;
 
   cuckoo_ctx(const char* header, u32 n_threads, u32 n_trims, u32 max_sols) {
     setheader(&sip_ctx, header);
-    nthreads = n_threads;
-    alive = new shrinkingset(nthreads);
-    cuckoo = 0;
+    alive = new shrinkingset();
     nonleaf = new twice_set;
+    nthreads = n_threads;
     ntrims = n_trims;
-    assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
-    assert(sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(nonce_t)));
-    nsols = 0;
   }
   ~cuckoo_ctx() {
     delete alive;
     if (nonleaf)
       delete nonleaf;
-    if (cuckoo)
-      delete cuckoo;
   }
 };
 
-void barrier(pthread_barrier_t *barry) {
-  int rc = pthread_barrier_wait(barry);
-  if (rc != 0 && rc != PTHREAD_BARRIER_SERIAL_THREAD) {
-    printf("Could not wait on barrier\n");
-    pthread_exit(NULL);
-  }
-}
-
-#define NBUCKETS	(1 << LOGNBUCKETS)
-#define BUCKETSHIFT	(SIZESHIFT-1 - LOGNBUCKETS)
+#define LOGNBUCKETS	0
+#define NBUCKETS	1
+#define BUCKETSHIFT	(SIZESHIFT-1)
 #define NONCESHIFT	(SIZESHIFT-1 - PART_BITS)
 #define NODEPARTMASK	(NODEMASK >> PART_BITS)
 #define NONCETRUNC	(1L << (64 - NONCESHIFT))
 
-void trim_edges(thread_ctx *tp, u32 round) {
-  cuckoo_ctx *ctx = tp->ctx;
-  u64 (* buckets)[BUCKETSIZE] = tp->buckets;
+
+__global__ void trim_edges(cuckoo_ctx *ctx) {
   shrinkingset *alive = ctx->alive;
   twice_set *nonleaf = ctx->nonleaf;
-  u32 bucketsizes[NBUCKETS];
+  u64 bucket[32];
+  u32 bucketsize;
 
-  for (u32 uorv = 0; uorv < 2; uorv++) {
-    for (u32 part = 0; part <= PART_MASK; part++) {
-      if (tp->id == 0)
-        nonleaf->reset();
-      barrier(&ctx->barry);
-      for (u32 qkill = 0; qkill < 2; qkill++) {
-        for (u32 b=0; b < NBUCKETS; b++)
-          bucketsizes[b] = 0;
-        for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
-          u32 alive32 = alive->block(block); // GLOBAL 1 SEQ
-          for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
-            if (alive32 & 1) {
-              node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
-              if ((u & PART_MASK) == part) {
-                u32 b = u >> BUCKETSHIFT;
-                u32 *bsize = &bucketsizes[b];
-                buckets[b][*bsize] = (nonce << NONCESHIFT) | (u >> PART_BITS);
-                if (++*bsize == BUCKETSIZE) {
-                  *bsize = 0;
-                  for (u32 i=0; i<BUCKETSIZE; i++) {
-                    u64 bi = buckets[b][i];
-                    if (!qkill) {
-                      nonleaf->set(bi & NODEPARTMASK); // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
-                    } else {
-                      if (!nonleaf->test(bi & NODEPARTMASK)) { // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
-                        nonce_t n = (nonce & -NONCETRUNC) | (bi >> NONCESHIFT);
-                        alive->reset(n <= nonce ? n : n-NONCETRUNC, tp->id); // GLOBAL SEQ 
-                      }
-                    }
-                  }
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  for (u32 round=0; round < ctx->ntrims; round++) {
+    for (u32 uorv = 0; uorv < 2; uorv++) {
+      for (u32 part = 0; part <= PART_MASK; part++) {
+        if (id == 0)
+          nonleaf->reset();
+        __syncthreads();
+        for (u32 qkill = 0; qkill < 2; qkill++) {
+          for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+            u32 alive32 = alive->block(block); // GLOBAL 1 SEQ
+            bucketsize = 0;
+            for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
+              if (alive32 & 1) {
+                node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
+                if ((u & PART_MASK) == part) {
+                  bucket[bucketsize++] = (nonce << NONCESHIFT) | (u >> PART_BITS);
+                }
+              }
+            }
+            for (u32 i=0; i<bucketsize; i++) {
+              u64 bi = bucket[i];
+              if (!qkill) {
+                nonleaf->set(bi & NODEPARTMASK); // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
+              } else {
+                if (!nonleaf->test(bi & NODEPARTMASK)) { // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
+                  nonce_t n = (block & -NONCETRUNC) | (bi >> NONCESHIFT);
+                  alive->reset(n < block+32 ? n : n-NONCETRUNC); // GLOBAL SEQ 
                 }
               }
             }
           }
+          __syncthreads();
         }
-        for (u32 b=0; b < NBUCKETS; b++) {
-          u32 ni = bucketsizes[b];
-          for (u32 i=0; i<ni ; i++) {
-            node_t bi = buckets[b][i];
-            if (!qkill) {
-              nonleaf->set(bi & NODEPARTMASK);
-            } else {
-              if (!nonleaf->test(bi & NODEPARTMASK)) {
-                nonce_t n = (HALFSIZE & -NONCETRUNC) | (bi >> NONCESHIFT);
-                alive->reset(n < HALFSIZE  ? n : n-NONCETRUNC, tp->id); // GLOBAL SEQ 
-              }
-            }
-          }
-        }
-        barrier(&ctx->barry);
-      }
-      if (tp->id == 0) {
-        u32 load = (u32)(100 * alive->count() / CUCKOO_SIZE);
-        printf("round %d part %c%d load %d%%\n", round, "UV"[uorv], part, load);
       }
     }
   }
@@ -339,7 +291,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   for (nu = 0; u; u = cuckoo[u]) {
     if (++nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
-      if (nu < 0)
+      if (nu == ~0)
         printf("maximum path length exceeded\n");
       else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
       pthread_exit(NULL);
@@ -351,6 +303,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
 
 typedef std::pair<node_t,node_t> edge;
 
+#if 0
 void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
   std::set<edge> cycle;
   u32 n;
@@ -359,18 +312,19 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
     cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
   while (nv--)
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-  u32 soli = atomicAdd(&ctx->nsols, 1U);
   for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
     if (ctx->alive->test(nonce)) {
       edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
       if (cycle.find(e) != cycle.end()) {
-        ctx->sols[soli][n++] = nonce;
+        printf(" %lx", (long)nonce);
         if (PROOFSIZE > 2)
           cycle.erase(e);
       }
     }
   assert(n==PROOFSIZE);
+  printf("\n");
 }
+#endif
 
 #include <unistd.h>
 
@@ -406,36 +360,22 @@ int main(int argc, char **argv) {
      (int)edgeBytes, " KMGT"[edgeUnit], (int)nodeBytes, " KMGT"[nodeUnit]);
   cuckoo_ctx ctx(header, nthreads, ntrims, maxsols);
 
-
-  checkCudaErrors(cudaMalloc((void**)&ctx.cuckoo, (1+SIZE) * sizeof(unsigned)));
-  checkCudaErrors(cudaMemset(ctx.cuckoo, 0, (1+SIZE) * sizeof(unsigned)));
-  checkCudaErrors(cudaMalloc((void**)&ctx.cycles, maxcycles*sizeof(cycle)));
-
   cuckoo_ctx *device_ctx;
   checkCudaErrors(cudaMalloc((void**)&device_ctx, sizeof(cuckoo_ctx)));
   cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
 
-  worker<<<nthreads,1>>>(device_ctx);
-  // assert(tp->buckets = (u64 (*)[BUCKETSIZE])calloc(NBUCKETS * BUCKETSIZE, sizeof(u64)));
+  trim_edges<<<nthreads,1>>>(device_ctx);
 
-  shrinkingset *alive = ctx->alive;
-  u32 load = 100 * HALFSIZE / CUCKOO_SIZE;
-  if (tp->id == 0)
-    printf("initial load %d%%\n", load);
-  for (u32 round=1; round <= ctx->ntrims; round++)
-    trim_edges(tp, round);
+  u32 *bits;
+  assert(bits = (u32 *)calloc(HALFSIZE/32, sizeof(u32)));
+  cudaMemcpy(bits, ctx.alive->bits, (HALFSIZE/32) * sizeof(u32), cudaMemcpyDeviceToHost);
 
-  cudaMemcpy(&ctx, device_ctx, sizeof(cuckoo_ctx), cudaMemcpyDeviceToHost);
-  cycle *cycles;
-  cycles = (cycle *)calloc(maxcycles, sizeof(cycle));
-  cudaMemcpy(cycles, ctx.cycles, maxcycles*sizeof(cycle), cudaMemcpyDeviceToHost);
+  u32 cnt = 0;
+  for (nonce_t nonce = 0; nonce < HALFSIZE; nonce++)
+    cnt += ((bits[nonce/32] >> (nonce%32)) & 1) ^ 1;
 
-  for (int s = 0; s < ctx.ncycles; s++)
-    printf("% 4d-cycle found at %d:%d%%\n", cycles[s].len, cycles[s].id, cycles[s].pct);
-
-  checkCudaErrors(cudaFree(device_ctx));
-  checkCudaErrors(cudaFree(ctx.cycles));
-  checkCudaErrors(cudaFree(ctx.cuckoo));
+  u32 load = (u32)(100 * cnt / CUCKOO_SIZE);
+  printf("final load %d%%\n", load);
 
 #if 0
   if (tp->id == 0) {
@@ -454,12 +394,8 @@ int main(int argc, char **argv) {
   for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
     for (nonce_t nonce = block; nonce < block+32 && nonce < HALFSIZE; nonce++) {
       if (alive->test(nonce)) {
-        node_t u0, v0;
-        sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
-        v0 += HALFSIZE;  // make v's different from u's
-        node_t u = cuckoo[u0], v = cuckoo[v0];
-        us[0] = u0;
-        vs[0] = v0;
+        node_t u0 = sipnode(ctx, nonce, 0), v0 = sipnode(ctx, nonce, 1) + HALFSIZE;  // make v's different from u's
+        node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
           u32 min = nu < nv ? nu : nv;
@@ -483,7 +419,6 @@ int main(int argc, char **argv) {
     }
   }
 #endif
-  // free(tp->buckets);
 
 #if 0
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
