@@ -70,6 +70,7 @@ public:
     return sum;
   }
   void reset(nonce_t n, u32 thread) {
+    // assert(!(bits[n/32] & ( 1 << (n%32))));
     bits[n/32] |= 1 << (n%32);
     cnt[thread]--;
   }
@@ -247,7 +248,7 @@ void trim_edges(thread_ctx *tp, u32 round) {
               if ((u & PART_MASK) == part) {
                 u32 b = u >> BUCKETSHIFT;
                 u32 *bsize = &bucketsizes[b];
-                buckets[b][*bsize] = (nonce << NONCESHIFT) | (u >> PART_BITS);
+                buckets[b][*bsize] = ((u64)nonce << NONCESHIFT) | (u >> PART_BITS);
                 if (++*bsize == BUCKETSIZE) {
                   *bsize = 0;
                   for (u32 i=0; i<BUCKETSIZE; i++) {
@@ -283,7 +284,7 @@ void trim_edges(thread_ctx *tp, u32 round) {
         barrier(&ctx->barry);
       }
       if (tp->id == 0) {
-        u32 load = (u32)(100 * alive->count() / CUCKOO_SIZE);
+        u32 load = (u32)(100L * alive->count() / CUCKOO_SIZE);
         printf("round %d part %c%d load %d%%\n", round, "UV"[uorv], part, load);
       }
     }
@@ -295,7 +296,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   for (nu = 0; u; u = cuckoo[u]) {
     if (++nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
-      if (nu < 0)
+      if (nu == -1)
         printf("maximum path length exceeded\n");
       else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
       pthread_exit(NULL);
@@ -338,13 +339,13 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset *alive = ctx->alive;
-  u32 load = 100 * HALFSIZE / CUCKOO_SIZE;
+  u32 load = 100L * HALFSIZE / CUCKOO_SIZE;
   if (tp->id == 0)
     printf("initial load %d%%\n", load);
   for (u32 round=1; round <= ctx->ntrims; round++)
     trim_edges(tp, round);
   if (tp->id == 0) {
-    load = (u32)(100 * alive->count() / CUCKOO_SIZE);
+    load = (u32)(100L * alive->count() / CUCKOO_SIZE);
     if (load >= 90) {
       printf("overloaded! exiting...");
       exit(0);
@@ -362,9 +363,7 @@ void *worker(void *vp) {
         node_t u0, v0;
         sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
         v0 += HALFSIZE;  // make v's different from u's
-        node_t u = cuckoo[u0], v = cuckoo[v0];
-        us[0] = u0;
-        vs[0] = v0;
+        node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
           u32 min = nu < nv ? nu : nv;

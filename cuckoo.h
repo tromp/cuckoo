@@ -19,8 +19,13 @@
 
 typedef uint32_t u32;
 typedef uint64_t u64;
+#if SIZESHIFT < 0
+typedef u32 nonce_t;
+typedef u32 node_t;
+#else
 typedef u64 nonce_t;
 typedef u64 node_t;
+#endif
 
 typedef struct {
   u64 v[4];
