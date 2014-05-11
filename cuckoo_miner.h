@@ -70,7 +70,6 @@ public:
     return sum;
   }
   void reset(nonce_t n, u32 thread) {
-    // assert(!(bits[n/32] & ( 1 << (n%32))));
     bits[n/32] |= 1 << (n%32);
     cnt[thread]--;
   }
@@ -270,7 +269,7 @@ void trim_edges(thread_ctx *tp, u32 round) {
         for (u32 b=0; b < NBUCKETS; b++) {
           u32 ni = bucketsizes[b];
           for (u32 i=0; i<ni ; i++) {
-            node_t bi = buckets[b][i];
+            u64 bi = buckets[b][i];
             if (!qkill) {
               nonleaf->set(bi & NODEPARTMASK);
             } else {
@@ -296,7 +295,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   for (nu = 0; u; u = cuckoo[u]) {
     if (++nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
-      if (nu == -1)
+      if (!~nu)
         printf("maximum path length exceeded\n");
       else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
       pthread_exit(NULL);

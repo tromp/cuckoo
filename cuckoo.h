@@ -19,7 +19,8 @@
 
 typedef uint32_t u32;
 typedef uint64_t u64;
-#if SIZESHIFT < 0
+// SIZESHIFT=32 doesnt fit in u32 since we add HALFSIZE to v nodes in solution()
+#if SIZESHIFT < 32
 typedef u32 nonce_t;
 typedef u32 node_t;
 #else
