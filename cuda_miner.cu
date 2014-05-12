@@ -22,8 +22,13 @@
 
 typedef uint32_t u32;
 typedef uint64_t u64;
+#if SIZESHIFT < 32
+typedef u32 nonce_t;
+typedef u32 node_t;
+#else
 typedef u64 nonce_t;
 typedef u64 node_t;
+#endif
 
 typedef struct {
   u64 v[4];
@@ -263,7 +268,7 @@ __global__ void trim_edges(cuckoo_ctx *ctx) {
               if (alive32 & 1) {
                 node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
                 if ((u & PART_MASK) == part) {
-                  bucket[bucketsize++] = (nonce << NONCESHIFT) | (u >> PART_BITS);
+                  bucket[bucketsize++] = ((u64)nonce << NONCESHIFT) | (u >> PART_BITS);
                 }
               }
             }
