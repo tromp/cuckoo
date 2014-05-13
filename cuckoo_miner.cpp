@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
   }
   printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %d threads\n",
                PROOFSIZE, SIZESHIFT, header, ntrims, nthreads);
-  u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*4;
+  u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
   int edgeUnit, nodeUnit;
   for (edgeUnit=0; edgeBytes >= 1024; edgeBytes>>=10,edgeUnit++) ;
   for (nodeUnit=0; nodeBytes >= 1024; nodeBytes>>=10,nodeUnit++) ;

@@ -93,8 +93,8 @@ java:	Cuckoo.class SimpleMiner.class Makefile
 	java SimpleMiner -h 85 | tail -1 | java Cuckoo -h 85
 
 cuda:	cuda_miner.cu Makefile
-	nvcc -std=c++11 -o cuda -DSIZESHIFT=4 -arch sm_20 cuda_miner.cu -lcrypto
-	./cuda -e 100 -h header
+	nvcc -o cuda -DSIZESHIFT=14 -arch sm_20 cuda_miner.cu -lcrypto
+	./cuda h header
 
 cuda28:	cuda_miner.cu Makefile
 	nvcc -std=c++11 -o cuda28 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lcrypto

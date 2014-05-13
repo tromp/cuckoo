@@ -357,7 +357,7 @@ int main(int argc, char **argv) {
   }
   printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %d threads\n",
                PROOFSIZE, SIZESHIFT, header, ntrims, nthreads);
-  u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*4;
+  u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
   int edgeUnit, nodeUnit;
   for (edgeUnit=0; edgeBytes >= 1024; edgeBytes>>=10,edgeUnit++) ;
   for (nodeUnit=0; nodeBytes >= 1024; nodeBytes>>=10,nodeUnit++) ;
@@ -371,6 +371,7 @@ int main(int argc, char **argv) {
 
   trim_edges<<<nthreads,1>>>(device_ctx);
 
+  // cudaMemcpy(&ctx, device_ctx, sizeof(cuckoo_ctx), cudaMemcpyDeviceToHost);
   u32 *bits;
   assert(bits = (u32 *)calloc(HALFSIZE/32, sizeof(u32)));
   cudaMemcpy(bits, ctx.alive->bits, (HALFSIZE/32) * sizeof(u32), cudaMemcpyDeviceToHost);
@@ -379,7 +380,7 @@ int main(int argc, char **argv) {
   for (nonce_t nonce = 0; nonce < HALFSIZE; nonce++)
     cnt += ((bits[nonce/32] >> (nonce%32)) & 1) ^ 1;
 
-  u32 load = (u32)(100 * cnt / CUCKOO_SIZE);
+  u32 load = (u32)(100L * cnt / CUCKOO_SIZE);
   printf("final load %d%%\n", load);
 
 #if 0
@@ -423,9 +424,7 @@ int main(int argc, char **argv) {
       }
     }
   }
-#endif
 
-#if 0
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
   for (int t = 0; t < nthreads; t++) {
