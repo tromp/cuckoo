@@ -115,12 +115,6 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true) {
 class shrinkingset {
 public:
   u32 *bits;
-
-  shrinkingset() {
-    nonce_t nwords = HALFSIZE/32;
-    checkCudaErrors(cudaMalloc((void**)&bits, nwords * sizeof(u32)));
-    checkCudaErrors(cudaMemset(bits, 0, nwords * sizeof(u32)));
-  }
   __device__ void reset(nonce_t n) {
     bits[n/32] |= 1 << (n%32);
   }
@@ -129,9 +123,6 @@ public:
   }
   __device__ u32 block(node_t n) const {
     return ~bits[n/32];
-  }
-  ~shrinkingset() {
-    checkCudaErrors(cudaFree(bits));
   }
 };
 
@@ -142,11 +133,6 @@ public:
 class twice_set {
 public:
   au32 *bits;
-
-  twice_set() {
-    checkCudaErrors(cudaMalloc((void**)&bits, TWICE_WORDS * sizeof(au32)));
-    checkCudaErrors(cudaMemset(bits, 0, TWICE_WORDS * sizeof(au32)));
-  }
   __device__ void reset() {
     memset(bits, 0, TWICE_WORDS * sizeof(au32));
   }
@@ -159,9 +145,6 @@ public:
   }
   __device__ u32 test(node_t u) const {
     return (bits[u/16] >> (2 * (u%16))) & 2;
-  }
-  ~twice_set() {
-    checkCudaErrors(cudaFree(bits));
   }
 };
 
@@ -358,12 +341,19 @@ int main(int argc, char **argv) {
   printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %d threads\n",
                PROOFSIZE, SIZESHIFT, header, ntrims, nthreads);
   u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
-  int edgeUnit, nodeUnit;
-  for (edgeUnit=0; edgeBytes >= 1024; edgeBytes>>=10,edgeUnit++) ;
-  for (nodeUnit=0; nodeBytes >= 1024; nodeBytes>>=10,nodeUnit++) ;
-  printf("Using %d%cB edge and %d%cB node memory.\n",
-     (int)edgeBytes, " KMGT"[edgeUnit], (int)nodeBytes, " KMGT"[nodeUnit]);
+
   cuckoo_ctx ctx(header, nthreads, ntrims, maxsols);
+  checkCudaErrors(cudaMalloc((void**)&ctx.alive->bits, edgeBytes));
+  checkCudaErrors(cudaMemset(ctx.alive->bits, 0, edgeBytes));
+  checkCudaErrors(cudaMalloc((void**)&ctx.nonleaf->bits, nodeBytes));
+  checkCudaErrors(cudaMemset(ctx.nonleaf->bits, 0, nodeBytes));
+
+  int edgeUnit=0, nodeUnit=0;
+  u64 eb = edgeBytes, nb = nodeBytes;
+  for (; eb >= 1024; eb>>=10) edgeUnit++;
+  for (; nb >= 1024; nb>>=10) nodeUnit++;
+  printf("Using %d%cB edge and %d%cB node memory.\n",
+     (int)eb, " KMGT"[edgeUnit], (int)nb, " KMGT"[nodeUnit]);
 
   cuckoo_ctx *device_ctx;
   checkCudaErrors(cudaMalloc((void**)&device_ctx, sizeof(cuckoo_ctx)));
@@ -371,10 +361,11 @@ int main(int argc, char **argv) {
 
   trim_edges<<<nthreads,1>>>(device_ctx);
 
-  // cudaMemcpy(&ctx, device_ctx, sizeof(cuckoo_ctx), cudaMemcpyDeviceToHost);
   u32 *bits;
   assert(bits = (u32 *)calloc(HALFSIZE/32, sizeof(u32)));
   cudaMemcpy(bits, ctx.alive->bits, (HALFSIZE/32) * sizeof(u32), cudaMemcpyDeviceToHost);
+  checkCudaErrors(cudaFree(ctx.alive->bits));
+  checkCudaErrors(cudaFree(ctx.nonleaf->bits));
 
   u32 cnt = 0;
   for (nonce_t nonce = 0; nonce < HALFSIZE; nonce++)

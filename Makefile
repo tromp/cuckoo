@@ -94,7 +94,9 @@ java:	Cuckoo.class SimpleMiner.class Makefile
 
 cuda:	cuda_miner.cu Makefile
 	nvcc -o cuda -DSIZESHIFT=14 -arch sm_20 cuda_miner.cu -lcrypto
-	./cuda h header
+
+runcuda:	cuda
+	./cuda -h header
 
 cuda28:	cuda_miner.cu Makefile
 	nvcc -std=c++11 -o cuda28 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lcrypto
