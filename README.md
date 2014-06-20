@@ -14,7 +14,7 @@ http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
 Cuckoo Cycle represents a breakthrough in three important ways:
 
-1) it performs only one very cheap siphash computation for each random accesses to memory,
+1) it performs only one very cheap siphash computation for each random access to memory,
 
 2) (intended) memory usage grows linearly with graph size, which can be set arbitrarily.
    there may be very limited opportunity to reduce memory usage without undue slowdown.
