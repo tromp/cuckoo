@@ -57,7 +57,7 @@ deterministically from the output of a keyed hash function, whose key could be c
 uniformly at random. For a well-behaved hash function, these two classes of random graphs
 should have nearly identical  properties.
 Formally, fix a keyed hash function
-$h: \{0,1\}^K \times \{0,1\}^W_i \rightarrow \{0,1\}^W_o$/footnote{hash functions generally
+$h: \{0,1\}^K \times \{0,1\}^W_i \rightarrow \{0,1\}^W_o$\footnote{hash functions generally
 have arbitrary length inputs, but here we fix the input width at $W_i$ bits.},
 and a small graph $H$ as a target subgraph.
 Now pick a large number $N \leq 2^W_o$ as the number of nodes,
@@ -66,11 +66,11 @@ Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{v_0,\ldots
 \begin{equation}
 E=\{(v_{h(k,2i) \bmod N},v_{h(k,2i+1) \bmod N}) | i \in [0,\ldots,M-1]\}
 \end{equation}
-The inputs $i\ in [0,\ldots,M-1]$ are also called {\em nonces}.
+The inputs $i \in [0,\ldots,M-1]$ are also called {\em nonces}.
 The graph has a {\em solution} if $H$ occurs as a subgraph.
 Denote the number of edges in h as $|H|$.
 A proof of solution is an ordered list of $|H|$ nonces that generate the edges
-of $H$'s occurance in $G$.
+of $H$'s occurrence in $G$.
 Such a proof is verifiable in constant time, independent of $N$ and $M$.
 
 A simple variation generates random bipartite graphs:
@@ -81,7 +81,7 @@ E=\{(u_{h(k,2i) \bmod \frac{N}{2}}, v_{h(k,2i+1) \bmod \frac{N}{2}}) | i \in [0,
 \end{equation}
 
 
-The expected number of occurances of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
+The expected number of occurrences of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
 and in many cases it is roughly a function of the ratio $\frac{M}{N}$.
 For fixed $N$, the function is monotonically increasing in $M$.
 To make the proof-of-work challenging, one chooses a value of $M$ that yields less than one
@@ -92,7 +92,7 @@ The simplest possible choice of subgraph is a fully connected one, or a {\em cli
 While an interesting choice, akin to the number-theoretic notion of a prime-cluster,
 as used in Riecoin, we leave its consideration to a future paper.
 In this paper we focus on what is perhaps the next-simplest possible choice, the {\em cycle}.
-Sepcifically, we propose the hash function \hash with a $K=128$ bit key, $W_i = W_O = 64$ input
+Specifically, we propose the hash function \hash with a $K=128$ bit key, $W_i = W_O = 64$ input
 and output bits, $N<2^{64}$ a 2-power, $M=N/2$, and $H$ a 42-cycle (more on that in a later section).
 The reason for calling the resulting proof-of-work Cuckoo Cycle is that
 inserting numbers in a Cuckoo hashtable naturally leads to forming cycles
@@ -110,9 +110,9 @@ location is found, or some maximum number of iterations is reached.
 The latter is bound to happen once cycles have formed in the {\em Cuckoo graph}.
 This is a bipartite graph with a node for each location and an
 edge for every key, connecting the two locations it can reside at.
-It also matches the bipartite graph defined above if the cucko hashtable
+It also matches the bipartite graph defined above if the cuckoo hashtable
 were based on function $h$.
-In fact, the insertion procedure suggest a simple algorithm for detecting cycles.
+In fact, the insertion procedure suggests a simple algorithm for detecting cycles.
 
 \section{Cycle detection in Cuckoo hashing}
 We enumerate the $M$ nonces, but instead of storing the nonce itself as a key
@@ -213,10 +213,10 @@ In the diagram, the paths first join at $2$, and the cycle length is computed as
 \section{Union-find}
 The above representation of the directed cuckoo graph is an example of
 a {\em disjoint-set data structure}~\cite{wikidsds2014}, and our algorithm is
-closely related to the well known union-find algorithm, where the find operation
+closely related to the well-known union-find algorithm, where the find operation
 determines which subset an element is in, and the union operation joins two subsets
-into a single one. For each edge addition to the cuckoo graph we perforn the equivalent
-of two find operaations and one union operation.
+into a single one. For each edge addition to the cuckoo graph we perform the equivalent
+of two find operations and one union operation.
 The difference is that the union-find algorithm is free to add
 directed edges between arbitrary elements. Thus it can join two subsets by adding an edge
 from one root to another, with no need to reverse any edges. Conversely, our algorithm
@@ -228,7 +228,7 @@ The above algorithm for inserting edges and detecting cycles forms the basis
 for our basic proof-of-work algorithm.
 If a cycle of length $L$ is found, then we solved the problem, and recover the proof
 by storing the cycle edges in a set and enumerating nonces once more to see which ones
-generte edged in the set.
+generate edges in the set.
 If a cycle of a different length is found, then we keep the graph acyclic by ignoring the edge.
 There is some probability of overlooking other $L$-cycles
 through that edge, but in the important case of having few cycles
@@ -323,7 +323,7 @@ controlled manner across a huge range, adjusting easiness is not suitable.
 The implementation default $E/N=1/2$ gives a solution probability of roughly $2.2\%$,
 while the average number of cycles found increases slowly with size; from 2 at $2^{20}$
 to 3 at $2^{30}$.
-For further control, a diffculty target $0 < T < 2^{256}$ is introduced,
+For further control, a difficulty target $0 < T < 2^{256}$ is introduced,
 and we impose the additional constraint that the sha256 digest of the
 cycle nonces in ascending order be less than $T$, thus
 reducing the success probability by a factor $2^{256}/T$.
@@ -338,7 +338,7 @@ since the expected degree of a node is then at most 1.
 This is implemented in our main algorithm in cuckoo\_miner.h
 It maintains a set of {\em alive} edges as a bit vector. Initially all edges are alive.
 In each of a given number of trimming rounds, it shrinks this set as follows.
-A vector of 2-bit degree counters, one per u-node, is initialzed to all zeroes.
+A vector of 2-bit degree counters, one per u-node, is initialized to all zeroes.
 Next, for all alive edges, compute its u-endpoint and increase the corresponding counter,
 capping the value at 2.
 Next, for all alive edges, compute its u-endpoint and if the corresponding counter is less than 2,
@@ -368,7 +368,7 @@ e.g. arithmetic coding.
 \end{itemize}
 Let's say we devote $A$ percent of $N/2$ bits (regular alive storage) to this, and another
 $B$ percent to vertex degree counters. The left plot below shows how well a given fraction
-of edges can be compressed (the entropy of live probabillty)
+of edges can be compressed (the entropy of live probability)
 by repeatedly removing leaf edges within this fraction. Most
 of this removal is achieved in 4 rounds of trimming, with each round of trimming requiring
 $2\cdot2\cdot\lceil \frac{2\cdot 100}{B} \rceil$ passes over all alive edges
@@ -435,12 +435,12 @@ Paths from an edge's two endpoints
 are not well-defined when other edge additions and path reversals are still in progress.
 One example of such a path conflict is the check for duplicate edges yielding a false negative,
 if in between checking the two endpoints, another thread reverses a path through those nodes.
-Another is the inadvertant creation of cycles when a reversal in progress hamper's another thread's
+Another is the inadvertent creation of cycles when a reversal in progress hampers another thread's
 path following causing it to overlook root equality.
 Thus, in a parallel implementation, path following can no longer be assumed to terminate.
 Instead of using a cycle detection algorithm such as~\cite{1980-brent-cycles}, our implementation
 notices when the path length exceeds MAXPATHLEN (8192 by default),
-and reports wether this is due to a path conflict.
+and reports whether this is due to a path conflict.
 
 In the main algorithm, cycle detection only takes a small fraction of total runtime and
 the conflicts above could be avoided altogether by running the cycle detection single threaded.
@@ -509,7 +509,7 @@ To be expanded...
 \end{center}
 
 \section{Choice of cycle length}
-Extremely small cycle lengths risk the feasability of alternative algorithms with better performance.
+Extremely small cycle lengths risk the feasibility of alternative algorithms with better performance.
 For example, for $L=2$ the problem reduces to finding a birthday collision
 as in the Momentum proof-of-work.
 It is conceivable however that the Cuckoo representation is already optimal for $L=4$.
@@ -560,7 +560,7 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 % significant fraction of the typical memory of a botnet computer,
 % With a significant risk of sending machines into swap-hell and
 % likely alerting its owner, botnet operators will refrain from deploying
-% Cuckoo Cycle, prefering other proof-of-work schemes whose smaller memory
+% Cuckoo Cycle, preferring other proof-of-work schemes whose smaller memory
 % footprint allows them to stay under the radar.
 % With memory sizes doubling roughly every 18 months, 16GB will become
 % commonplace in a few years.
@@ -585,12 +585,12 @@ Starting out at 32 leading zeroes in 2009, Bitcoin difficulty
 has steadily climbed and is currently
 at 64, representing an incredible $2^{64}/10$ double-hashes per minute.
 This growth was enabled by the migration of hash computation from 
-desktop processors (CPUs) to graphics-card procecssors (GPUs),
+desktop processors (CPUs) to graphics-card processors (GPUs),
 to field-programmable gate arrays (FPGAs), and finally to custom designed
 chips (ASICs).
 
 Downsides of this development include high investment costs, rapid
-obsolesence, centralization of mining power, and large power consumption.
+obsolescence, centralization of mining power, and large power consumption.
 Although ASICs are the most energy-efficient way of computing hashes,
 the tiny amount of die-space needed for a single SHA256 circuit allows
 a huge number of them (e.g. 1440 on KnC's Neptune) to be crammed onto a
@@ -617,7 +617,7 @@ Momentum~\cite{larimer2013} proposes finding birthday collisions of hash
 outputs as proof-of-work, the simplest way to combine scalable memory usage
 with trivial verifiability. Its memory requirements are not very strict
 though. as Bloom filters or rainbow tables can identify collisions, and
-parallellizes well.
+parallelizes well.
 
 Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
 and present.
@@ -626,7 +626,7 @@ and present.
 Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines scalable
 memory requirements with instant verifiability. It's also the first proof-of-work in
 which memory latency dominates the runtime.
-This could lead to mining costs being domimated in turn by DRAM investments,
+This could lead to mining costs being dominated in turn by DRAM investments,
 changing the economics of mining in ways that require further study.
 More research is also needed to determine the effectiveness of GPUs and FPGAs
 at running Cuckoo Cycle.
