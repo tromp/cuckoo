@@ -21,8 +21,14 @@ Cuckoo Cycle represents a breakthrough in three important ways:
 
 3) verification of the proof of work is instant, requiring 2 sha256 and 42x2 siphash computations.
 
-Runtime in Cuckoo Cycle is dominated by memory latency (67%). This promotes the use
-of commodity general-purpose hardware over custom designed single-purpose hardware.
+Runtime in Cuckoo Cycle is dominated by memory latency (67%).
+Any ASIC developed for Cuckoo Cycle will need to rely on commodity DRAM chips
+(SRAM, while an order of magnitude faster, is also 2 orders of magnitude more expensive,
+ and thus not competitive).
+Such an ASIC would be focussed on orchestrating all the memory accesses which form the bottleneck,
+and thus replacable by a programmable part (or FPGA) without much loss in efficiency.
+In this way Cuckoo Cycle limits the advantage of custom designed single-purpose hardware
+over commodity general-purpose hardware.
 
 Other features:
 
