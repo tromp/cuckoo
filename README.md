@@ -45,13 +45,10 @@ Please read the latest version of the whitepaper for more details:
 https://github.com/tromp/cuckoo/blob/master/cuckoo.pdf?raw=true
 
 
+On July 23 2014, I posted the following message on https://bitcointalk.org/index.php?topic=707879.0
 
-
-On July 23 2014 I posted the following message was posted on bitcointalk at https://bitcointalk.org/index.php?topic=707879.0
-
- 	
 Cuckoo Cycle Speed Challenge; $2500 in bounties
------------------------------------------------
+===============================================
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work.
 
@@ -91,20 +88,20 @@ I'd further like to claim that GPUs cannot achieve speed parity with server CPUs
 
 To that end, I offer the following bounties:
 
-Speedup Bounty:
-===========
+Speedup Bounty
+--------------
 $500 for an open source implementation that finds 42-cycles twice as fast (disregarding memory use).
 
-Linear Time-Memory Trade-Off Bounty:
-=========================
+Linear Time-Memory Trade-Off Bounty
+-----------------------------------
 $1000 for an open source implementation that uses at most N/k bits while running up to 1.5xk times slower,
 for any k>=2.
 
 Both of these bounties require N ranging over {2^28,2^30,2^32} and #threads ranging over {1,2,4,8},
 and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with regular flags as in my Makefile.
 
-GPU Speed Parity Bounty:
-=================
+GPU Speed Parity Bounty
+-----------------------
 $1000 for an open source implementation for an AMD R9 280X or nVidia GeForce GTX 770 (or similar high-end GPU)
 that is as fast as a high-end Intel Xeon running 16 threads. Again with N ranging over {2^28,2^30,2^32}.
 
