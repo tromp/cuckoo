@@ -62,6 +62,30 @@ cuckoo30.3:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 speedup30:	cuckoo30 Makefile
 	for i in {1..4}; do echo $$i; (time for j in {0..9}; do ./cuckoo30 -t $$i -h $$j; done) 2>&1; done > speedup30
 
+bounty28:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty28 -DSIZESHIFT=28 bounty_miner.cpp
+
+bounty30:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty30 -DSIZESHIFT=30 bounty_miner.cpp
+
+bounty32:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty32 -DSIZESHIFT=32 bounty_miner.cpp
+
+cuda28:	cuda_miner.cu Makefile
+	nvcc -o cuda28 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lcrypto
+
+cuda30:	cuda_miner.cu Makefile
+	nvcc -o cuda30 -DSIZESHIFT=30 -arch sm_20 cuda_miner.cu -lcrypto
+
+cuda32:	cuda_miner.cu Makefile
+	nvcc -o cuda32 -DSIZESHIFT=32 -arch sm_20 cuda_miner.cu -lcrypto
+
+cpubounty:	cuckoo28 bounty28 cuckoo30 bounty30 cuckoo32 bounty32 Makefile
+	for c in 28 30 32; do for t in 1 2 4 8; do time for h in {0..9}; do ./cuckoo$$c -t $$t -h $$h; done; time for h in {0..9}; do ./bounty$$c -t $$t -h $$h; done;done; done
+
+gpubounty:	cuckoo28 cuda28 cuckoo30 cuda30 cuckoo32 cuda32 Makefile
+	for c in 28 30 32; do time for h in {0..9}; do ./cuckoo$$c -t 16 -h $$h; done; time for h in {0..9}; do ./cuda$$c -h $$h; done; done
+
 speedup30.1:	cuckoo30.1 Makefile
 	for i in {1..4}; do echo $$i; (time for j in {0..9}; do ./cuckoo30.1 -t $$i -h $$j; done) 2>&1; done > speedup30.1
 
@@ -97,9 +121,6 @@ cuda:	cuda_miner.cu Makefile
 
 runcuda:	cuda
 	./cuda -h header
-
-cuda28:	cuda_miner.cu Makefile
-	nvcc -std=c++11 -o cuda28 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lcrypto
 
 speedupcuda:	cuda28
 	for i in 1 2 4 8 16 32 64 128 256 512; do echo $$i; (time for j in {0..6}; do ./cuda28 -t $$i -h $$j; done) 2>&1; done > speedupcuda
