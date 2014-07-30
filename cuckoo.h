@@ -36,6 +36,15 @@ typedef struct {
    ((u64)((p)[2]) << 16) | ((u64)((p)[3]) << 24) | \
    ((u64)((p)[4]) << 32) | ((u64)((p)[5]) << 40) | \
    ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
+
+#ifndef SHA256
+#define SHA256(d, n, md) do { \
+    SHA256_CTX c; \
+    SHA256_Init(&c); \
+    SHA256_Update(&c, d, n); \
+    SHA256_Final(md, &c); \
+  } while (0)
+#endif
  
 // derive siphash key from header
 void setheader(siphash_ctx *ctx, const char *header) {
