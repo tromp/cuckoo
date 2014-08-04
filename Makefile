@@ -9,6 +9,12 @@ GPP = g++ -std=c++11 -DATOMIC $(FLAGS)
 cuckoo4:	cuckoo.h cuckoo_miner.h simple_miner.cpp Makefile
 	$(GPP) -o cuckoo4 -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 simple_miner.cpp $(LIBS)
 
+cuckoo6:	cuckoo.h cuckoo_miner.h simple_miner.cpp Makefile
+	$(GPP) -o cuckoo6 -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=6 simple_miner.cpp $(LIBS)
+
+bounty6:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty6 -DSIZESHIFT=6 -DIDXSHIFT=2 -DVPART_BITS=4 -DPROOFSIZE=6 bounty_miner.cpp $(LIBS)
+
 cuckoo:		cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo -g -DSHOW -DLOGNBUCKETS=0 -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 cuckoo_miner.cpp $(LIBS)
 
@@ -16,7 +22,10 @@ example:	cuckoo4
 	./cuckoo4 -e 66 -h 39
 
 cuckoo10:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo10 -DSIZESHIFT=10 cuckoo_miner.cpp $(LIBS)
+	$(GPP) -o cuckoo10 -DSIZESHIFT=10 -DPROOFSIZE=8 cuckoo_miner.cpp $(LIBS)
+
+bounty10:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty10 -DSIZESHIFT=10 -DIDXSHIFT=2 -DVPART_BITS=4 -DPROOFSIZE=8 bounty_miner.cpp $(LIBS)
 
 cuckoo15:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo15 -DSIZESHIFT=15 cuckoo_miner.cpp $(LIBS)
@@ -62,6 +71,9 @@ cuckoo30.3:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 
 speedup30:	cuckoo30 Makefile
 	for i in {1..4}; do echo $$i; (time for j in {0..9}; do ./cuckoo30 -t $$i -h $$j; done) 2>&1; done > speedup30
+
+bounty20:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty20 -DSIZESHIFT=20 bounty_miner.cpp $(LIBS)
 
 bounty28:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
 	$(GPP) -o bounty28 -DSIZESHIFT=28 bounty_miner.cpp $(LIBS)

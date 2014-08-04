@@ -23,18 +23,18 @@ typedef u64 au64;
 #include <set>
 
 // algorithm parameters
-#ifndef PART_BITS
-// #bits used to partition vertex set to save memory
-#define PART_BITS 8
-#endif
 
 #ifndef IDXSHIFT
-#define IDXSHIFT (PART_BITS - 4)
+#define IDXSHIFT 6
 #endif
+#ifndef VPART_BITS
+// #bits used to partition vertex set to save memory
+#define VPART_BITS (IDXSHIFT+6)
+#endif
+#define VPART_MASK ((1 << VPART_BITS) - 1)
 // grow with cube root of size, hardly affected by trimming
 #define MAXPATHLEN (8 << (SIZESHIFT/3))
 
-#define PART_MASK ((1 << PART_BITS) - 1)
 #define ONCE_BITS (HALFSIZE >> PART_BITS)
 
 #define CUCKOO_SIZE (SIZE >> IDXSHIFT)
@@ -53,6 +53,9 @@ public:
   }
   ~cuckoo_hash() {
     free(cuckoo);
+  }
+  void clear() {
+    memset(cuckoo, 0, CUCKOO_SIZE*sizeof(au64));
   }
   void set(node_t u, node_t v) {
     u64 niew = (u64)u << SIZESHIFT | v;
@@ -92,8 +95,6 @@ public:
 class cuckoo_ctx {
 public:
   siphash_ctx sip_ctx;
-  shrinkingset *alive;
-  twice_set *nonleaf;
   cuckoo_hash *cuckoo;
   nonce_t (*sols)[PROOFSIZE];
   u32 maxsols;
@@ -104,19 +105,13 @@ public:
   cuckoo_ctx(const char* header, u32 n_threads, u32 max_sols) {
     setheader(&sip_ctx, header);
     nthreads = n_threads;
-    alive = new shrinkingset(nthreads);
-    cuckoo = 0;
-    nonleaf = new twice_set;
+    cuckoo = new cuckoo_hash();
     assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
     assert(sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(nonce_t)));
     nsols = 0;
   }
   ~cuckoo_ctx() {
-    delete alive;
-    if (nonleaf)
-      delete nonleaf;
-    if (cuckoo)
-      delete cuckoo;
+    delete cuckoo;
   }
 };
 
@@ -124,7 +119,6 @@ typedef struct {
   u32 id;
   pthread_t thread;
   cuckoo_ctx *ctx;
-  u64 (* buckets)[BUCKETSIZE];
 } thread_ctx;
 
 void barrier(pthread_barrier_t *barry) {
@@ -142,7 +136,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
       while (nu-- && us[nu] != u) ;
       if (!~nu)
         printf("maximum path length exceeded\n");
-      else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
+      else printf("illegal % 4d-cycle %d %d\n", MAXPATHLEN-nu,us[0],us[1]);
       pthread_exit(NULL);
     }
     us[nu] = u;
@@ -165,15 +159,14 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
 #else
   u32 soli = ctx->nsols++;
 #endif
-  for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
-    if (ctx->alive->test(nonce)) {
-      edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
-      if (cycle.find(e) != cycle.end()) {
-        ctx->sols[soli][n++] = nonce;
-        if (PROOFSIZE > 2)
-          cycle.erase(e);
-      }
+  for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++) {
+    edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
+    if (cycle.find(e) != cycle.end()) {
+      ctx->sols[soli][n++] = nonce;
+      if (PROOFSIZE > 2)
+        cycle.erase(e);
     }
+  }
   assert(n==PROOFSIZE);
 }
 
@@ -181,18 +174,32 @@ void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
   cuckoo_ctx *ctx = tp->ctx;
 
-  if (tp->id == 0)
-    ctx->cuckoo = new cuckoo_hash();
-  barrier(&ctx->barry);
   cuckoo_hash &cuckoo = *ctx->cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-  for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
-    for (nonce_t nonce = block; nonce < block+32 && nonce < HALFSIZE; nonce++) {
-      if (alive->test(nonce)) {
-        node_t u0, v0;
-        sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
-        v0 += HALFSIZE;  // make v's different from u's
-        node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
+  for (node_t vpart=0; vpart <= VPART_MASK /* (VPART_MASK+1)/PROOFSIZE */; vpart++) {
+    u32 nstored = 0;
+    for (int depth=0; depth<PROOFSIZE/2; depth++) {
+      u32 nadded = 0;
+      for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
+        node_t u0 = sipnode(&ctx->sip_ctx, nonce, depth&1);
+        if (depth&1) u0 += HALFSIZE; else if (u0==0) continue;
+        if (depth==0 && (u0 & VPART_MASK) != vpart)
+          continue;
+        node_t v0 = sipnode(&ctx->sip_ctx, nonce, (depth&1)^1);
+        if (!(depth&1)) v0 += HALFSIZE; else if (v0==0) continue;
+        node_t u = cuckoo[us[0] = u0];
+        // printf("vpart %d depth %d sipedge(%d)=(%d<-%d,%d)\n", vpart, depth, nonce, u,u0,v0);
+        if (depth > 0 && u == 0)
+          continue;
+        node_t v = cuckoo[vs[0] = v0];
+        if (u == v0 || v == u0) // duplicate
+          continue;
+        if (v == 0) { // speedup regular case; new vertex at depth+1
+          cuckoo.set(v0, u0);
+          // printf("vpart %d depth %d set(%d,%d)\n", vpart, depth, v0,u0);
+        } else {
+        // now v0 at depth+1 already points to other u' at depth; possibly forming a cycle
+        // printf("vpart %d depth %d %d<-%d->%d\n", vpart, depth, v,v0,u0);
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
           u32 min = nu < nv ? nu : nv;
@@ -212,9 +219,22 @@ void *worker(void *vp) {
             cuckoo.set(vs[nv+1], vs[nv]);
           cuckoo.set(v0, u0);
         }
+        }
+        nadded++;
+        if (nstored+nadded >= (u32)(CUCKOO_SIZE*9L/10)) {
+          printf("vpart %d depth %d OVERLOAD!!!!!!!!!!!!!!!!!1\n", vpart, depth);
+          break;
+        }
       }
+      barrier(&ctx->barry);
+      if (nadded == 0)
+        break;
+      nstored += nadded;
+    }
+    if (tp->id == 0) {
+      printf("vpart %x/%x depth %d load %d/%ld=%d%%\n", vpart, VPART_MASK+1, 21, nstored, CUCKOO_SIZE, (u32)(nstored*100L/CUCKOO_SIZE));
+      cuckoo.clear();
     }
   }
-  free(tp->buckets);
   pthread_exit(NULL);
 }
