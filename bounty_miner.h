@@ -163,6 +163,9 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
     edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
     if (cycle.find(e) != cycle.end()) {
       ctx->sols[soli][n++] = nonce;
+#ifdef SHOWSOL
+        printf("e(%x)=(%x,%x)%c", nonce, e.first, e.second, n==PROOFSIZE?'\n':' ');
+#endif
       if (PROOFSIZE > 2)
         cycle.erase(e);
     }
@@ -199,15 +202,18 @@ void *worker(void *vp) {
           // printf("vpart %d depth %d set(%d,%d)\n", vpart, depth, v0,u0);
         } else {
         // now v0 at depth+1 already points to other u' at depth; possibly forming a cycle
-        // printf("vpart %d depth %d %d<-%d->%d\n", vpart, depth, v,v0,u0);
+        // printf("vpart %x depth %x %x<-%x->%x\n", vpart, depth, v,v0,u0);
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
           u32 min = nu < nv ? nu : nv;
           for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
           u32 len = nu + nv + 1;
           printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100L/HALFSIZE));
-          if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
-            solution(ctx, us, nu, vs, nv);
+          if (len == PROOFSIZE && ctx->nsols < ctx->maxsols) {
+            if (depth&1)
+              solution(ctx, vs, nv, us, nu);
+            else solution(ctx, us, nu, vs, nv);
+          }
           continue;
         }
         if (nu < nv) {
@@ -222,7 +228,7 @@ void *worker(void *vp) {
         }
         nadded++;
         if (nstored+nadded >= (u32)(CUCKOO_SIZE*9L/10)) {
-          printf("vpart %d depth %d OVERLOAD!!!!!!!!!!!!!!!!!1\n", vpart, depth);
+          printf("vpart %d depth %d OVERLOAD !!!!!!!!!!!!!!!!!\n", vpart, depth);
           break;
         }
       }
@@ -232,7 +238,7 @@ void *worker(void *vp) {
       nstored += nadded;
     }
     if (tp->id == 0) {
-      printf("vpart %x/%x depth %d load %d/%ld=%d%%\n", vpart, VPART_MASK+1, 21, nstored, CUCKOO_SIZE, (u32)(nstored*100L/CUCKOO_SIZE));
+      // printf("vpart %x/%x depth %d load %d/%ld=%d%%\n", vpart, VPART_MASK+1, 21, nstored, CUCKOO_SIZE, (u32)(nstored*100L/CUCKOO_SIZE));
       cuckoo.clear();
     }
   }
