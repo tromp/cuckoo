@@ -23,20 +23,66 @@ typedef u64 au64;
 #include <set>
 
 // algorithm parameters
-
-#ifndef SAVEMEM_BITS
-#define SAVEMEM_BITS 0
+#ifndef PART_BITS
+// #bits used to partition edge set processing to save memory
+// a value of 0 does no partitioning and is fastest
+// a value of 1 partitions in two, making twice_set the
+// same size as shrinkingset at about 33% slowdown
+// higher values are not that interesting
+#define PART_BITS 0
+#endif
+// L3 cache should exceed NBUCKETS buckets of BUCKETSIZE uint_64_t (0.5MB below)
+#ifndef LOGNBUCKETS
+#define LOGNBUCKETS	8
+#endif
+#ifndef BUCKETSIZE
+#define BUCKETSIZE	256
 #endif
 
 #ifndef IDXSHIFT
-#define IDXSHIFT (6+SAVEMEM_BITS)
+// we want sizeof(cuckoo_hash) == sizeof(twice_set), so
+// CUCKOO_SIZE * sizeof(u64) == TWICE_WORDS * sizeof(u32)
+// CUCKOO_SIZE * 2 == TWICE_WORDS
+// (SIZE >> IDXSHIFT) * 2 == 2 * ONCE_BITS / 32
+// SIZE >> IDXSHIFT == HALFSIZE >> PART_BITS >> 5
+// IDXSHIFT == 1 + PART_BITS + 5
+#define IDXSHIFT (PART_BITS + 6)
 #endif
-#ifndef VPART_BITS
-// #bits used to partition vertex set to save memory
-#define VPART_BITS (IDXSHIFT+3)
-#endif
+// grow with cube root of size, hardly affected by trimming
+#define MAXPATHLEN (8 << (SIZESHIFT/3))
 
-#define ONCE_BITS (HALFSIZE >> VPART_BITS)
+// set that starts out full and gets reset by threads on disjoint words
+class shrinkingset {
+public:
+  std::vector<u32> bits;
+  std::vector<u64> cnt;
+
+  shrinkingset(u32 nthreads) {
+    nonce_t nwords = HALFSIZE/32;
+    bits.resize(nwords);
+    cnt.resize(nthreads);
+    cnt[0] = HALFSIZE;
+  }
+  u64 count() const {
+    u64 sum = 0L;
+    for (u32 i=0; i<cnt.size(); i++)
+      sum += cnt[i];
+    return sum;
+  }
+  void reset(nonce_t n, u32 thread) {
+    bits[n/32] |= 1 << (n%32);
+    cnt[thread]--;
+  }
+  bool test(node_t n) const {
+    return !((bits[n/32] >> (n%32)) & 1);
+  }
+  u32 block(node_t n) const {
+    return ~bits[n/32];
+  }
+};
+
+#define PART_MASK ((1 << PART_BITS) - 1)
+#define ONCE_BITS (HALFSIZE >> PART_BITS)
 #define TWICE_WORDS ((2 * ONCE_BITS) / 32)
 
 class twice_set {
@@ -72,10 +118,6 @@ public:
   }
 };
 
-#define VPART_MASK ((1 << VPART_BITS) - 1)
-// grow with cube root of size, hardly affected by trimming
-#define MAXPATHLEN (8 << (SIZESHIFT/3))
-
 #define CUCKOO_SIZE (SIZE >> IDXSHIFT)
 #define CUCKOO_MASK (CUCKOO_SIZE - 1)
 // number of (least significant) key bits that survives leftshift by SIZESHIFT
@@ -92,9 +134,6 @@ public:
   }
   ~cuckoo_hash() {
     free(cuckoo);
-  }
-  void clear() {
-    memset(cuckoo, 0, CUCKOO_SIZE*sizeof(au64));
   }
   void set(node_t u, node_t v) {
     u64 niew = (u64)u << SIZESHIFT | v;
@@ -134,26 +173,33 @@ public:
 class cuckoo_ctx {
 public:
   siphash_ctx sip_ctx;
-  cuckoo_hash *cuckoo;
+  shrinkingset *alive;
   twice_set *nonleaf;
+  cuckoo_hash *cuckoo;
   nonce_t (*sols)[PROOFSIZE];
   u32 maxsols;
   au32 nsols;
   u32 nthreads;
+  u32 ntrims;
   pthread_barrier_t barry;
 
-  cuckoo_ctx(const char* header, u32 n_threads, u32 max_sols) {
+  cuckoo_ctx(const char* header, u32 n_threads, u32 n_trims, u32 max_sols) {
     setheader(&sip_ctx, header);
     nthreads = n_threads;
-    cuckoo = new cuckoo_hash();
-    nonleaf = new twice_set();
+    alive = new shrinkingset(nthreads);
+    cuckoo = 0;
+    nonleaf = new twice_set;
+    ntrims = n_trims;
     assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
     assert(sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(nonce_t)));
     nsols = 0;
   }
   ~cuckoo_ctx() {
-    delete cuckoo;
-    delete nonleaf;
+    delete alive;
+    if (nonleaf)
+      delete nonleaf;
+    if (cuckoo)
+      delete cuckoo;
   }
 };
 
@@ -161,6 +207,7 @@ typedef struct {
   u32 id;
   pthread_t thread;
   cuckoo_ctx *ctx;
+  u64 (* buckets)[BUCKETSIZE];
 } thread_ctx;
 
 void barrier(pthread_barrier_t *barry) {
@@ -171,6 +218,78 @@ void barrier(pthread_barrier_t *barry) {
   }
 }
 
+#define NBUCKETS	(1 << LOGNBUCKETS)
+#define BUCKETSHIFT	(SIZESHIFT-1 - LOGNBUCKETS)
+#define NONCESHIFT	(SIZESHIFT-1 - PART_BITS)
+#define NODEPARTMASK	(NODEMASK >> PART_BITS)
+#define NONCETRUNC	(1L << (64 - NONCESHIFT))
+
+void trim_edges(thread_ctx *tp, u32 round) {
+  cuckoo_ctx *ctx = tp->ctx;
+  u64 (* buckets)[BUCKETSIZE] = tp->buckets;
+  shrinkingset *alive = ctx->alive;
+  twice_set *nonleaf = ctx->nonleaf;
+  u32 bucketsizes[NBUCKETS];
+
+  for (u32 uorv = 0; uorv < 2; uorv++) {
+    for (u32 part = 0; part <= PART_MASK; part++) {
+      if (tp->id == 0)
+        nonleaf->reset();
+      barrier(&ctx->barry);
+      for (u32 qkill = 0; qkill < 2; qkill++) {
+        for (u32 b=0; b < NBUCKETS; b++)
+          bucketsizes[b] = 0;
+        for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+          u32 alive32 = alive->block(block); // GLOBAL 1 SEQ
+          for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
+            if (alive32 & 1) {
+              node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
+              if ((u & PART_MASK) == part) {
+                u32 b = u >> BUCKETSHIFT;
+                u32 *bsize = &bucketsizes[b];
+                buckets[b][*bsize] = ((u64)nonce << NONCESHIFT) | (u >> PART_BITS);
+                if (++*bsize == BUCKETSIZE) {
+                  *bsize = 0;
+                  for (u32 i=0; i<BUCKETSIZE; i++) {
+                    u64 bi = buckets[b][i];
+                    if (!qkill) {
+                      nonleaf->set(bi & NODEPARTMASK); // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
+                    } else {
+                      if (!nonleaf->test(bi & NODEPARTMASK)) { // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
+                        nonce_t n = (nonce & -NONCETRUNC) | (bi >> NONCESHIFT);
+                        alive->reset(n <= nonce ? n : n-NONCETRUNC, tp->id); // GLOBAL SEQ 
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        for (u32 b=0; b < NBUCKETS; b++) {
+          u32 ni = bucketsizes[b];
+          for (u32 i=0; i<ni ; i++) {
+            u64 bi = buckets[b][i];
+            if (!qkill) {
+              nonleaf->set(bi & NODEPARTMASK);
+            } else {
+              if (!nonleaf->test(bi & NODEPARTMASK)) {
+                nonce_t n = (HALFSIZE & -NONCETRUNC) | (bi >> NONCESHIFT);
+                alive->reset(n < HALFSIZE  ? n : n-NONCETRUNC, tp->id); // GLOBAL SEQ 
+              }
+            }
+          }
+        }
+        barrier(&ctx->barry);
+      }
+      if (tp->id == 0) {
+        u32 load = (u32)(100L * alive->count() / CUCKOO_SIZE);
+        printf("round %d part %c%d load %d%%\n", round, "UV"[uorv], part, load);
+      }
+    }
+  }
+}
+
 u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   u32 nu;
   for (nu = 0; u; u = cuckoo[u]) {
@@ -178,7 +297,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
       while (nu-- && us[nu] != u) ;
       if (!~nu)
         printf("maximum path length exceeded\n");
-      else printf("illegal % 4d-cycle %d %d\n", MAXPATHLEN-nu,us[0],us[1]);
+      else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
       pthread_exit(NULL);
     }
     us[nu] = u;
@@ -201,69 +320,62 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
 #else
   u32 soli = ctx->nsols++;
 #endif
-  for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++) {
-    edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
-    if (cycle.find(e) != cycle.end()) {
-      ctx->sols[soli][n++] = nonce;
+  for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
+    if (ctx->alive->test(nonce)) {
+      edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
+      if (cycle.find(e) != cycle.end()) {
+        ctx->sols[soli][n++] = nonce;
 #ifdef SHOWSOL
         printf("e(%x)=(%x,%x)%c", nonce, e.first, e.second, n==PROOFSIZE?'\n':' ');
 #endif
-      if (PROOFSIZE > 2)
-        cycle.erase(e);
+        if (PROOFSIZE > 2)
+          cycle.erase(e);
+      }
     }
-  }
   assert(n==PROOFSIZE);
 }
 
 void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
+  assert(tp->buckets = (u64 (*)[BUCKETSIZE])calloc(NBUCKETS * BUCKETSIZE, sizeof(u64)));
   cuckoo_ctx *ctx = tp->ctx;
 
+  shrinkingset *alive = ctx->alive;
+  u32 load = 100L * HALFSIZE / CUCKOO_SIZE;
+  if (tp->id == 0)
+    printf("initial load %d%%\n", load);
+  for (u32 round=1; round <= ctx->ntrims; round++)
+    trim_edges(tp, round);
+  if (tp->id == 0) {
+    load = (u32)(100L * alive->count() / CUCKOO_SIZE);
+    if (load >= 90) {
+      printf("overloaded! exiting...");
+      exit(0);
+    }
+    delete ctx->nonleaf;
+    ctx->nonleaf = 0;
+    ctx->cuckoo = new cuckoo_hash();
+  }
+  barrier(&ctx->barry);
   cuckoo_hash &cuckoo = *ctx->cuckoo;
-  twice_set *nonleaf = ctx->nonleaf;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-  for (node_t vpart=0; vpart < (VPART_MASK+1)/(PROOFSIZE/2); vpart++) {
-    for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
-      node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0);
-      if (u0 != 0 && (u0 & VPART_MASK) == vpart)
-        nonleaf->set(u0 >> VPART_BITS);
-     }
-    barrier(&ctx->barry);
-    u32 nstored = 0;
-    for (int depth=0; depth<PROOFSIZE/2; depth++) {
-      u32 nadded = 0;
-      for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
-        node_t u0 = sipnode(&ctx->sip_ctx, nonce, depth&1);
-        if (depth&1)
-          u0 += HALFSIZE;
-        else if (u0 == 0)
+  for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+    for (nonce_t nonce = block; nonce < block+32 && nonce < HALFSIZE; nonce++) {
+      if (alive->test(nonce)) {
+        node_t u0, v0;
+        sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
+        if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
           continue;
-        if (depth == 0 && !((u0 & VPART_MASK) == vpart && nonleaf->test(u0 >> VPART_BITS)))
-          continue;
-        node_t u = cuckoo[us[0] = u0];
-        if (depth > 0 && u == 0)
-          continue;
-        node_t v0 = sipnode(&ctx->sip_ctx, nonce, (depth&1)^1);
-        if (!(depth&1))
-          v0 += HALFSIZE;
-        else if (v0 == 0)
-          continue;
-        node_t v = cuckoo[vs[0] = v0];
-        if (u == v0 || v == u0) // duplicate
-          continue;
-        // now v0 at depth+1 already points to other u' at depth; possibly forming a cycle
-        // printf("vpart %x depth %x %x<-%x->%x\n", vpart, depth, v,v0,u0);
+        v0 += HALFSIZE;  // make v's different from u's
+        node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
           u32 min = nu < nv ? nu : nv;
           for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
           u32 len = nu + nv + 1;
           printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100L/HALFSIZE));
-          if (len == PROOFSIZE && ctx->nsols < ctx->maxsols) {
-            if (depth&1)
-              solution(ctx, vs, nv, us, nu);
-            else solution(ctx, us, nu, vs, nv);
-          }
+          if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
+            solution(ctx, us, nu, vs, nv);
           continue;
         }
         if (nu < nv) {
@@ -275,24 +387,9 @@ void *worker(void *vp) {
             cuckoo.set(vs[nv+1], vs[nv]);
           cuckoo.set(v0, u0);
         }
-        nadded++;
-        if (nstored+nadded >= (u32)(CUCKOO_SIZE*9L/10)) {
-          printf("vpart %d depth %d OVERLOAD !!!!!!!!!!!!!!!!!\n", vpart, depth);
-          break;
-        }
       }
-      barrier(&ctx->barry);
-      if (nadded == 0)
-        printf("vpart %d depth %d NOTHING ADDED ????? !!!!!\n", vpart, depth);
-      if (depth == 0) {
-      }
-      nstored += nadded;
-    }
-    if (tp->id == 0) {
-      printf("vpart %x/%x depth %d load %d%%\n", vpart, VPART_MASK+1, PROOFSIZE/2, (u32)(nstored*100L/CUCKOO_SIZE));
-      cuckoo.clear();
-      nonleaf->reset();
     }
   }
+  free(tp->buckets);
   pthread_exit(NULL);
 }

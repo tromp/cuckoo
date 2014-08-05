@@ -87,6 +87,15 @@ tomato30:	cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 tomato32:	cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o tomato32 -DSIZESHIFT=32 tomato_miner.cpp $(LIBS)
 
+bounty28:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty28 -DSIZESHIFT=28 bounty_miner.cpp $(LIBS)
+
+bounty30:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty30 -DSIZESHIFT=30 bounty_miner.cpp $(LIBS)
+
+bounty32:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty32 -DSIZESHIFT=32 bounty_miner.cpp $(LIBS)
+
 cuda28:	cuda_miner.cu Makefile
 	nvcc -o cuda28 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lssl -lcrypto 
 
