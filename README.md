@@ -83,7 +83,8 @@ Once the subset is small enough, an algorithm inspired by Cuckoo Hashing
 is used to recognise all cycles, and recover those of the right length.
 
 I'd like to claim that this implementation is a reasonably optimal Cuckoo miner,
-and that it's hard to trade off memory for running time (thanks to dga's suggested improvements).
+and that trading off memory for running time, as implemented in tomato_miner.h,
+incurs at least one order of magnitude extra slowdown.
 I'd further like to claim that GPUs cannot achieve speed parity with server CPUs.
 
 To that end, I offer the following bounties:
@@ -94,7 +95,7 @@ $500 for an open source implementation that finds 42-cycles twice as fast (disre
 
 Linear Time-Memory Trade-Off Bounty
 -----------------------------------
-$1000 for an open source implementation that uses at most N/k bits while running up to 1.5xk times slower,
+$1000 for an open source implementation that uses at most N/k bits while running up to 15 k times slower,
 for any k>=2.
 
 Both of these bounties require N ranging over {2^28,2^30,2^32} and #threads ranging over {1,2,4,8},
