@@ -364,6 +364,8 @@ void *worker(void *vp) {
       if (alive->test(nonce)) {
         node_t u0, v0;
         sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
+        if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
+          continue;
         v0 += HALFSIZE;  // make v's different from u's
         node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);

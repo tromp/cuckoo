@@ -75,6 +75,9 @@ speedup30:	cuckoo30 Makefile
 bounty20:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
 	$(GPP) -o bounty20 -DSIZESHIFT=20 bounty_miner.cpp $(LIBS)
 
+bounty25:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
+	$(GPP) -o bounty25 -DSIZESHIFT=25 bounty_miner.cpp $(LIBS)
+
 bounty28:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
 	$(GPP) -o bounty28 -DSIZESHIFT=28 bounty_miner.cpp $(LIBS)
 
