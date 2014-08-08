@@ -34,7 +34,7 @@ typedef u64 au64;
 #ifndef VPART_BITS
 // #bits used to partition vertex set to save memory
 // constant 3 chosen to give decent load on cuckoo hash at cycle length 42
-#define VPART_BITS (IDXSHIFT+6)
+#define VPART_BITS (IDXSHIFT+5)
 #endif
 #define NVPARTS (1<<VPART_BITS)
 
@@ -195,7 +195,7 @@ void *worker(void *vp) {
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   for (node_t vpart=0; vpart < ctx->nparts; vpart++) {
     barrier(&ctx->barry);
-    for (int depth = 0; depth < PROOFSIZE*2; depth++) {
+    for (int depth = 0; depth < PROOFSIZE; depth++) {
       for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
         node_t u0 = sipnode(&ctx->sip_ctx, nonce, depth&1);
         if (depth&1)
