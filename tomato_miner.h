@@ -34,45 +34,9 @@ typedef u64 au64;
 #ifndef VPART_BITS
 // #bits used to partition vertex set to save memory
 // constant 3 chosen to give decent load on cuckoo hash at cycle length 42
-#define VPART_BITS (IDXSHIFT+3)
+#define VPART_BITS (IDXSHIFT+5)
 #endif
 #define NVPARTS (1<<VPART_BITS)
-
-#define ONCE_BITS (HALFSIZE >> VPART_BITS)
-#define TWICE_WORDS ((2 * ONCE_BITS) / 32)
-
-class twice_set {
-public:
-  au32 *bits;
-
-  twice_set() {
-    assert(bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32)));
-  }
-  void reset() {
-    memset(bits, 0, TWICE_WORDS*sizeof(au32));
-  }
-  void set(node_t u) {
-    node_t idx = u/16;
-    u32 bit = 1 << (2 * (u%16));
-#ifdef ATOMIC
-    u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
-    if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
-  }
-  u32 test(node_t u) const {
-    return (bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2;
-  }
-#else
-    u32 old = bits[idx];
-    bits[idx] = old | (bit + (old & bit));
-  }
-  u32 test(node_t u) const {
-    return bits[u/16] >> (2 * (u%16)) & 2;
-  }
-#endif
-  ~twice_set() {
-    free(bits);
-  }
-};
 
 #define VPART_MASK ((1 << VPART_BITS) - 1)
 // grow with cube root of size, hardly affected by trimming
@@ -144,7 +108,6 @@ class cuckoo_ctx {
 public:
   siphash_ctx sip_ctx;
   cuckoo_hash *cuckoo;
-  twice_set *nonleaf;
   u32 nparts;
   nonce_t (*sols)[PROOFSIZE];
   u32 maxsols;
@@ -157,14 +120,12 @@ public:
     nthreads = n_threads;
     nparts = n_parts;
     cuckoo = new cuckoo_hash();
-    nonleaf = new twice_set();
     assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
     assert(sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(nonce_t)));
     nsols = 0;
   }
   ~cuckoo_ctx() {
     delete cuckoo;
-    delete nonleaf;
   }
 };
 
@@ -231,23 +192,17 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   cuckoo_hash &cuckoo = *ctx->cuckoo;
-  twice_set *nonleaf = ctx->nonleaf;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   for (node_t vpart=0; vpart < ctx->nparts; vpart++) {
-    for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
-      node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0);
-      if (u0 != 0 && (u0 & VPART_MASK) == vpart)
-        nonleaf->set(u0 >> VPART_BITS);
-     }
     barrier(&ctx->barry);
-    for (int depth=0; depth<PROOFSIZE/2; depth++) {
+    for (int depth = 0; depth < PROOFSIZE; depth++) {
       for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
         node_t u0 = sipnode(&ctx->sip_ctx, nonce, depth&1);
         if (depth&1)
           u0 += HALFSIZE;
         else if (u0 == 0)
           continue;
-        if (depth == 0 && !((u0 & VPART_MASK) == vpart && nonleaf->test(u0 >> VPART_BITS)))
+        if (depth == 0 && !((u0 & VPART_MASK) == vpart))
           continue;
         node_t u = cuckoo[us[0] = u0];
         if (depth > 0 && u == 0)
@@ -294,7 +249,6 @@ void *worker(void *vp) {
     if (tp->id == 0) {
       printf("vpart %d depth %d load %d%%\n", vpart, PROOFSIZE/2, cuckoo.load());
       cuckoo.clear();
-      nonleaf->reset();
     }
   }
   pthread_exit(NULL);
