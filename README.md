@@ -95,7 +95,7 @@ $500 for an open source implementation that finds 42-cycles twice as fast (disre
 
 Linear Time-Memory Trade-Off Bounty
 -----------------------------------
-$1000 for an open source implementation that uses at most N/k bits while running up to 15 k times slower,
+$500 for an open source implementation that uses at most N/k bits while running up to 15 k times slower,
 for any k>=2.
 
 Both of these bounties require N ranging over {2^28,2^30,2^32} and #threads ranging over {1,2,4,8},
