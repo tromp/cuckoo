@@ -15,8 +15,11 @@
 We introduce the first graph-theoretic proof-of-work system,
 based on finding cycles in large random graphs.
 Such problems are arbitrarily scalable and trivially verifiable.
-Our implementation uses 1 bit per edge, and up to 1 bit per node.
-We hypothesize that using significantly less causes superlinear slowdown.
+Our cycle finding implementation uses 1 bit per edge, and up to 1 bit per node.
+Runtime is linear in graph size and dominated by random access latency.
+We exhibit a memory-time trade-off (TMTO) where using $k$ times less memory
+incurs a slowdown of $k$ times half the cycle length, which we hypothesize
+is the best possible.
 \end{abstract}
 
 \section{Introduction}
@@ -29,11 +32,11 @@ crypto-currencies.
 
 As proof-of-work for new blocks of transactions,
 Bitcoin~\cite{nakamoto2009bitcoin} adopted Adam Back's hashcash~\cite{back2002} proof-of-work.
-This requires finding a nonce value such that
+This entails finding a nonce value such that
 application of a cryptographic hash function (twofold SHA256 in Bitcoin's case)
 to this nonce (and the rest of the block header) results in a number with
 many leading 0s. The number of leading 0s is dynamically adjusted by the protocol
-so as to maintain a certain average block interval (10-minutes for Bitcoin).
+so as to maintain a certain average block interval (10 minutes for Bitcoin).
 
 Since Bitcoin, many other crypto-currencies have adopted hashcash, with various
 choices of underlying hash function. the most well-known being {\em scrypt} as
@@ -41,7 +44,7 @@ used in Litecoin.
 
 Primecoin~\cite{king2013} introduced the notion of a number-theoretic proof-of-work,
 as the first alternative to hashcash among crypto-currencies.
-This requires finding long chains of nearly doubled prime numbers, with a certain
+This entails finding long chains of nearly doubled prime numbers, with a certain
 relation to the block header.
 Current algorithms use a two-step process of filtering candidates by {\em sieving},
 and applying pseudo-primality tests to remaining candidates.
