@@ -43,12 +43,16 @@ choices of underlying hash function. the most well-known being {\em scrypt} as
 used in Litecoin.
 
 Primecoin~\cite{king2013} introduced the notion of a number-theoretic proof-of-work,
-as the first alternative to hashcash among crypto-currencies.
-This entails finding long chains of nearly doubled prime numbers, with a certain
-relation to the block header.
-Current algorithms use a two-step process of filtering candidates by {\em sieving},
-and applying pseudo-primality tests to remaining candidates.
-These algorithms are somewhat complex and involve many trade-offs.
+thereby offering the first alternative to hashcash among crypto-currencies.
+Primecoin identifies long chains of nearly doubled prime numbers, constrained
+by a certain relation to the block header.
+Verification of these chains, while very slow compared to bitcoin's, is much faster
+than attempting to find one.
+%The latter is a two-step process of filtering candidates by {\em sieving},
+%and applying pseudo-primality tests to remaining candidates.
+This assymmetry between proof (attempt) and verification
+is typical in non-hashcash proofs of work.
+%These algorithms are somewhat complex and involve many trade-offs.
 Recently, another prime-number based crypto-currency, Riecoin, was introduced, based
 on finding clusters rather than chains of prime numbers.
 
