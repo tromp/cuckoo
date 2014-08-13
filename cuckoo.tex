@@ -15,11 +15,12 @@
 We introduce the first graph-theoretic proof-of-work system,
 based on finding cycles in large random graphs.
 Such problems are arbitrarily scalable and trivially verifiable.
-Our cycle finding implementation uses 1 bit per edge, and up to 1 bit per node.
+Our cycle finding implementation uses one bit per edge, and up to one bit per node.
 Runtime is linear in graph size and dominated by random access latency.
 We exhibit a memory-time trade-off (TMTO) where using $k$ times less memory
-incurs a slowdown of $k$ times half the cycle length, which we hypothesize
-is the best possible.
+incurs an $\Omega(k)$ slowdown where the constant grows with cycle length
+(roughly 25 at the suggested cycle length of 42).
+We hypothesize that this extra order of magnitude slowdown is unavoidable.
 \end{abstract}
 
 \section{Introduction}
@@ -50,7 +51,7 @@ Verification of these chains, while very slow compared to bitcoin's, is much fas
 than attempting to find one.
 %The latter is a two-step process of filtering candidates by {\em sieving},
 %and applying pseudo-primality tests to remaining candidates.
-This assymmetry between proof (attempt) and verification
+This asymmetry between proof (attempt) and verification
 is typical in non-hashcash proofs of work.
 %These algorithms are somewhat complex and involve many trade-offs.
 Recently, another prime-number based crypto-currency, Riecoin, was introduced, based
@@ -62,23 +63,24 @@ In the Erd\H{o}s-R\'{e}nyi model, denoted $G(N,M)$, a graph is chosen uniformly 
 from the collection of all graphs with $N$ nodes and $M$ edges. Instead, we choose edges
 deterministically from the output of a keyed hash function, whose key could be chosen
 uniformly at random. For a well-behaved hash function, these two classes of random graphs
-should have nearly identical  properties.
+should have nearly identical properties.
 Formally, fix a keyed hash function
-$h: \{0,1\}^K \times \{0,1\}^W_i \rightarrow \{0,1\}^W_o$\footnote{hash functions generally
-have arbitrary length inputs, but here we fix the input width at $W_i$ bits.},
-and a small graph $H$ as a target subgraph.
+$h: \{0,1\}^K \times \{0,1\}^{W_i} \rightarrow \{0,1\}^{W_o}$,
+and a small graph $H$ as a target subgraph\footnote{hash functions generally have arbitrary length inputs,
+but here we fix the input width at $W_i$ bits.}.
 Now pick a large number $N \leq 2^W_o$ as the number of nodes,
 and $M \leq 2^{W_i-1}$ as the number of edges.
 Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{v_0,\ldots,v_{N-1}\}$, and
 \begin{equation}
 E=\{(v_{h(k,2i) \bmod N},v_{h(k,2i+1) \bmod N}) | i \in [0,\ldots,M-1]\}
 \end{equation}
-The inputs $i \in [0,\ldots,M-1]$ are also called {\em nonces}.
+The inputs $i \in [0,\ldots,M-1]$ are also called {\em nonces}\footnote{These {\em micro} nonces should be
+distinguished from the {\em macro} nonce used to generate key $k$.}
 The graph has a {\em solution} if $H$ occurs as a subgraph.
-Denote the number of edges in h as $|H|$.
-A proof of solution is an ordered list of $|H|$ nonces that generate the edges
-of $H$'s occurrence in $G$.
-Such a proof is verifiable in constant time, independent of $N$ and $M$.
+Denote the number of edges in $H$ as $L$.
+A proof of solution is an ordered list of $L$ nonces that generate the edges
+of $H$'s occurrence in $G_k$.
+Such a proof is verifiable in time $O(L)$, independent of $N$ and $M$.
 
 A simple variation generates random bipartite graphs:
 $G_k = (U \cup V,E)$ where $U=\{u_0,\ldots,u_{\frac{N}{2}-1}\}$, $V=\{v_0,\ldots,v_{\frac{N}{2}-1}\}$,
@@ -87,9 +89,8 @@ and
 E=\{(u_{h(k,2i) \bmod \frac{N}{2}}, v_{h(k,2i+1) \bmod \frac{N}{2}}) | i \in [0,\ldots,M-1]\}
 \end{equation}
 
-
 The expected number of occurrences of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
-and in many cases it is roughly a function of the ratio $\frac{M}{N}$.
+and in many cases is roughly a function of the ratio $\frac{M}{N}$.
 For fixed $N$, the function is monotonically increasing in $M$.
 To make the proof-of-work challenging, one chooses a value of $M$ that yields less than one
 expected solution (but not much less).
@@ -99,15 +100,15 @@ The simplest possible choice of subgraph is a fully connected one, or a {\em cli
 While an interesting choice, akin to the number-theoretic notion of a prime-cluster,
 as used in Riecoin, we leave its consideration to a future paper.
 In this paper we focus on what is perhaps the next-simplest possible choice, the {\em cycle}.
-Specifically, we propose the hash function \hash with a $K=128$ bit key, $W_i = W_O = 64$ input
-and output bits, $N<2^{64}$ a 2-power, $M=N/2$, and $H$ a 42-cycle (more on that in a later section).
+Specifically, we propose the hash function \hash\ with a $K=128$ bit key, $W_i = W_o = 64$ input
+and output bits, $N \leq 2^{64}$ a 2-power, $M=N/2$, and $H$ a 42-cycle (more on that in a later section).
 The reason for calling the resulting proof-of-work Cuckoo Cycle is that
 inserting numbers in a Cuckoo hashtable naturally leads to forming cycles
-in random bipartite graphs!
+in random bipartite graphs.
 
 \section{Cuckoo hashing}
 Introduced by Rasmus Pagh and Flemming Friche
-Rodler~\cite{Pagh04cuckoohashing}, a cuckoo hashtable consists of two
+Rodler~\cite{Pagh04cuckoohashing}, a Cuckoo hashtable consists of two
 same-sized tables each with its own hash function mapping a key to a table
 location, providing two possible locations for each key.
 Upon insertion of a new key, if both locations are already occupied by keys,
@@ -117,7 +118,7 @@ location is found, or some maximum number of iterations is reached.
 The latter is bound to happen once cycles have formed in the {\em Cuckoo graph}.
 This is a bipartite graph with a node for each location and an
 edge for every key, connecting the two locations it can reside at.
-It also matches the bipartite graph defined above if the cuckoo hashtable
+It matches the bipartite graph defined above if the cuckoo hashtable
 were based on function $h$.
 In fact, the insertion procedure suggests a simple algorithm for detecting cycles.
 
@@ -226,8 +227,8 @@ into a single one. For each edge addition to the cuckoo graph we perform the equ
 of two find operations and one union operation.
 The difference is that the union-find algorithm is free to add
 directed edges between arbitrary elements. Thus it can join two subsets by adding an edge
-from one root to another, with no need to reverse any edges. Conversely, our algorithm
-can be seen as the first one that solves the union-find problem by maintaining
+from one root to another, with no need to reverse any edges.
+Our algorithm on the other hand solves the union-find problem by maintaining
 a direction on all union operations while keeping the maximum outdegree at 1.
 
 \section{Cuckoo Cycle basic algorithm}
@@ -237,9 +238,9 @@ If a cycle of length $L$ is found, then we solved the problem, and recover the p
 by storing the cycle edges in a set and enumerating nonces once more to see which ones
 generate edges in the set.
 If a cycle of a different length is found, then we keep the graph acyclic by ignoring the edge.
-There is some probability of overlooking other $L$-cycles
-through that edge, but in the important case of having few cycles
-in the cuckoo graph to begin with, it hardly affects the rate of solution finding.
+There is some risk of overlooking other $L$-cycles
+through that edge, but when the expected number of cycles is low (which is what we design for),
+this ignoring of cycle forming edges hardly affects the rate of solution finding.
 
 This algorithm is available online at \url{https://github.com/tromp/cuckoo}
 as either the C-program simple\_miner.cpp or the Java program SimpleMiner.java.
@@ -357,82 +358,94 @@ by processing the nodes in multiple passes depending on the value of their least
 The memory usage is $M$ bits for the alive set and $N / 2^{B}$ for the counters.
 
 After all edge trimming rounds, the counter memory is freed, and allocated to a
-custom cuckoo\_hashtable that presents the same interface as the simple array in
+custom cuckoo\_hashtable (based on \cite{preshing2013}) that presents the same interface as the simple array in
 the basic algorithm, but gets by with much fewer locations, as long as its {\em load},
 the ratio of remaining edges to number of locations, is significantly less than 1.
 
 The number of trimming rounds, which can be set with option {\tt -n}, defaults to
 $2^{1+(B+3)*(B+4)/2}$, which achieves a load close to $50\%$.
 
-\section{Memory-hardness}
-Reducing memory usage to a under 1 bit per edge is quite challenging.
-One approach is to maintain the set of alive edges in three parts:
-\begin{itemize}
-\item one part that has a density less than one-half and can be compressed using
-e.g. arithmetic coding.
-\item one part that is stored uncompressed.
-\item remaining edges are not stored and considered all alive.
-\end{itemize}
-Let's say we devote $A$ percent of $N/2$ bits (regular alive storage) to this, and another
-$B$ percent to vertex degree counters. The left plot below shows how well a given fraction
-of edges can be compressed (the entropy of live probability)
-by repeatedly removing leaf edges within this fraction. Most
-of this removal is achieved in 4 rounds of trimming, with each round of trimming requiring
-$2\cdot2\cdot\lceil \frac{2\cdot 100}{B} \rceil$ passes over all alive edges
-(one factor of 2 for $U \cup V$, another for writing and then reading degree counts).
-(Re-)compressing the current stored fraction frees up some of $A$,
-which allows us to transfer part of the unstored edges into a new uncompressed part.
-Repeating this process will ultimately trim all but a small fraction of edges.
-The plot on the right shows how many passes are needed as a function of the total
-memory usage $A+B$ where the split between $A$ and $B$ is always chosen optimally.
-Clearly this time-memory trade-off is highly nonlinear and impractical below 50\%.
+\section{A Time-Memory Trade-Off algorithm}
+David Andersen suggested an alternative method of trimming that avoids storing a bit per edge.
+Expanding on that idea led to the algorithm implemented in tomato\_miner.h
+It selects a suitably small subset $Z$ of vertices from partition $U$, and builds a BFS forest of depth
+equal to cycle length $L$. For each new BFS layer, it enumerates all edges to see which ones are incident
+to the previous layer, and maintains a directed forest on all BFS nodes like the base algorithm does.
+If the graph has an $L$-cycle, then the above procedure will find it as long as the distance from (any node in)
+$Z$ to the cycle is at most $L/2$ . Benchmarking experiments show this to be
+more efficient than searching only to depth $L/2$, which would suffice for finding the cycle as long
+as it intersects $Z$. This algorithm uses memory roughly $|Z| \cdot L \cdot 64$ bits.
 
-\begin{center}
-\begin{tikzpicture}
-\begin{axis}[ymin=0, legend pos=south west]
-\addplot [color=blue] coordinates {
-( 1,0.9544) ( 2,0.9652) ( 3,0.9618) ( 4,0.9652) ( 5,0.9632)
-( 6,0.9618) ( 7,0.9608) ( 8,0.9600) ( 9,0.9594) (10,0.9589)
-(11,0.9565) (12,0.9563) (13,0.9544) (14,0.9528) (15,0.9513)
-(16,0.9500) (17,0.9488) (18,0.9464) (19,0.9455) (20,0.9435)
-(21,0.9415) (22,0.9398) (23,0.9381) (24,0.9366) (25,0.9352)
-(26,0.9328) (27,0.9305) (28,0.9284) (29,0.9263) (30,0.9244)
-(31,0.9226) (32,0.9199) (33,0.9173) (34,0.9149) (35,0.9125)
-(36,0.9103) (37,0.9072) (38,0.9043) (39,0.9014) (40,0.8987)
-(41,0.8960) (42,0.8926) (43,0.8902) (44,0.8869) (45,0.8830)
-(46,0.8800) (47,0.8762) (48,0.8725) (49,0.8690) (50,0.8647)
-(51,0.8613) (52,0.8571) (53,0.8523) (54,0.8484) (55,0.8437)
-(56,0.8392) (57,0.8339) (58,0.8295) (59,0.8236) (60,0.8186)
-(61,0.8129) (62,0.8073) (63,0.8017) (64,0.7954) (65,0.7884)
-(66,0.7823) (67,0.7755) (68,0.7679) (69,0.7604) (70,0.7529)
-(71,0.7447) (72,0.7366) (73,0.7277) (74,0.7189) (75,0.7093)
-(76,0.6988) (77,0.6884) (78,0.6772) (79,0.6660) (80,0.6539)
-(81,0.6410) (82,0.6271) (83,0.6132) (84,0.5984) (85,0.5825)
-(86,0.5656) (87,0.5476) (88,0.5274) (89,0.5070) (90,0.4842)
-(91,0.4600) (92,0.4342) (93,0.4056) (94,0.3739) (95,0.3399)
-(96,0.3006) (97,0.2566) (98,0.2085) (99,0.1531) (100,0.0930)
-};
-\addlegendentry{compression}
-\end{axis}
-\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}
-\begin{axis}[ymin=0, legend pos=north east]
-\addplot [color=red] coordinates {
-(46,6688) (47,5984) (48,5632) (49,5280) (50,4800)
-(51,4560) (52,4080) (53,3840) (54,3600) (55,3360)
-(56,3120) (57,2880) (58,2816) (59,2640) (60,2400)
-(61,2240) (62,2112) (63,1904) (64,1792) (65,1680)
-(66,1568) (67,1456) (68,1344) (69,1280) (70,1200)
-(71,1120) (72,1040) (73,960) (74,960) (75,880)
-(76,800) (77,768) (78,720) (79,640) (80,608)
-(81,544) (82,512) (83,480) (84,448) (85,400)
-(86,368) (87,320) (88,304) (89,272) (90,256)
-(91,240) (92,224) (93,208) (94,192) (95,192)
-(96,176) (97,160) (98,160) (99,160) (100,144)
-};
-\addlegendentry{tmto slowdown}
-\end{axis}
-\end{tikzpicture}
-\end{center}
+
+%\section{Memory-hardness}
+%Reducing memory usage to a under 1 bit per edge is quite challenging.
+%One approach is to maintain the set of alive edges in three parts:
+%\begin{itemize}
+%\item one part that has a density less than one-half and can be compressed using
+%e.g. arithmetic coding.
+%\item one part that is stored uncompressed.
+%\item remaining edges are not stored and considered all alive.
+%\end{itemize}
+%Let's say we devote $A$ percent of $N/2$ bits (regular alive storage) to this, and another
+%$B$ percent to vertex degree counters. The left plot below shows how well a given fraction
+%of edges can be compressed (the entropy of live probability)
+%by repeatedly removing leaf edges within this fraction. Most
+%of this removal is achieved in 4 rounds of trimming, with each round of trimming requiring
+%$2\cdot2\cdot\lceil \frac{2\cdot 100}{B} \rceil$ passes over all alive edges
+%(one factor of 2 for $U \cup V$, another for writing and then reading degree counts).
+%(Re-)compressing the current stored fraction frees up some of $A$,
+%which allows us to transfer part of the unstored edges into a new uncompressed part.
+%Repeating this process will ultimately trim all but a small fraction of edges.
+%The plot on the right shows how many passes are needed as a function of the total
+%memory usage $A+B$ where the split between $A$ and $B$ is always chosen optimally.
+%Clearly this time-memory trade-off is highly nonlinear and impractical below 50\%.
+%
+%\begin{center}
+%\begin{tikzpicture}
+%\begin{axis}[ymin=0, legend pos=south west]
+%\addplot [color=blue] coordinates {
+%( 1,0.9544) ( 2,0.9652) ( 3,0.9618) ( 4,0.9652) ( 5,0.9632)
+%( 6,0.9618) ( 7,0.9608) ( 8,0.9600) ( 9,0.9594) (10,0.9589)
+%(11,0.9565) (12,0.9563) (13,0.9544) (14,0.9528) (15,0.9513)
+%(16,0.9500) (17,0.9488) (18,0.9464) (19,0.9455) (20,0.9435)
+%(21,0.9415) (22,0.9398) (23,0.9381) (24,0.9366) (25,0.9352)
+%(26,0.9328) (27,0.9305) (28,0.9284) (29,0.9263) (30,0.9244)
+%(31,0.9226) (32,0.9199) (33,0.9173) (34,0.9149) (35,0.9125)
+%(36,0.9103) (37,0.9072) (38,0.9043) (39,0.9014) (40,0.8987)
+%(41,0.8960) (42,0.8926) (43,0.8902) (44,0.8869) (45,0.8830)
+%(46,0.8800) (47,0.8762) (48,0.8725) (49,0.8690) (50,0.8647)
+%(51,0.8613) (52,0.8571) (53,0.8523) (54,0.8484) (55,0.8437)
+%(56,0.8392) (57,0.8339) (58,0.8295) (59,0.8236) (60,0.8186)
+%(61,0.8129) (62,0.8073) (63,0.8017) (64,0.7954) (65,0.7884)
+%(66,0.7823) (67,0.7755) (68,0.7679) (69,0.7604) (70,0.7529)
+%(71,0.7447) (72,0.7366) (73,0.7277) (74,0.7189) (75,0.7093)
+%(76,0.6988) (77,0.6884) (78,0.6772) (79,0.6660) (80,0.6539)
+%(81,0.6410) (82,0.6271) (83,0.6132) (84,0.5984) (85,0.5825)
+%(86,0.5656) (87,0.5476) (88,0.5274) (89,0.5070) (90,0.4842)
+%(91,0.4600) (92,0.4342) (93,0.4056) (94,0.3739) (95,0.3399)
+%(96,0.3006) (97,0.2566) (98,0.2085) (99,0.1531) (100,0.0930)
+%};
+%\addlegendentry{compression}
+%\end{axis}
+%\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}
+%\begin{axis}[ymin=0, legend pos=north east]
+%\addplot [color=red] coordinates {
+%(46,6688) (47,5984) (48,5632) (49,5280) (50,4800)
+%(51,4560) (52,4080) (53,3840) (54,3600) (55,3360)
+%(56,3120) (57,2880) (58,2816) (59,2640) (60,2400)
+%(61,2240) (62,2112) (63,1904) (64,1792) (65,1680)
+%(66,1568) (67,1456) (68,1344) (69,1280) (70,1200)
+%(71,1120) (72,1040) (73,960) (74,960) (75,880)
+%(76,800) (77,768) (78,720) (79,640) (80,608)
+%(81,544) (82,512) (83,480) (84,448) (85,400)
+%(86,368) (87,320) (88,304) (89,272) (90,256)
+%(91,240) (92,224) (93,208) (94,192) (95,192)
+%(96,176) (97,160) (98,160) (99,160) (100,144)
+%};
+%\addlegendentry{tmto slowdown}
+%\end{axis}
+%\end{tikzpicture}
+%\end{center}
 
 \section{Parallelization}
 The implementation allows the number of threads to be set with option {\tt -t}.
@@ -519,7 +532,9 @@ To be expanded...
 Extremely small cycle lengths risk the feasibility of alternative algorithms with better performance.
 For example, for $L=2$ the problem reduces to finding a birthday collision
 as in the Momentum proof-of-work.
-It is conceivable however that the Cuckoo representation is already optimal for $L=4$.
+It is conceivable however that the Cuckoo cycle finding approach is optimal for any $L=4$ or $L=6$.
+(Ongoing) analysis of the tmto miner shows that larger cycle length make the problem more memory-hard,
+which argues against such small cycle lengths.
 In order to keep proof size manageable, the cycle length should not be too large either.
 We consider 20-64 to be a healthy range, which averages to 42.
 The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
@@ -624,7 +639,7 @@ Momentum~\cite{larimer2013} proposes finding birthday collisions of hash
 outputs as proof-of-work, the simplest way to combine scalable memory usage
 with trivial verifiability. Its memory requirements are not very strict
 though. as Bloom filters or rainbow tables can identify collisions, and
-parallelizes well.
+there is a straightforward linear time-memory trade-off.
 
 Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
 and present.
@@ -633,7 +648,7 @@ and present.
 Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines scalable
 memory requirements with instant verifiability. It's also the first proof-of-work in
 which memory latency dominates the runtime.
-This could lead to mining costs being dominated in turn by DRAM investments,
+This could lead to mining costs being dominated by DRAM investments,
 changing the economics of mining in ways that require further study.
 More research is also needed to determine the effectiveness of GPUs and FPGAs
 at running Cuckoo Cycle.
