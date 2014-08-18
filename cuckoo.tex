@@ -368,14 +368,14 @@ $2^{1+(B+3)*(B+4)/2}$, which achieves a load close to $50\%$.
 \section{A Time-Memory Trade-Off algorithm}
 David Andersen suggested an alternative method of trimming that avoids storing a bit per edge.
 Expanding on that idea led to the algorithm implemented in tomato\_miner.h
-It selects a suitably small subset $Z$ of vertices from partition $U$, and builds a BFS forest of depth
-equal to cycle length $L$. For each new BFS layer, it enumerates all edges to see which ones are incident
+It selects a suitably small subset $Z$ of vertices from partition $U$, and builds a breadth-first-search
+(BFS) forest of depth equal to cycle length $L$.
+For each new BFS layer, it enumerates all edges to see which ones are incident
 to the previous layer, and maintains a directed forest on all BFS nodes like the base algorithm does.
 If the graph has an $L$-cycle, then the above procedure will find it as long as the distance from (any node in)
 $Z$ to the cycle is at most $L/2$ . Benchmarking experiments show this to be
 more efficient than searching only to depth $L/2$, which would suffice for finding the cycle as long
 as it intersects $Z$. This algorithm uses memory roughly $|Z| \cdot L \cdot 64$ bits.
-
 
 %\section{Memory-hardness}
 %Reducing memory usage to a under 1 bit per edge is quite challenging.
@@ -575,18 +575,27 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 \end{tikzpicture}
 \end{center}
 
-% \section{Choice of memory size}
-% The memory requirement should exceed that of the largest available
-% single-chip memory to enforce off-chip latencies.
-% It should also be a
-% significant fraction of the typical memory of a botnet computer,
-% With a significant risk of sending machines into swap-hell and
-% likely alerting its owner, botnet operators will refrain from deploying
-% Cuckoo Cycle, preferring other proof-of-work schemes whose smaller memory
-% footprint allows them to stay under the radar.
-% With memory sizes doubling roughly every 18 months, 16GB will become
-% commonplace in a few years.
-The main implementation can easily handle $N=2^{43}$ nodes which uses 1TB of memory.
+\section{Choice of memory size}
+The chosen Cuckoo graph size affects what type of hardware can mine effectively at a given block interva time.
+To illustrate, suppose an average desktop machine needs 1 minute for a single proof attempt,
+and the block interval time is only 2 minutes. Then it will waste a large fraction (almost half)
+of its attempts as about half the time, someone else finds a proof in under 2 minutes. To reduce such waste
+to a small percentage, the time for a single proof attempt should be a similarly small fraction of the block
+interval time. Obviously this is achieved more easily with a small graph (and hence memory) size.
+
+Larger memory sizes have two advantages though. First, they make it harder for botnets to mine without
+causing excessive swapping. Sending a computer into swap-hell will likely alert its owner and trigger a cleanup.
+
+Second, they make it harder for custom FPGA or ASIC implementations to remain self-contained.
+Rather, to remain cost effective, they will likely need to make use of commodity DRAM chips,
+and incur a $~50$ns row activation delay for random access to each memory bank.
+
+We expect these opposing goals to lead to sizes from $2^28$ to $2^32$, with the larger ones geared
+more toward longer block interval times and faster mining hardware.
+
+An interesting option will be to take a Myriad-coin style approach: allow a range of $k$ different sizes,
+but maintain a separate difficulty control for each one, adjusted so that each proof size accounts
+for roughly $1/k$ of all blocks.
 
 % \section{Memory latency; the great equalizer}
 % While cpu-speed and (sequential) memory bandwidth are highly variable across
@@ -605,7 +614,7 @@ The main implementation can easily handle $N=2^{43}$ nodes which uses 1TB of mem
 \section{Computation versus memory}
 Starting out at 32 leading zeroes in 2009, Bitcoin difficulty
 has steadily climbed and is currently
-at 64, representing an incredible $2^{64}/10$ double-hashes per minute.
+at 66, representing an incredible $2^{66}/10$ double-hashes per minute.
 This growth was enabled by the migration of hash computation from 
 desktop processors (CPUs) to graphics-card processors (GPUs),
 to field-programmable gate arrays (FPGAs), and finally to custom designed
