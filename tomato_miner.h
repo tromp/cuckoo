@@ -31,12 +31,52 @@ typedef u64 au64;
 #ifndef IDXSHIFT
 #define IDXSHIFT SAVEMEM_BITS
 #endif
+#ifndef LOGPROOFSIZE
+// roughly the binary logarithm of cycle length rounded down
+// tweak if necessary to get cuckoo hash load between 45 and 90%
+#define LOGPROOFSIZE 2
+#endif
 #ifndef VPART_BITS
 // #bits used to partition vertex set to save memory
-// constant 3 chosen to give decent load on cuckoo hash at cycle length 42
-#define VPART_BITS (IDXSHIFT+5)
+#define VPART_BITS (IDXSHIFT+LOGPROOFSIZE)
 #endif
 #define NVPARTS (1<<VPART_BITS)
+
+#define ONCE_BITS (HALFSIZE >> VPART_BITS)
+#define TWICE_WORDS ((2 * ONCE_BITS) / 32)
+
+class twice_set {
+public:
+  au32 *bits;
+
+  twice_set() {
+    assert(bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32)));
+  }
+  void reset() {
+    memset(bits, 0, TWICE_WORDS*sizeof(au32));
+  }
+  void set(node_t u) {
+    node_t idx = u/16;
+    u32 bit = 1 << (2 * (u%16));
+#ifdef ATOMIC
+    u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
+    if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
+  }
+  u32 test(node_t u) const {
+    return (bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2;
+  }
+#else
+    u32 old = bits[idx];
+    bits[idx] = old | (bit + (old & bit));
+  }
+  u32 test(node_t u) const {
+    return bits[u/16] >> (2 * (u%16)) & 2;
+  }
+#endif
+  ~twice_set() {
+    free(bits);
+  }
+};
 
 #define VPART_MASK ((1 << VPART_BITS) - 1)
 // grow with cube root of size, hardly affected by trimming
@@ -108,24 +148,27 @@ class cuckoo_ctx {
 public:
   siphash_ctx sip_ctx;
   cuckoo_hash *cuckoo;
+  bool minimalbfs;
+  twice_set *nonleaf;
   u32 nparts;
   nonce_t (*sols)[PROOFSIZE];
-  u32 maxsols;
-  au32 nsols;
   u32 nthreads;
   pthread_barrier_t barry;
 
-  cuckoo_ctx(const char* header, u32 n_threads, u32 n_parts, u32 max_sols) {
+  cuckoo_ctx(const char* header, u32 n_threads, u32 n_parts, bool minimal_bfs) {
     setheader(&sip_ctx, header);
     nthreads = n_threads;
     nparts = n_parts;
     cuckoo = new cuckoo_hash();
+    if (minimalbfs)
+      nonleaf = new twice_set();
     assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
-    assert(sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(nonce_t)));
-    nsols = 0;
+    minimalbfs = minimal_bfs;
   }
   ~cuckoo_ctx() {
     delete cuckoo;
+    if (minimalbfs)
+      delete nonleaf;
   }
 };
 
@@ -168,18 +211,11 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
     cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
   while (nv--)
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-#ifdef ATOMIC
-  u32 soli = std::atomic_fetch_add_explicit(&ctx->nsols, 1U, std::memory_order_relaxed);
-#else
-  u32 soli = ctx->nsols++;
-#endif
+  printf("Solution: ");
   for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++) {
     edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
     if (cycle.find(e) != cycle.end()) {
-      ctx->sols[soli][n++] = nonce;
-#ifdef SHOWSOL
-        printf("e(%x)=(%x,%x)%c", nonce, e.first, e.second, n==PROOFSIZE?'\n':' ');
-#endif
+      printf("%x%c", nonce, ++n == PROOFSIZE?'\n':' ');
       if (PROOFSIZE > 2)
         cycle.erase(e);
     }
@@ -192,18 +228,31 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   cuckoo_hash &cuckoo = *ctx->cuckoo;
+  twice_set *nonleaf = ctx->nonleaf;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   for (node_t vpart=0; vpart < ctx->nparts; vpart++) {
+    if (ctx->minimalbfs) {
+      for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
+        node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0);
+        if (u0 != 0 && (u0 & VPART_MASK) == vpart)
+            nonleaf->set(u0 >> VPART_BITS);
+      }
+    }
     barrier(&ctx->barry);
-    for (int depth = 0; depth < PROOFSIZE; depth++) {
+    static int bfsdepth = ctx->minimalbfs ? PROOFSIZE/2 : PROOFSIZE;
+    for (int depth=0; depth < bfsdepth; depth++) {
       for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
         node_t u0 = sipnode(&ctx->sip_ctx, nonce, depth&1);
         if (depth&1)
           u0 += HALFSIZE;
         else if (u0 == 0)
           continue;
-        if (depth == 0 && !((u0 & VPART_MASK) == vpart))
-          continue;
+        if (depth == 0) {
+          if ((u0 & VPART_MASK) != vpart)
+            continue;
+          if (ctx->minimalbfs && !nonleaf->test(u0 >> VPART_BITS))
+            continue;
+        }
         node_t u = cuckoo[us[0] = u0];
         if (depth > 0 && u == 0)
           continue;
@@ -223,10 +272,11 @@ void *worker(void *vp) {
           for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
           u32 len = nu + nv + 1;
           printf("% 4d-cycle found at %d:%d\n", len, tp->id, depth);
-          if (len == PROOFSIZE && ctx->nsols < ctx->maxsols) {
+          if (len == PROOFSIZE) {
             if (depth&1)
               solution(ctx, vs, nv, us, nu);
             else solution(ctx, us, nu, vs, nv);
+            pthread_exit(NULL);
           }
           continue;
         }
@@ -241,7 +291,7 @@ void *worker(void *vp) {
         }
       }
       barrier(&ctx->barry);
-      if (0 && tp->id == 0 && cuckoo.load() >= 90) {
+      if (tp->id == 0 && cuckoo.load() >= 90) {
         printf("vpart %d depth %d OVERLOAD !!!!!!!!!!!!!!!!!\n", vpart, depth);
         break;
       }
@@ -249,6 +299,8 @@ void *worker(void *vp) {
     if (tp->id == 0) {
       printf("vpart %d depth %d load %d%%\n", vpart, PROOFSIZE/2, cuckoo.load());
       cuckoo.clear();
+      if (ctx->minimalbfs)
+        ctx->nonleaf->reset();
     }
   }
   pthread_exit(NULL);
