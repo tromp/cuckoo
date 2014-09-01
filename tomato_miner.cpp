@@ -1,6 +1,6 @@
 // Bounty Cycle, an attempt to disprove John's claims
 
-#include "tomato_miner0.h"
+#include "tomato_miner.h"
 #include <unistd.h>
 
 int main(int argc, char **argv) {

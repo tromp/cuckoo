@@ -150,5 +150,20 @@ runcuda:	cuda
 speedupcuda:	cuda28
 	for i in 1 2 4 8 16 32 64 128 256 512; do echo $$i; (time for j in {0..6}; do ./cuda28 -t $$i -h $$j; done) 2>&1; done > speedupcuda
 
-tar:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h simple_miner.cpp Makefile
-	tar -cf cuckoo.tar cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h simple_miner.cpp Makefile
+tomato25.42.3:	cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
+	$(GPP) -o tomato25.42.3 -DSIZESHIFT=25 -DPROOFSIZE=42 -DLOGPROOFSIZE=3 tomato_miner.cpp $(LIBS)
+
+tomato25.42.4:	cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
+	$(GPP) -o tomato25.42.4 -DSIZESHIFT=25 -DPROOFSIZE=42 -DLOGPROOFSIZE=4 tomato_miner.cpp $(LIBS)
+
+tomato25.42.5:	cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
+	$(GPP) -o tomato25.42.5 -DSIZESHIFT=25 -DPROOFSIZE=42 -DLOGPROOFSIZE=5 tomato_miner.cpp $(LIBS)
+
+tmto25.42:	found25 tomato25.42.5
+	perl -ne 'print unless /^ +(\d+)/ && $$1 != 42' < found25 | grep -B 1 found | grep "^[0-9]" | head -200 | xargs -L 1 time ./tomato25.14.5 -t 1 -h &> tmto25.42 &
+
+tmto25.42m:	found25 tomato25.42.3
+	perl -ne 'print unless /^ +(\d+)/ && $$1 != 42' < found25 | grep -B 1 found | grep "^[0-9]" | head -200 | xargs -L 1 time ./tomato25.14.3 -m -t 1 -h &> tmto25.42m &
+
+tar:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h simple_miner.cpp tomato_miner.h tomato_miner.cpp found.pl found25 Makefile
+	tar -cf cuckoo.tar cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h simple_miner.cpp tomato_miner.h tomato_miner.cpp found.pl found25 Makefile
