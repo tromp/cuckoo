@@ -18,9 +18,10 @@ Such problems are arbitrarily scalable and trivially verifiable.
 Our cycle finding implementation uses one bit per edge, and up to one bit per node.
 Runtime is linear in graph size and dominated by random access latency.
 We exhibit a memory-time trade-off (TMTO) where using $k$ times less memory
-incurs an $\Omega(k)$ slowdown where the constant grows with cycle length
-(roughly 25 at the suggested cycle length of 42).
-We hypothesize that this extra order of magnitude slowdown is unavoidable.
+incurs an $\Omega(k)$ slowdown where the implied constant is roughly 25 for
+the suggested range of cycle lengths $20 \ldots 64$.
+We hypothesize that this "undue" slowdown is unavoidable, which would make
+Cuckoo Cycle essentially memory hard.
 \end{abstract}
 
 \section{Introduction}
@@ -589,6 +590,7 @@ causing excessive swapping. Sending a computer into swap-hell will likely alert 
 Second, they make it harder for custom FPGA or ASIC implementations to remain self-contained.
 Rather, to remain cost effective, they will likely need to make use of commodity DRAM chips,
 and incur a $~50$ns row activation delay for random access to each memory bank.
+If a future CPU with hardware siphash24 support can saturate DRAM, then 
 
 We expect these opposing goals to lead to sizes from $2^28$ to $2^32$, with the larger ones geared
 more toward longer block interval times and faster mining hardware.
@@ -626,15 +628,16 @@ Although ASICs are the most energy-efficient way of computing hashes,
 the tiny amount of die-space needed for a single SHA256 circuit allows
 a huge number of them (e.g. 1440 on KnC's Neptune) to be crammed onto a
 single chip, consuming 100s of Watts and requiring ample cooling.
-Thus, energy costs dominate the economics of mining.
+%Thus, energy costs dominate the economics of mining.
 
 This has led people to look for alternative proof-of-work systems
 that, by requiring a nontrivial amount of memory, resist such
 massive parallelizability, and narrow the performance gap
-with commodity hardware. Memory chips, in the form of DRAM,
-have only a small portion of their circuitry active at any
-time\footnote{this applies to each of the 8 or so {\em banks} that make up the memory in each chip,
-while operating in parallel} and thus require orders of magnitude less power.
+with commodity hardware.
+%Memory chips, in the form of DRAM,
+%have only a small portion of their circuitry active at any
+%time\footnote{this applies to each of the 8 or so {\em banks} that make up the memory in each chip,
+%while operating in parallel} and thus require orders of magnitude less power.
 
 Litecoin replaces the SHA256 hash function in hashcash by a single round
 version of the {\em scrypt} key derivation function. Its memory requirement
@@ -642,7 +645,7 @@ of 128KB is a compromise between computation-hardness for the prover and
 verification efficiency for the verifier. Although designed to be
 GPU-resistant, GPUs are now at least an order of magnitude faster
 than CPUs for Litecoin mining. ASICs first appeared on the market in early 2014
-and are expected to dominate Litecoin mining by the fourth quarter.
+and have started to dominate Litecoin mining by the third quarter.
 
 Momentum~\cite{larimer2013} proposes finding birthday collisions of hash
 outputs as proof-of-work, the simplest way to combine scalable memory usage
