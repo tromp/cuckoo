@@ -48,6 +48,12 @@ cuckoo25:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo25.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo25.1 -DPART_BITS=1 -DSIZESHIFT=25 cuckoo_miner.cpp $(LIBS)
 
+momentum:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o momentum -DSIZESHIFT=26 -DPROOFSIZE=2 cuckoo_miner.cpp $(LIBS)
+
+momentomatum:	cuckoo.h momentomatum.h momentomatum.cpp Makefile
+	$(GPP) -o momentum -DSIZESHIFT=26 momentomatum.cpp $(LIBS)
+
 cuckoo28:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
