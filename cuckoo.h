@@ -80,7 +80,7 @@ u64 siphash24(siphash_ctx *ctx, u64 nonce) {
 
 // generate edge endpoint in cuckoo graph
 node_t sipnode(siphash_ctx *ctx, nonce_t nonce, u32 uorv) {
-  return siphash24(ctx, 2*nonce + uorv) & NODEMASK;
+  return (siphash24(ctx, 2*nonce + uorv) & NODEMASK) << 1 | uorv;
 }
 
 void sipedge(siphash_ctx *ctx, nonce_t nonce, node_t *pu, node_t *pv) {
@@ -92,33 +92,26 @@ void sipedge(siphash_ctx *ctx, nonce_t nonce, node_t *pu, node_t *pv) {
 int verify(nonce_t nonces[PROOFSIZE], const char *header, u64 easiness) {
   siphash_ctx ctx;
   setheader(&ctx, header);
-  node_t us[PROOFSIZE], vs[PROOFSIZE];
-  u32 i = 0, n;
-  for (n = 0; n < PROOFSIZE; n++) {
+  node_t uvs[2*PROOFSIZE];
+  for (u32 n = 0; n < PROOFSIZE; n++) {
     if (nonces[n] >= easiness || (n && nonces[n] <= nonces[n-1]))
       return 0;
-    sipedge(&ctx, nonces[n], &us[n], &vs[n]);
+    sipedge(&ctx, nonces[n], &uvs[2*n], &uvs[2*n+1]);
   }
-  do {  // follow cycle until we return to i==0; n edges left to visit
+  u32 i = 0;
+  for (u32 n = PROOFSIZE; n; ) { // follow cycle for n more steps
     u32 j = i;
-    for (u32 k = 0; k < PROOFSIZE; k++) // find unique other j with same vs[j]
-      if (k != i && vs[k] == vs[i]) {
+    for (u32 k = i&1; k < 2*PROOFSIZE; k += 2) // find unique other j with same parity and uvs[j]
+      if (k != i && uvs[k] == uvs[i]) {
         if (j != i)
-          return 0;
+          return 0; // more than 2 occurences
         j = k;
     }
     if (j == i)
+      return 0; // no other occurence
+    i = j^1;
+    if (--n && i == 0) // don't return to 0 too soon
       return 0;
-    i = j;
-    for (u32 k = 0; k < PROOFSIZE; k++) // find unique other i with same us[i]
-      if (k != j && us[k] == us[j]) {
-        if (i != j)
-          return 0;
-        i = k;
-    }
-    if (i == j)
-      return 0;
-    n -= 2;
-  } while (i);
-  return n == 0;
+  }
+  return i == 0;
 }

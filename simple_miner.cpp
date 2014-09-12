@@ -54,7 +54,9 @@ void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   printf("Solution");
   for (nonce_t nonce = n = 0; nonce < ctx->easiness; nonce++) {
-    edge e(1+sipnode(&ctx->sip_ctx, nonce, 0), 1+HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
+    node_t u, v;
+    sipedge(&ctx->sip_ctx, nonce, &u, &v);
+    edge e(u,v);
     if (cycle.find(e) != cycle.end()) {
       printf(" %lx", nonce);
       cycle.erase(e);
@@ -69,17 +71,14 @@ void worker(cuckoo_ctx *ctx) {
   for (node_t nonce = 0; nonce < ctx->easiness; nonce++) {
     node_t u0, v0;
     sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
-    u0 += 1        ;  // make non-zero
-    v0 += 1 + HALFSIZE;  // make v's different from u's
+    if (u0 == 0) continue; // reserve 0 as nil; v0 guaranteed non-zero
     node_t u = cuckoo[u0], v = cuckoo[v0];
-    if (u == v0 || v == u0)
-      continue; // ignore duplicate edges
     us[0] = u0;
     vs[0] = v0;
 #ifdef SHOW
-    for (unsigned j=0; j<SIZE; j++)
-      if (!cuckoo[1+j]) printf("%2d:   ",j);
-      else            printf("%2d:%02ld ",j,cuckoo[1+j]-1);
+    for (unsigned j=1; j<SIZE; j++)
+      if (!cuckoo[j]) printf("%2d:   ",j);
+      else           printf("%2d:%02ld ",j,cuckoo[j]);
     printf(" %lx (%ld,%ld)\n", nonce,*us-1,*vs-1);
 #endif
     int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);

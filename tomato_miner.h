@@ -36,13 +36,13 @@ typedef u64 au64;
 // tweak if necessary to get cuckoo hash load between 45 and 90%
 #define LOGPROOFSIZE 2
 #endif
-#ifndef VPART_BITS
+#ifndef UPART_BITS
 // #bits used to partition vertex set to save memory
-#define VPART_BITS (IDXSHIFT+LOGPROOFSIZE)
+#define UPART_BITS (IDXSHIFT+LOGPROOFSIZE)
 #endif
-#define NVPARTS (1<<VPART_BITS)
+#define NUPARTS (1<<UPART_BITS)
 
-#define ONCE_BITS (HALFSIZE >> VPART_BITS)
+#define ONCE_BITS (HALFSIZE >> UPART_BITS)
 #define TWICE_WORDS ((2 * ONCE_BITS) / 32)
 
 class twice_set {
@@ -78,7 +78,7 @@ public:
   }
 };
 
-#define VPART_MASK ((1 << VPART_BITS) - 1)
+#define UPART_MASK (NUPARTS - 1)
 // grow with cube root of size, hardly affected by trimming
 #define MAXPATHLEN (8 << (SIZESHIFT/3))
 
@@ -213,7 +213,9 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   printf("Solution: ");
   for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++) {
-    edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
+    node_t u,v;
+    sipedge(&ctx->sip_ctx, nonce, &u, &v);
+    edge e(u,v);
     if (cycle.find(e) != cycle.end()) {
       printf("%x%c", nonce, ++n == PROOFSIZE?'\n':' ');
       if (PROOFSIZE > 2)
@@ -230,12 +232,12 @@ void *worker(void *vp) {
   cuckoo_hash &cuckoo = *ctx->cuckoo;
   twice_set *nonleaf = ctx->nonleaf;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-  for (node_t vpart=0; vpart < ctx->nparts; vpart++) {
+  for (node_t upart=0; upart < ctx->nparts; upart++) {
     if (ctx->minimalbfs) {
       for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
-        node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0);
-        if (u0 != 0 && (u0 & VPART_MASK) == vpart)
-            nonleaf->set(u0 >> VPART_BITS);
+        node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0) >> 1;
+        if (u0 != 0 && (u0 & UPART_MASK) == upart)
+            nonleaf->set(u0 >> UPART_BITS);
       }
     }
     barrier(&ctx->barry);
@@ -243,29 +245,21 @@ void *worker(void *vp) {
     for (int depth=0; depth < bfsdepth; depth++) {
       for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
         node_t u0 = sipnode(&ctx->sip_ctx, nonce, depth&1);
-        if (depth&1)
-          u0 += HALFSIZE;
-        else if (u0 == 0)
+        if (u0 == 0)
           continue;
         if (depth == 0) {
-          if ((u0 & VPART_MASK) != vpart)
+          if ((u0 & UPART_MASK) != upart)
             continue;
-          if (ctx->minimalbfs && !nonleaf->test(u0 >> VPART_BITS))
+          if (ctx->minimalbfs && !nonleaf->test(u0 >> UPART_BITS))
             continue;
         }
         node_t u = cuckoo[us[0] = u0];
         if (depth > 0 && u == 0)
           continue;
         node_t v0 = sipnode(&ctx->sip_ctx, nonce, (depth&1)^1);
-        if (!(depth&1))
-          v0 += HALFSIZE;
-        else if (v0 == 0)
+        if (v0 == 0)
           continue;
         node_t v = cuckoo[vs[0] = v0];
-        if (u == v0 || v == u0) // duplicate
-          continue;
-        // now v0 at depth+1 already points to other u' at depth; possibly forming a cycle
-        // printf("vpart %x depth %x %x<-%x->%x\n", vpart, depth, v,v0,u0);
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
           u32 min = nu < nv ? nu : nv;
@@ -292,12 +286,12 @@ void *worker(void *vp) {
       }
       barrier(&ctx->barry);
       if (tp->id == 0 && cuckoo.load() >= 90) {
-        printf("vpart %d depth %d OVERLOAD !!!!!!!!!!!!!!!!!\n", vpart, depth);
+        printf("upart %d depth %d OVERLOAD !!!!!!!!!!!!!!!!!\n", upart, depth);
         break;
       }
     }
     if (tp->id == 0) {
-      printf("vpart %d depth %d load %d%%\n", vpart, PROOFSIZE/2, cuckoo.load());
+      printf("upart %d depth %d load %d%%\n", upart, PROOFSIZE/2, cuckoo.load());
       cuckoo.clear();
       if (ctx->minimalbfs)
         ctx->nonleaf->reset();

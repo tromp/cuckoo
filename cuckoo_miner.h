@@ -243,7 +243,7 @@ void trim_edges(thread_ctx *tp, u32 round) {
           u32 alive32 = alive->block(block); // GLOBAL 1 SEQ
           for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
             if (alive32 & 1) {
-              node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
+              node_t u = sipnode(&ctx->sip_ctx, nonce, uorv) >> 1;
               if ((u & PART_MASK) == part) {
                 u32 b = u >> BUCKETSHIFT;
                 u32 *bsize = &bucketsizes[b];
@@ -322,11 +322,13 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
 #endif
   for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
     if (ctx->alive->test(nonce)) {
-      edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
+      node_t u, v;
+      sipedge(&ctx->sip_ctx, nonce, &u, &v);
+      edge e(u,v);
       if (cycle.find(e) != cycle.end()) {
         ctx->sols[soli][n++] = nonce;
 #ifdef SHOWSOL
-        printf("e(%x)=(%x,%x)%c", nonce, e.first, e.second, n==PROOFSIZE?'\n':' ');
+        printf("e(%x)=(%x,%x)%c", nonce, u, v, n==PROOFSIZE?'\n':' ');
 #endif
         if (PROOFSIZE > 2)
           cycle.erase(e);
@@ -366,7 +368,6 @@ void *worker(void *vp) {
         sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
         if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
           continue;
-        v0 += HALFSIZE;  // make v's different from u's
         node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
