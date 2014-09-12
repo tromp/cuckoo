@@ -142,6 +142,9 @@ public:
   u32 load() const {
     return (u32)(nstored*100L/CUCKOO_SIZE);
   }
+  bool overloaded() const {
+    return nstored >= (u32)(CUCKOO_SIZE*9L/10L);
+  }
 };
 
 class cuckoo_ctx {
@@ -160,10 +163,10 @@ public:
     nthreads = n_threads;
     nparts = n_parts;
     cuckoo = new cuckoo_hash();
+    minimalbfs = minimal_bfs;
     if (minimalbfs)
       nonleaf = new twice_set();
     assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
-    minimalbfs = minimal_bfs;
   }
   ~cuckoo_ctx() {
     delete cuckoo;
@@ -291,7 +294,7 @@ void *worker(void *vp) {
       }
       barrier(&ctx->barry);
       if (tp->id == 0 && cuckoo.load() >= 90) {
-        printf("upart %d depth %d OVERLOAD !!!!!!!!!!!!!!!!!\n", upart, depth);
+        printf("OVERLOAD !!!!!!!!!!!!!!!!!\n");
         break;
       }
     }
