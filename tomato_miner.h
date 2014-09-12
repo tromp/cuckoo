@@ -34,7 +34,7 @@ typedef u64 au64;
 #ifndef LOGPROOFSIZE
 // roughly the binary logarithm of cycle length rounded down
 // tweak if necessary to get cuckoo hash load between 45 and 90%
-#define LOGPROOFSIZE 2
+#define LOGPROOFSIZE 3
 #endif
 #ifndef UPART_BITS
 // #bits used to partition vertex set to save memory
@@ -248,9 +248,10 @@ void *worker(void *vp) {
         if (u0 == 0)
           continue;
         if (depth == 0) {
-          if ((u0 & UPART_MASK) != upart)
+          node_t u1 = u0 >> 1;
+          if ((u1 & UPART_MASK) != upart)
             continue;
-          if (ctx->minimalbfs && !nonleaf->test(u0 >> UPART_BITS))
+          if (ctx->minimalbfs && !nonleaf->test(u1 >> UPART_BITS))
             continue;
         }
         node_t u = cuckoo[us[0] = u0];
@@ -260,6 +261,10 @@ void *worker(void *vp) {
         if (v0 == 0)
           continue;
         node_t v = cuckoo[vs[0] = v0];
+#if PROOFSIZE != 2
+        if (u == v0 || v == u0) // duplicate
+          continue;
+#endif
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
           u32 min = nu < nv ? nu : nv;
