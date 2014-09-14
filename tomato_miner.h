@@ -117,7 +117,7 @@ public:
         cuckoo[ui].store(niew, std::memory_order_relaxed);
 #else
       u64 old = cuckoo[ui];
-      if (old == 0 && ++nstored || (old >> SIZESHIFT) == (u & KEYMASK)) {
+      if ((old == 0 && ++nstored) || (old >> SIZESHIFT) == (u & KEYMASK)) {
         cuckoo[ui] = niew;
 #endif
         return;

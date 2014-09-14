@@ -28,7 +28,11 @@ while (<>) {
       $found = 1;
     }
   }
-  if (/vpart (\d+)/) {
+  if (/OVERLOAD/) {
+    print $_;
+    next;
+  }
+  if (/[uv]part (\d+)/) {
     die unless $1 == $part;
     $part++;
   }
@@ -44,7 +48,7 @@ for my $i (0..$#foundat) {
     $quartparts = $i+1;
     $quartsum = $sum;
   }
-  $sumat += $i * $foundat[$i];
+  $sumat += ($i+1) * $foundat[$i];
 }
 print "Total\t $sum/$n\n";
 printf("Avg parts\t %.1lf/%d\n", $sumat/$sum, $nparts);

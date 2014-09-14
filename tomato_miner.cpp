@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
   int nparts = NUPARTS;
   const char *header = "";
   int c;
-  while ((c = getopt (argc, argv, "h:m:n:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:mn:t:")) != -1) {
     switch (c) {
       case 'h':
         header = optarg;
