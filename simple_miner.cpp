@@ -79,7 +79,7 @@ void worker(cuckoo_ctx *ctx) {
     for (unsigned j=1; j<SIZE; j++)
       if (!cuckoo[j]) printf("%2d:   ",j);
       else           printf("%2d:%02ld ",j,cuckoo[j]);
-    printf(" %lx (%ld,%ld)\n", nonce,*us-1,*vs-1);
+    printf(" %lx (%ld,%ld)\n", nonce,*us,*vs);
 #endif
     int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
     if (us[nu] == vs[nv]) {

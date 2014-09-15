@@ -15,13 +15,12 @@
 We introduce the first graph-theoretic proof-of-work system,
 based on finding cycles in large random graphs.
 Such problems are arbitrarily scalable and trivially verifiable.
-Our cycle finding implementation uses one bit per edge, and up to one bit per node.
+Our cycle finding algorithm uses one bit per edge, and up to one bit per node.
 Runtime is linear in graph size and dominated by random access latency.
-We exhibit a memory-time trade-off (TMTO) where using $k$ times less memory
-incurs an $\Omega(k)$ slowdown where the implied constant is roughly 25 for
-the suggested range of cycle lengths $20 \ldots 64$.
-We hypothesize that this "undue" slowdown is unavoidable, which would make
-Cuckoo Cycle essentially memory hard.
+We exhibit two alternative algorithms that allow for a memory-time trade-off
+(TMTO)---decreased memory usage by a factor $k$ while increasing runtime by a factor $\Omega(k)$.
+The implied constant gives a notion of (presumed) memory-hardness, which is shown to be dependent on cycle length,
+and thus guides its choice.
 \end{abstract}
 
 \section{Introduction}
@@ -84,10 +83,10 @@ of $H$'s occurrence in $G_k$.
 Such a proof is verifiable in time $O(L)$, independent of $N$ and $M$.
 
 A simple variation generates random bipartite graphs:
-$G_k = (U \cup V,E)$ where $U=\{u_0,\ldots,u_{\frac{N}{2}-1}\}$, $V=\{v_0,\ldots,v_{\frac{N}{2}-1}\}$,
+$G_k = (V_0 \cup V_1,E)$ where $V_i=\{v_0,v_2,\ldots,v_{N-2}\}$, $V_1=\{v_1,v_3,\ldots,v_{N-1}\}$,
 and
 \begin{equation}
-E=\{(u_{h(k,2i) \bmod \frac{N}{2}}, v_{h(k,2i+1) \bmod \frac{N}{2}}) | i \in [0,\ldots,M-1]\}
+E=\{(v_{2(h(k,2i) \bmod \frac{N}{2})}, v_{2(h(k,2i+1) \bmod \frac{N}{2})+1}) | i \in [0,\ldots,M-1]\}
 \end{equation}
 
 The expected number of occurrences of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
@@ -143,81 +142,81 @@ paths, and finally create the edge for the new key itself, thereby joining
 the two trees into one.
 The left diagram below shows the directed cuckoo graph for header `39' on
 $N=8+8$ nodes after adding edges
-$(1,15),(2,12),(4,10),(2,15),(6,13),(5,10)$ and $(2,14)$ (nodes
+$(2,15),(4,9),(8,5),(4,15),(12,11),(10,5)$ and $(4,13)$ (nodes
 with no incident edges are omitted for clarity).
-In order to add the 8th edge $(5,13)$, we follow the paths $5 \rightarrow 10
-\rightarrow 4$ and $13 \rightarrow 6$ to find different roots $4$ and $6$.
-Since the latter path is shorter, we reverse it to $6 \rightarrow 13$ so we
-can add the new edge as $(13 \rightarrow 5)$, resulting in the middle diagram.
+In order to add the 8th edge $(10,11)$, we follow the paths $10 \rightarrow 5
+\rightarrow 8$ and $11 \rightarrow 12$ to find different roots $8$ and $12$.
+Since the latter path is shorter, we reverse it to $12 \rightarrow 11$ so we
+can add the new edge as $(11 \rightarrow 10)$, resulting in the middle diagram.
 In order to add to 9th edge
-$(5,14)$ we now find the path from $5$ to be the shorter one, so we reverse
-that and add the new edge as $(5 \rightarrow 14)$, resulting in the right diagram.
+$(10,13)$ we now find the path from $10$ to be the shorter one, so we reverse
+that and add the new edge as $(10 \rightarrow 13)$, resulting in the right diagram.
 \begin{center}
 \begin{tikzpicture}[>=stealth]
-\node  (1) at (1, 2) [shape=circle,draw] {1};
-\node  (2) at (2, 2) [shape=circle,draw] {2};
-\node  (4) at (3, 2) [shape=circle,draw] {4};
-\node  (5) at (4, 2) [shape=circle,draw] {5};
-\node  (6) at (5, 2) [shape=circle,draw] {6};
-\node (10) at (1,-1) [shape=circle,draw] {10};
-\node (12) at (2,-1) [shape=circle,draw] {12};
-\node (13) at (3,-1) [shape=circle,draw] {13};
-\node (14) at (4,-1) [shape=circle,draw] {14};
+\node  (2) at (1, 2) [shape=circle,draw] {2};
+\node  (4) at (2, 2) [shape=circle,draw] {4};
+\node  (8) at (3, 2) [shape=circle,draw] {8};
+\node (10) at (4, 2) [shape=circle,draw] {10};
+\node (12) at (5, 2) [shape=circle,draw] {12};
+\node  (5) at (1,-1) [shape=circle,draw] {5};
+\node  (9) at (2,-1) [shape=circle,draw] {9};
+\node (11) at (3,-1) [shape=circle,draw] {11};
+\node (13) at (4,-1) [shape=circle,draw] {13};
 \node (15) at (5,-1) [shape=circle,draw] {15};
-\draw [->] (15) -- (1);
-\draw [->] (12) -- (2);
-\draw [->] (10) -- (4);
-\draw [->]  (2) -- (15);
-\draw [->] (13) -- (6);
-\draw [->]  (5) -- (10);
-\draw [->] (14) -- (2);
-\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}[>=stealth]
-\node  (1) at (1, 2) [shape=circle,draw] {1};
-\node  (2) at (2, 2) [shape=circle,draw] {2};
-\node  (4) at (3, 2) [shape=circle,draw] {4};
-\node  (5) at (4, 2) [shape=circle,draw] {5};
-\node  (6) at (5, 2) [shape=circle,draw] {6};
-\node (10) at (1,-1) [shape=circle,draw] {10};
-\node (12) at (2,-1) [shape=circle,draw] {12};
-\node (13) at (3,-1) [shape=circle,draw] {13};
-\node (14) at (4,-1) [shape=circle,draw] {14};
-\node (15) at (5,-1) [shape=circle,draw] {15};
-\draw [->] (15) -- (1);
-\draw [->] (12) -- (2);
-\draw [->] (10) -- (4);
-\draw [->]  (2) -- (15);
-\draw [->]  (6) -- (13);
-\draw [->]  (5) -- (10);
-\draw [->] (14) -- (2);
-\draw [->] (13) -- (5);
-\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}[>=stealth]
-\node  (1) at (1, 2) [shape=circle,draw] {1};
-\node  (2) at (2, 2) [shape=circle,draw] {2};
-\node  (4) at (3, 2) [shape=circle,draw] {4};
-\node  (5) at (4, 2) [shape=circle,draw] {5};
-\node  (6) at (5, 2) [shape=circle,draw] {6};
-\node (10) at (1,-1) [shape=circle,draw] {10};
-\node (12) at (2,-1) [shape=circle,draw] {12};
-\node (13) at (3,-1) [shape=circle,draw] {13};
-\node (14) at (4,-1) [shape=circle,draw] {14};
-\node (15) at (5,-1) [shape=circle,draw] {15};
-\draw [->] (15) -- (1);
-\draw [->] (12) -- (2);
-\draw [->]  (4) -- (10);
-\draw [->]  (2) -- (15);
-\draw [->]  (6) -- (13);
+\draw [<-]  (2) -- (15);
+\draw [<-]  (4) -- (9);
+\draw [<-]  (8) -- (5);
+\draw [->]  (4) -- (15);
+\draw [<-] (12) -- (11);
 \draw [->] (10) -- (5);
-\draw [->] (14) -- (2);
-\draw [->] (13) -- (5);
-\draw [->]  (5) -- (14);
+\draw [<-]  (4) -- (13);
+\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}[>=stealth]
+\node  (2) at (1, 2) [shape=circle,draw] {2};
+\node  (4) at (2, 2) [shape=circle,draw] {4};
+\node  (8) at (3, 2) [shape=circle,draw] {8};
+\node (10) at (4, 2) [shape=circle,draw] {10};
+\node (12) at (5, 2) [shape=circle,draw] {12};
+\node  (5) at (1,-1) [shape=circle,draw] {5};
+\node  (9) at (2,-1) [shape=circle,draw] {9};
+\node (11) at (3,-1) [shape=circle,draw] {11};
+\node (13) at (4,-1) [shape=circle,draw] {13};
+\node (15) at (5,-1) [shape=circle,draw] {15};
+\draw [<-]  (2) -- (15);
+\draw [<-]  (4) -- (9);
+\draw [<-]  (8) -- (5);
+\draw [->]  (4) -- (15);
+\draw [->] (12) -- (11);
+\draw [->] (10) -- (5);
+\draw [<-]  (4) -- (13);
+\draw [<-] (10) -- (11);
+\end{tikzpicture}\hspace{1cm}\begin{tikzpicture}[>=stealth]
+\node  (2) at (1, 2) [shape=circle,draw] {2};
+\node  (4) at (2, 2) [shape=circle,draw] {4};
+\node  (8) at (3, 2) [shape=circle,draw] {8};
+\node (10) at (4, 2) [shape=circle,draw] {10};
+\node (12) at (5, 2) [shape=circle,draw] {12};
+\node  (5) at (1,-1) [shape=circle,draw] {5};
+\node  (9) at (2,-1) [shape=circle,draw] {9};
+\node (11) at (3,-1) [shape=circle,draw] {11};
+\node (13) at (4,-1) [shape=circle,draw] {13};
+\node (15) at (5,-1) [shape=circle,draw] {15};
+\draw [<-]  (2) -- (15);
+\draw [<-]  (4) -- (9);
+\draw [->]  (8) -- (5);
+\draw [->]  (4) -- (15);
+\draw [->] (12) -- (11);
+\draw [<-] (10) -- (5);
+\draw [<-]  (4) -- (13);
+\draw [<-] (10) -- (11);
+\draw [->] (10) -- (13);
 \end{tikzpicture}
 \end{center}
-When adding the 10th edge $(4,12)$, we find the paths $4 \rightarrow 10
-\rightarrow 5 \rightarrow 14 \rightarrow 2 \rightarrow 15 \rightarrow 1$ and
-$12 \rightarrow 2 \rightarrow 15 \rightarrow  1$ with equal roots.
+When adding the 10th edge $(8,9)$, we find the paths $8 \rightarrow 5
+\rightarrow 10 \rightarrow 13 \rightarrow 4 \rightarrow 15 \rightarrow 2$ and
+$9 \rightarrow 4 \rightarrow 15 \rightarrow 2$ with equal roots.
 In this case, we can compute the length of the resulting cycle as
 1 plus the sum of the path-lengths to the node where the two paths first join.
-In the diagram, the paths first join at $2$, and the cycle length is computed as $1+4+1=6$.
+In the diagram, the paths first join at $4$, and the cycle length is computed as $1+4+1=6$.
 
 \section{Union-find}
 The above representation of the directed cuckoo graph is an example of
@@ -366,17 +365,23 @@ the ratio of remaining edges to number of locations, is significantly less than 
 The number of trimming rounds, which can be set with option {\tt -n}, defaults to
 $2^{1+(B+3)*(B+4)/2}$, which achieves a load close to $50\%$.
 
-\section{A Time-Memory Trade-Off algorithm}
+\section{Time-Memory Trade-Offs}
 David Andersen suggested an alternative method of trimming that avoids storing a bit per edge.
 Expanding on that idea led to the algorithm implemented in tomato\_miner.h
-It selects a suitably small subset $Z$ of vertices from partition $U$, and builds a breadth-first-search
-(BFS) forest of depth equal to cycle length $L$.
+It selects a suitably small subset $Z$ of vertices from partition $V_0$, and builds a breadth-first-search
+(BFS) forest of depth equal to half the cycle length $L/2$.
 For each new BFS layer, it enumerates all edges to see which ones are incident
-to the previous layer, and maintains a directed forest on all BFS nodes like the base algorithm does.
-If the graph has an $L$-cycle, then the above procedure will find it as long as the distance from (any node in)
-$Z$ to the cycle is at most $L/2$ . Benchmarking experiments show this to be
-more efficient than searching only to depth $L/2$, which would suffice for finding the cycle as long
-as it intersects $Z$. This algorithm uses memory roughly $|Z| \cdot L \cdot 64$ bits.
+to the previous layer, and maintains a directed forest on all BFS nodes, like the base algorithm does.
+The first layer gets special treatment. It first identifies the subset of $Z$ that has multiple incident edges,
+and then enumerates all edges incident to a node in that subset.
+If the graph has an $L$-cycle one of whose nodes is in $Z$, then the above procedure will find it.
+
+A variation on the above algorithm uses all of $Z$ rather than the multiple incidence subset, and expands
+the BFS to a whole $L$ levels. This way, an $L$-cycle will be found as long as the distance from (any node in)
+$Z$ to the cycle is at most $L/2$. It thus has a much higher chance of finding a cycle, but requires
+more space to store the significantly bigger BFS forest.
+
+To add: results of experiments at different cycle lengths.
 
 %\section{Memory-hardness}
 %Reducing memory usage to a under 1 bit per edge is quite challenging.

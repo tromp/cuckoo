@@ -6,6 +6,12 @@ CC = cc -std=c99 $(FLAGS)
 GPP = g++ -std=c++11 -DATOMIC $(FLAGS)
 # leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
 
+cuckoo.bbl:	cuckoo.bib
+	bibtex cuckoo.bib
+
+cuckoo.pdf:	cuckoo.tex cuckoo.bbl
+	pdflatex cuckoo.tex
+
 cuckoo4:	cuckoo.h cuckoo_miner.h simple_miner.cpp Makefile
 	$(GPP) -o cuckoo4 -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 simple_miner.cpp $(LIBS)
 
