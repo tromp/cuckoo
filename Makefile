@@ -7,7 +7,7 @@ GPP = g++ -std=c++11 -DATOMIC $(FLAGS)
 # leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
 
 cuckoo.bbl:	cuckoo.bib
-	bibtex cuckoo.bib
+	bibtex cuckoo
 
 cuckoo.pdf:	cuckoo.tex cuckoo.bbl
 	pdflatex cuckoo.tex
