@@ -55,10 +55,10 @@ cuckoo25.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo25.1 -DPART_BITS=1 -DSIZESHIFT=25 cuckoo_miner.cpp $(LIBS)
 
 momentum:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o momentum -DSIZESHIFT=26 -DPROOFSIZE=2 cuckoo_miner.cpp $(LIBS)
+	$(GPP) -o momentum -DSIZESHIFT=25 -DPROOFSIZE=2 cuckoo_miner.cpp $(LIBS)
 
 momentomatum:	cuckoo.h momentomatum.h momentomatum.cpp Makefile
-	$(GPP) -o momentum -DSIZESHIFT=26 momentomatum.cpp $(LIBS)
+	$(GPP) -o momentomatum -DSIZESHIFT=25 momentomatum.cpp $(LIBS)
 
 cuckoo28:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
@@ -171,11 +171,17 @@ tomato25.42.4:	cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 tomato25.42.5:	cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o tomato25.42.5 -DSIZESHIFT=25 -DPROOFSIZE=42 -DLOGPROOFSIZE=5 tomato_miner.cpp $(LIBS)
 
-tmto25.42:	found25 tomato25.42.5
-	perl -ne 'print unless /^ +(\d+)/ && $$1 != 42' < found25 | grep -B 1 found | grep "^[0-9]" | head -200 | xargs -L 1 time ./tomato25.14.5 -t 1 -h &> tmto25.42 &
+tmto25.42.5:	found25 tomato25.42.5
+	egrep "^([0-9]| +42-)" < found25 | grep -B 1 found | grep "^[0-9]" | head -200 | xargs -L 1 time ./tomato25.42.5 -t 1 -h &> tmto25.42.5 &
 
-tmto25.42m:	found25 tomato25.42.3
-	perl -ne 'print unless /^ +(\d+)/ && $$1 != 42' < found25 | grep -B 1 found | grep "^[0-9]" | head -200 | xargs -L 1 time ./tomato25.14.3 -m -t 1 -h &> tmto25.42m &
+tmto25.42.3m:	found25 tomato25.42.3
+	egrep "^([0-9]| +42-)" < found25 | grep -B 1 found | grep "^[0-9]" | head -200 | xargs -L 1 time ./tomato25.42.3 -m -t 1 -h &> tmto25.42.3m &
+
+tomato25.2.-1:	cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
+	$(GPP) -o tomato25.2.-1 -DSIZESHIFT=25 -DPROOFSIZE=2 -DLOGPROOFSIZE=-1 tomato_miner.cpp $(LIBS)
+
+tmto25.2.-1m:	found25 tomato25.2.-1
+	egrep "^([0-9]| +2-)" < found25 | grep -B 1 found | grep "^[0-9]" | head -200 | xargs -L 1 time ./tomato25.2.-1 -m -t 1 -h &> tmto25.2.-1m &
 
 tar:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h simple_miner.cpp tomato_miner.h tomato_miner.cpp found.pl found25 Makefile
 	tar -cf cuckoo.tar cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h simple_miner.cpp tomato_miner.h tomato_miner.cpp found.pl found25 Makefile

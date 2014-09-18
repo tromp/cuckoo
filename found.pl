@@ -18,8 +18,10 @@ while (<>) {
     $found = $part = 0;
     next;
   }
-  if (/^(\S+)user /) {
+  if (/^(\S+)user / ) {
     $time += $1;
+  } elsif (/^user\s+(\d+)m([\.\d]+)/ ) {
+    $time += 60*$1 + $2;
   }
   if (!$found && /(\d+)-cycle found/) {
     my $l = $1;

@@ -6,10 +6,10 @@
 int main(int argc, char **argv) {
   int nthreads = 1;
   bool minimalbfs = false;
-  int nparts = NVPARTS;
+  int nparts = NUPARTS;
   const char *header = "";
   int c;
-  while ((c = getopt (argc, argv, "h:m:n:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:mn:t:")) != -1) {
     switch (c) {
       case 'h':
         header = optarg;
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, 1/%d memory, %d/%d parts, %d threads %d minimalbfs\n", PROOFSIZE, SIZESHIFT, header, 1<<SAVEMEM_BITS, nparts, NVPARTS, nthreads, minimalbfs);
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, 1/%d memory, %d/%d parts, %d threads %d minimalbfs\n", PROOFSIZE, SIZESHIFT, header, 1<<SAVEMEM_BITS, nparts, NUPARTS, nthreads, minimalbfs);
   u64 nodeBytes = CUCKOO_SIZE*sizeof(u64);
   int nodeUnit;
   for (nodeUnit=0; nodeBytes >= 1024; nodeBytes>>=10,nodeUnit++) ;
