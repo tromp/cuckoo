@@ -37,13 +37,14 @@ typedef u64 au64;
 // tweak if necessary to get cuckoo hash load between 45 and 90%
 #define LOGPROOFSIZE -2
 #endif
-#ifndef UPART_BITS
-// #bits used to partition vertex set to save memory
-#define UPART_BITS (IDXSHIFT+LOGPROOFSIZE)
-#endif
-#define NUPARTS (1<<UPART_BITS)
 
-#define ONCE_BITS (HALFSIZE >> UPART_BITS)
+// #partitions of vertex set
+#ifndef NUPARTS
+#define NUPARTS 64
+#endif
+#define PART_SIZE ((HALFSIZE+NUPARTS-1)/NUPARTS)
+
+#define ONCE_BITS PART_SIZE
 #define TWICE_WORDS ((2 * ONCE_BITS) / 32)
 
 class twice_set {
