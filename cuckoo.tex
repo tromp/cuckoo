@@ -18,7 +18,7 @@ Such problems are arbitrarily scalable and trivially verifiable.
 Our cycle finding algorithm uses one bit per edge, and up to one bit per node.
 Runtime is linear in graph size and dominated by random access latency.
 We exhibit two alternative algorithms that allow for a memory-time trade-off
-(TMTO)---decreased memory usage by a factor $k$ while increasing runtime by a factor $\Omega(k)$.
+(TMTO)---decreased memory usage, by a factor $k$, coupled with increased runtime, by a factor $\Omega(k)$.
 The implied constant gives a notion of (presumed) memory-hardness, which is shown to be dependent on cycle length,
 and thus guides its choice.
 \end{abstract}
@@ -35,8 +35,9 @@ As proof-of-work for new blocks of transactions,
 Bitcoin~\cite{nakamoto2009bitcoin} adopted Adam Back's hashcash~\cite{back2002} proof-of-work.
 This entails finding a nonce value such that
 application of a cryptographic hash function (twofold SHA256 in Bitcoin's case)
-to this nonce (and the rest of the block header) results in a number with
-many leading 0s. The number of leading 0s is dynamically adjusted by the protocol
+to this nonce (and the rest of the block header) results in a number below a target threshold
+(a less accurate description is that the resulting number has enough leading 0s).
+The threshold is dynamically adjusted by the protocol
 so as to maintain a certain average block interval (10 minutes for Bitcoin).
 
 Since Bitcoin, many other crypto-currencies have adopted hashcash, with various
@@ -51,8 +52,7 @@ Verification of these chains, while very slow compared to bitcoin's, is much fas
 than attempting to find one.
 %The latter is a two-step process of filtering candidates by {\em sieving},
 %and applying pseudo-primality tests to remaining candidates.
-This asymmetry between proof (attempt) and verification
-is typical in non-hashcash proofs of work.
+This asymmetry between proof (attempt) and verification is typical in non-hashcash proofs of work.
 %These algorithms are somewhat complex and involve many trade-offs.
 Recently, another prime-number based crypto-currency, Riecoin, was introduced, based
 on finding clusters rather than chains of prime numbers.
