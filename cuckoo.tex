@@ -13,14 +13,14 @@
 
 \begin{abstract}
 We introduce the first graph-theoretic proof-of-work system,
-based on finding cycles in large random graphs.
+based on finding cycles or other structures in large random graphs.
 Such problems are arbitrarily scalable and trivially verifiable.
 Our cycle finding algorithm uses one bit per edge, and up to one bit per node.
 Runtime is linear in graph size and dominated by random access latency.
 We exhibit two alternative algorithms that allow for a memory-time trade-off
 (TMTO)---decreased memory usage, by a factor $k$, coupled with increased runtime, by a factor $\Omega(k)$.
-The implied constant gives a notion of (presumed) memory-hardness, which is shown to be dependent on cycle length,
-and thus guides its choice.
+The constant implied in $\Omega()$ gives a notion of memory-hardness, which is shown to be dependent
+on cycle length, guiding the latter's choice.
 \end{abstract}
 
 \section{Introduction}
