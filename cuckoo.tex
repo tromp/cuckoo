@@ -28,8 +28,7 @@ A ``proof of work'' (PoW) system allows a verifier to check with negligible
 effort that a prover has expended a large amount of computational effort.
 Originally introduced as a spam fighting measure, 
 where the effort is the price paid by an email sender for demanding the
-recipient's attention, they now form one of the cornerstones of
-crypto-currencies.
+recipient's attention, they now form one of the cornerstones of crypto-currencies.
 
 As proof-of-work for new blocks of transactions,
 Bitcoin~\cite{nakamoto2009bitcoin} adopted Adam Back's hashcash~\cite{back2002} proof-of-work.
@@ -56,6 +55,11 @@ This asymmetry between proof (attempt) and verification is typical in non-hashca
 %These algorithms are somewhat complex and involve many trade-offs.
 Recently, another prime-number based crypto-currency, Riecoin, was introduced, based
 on finding clusters rather than chains of prime numbers.
+
+Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs,
+in what could well be the simplest possible assymetric proof-of-work,
+combining scalable memory usage with trivial verifiability.
+As we will demonstrate, Momentum is very closely related to a special case of Cuckoo Cycle.
 
 \section{Graph-theoretic proofs-of-work}
 We propose to base proofs-of-work on finding certain subgraphs in large pseudo-random graphs.
@@ -652,12 +656,6 @@ verification efficiency for the verifier. Although designed to be
 GPU-resistant, GPUs are now at least an order of magnitude faster
 than CPUs for Litecoin mining. ASICs first appeared on the market in early 2014
 and have started to dominate Litecoin mining by the third quarter.
-
-Momentum~\cite{larimer2013} proposes finding birthday collisions of hash
-outputs as proof-of-work, the simplest way to combine scalable memory usage
-with trivial verifiability. Its memory requirements are not very strict
-though. as Bloom filters or rainbow tables can identify collisions, and
-there is a straightforward linear time-memory trade-off.
 
 Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
 and present.
