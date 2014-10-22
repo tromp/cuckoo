@@ -90,6 +90,7 @@ Such a proof is verifiable in time $O(L)$, independent of $N$ and $M$.
 A simple variation generates random bipartite graphs: $G_k = (V_0 \cup V_1,E)$ where (assuming $N$ is even)
 $V_0=\{v_0,v_2,\ldots,v_{N-2}\}$, $V_1=\{v_1,v_3,\ldots,v_{N-1}\}$, and
 \begin{equation}
+\label{hash_edges}
 E=\{(v_{2(h(k,2i) \bmod \frac{N}{2})}, v_{2(h(k,2i+1) \bmod \frac{N}{2})+1}) | i \in [0,\ldots,M-1]\}
 \end{equation}
 
@@ -478,9 +479,9 @@ in at least 50 of the 200 graphs. Below we plot the slowdown relative to the ref
 (4,14.4) (6,11.6) (8,20.7) (10,21.4) (12,13.9) (14,18.1) (16,26.8) (20,21.9)
 (24,18.8) (28,23.3) (32,31.8) (40,42.6) (48,35.6) (56,22.2) (64,41.0)
 };
-%\addlegendentry{BFS($L$)}
+\addlegendentry{BFS($L$)}
 %\addplot [color=blue, mark=o] coordinates {
-%(2, 2.4)
+%(2, 1.4)
 %};
 %\addlegendentry{customized}
 \addlegendentry{}
@@ -498,16 +499,19 @@ memory hardness for Cuckoo Cycle with larger cycle lengths.
 
 \section{Choice of cycle length}
 \label{cycle_length_choice}
-A cycle of length 2 means that two nonces produce the same edge; a {\em collision} in edge space.
-The Momentum proof-of-work, which looks for collisions on 50 bits of 
-% in progress
+A cycle of length 2 means that two nonces produce identical edge endpoints---a {\em collision} in edge space.
+The Momentum proof-of-work looks for collisions on 50 bits of hash output among $2^{26}$ nonces.
+This is in essence Cuckoo Cycle with $N=2^25+2^25$ nodes, $M=2^26$ edges and cycle length $L=2$, the difference
+being that edges are generated not by equation~\ref{hash_edges}, but by splitting a SHA512 hash of
+$(k,\mbox{nonce} / 8)$ into 8 64-bit words, taking the most significant 50 bits of the
+$\mbox{nonce} \bmod 8)-th$ one, and viewing that as a pair of two 25-bit numbers to which we can append
+a 0 resp. 1 bit to make them even resp. odd.
+Since this is such a special case, there is likely to be a greater variety of algorithms that are more
+efficient than for the general case. While we haven't found a improved main algorithm, we did find
+an imporoved TMTO algorithm, that is very similar to the BFS($L/2$) one but cuts the memory usage in half,
+resulting in a slowdown of only $1.75$---a lack of memory-hardness.
 
-Extremely small cycle lengths risk the feasibility of alternative algorithms with better performance.
-For example, for $L=2$ the problem reduces to finding a birthday collision
-as in the Momentum proof-of-work.
-It is conceivable however that the Cuckoo cycle finding approach is optimal for any $L=4$ or $L=6$.
-(Ongoing) analysis of the tmto miner shows that larger cycle length make the problem more memory-hard,
-which argues against such small cycle lengths.
+The preceding analysis suggests that larger cycle length improves memory hardness.
 In order to keep proof size manageable, the cycle length should not be too large either.
 We consider 20-64 to be a healthy range, which averages to 42.
 The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
