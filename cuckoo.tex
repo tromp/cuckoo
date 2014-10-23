@@ -305,7 +305,7 @@ In total the program averages 3.3 reads and 1.1 writes per edge.
 
 \begin{center}
 \begin{tikzpicture}
-\begin{axis}[xlabel={$\frac{E}{N}$ in \%}, ylabel={\% runtime}, legend pos=north west]
+\begin{axis}[xlabel={$\frac{M}{N}$ in \%}, ylabel={\% runtime}, legend pos=north west]
 \addplot[color=blue] coordinates {
 (40,0) (41,0.00001) (42,0.00003) (43,0.0001) (44,0.00031) (45,0.00067)
 (46,0.00141) (47,0.00385) (48,0.00967) (49,0.02222) (50,0.05076)
@@ -330,12 +330,12 @@ In total the program averages 3.3 reads and 1.1 writes per edge.
 \end{center}
 
 \section{Difficulty control}
-The ratio $\frac{E}{N}$ determines a base level of difficulty,
+The ratio $\frac{M}{N}$ determines a base level of difficulty,
 which may suffice for applications where difficulty is to remain fixed.
-The ratio $\frac{E}{N}=1$ is suitable when a practically guaranteed solution is desired.
+The ratio $\frac{M}{N}=1$ is suitable when a practically guaranteed solution is desired.
 For crypto currencies, where difficulty must scale in precisely
 controlled manner across a huge range, adjusting the number of edges is not suitable.
-The implementation default $\frac{E}{N}=\frac{1}{2}$ gives a solution probability of roughly $2.2\%$,
+The implementation default $\frac{M}{N}=\frac{1}{2}$ gives a solution probability of roughly $2.2\%$,
 while the average number of cycles found increases slowly with size; from 2 at $2^{20}$
 to 3 at $2^{30}$.
 For further control, a difficulty target $0 < T < 2^{256}$ is introduced,
@@ -344,10 +344,11 @@ cycle nonces in ascending order be less than $T$, thus
 reducing the success probability by a factor $\frac{2^{256}}{T}$.
 
 \section{Edge Trimming}
+\label{edge_trimming}
 David Andersen~\cite{dga2014} suggested drastically reducing the number of edges
 our basic algorithm has to process, by repeatedly identifying nodes of degree one
 and eliminating their incident edge. Such {\em leaf edges} can never be part of a cycle.
-This works whenever $\frac{E}{N} \leq \frac{1}{2}$ since the expected degree of a node is then at most 1,
+This works whenever $\frac{M}{N} \leq \frac{1}{2}$ since the expected degree of a node is then at most 1,
 and a constant fraction of edges are expected to be leaf edges.
 
 This is implemented in our main algorithm in cuckoo\_miner.h
@@ -360,7 +361,7 @@ Next, for all alive edges, compute its even endpoint and if the corresponding co
 set the edge to be not-alive.
 These steps are repeated for the other partition of odd nodes.
 Preprocessor symbol PART\_BITS, whose value we'll denote as $B$,
-allows for trading-off node counter storage for runtime,
+allows for {\em counter partitioning}, which trades off node counter storage for runtime,
 by processing the nodes in multiple passes depending on the value of their $B$ least significant bits
 (apart from the very least significant bit which partitions the nodes into even and odd ones).
 The memory usage is $M$ bits for the alive set and $N / 2^{B}$ for the counters.
@@ -439,10 +440,14 @@ the ratio of remaining edges to number of locations, is significantly less than 
 The number of trimming rounds, which can be set with option {\tt -n}, defaults to
 $1+(B+3)*(B+4)/2$, which was determined empirically to achieve a load close to $50\%$.
 
-\section{Time-Memory Trade-Offs}
+\section{Time-Memory Trade-Offs (TMTOs)}
 David Andersen also suggested an alternative method of trimming that avoids storing a bit per edge.
-Expanding on that idea led to the algorithm implemented in tomato\_miner.h
-It selects a suitably small subset $Z$ of even vertices as a base layer,
+Expanding on that idea led to the algorithm implemented in tomato\_miner.h,
+which, unlike the main algorithm, can trade-off memory directly for runtime.
+On the downside, to even achieve memory parity with the main algorithm, it already incurs a big slowdown.
+To the extent that this slowdown is unavoidable, it can be called the memory hardness of the proof-of-work.
+
+The TMTO algorithm selects a suitably small subset $Z$ of even vertices as a base layer,
 and on top of that builds a breadth-first-search
 (BFS) forest of depth equal to half the cycle length $L/2$.
 For each new BFS layer, it enumerates all edges to see which ones are incident
@@ -501,19 +506,27 @@ memory hardness for Cuckoo Cycle with larger cycle lengths.
 \label{cycle_length_choice}
 A cycle of length 2 means that two nonces produce identical edge endpoints---a {\em collision} in edge space.
 The Momentum proof-of-work looks for collisions on 50 bits of hash output among $2^{26}$ nonces.
-This is in essence Cuckoo Cycle with $N=2^25+2^25$ nodes, $M=2^26$ edges and cycle length $L=2$, the difference
-being that edges are generated not by equation~\ref{hash_edges}, but by splitting a SHA512 hash of
+This is in essence Cuckoo Cycle with $N=2^25+2^25$ nodes and cycle length $L=2$, with
+two differences.
+
+First, edges are generated not by equation~\ref{hash_edges}, but by splitting a SHA512 hash of
 $(k,\mbox{nonce} / 8)$ into 8 64-bit words, taking the most significant 50 bits of the
 $\mbox{nonce} \bmod 8)-th$ one, and viewing that as a pair of two 25-bit numbers to which we can append
 a 0 resp. 1 bit to make them even resp. odd.
-Since this is such a special case, there is likely to be a greater variety of algorithms that are more
-efficient than for the general case. While we haven't found a improved main algorithm, we did find
-an imporoved TMTO algorithm, that is very similar to the BFS($L/2$) one but cuts the memory usage in half,
-resulting in a slowdown of only $1.75$---a lack of memory-hardness.
 
-The preceding analysis suggests that larger cycle length improves memory hardness.
+Second, the choice of $M=2^{26}$ gives a ratio $\frac{M}{N}$ of 1 rather than $\frac{1}{2}$ and as such
+prohibits the use of edge trimming.
+
+Since the extreme case of $L=2$ is so special, there is likely to be a greater variety of algorithms that are more
+efficient than for the general case. While we haven't found (and don't know of) a improved main algorithm,
+we did find an imporoved BFS($L/2$) TMTO algorithm (implemented in momentomatum.cpp)
+that cuts the memory usage in half, resulting in a slowdown of only $1.75$---a lack of memory-hardness.
+
+The preceding analysis suggests that cycle length should be at least 20 to guard against the more efficient
+BFS($L/2$) TMTO with an additional safet factor of 2.
 In order to keep proof size manageable, the cycle length should not be too large either.
-We consider 20-64 to be a healthy range, which averages to 42.
+We thus consider 20-64 to be a healthy range, and suggest the use of the average of 42.
+
 The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
 as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
 beyond $L=100$ are not shown. For reference, the longest cycle found was of length 2120.
@@ -571,10 +584,19 @@ In the main algorithm, cycle detection only takes a small fraction of total runt
 the conflicts above could be avoided altogether by running the cycle detection single threaded.
 
 In edge trimming, parallelization is achieved by partitioning the set of edges. To maintain efficient access
-to the bitmap of live edges, each thread will handle words (of 32 edge-bits each) spaced spaces apart by
-the number of threads. 
+to the bitmap of live edges, each thread handles words (of 32 edge-bits each) spaced $T$ apart.
+Partitioning the bitmap over threads by whole words also avoids the need for atomic access.
 
-% To be expanded...
+Atomic access is used by default for accessing the 2-bit counters. Disabling this results in a small
+chance of removing multiple edges incident to a node that access the counter at the same time.
+
+The implementation further benefits from bucketing the addresses of counters to be updated or tested,
+based on their most significant bits. Thus, when a bucket becomes full and is emptied by actually
+performing those updates/tests, the accesses are limited to a certain address range, which turns
+out to reduce memory access latencies.
+
+The plots below show the speedup over single thread performance achieved by multithreading at various
+graph sizes and counter-partition levels.
 
 \begin{center}
 \begin{tikzpicture}
@@ -642,18 +664,21 @@ the number of threads.
 The chosen Cuckoo graph size affects what type of hardware can mine effectively at a given block interva time.
 To illustrate, suppose an average desktop machine needs 1 minute for a single proof attempt,
 and the block interval time is only 2 minutes. Then it will waste a large fraction (almost half)
-of its attempts as about half the time, someone else finds a proof in under 2 minutes. To reduce such waste
+of its attempts, as about half the time, someone else finds a proof in under 2 minutes. To reduce such waste
 to a small percentage, the time for a single proof attempt should be a similarly small fraction of the block
-interval time. Obviously this is achieved more easily with a small graph (and hence memory) size.
+interval time. This desirable proprty is known as {\em progress-freeness}, and in our case
+is achieved more easily with a small graph (and hence memory) size.
 
 Larger memory sizes have two advantages though. First, they make it harder for botnets to mine without
-causing excessive swapping. Sending a computer into swap-hell will likely alert its owner and trigger a cleanup.
+causing excessive swapping. Sending a computer into swap-hell will likely alert its owner and trigger a cleanup,
+so botnet operators can be expected to eschew memory-intensive proofs-of-work in favor of low-memory ones.
 
 Second, they make it harder for custom FPGA or ASIC implementations to remain self-contained.
 Rather, to remain cost effective, they will likely need to make use of commodity DRAM chips,
 and incur a $~50$ns row activation delay for random access to each memory bank.
 If a future CPU with hardware siphash24 support can saturate DRAM, then there may no need
-to develop and keep optimizing ASICs for the computational part of Cuckoo Cycle.
+to develop ASICs (and keep them on the leading edge of process technology)
+for the computational part of Cuckoo Cycle.
 
 We expect these opposing goals to lead to sizes from $2^{28}$ to $2^{32}$, with the larger ones geared
 more toward longer block interval times and faster mining hardware.
@@ -678,8 +703,8 @@ for roughly $1/k$ of all blocks.
 
 \section{Computation versus memory}
 Starting out at 32 leading zeroes in 2009, Bitcoin difficulty
-has steadily climbed and is currently
-at 67, representing an incredible $2^{67}/10$ double-hashes per minute.
+has steadily climbed and is currently at 67,
+representing an incredible $2^{67}/10$ double-hashes per minute.
 This growth was enabled by the migration of hash computation from 
 desktop processors (CPUs) to graphics-card processors (GPUs),
 to field-programmable gate arrays (FPGAs), and finally to custom designed
@@ -694,7 +719,7 @@ single chip, consuming 100s of Watts and requiring ample cooling.
 %Thus, energy costs dominate the economics of mining.
 
 This has led people to look for alternative proof-of-work systems
-that, by requiring a nontrivial amount of memory, resist such
+that, by requiring a non-trivial amounts of memory, resist such
 massive parallelizability, and narrow the performance gap
 with commodity hardware.
 %Memory chips, in the form of DRAM,
