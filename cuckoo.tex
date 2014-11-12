@@ -332,11 +332,13 @@ In total the basic algorithm averages 3.3 reads and 1.1 writes per edge.
 The ratio $\frac{M}{N}$ determines a base level of difficulty,
 which may suffice for applications where difficulty is to remain fixed.
 Ratios $\frac{M}{N} \geq 0.7$ are suitable when a practically guaranteed solution is desired.
+
 For crypto currencies, where difficulty must scale in precisely
-controlled manner across a huge range, adjusting the number of edges is not suitable.
+controlled manner across a large range, adjusting the number of edges is not suitable.
 The implementation default $\frac{M}{N}=\frac{1}{2}$ gives a solution probability of roughly $2.2\%$,
 while the average number of cycles found increases slowly with size; from 2 at $2^{20}$
 to 3 at $2^{30}$.
+
 For further control, a difficulty target $0 < T < 2^{256}$ is introduced,
 and we impose the additional constraint that the sha256 digest of the
 cycle nonces in ascending order be less than $T$, thus
@@ -687,9 +689,26 @@ for the computational part of Cuckoo Cycle.
 We expect these opposing goals to lead to graph sizes from $2^{28}$ to $2^{32}$, with the larger ones geared
 more toward longer block interval times and faster mining hardware.
 
-An interesting option will be to take a Myriad-coin style approach: allow a range of $k$ different sizes,
-but maintain a separate difficulty control for each one, adjusted so that each proof size accounts
-for roughly $1/k$ of all blocks.
+\section{Dynamic Sizing}
+Ideally, graph size should grow with evolving memory chip capacities and cache sizes.
+Although these have shown remarkable adherence to Moore's Law in the past,
+this cannot be relied on for the more distant future. We therefore propose to re-evaluate the graph size
+every so-many difficulty adjustments. If the difficulty target is sufficiently low, then the
+graph size is deemed to have become "too easy" for existing hardware, and gets doubled.
+
+In order to make this transition smoother and avoid severe loss of proof-of-work power,
+we propose having a range of sizes allowed at any time,
+namely $k$ consecutive 2-powers for some small number $k\geq 2$.
+As with Myriad-coin, separate difficulty controls are maintained for each size,
+adjusted so that each size accounts for roughly $\frac{1}{k}$ of all blocks.
+
+Doubling graph sizes is then equivalent to disabling the smallest 2-power,
+and enabling a new largest one, whose initial difficulty target is twice that of the previous largest.
+Even if none of the hardware that was working on the smallest 2-power is repurposed for a larger size,
+since this hardware only accounted for a fraction $\frac{1}{k}$ of the rewards, the loss of
+proof-of-work power should be acceptable.
+
+It remains to decide what exact form the ``difficulties too low'' condition should take.
 
 % \section{Memory latency; the great equalizer}
 % While cpu-speed and (sequential) memory bandwidth are highly variable across
@@ -745,7 +764,8 @@ and present.
 \section{Conclusion}
 Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines scalable
 memory requirements with instant verifiability, and the first where
-memory latency dominates the runtime.
+memory latency dominates the runtime\footnote{and with dynamic sizing,
+will continue to do so into the distant future.}.
 This narrows the mining performance gap between custom and commodity hardware and
 could lead to mining costs being dominated by investments in DRAM.
 Resulting changes in the economics of mining are potentially beneficial but
