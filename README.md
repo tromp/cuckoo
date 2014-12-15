@@ -1,5 +1,7 @@
-cuckoo
-======
+whitepaper: https://github.com/tromp/cuckoo/blob/master/cuckoo.pdf?raw=true
+
+Cuckoo Cycle
+============
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work.
 Keyed hash functions define arbitrarily large random graphs,
@@ -39,10 +41,6 @@ Other features:
    starts to fall sharply.
 
 6) running time on high end x86 is 9min/GB single-threaded, and 1min/GB for 20 threads.
-
-Please read the latest version of the whitepaper for more details:
-
-https://github.com/tromp/cuckoo/blob/master/cuckoo.pdf?raw=true
 
 
 On July 23 2014, I posted the following message on https://bitcointalk.org/index.php?topic=707879.0
