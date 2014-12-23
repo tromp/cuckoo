@@ -6,17 +6,19 @@
 \newcommand{\hash}{{\rm siphash}}
 \usepackage{hyperref}
 \usepackage{listings}
-\title{Cuckoo Cycle: \protect\\ a graph-theoretic proof-of-work system}
+\title{Cuckoo Cycle: \protect\\ a memory-bound graph-theoretic proof-of-work system}
 \author{John Tromp}
 \begin{document}
 \maketitle
 
 \begin{abstract}
 We introduce the first graph-theoretic proof-of-work system,
-based on finding cycles or other structures in large random graphs.
-Such problems are arbitrarily scalable and trivially verifiable.
+based on finding small cycles or other structures in large random graphs.
+Such problems are trivially verifiable and arbitrarily scalable, 
+appearing to require memory linear in graph size to solve efficiently.
 Our cycle finding algorithm uses one bit per edge, and up to one bit per node.
-Runtime is linear in graph size and dominated by random access latency.
+Runtime is linear in graph size and dominated by random access latency,
+ideal properties for a memory-bound proof of work.
 We exhibit two alternative algorithms that allow for a memory-time trade-off
 (TMTO)---decreased memory usage, by a factor $k$, coupled with increased runtime, by a factor $\Omega(k)$.
 The constant implied in $\Omega()$ gives a notion of memory-hardness, which is shown to be dependent
@@ -145,7 +147,7 @@ In case of different roots, we reverse all edges on the shorter of the two
 paths, and finally create the edge for the new key itself, thereby joining
 the two trees into one. Let us illustrate this process with an actual example.
 
-The left diagram below shows the directed cuckoo graph for header ``39'' on
+The left diagram in Figure~\ref{cycleformation} shows the directed cuckoo graph for header ``39'' on
 $N=8+8$ nodes after adding edges
 $(2,15),(4,9),(8,5),(4,15),(12,11),(10,5)$ and $(4,13)$ (nodes
 with no incident edges are omitted for clarity).
@@ -156,6 +158,7 @@ can add the new edge as $(11 \rightarrow 10)$, resulting in the middle diagram.
 In order to add to 9th edge
 $(10,13)$ we now find the path from $10$ to be the shorter one, so we reverse
 that and add the new edge as $(10 \rightarrow 13)$, resulting in the right diagram.
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}[>=stealth]
 \node  (2) at (1, 2) [shape=circle,draw] {2};
@@ -216,6 +219,9 @@ that and add the new edge as $(10 \rightarrow 13)$, resulting in the right diagr
 \draw [->] (10) -- (13);
 \end{tikzpicture}
 \end{center}
+\caption{Cycle Formation}
+\label{cycleformation}
+\end{figure}
 When adding the 10th edge $(8,9)$, we find the paths $8 \rightarrow 5
 \rightarrow 10 \rightarrow 13 \rightarrow 4 \rightarrow 15 \rightarrow 2$ and
 $9 \rightarrow 4 \rightarrow 15 \rightarrow 2$ with equal roots.
@@ -255,12 +261,13 @@ also has a Makefile, as well as the latest version of this paper.
 `make example' reproduces the example shown above.
 The simple program uses 32 bits per node to represent the directed cuckoo graph,
 plus about 64KB per thread for two path-following arrays.
-The left plot below shows both the total runtime in seconds and the runtime of just
+The left plot in Figure~\ref{runtimes} shows both the total runtime in seconds and the runtime of just
 the hash computation, as a function of (log)size. The latter is purely
 linear, while the former is superlinear due to increasing memory latency
 as the nodes no longer fit in cache. The right plot show this more clearly
 as the percentage of hashing to total runtime, ending up around 5\%.
 
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}
 \begin{axis}[xlabel={$\mbox{log}_2(N)$}, ymode=log, ylabel={seconds}, legend pos=north west]
@@ -293,8 +300,11 @@ as the percentage of hashing to total runtime, ending up around 5\%.
 \end{axis}
 \end{tikzpicture}
 \end{center}
+\caption{Runtime}
+\label{runtimes}
+\end{figure}
 
-The left plot below shows the probability of finding a 42-cycle as a function
+The left plot in Figure~\ref{accesses} shows the probability of finding a 42-cycle as a function
 of the percentage edges/nodes, while the right plot shows the average number of
 memory reads and writes per edge as a function of the percentage
 of processed nonces (progress through main loop).
@@ -302,6 +312,7 @@ Both were determined from 10000 runs at size $2^{20}$;
 results at size $2^{25}$ look almost identical.
 In total the basic algorithm averages 3.3 reads and 1.1 writes per edge.
 
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}
 \begin{axis}[xlabel={$\frac{M}{N}$ in \%}, ylabel={\% runtime}, legend pos=north west]
@@ -327,6 +338,9 @@ In total the basic algorithm averages 3.3 reads and 1.1 writes per edge.
 \end{axis}
 \end{tikzpicture}
 \end{center}
+\caption{Memory acceses}
+\label{accesses}
+\end{figure}
 
 \section{Difficulty control}
 The ratio $\frac{M}{N}$ determines a base level of difficulty,
@@ -368,11 +382,12 @@ by processing nodes in multiple passes depending on the value of their $B$ least
 bits\footnote{excluding the very least significant bit distinguishing even from odd nodes.}.
 The memory usage is $M$ bits for the alive set and $N / 2^{B}$ for the counters.
 
-The diagrams below show two rounds of edge trimming on the earlier example. In round one
+The diagrams in Figure~\ref{trimming} show two rounds of edge trimming on the earlier example. In round one
 even nodes 2 and 12 lose their single incident edge and in round two, odd nodes 11 and 15 lose
 their remaining single incident edge. At this point only the 6-cycle is left, so further trimming
 would be pointless.
 
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}[>=stealth]
 \node  (2) at (1, 2) [shape=circle,draw] {2};
@@ -433,6 +448,9 @@ would be pointless.
 \draw [-]  (8) -- (9);
 \end{tikzpicture}
 \end{center}
+\caption{Edge Trimming}
+\label{trimming}
+\end{figure}
 
 After all edge trimming rounds, the counter memory is freed, and allocated to a
 custom cuckoo\_hashtable (based on \cite{preshing2013}) that presents the same interface as the
@@ -473,9 +491,10 @@ finding a solution. Since there is possible overlap between the BFS forests of d
 especially with the second algorithm, the distributions are skewed toward lower numbers. To maximize solution
 finding rate then, it pays to give up on a graph when the first few subsets tried fail to provide a solution.
 For each algorithm and cycle length, we determined the minimum number of tries needed to guarantee solutions
-in at least 50 of the 200 graphs. Below we plot the slowdown relative to the reference algorithm also using 4MB
+in at least 50 of the 200 graphs. In Figure~\ref{slowdown} we plot the slowdown relative to the reference algorithm also using 4MB
 (2MB for edges and 2MB for nodes).
 
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}
 % \begin{axis}[ymin=0, xtick={2,8,16,24,32,40,48,56,64}, xlabel={cycle length $L$}, ylabel={slowdown factor}, legend pos=north west]
@@ -498,6 +517,9 @@ in at least 50 of the 200 graphs. Below we plot the slowdown relative to the ref
 \end{axis}
 \end{tikzpicture}
 \end{center}
+\caption{Slowdown}
+\label{slowdown}
+\end{figure}
 
 The zigzagging is caused by the current implementation being limited to 2-power sizes of
 both subsets and cuckoo tables while the load of the latter is kept between 45\% and 90\%\footnote{We
@@ -537,6 +559,7 @@ The plot below shows the distribution of cycle lengths found for sizes $2^{10},2
 as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
 beyond $L=100$ are not shown. For reference, the longest cycle found was of length 2120.
 
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}
 \begin{axis}[ymin=0, xlabel={cycle length $L$}, ylabel={probability}, legend pos=north east]
@@ -570,6 +593,9 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 \end{axis}
 \end{tikzpicture}
 \end{center}
+\lcaption{Cycle length}
+\label{cyclelengths}
+\end{figure}
 
 \section{Parallelization}
 All our implementations allow the number of threads to be set with option {\tt -t}.
@@ -604,6 +630,7 @@ out to reduce memory access latencies.
 The plots below show the speedup over single thread performance achieved by multithreading at various
 graph sizes and counter-partition levels.
 
+\begin{figure}
 \begin{center}
 \begin{tikzpicture}
 \begin{axis}[ymin=0, xlabel={number of threads}, ylabel={speedup factor}, legend pos=north west]
@@ -665,6 +692,8 @@ graph sizes and counter-partition levels.
 \end{axis}
 \end{tikzpicture}
 \end{center}
+\label{speedup}
+\end{figure}
 
 \section{Choice of graph size}
 The chosen Cuckoo graph size affects what type of hardware can mine effectively at a given block interval time.
