@@ -22,7 +22,7 @@ ideal properties for a memory-bound proof of work.
 We exhibit two alternative algorithms that allow for a memory-time trade-off
 (TMTO)---decreased memory usage, by a factor $k$, coupled with increased runtime, by a factor $\Omega(k)$.
 The constant implied in $\Omega()$ gives a notion of memory-hardness, which is shown to be dependent
-on cycle length, guiding the latter's choice.
+on cycle length, guiding the latter's choice. Our algorithms are shown to parallelize reasonably well.
 \end{abstract}
 
 \section{Introduction}
@@ -60,7 +60,7 @@ on finding clusters rather than chains of prime numbers.
 Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs,
 in what could well be the simplest possible assymetric proof-of-work,
 combining scalable memory usage with trivial verifiability.
-As we will see in section~\ref{cycle_length_choice}, Momentum is in essence a special case of Cuckoo Cycle.
+In section~\ref{cycle_length_choice} we demonstrate that Momentum is in essence a special case of Cuckoo Cycle.
 
 \section{Graph-theoretic proofs-of-work}
 We propose to base proofs-of-work on finding certain subgraphs in large pseudo-random graphs.
