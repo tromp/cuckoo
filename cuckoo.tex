@@ -18,7 +18,7 @@ Such problems are trivially verifiable and arbitrarily scalable,
 appearing to require memory linear in graph size to solve efficiently.
 Our cycle finding algorithm uses one bit per edge, and up to one bit per node.
 Runtime is linear in graph size and dominated by random access latency,
-ideal properties for a memory-bound proof of work.
+ideal properties for a memory-bound proof-of-work.
 We exhibit two alternative algorithms that allow for a memory-time trade-off
 (TMTO)---decreased memory usage, by a factor $k$, coupled with increased runtime, by a factor $\Omega(k)$.
 The constant implied in $\Omega()$ gives a notion of memory-hardness, which is shown to be dependent
@@ -40,9 +40,20 @@ target threshold\footnote{or, less accurately, results in many leading 0s}.
 The threshold is dynamically adjusted by the protocol
 so as to maintain an average block interval of 10 minutes.
 
+Bitcoin's choice of the simple and purely compute-bound SHA256 hash function
+allowed for an easy migration of hash computation from 
+desktop processors (CPUs) to graphics-card processors (GPUs),
+to field-programmable gate arrays (FPGAs), and finally to custom designed
+chips (ASICs), with huge improvements in energy-efficiency at every step.
+
 Since Bitcoin, many other crypto-currencies have adopted hashcash, with various
 choices of underlying hash function. the most well-known being {\em scrypt} as
-used in Litecoin.
+introduced by Tenebrix~\cite{tenebrix2011}---which since faded into obscurity---and
+copied by Litecoin~\cite{litecoin2011}.
+Scrypt, designed as a sequential memory-hard key derivation function,
+was specifically chosen to resist the migration away from CPUs and be ``GPU-hostile''.
+However, to adapt to the efficient verifiability requirement of proof-of-work, its
+memory footprint was severely limited, and migration slowed down only slightly.
 
 Primecoin~\cite{king2013} introduced the notion of a number-theoretic proof-of-work,
 thereby offering the first alternative to hashcash among crypto-currencies.
@@ -50,17 +61,26 @@ Primecoin identifies long chains of nearly doubled prime numbers, constrained
 by a certain relation to the block header.
 Verification of these chains, while very slow compared to bitcoin's, is much faster
 than attempting to find one.
-%The latter is a two-step process of filtering candidates by {\em sieving},
-%and applying pseudo-primality tests to remaining candidates.
 This asymmetry between proof (attempt) and verification is typical in non-hashcash proofs of work.
-%These algorithms are somewhat complex and involve many trade-offs.
 Recently, another prime-number based crypto-currency, Riecoin, was introduced, based
 on finding clusters rather than chains of prime numbers.
 
 Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs,
 in what could well be the simplest possible assymetric proof-of-work,
 combining scalable memory usage with trivial verifiability.
-In section~\ref{cycle_length_choice} we demonstrate that Momentum is in essence a special case of Cuckoo Cycle.
+In section~\ref{cycle_length_choice} we show that Momentum is in essence a special case of Cuckoo Cycle,
+one that is particularly susceptible to time-memory tradeoffs.
+
+Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
+and present.
+
+\section{Motivation}
+Cuckoo Cycle aims to minimize the performance gap between CPUs and ASICs by being memory-bound
+rather than compute-bound, having a memory footprint that exceeds single chips, and making the
+tradeoff of memory for time incur a substantial penalty. In short, the aim is to make DRAM
+the ASIC for Cuckoo Cycle. Of course one also needs computational logic to drive the DRAM chips,
+but only enough to make memory access latency the bottleneck, which might be achievable by
+a relatively cheap commodity part\footnote{Thanks to development of many-core cpus in the near future.}.
 
 \section{Graph-theoretic proofs-of-work}
 We propose to base proofs-of-work on finding certain subgraphs in large pseudo-random graphs.
@@ -86,7 +106,7 @@ The graph has a {\em solution} if $H$ occurs as a subgraph.
 Denote the number of edges in $H$ as $L$.
 A proof of solution is an ordered list of $L$ nonces that generate the edges
 of $H$'s occurrence in $G_k$.
-Such a proof is verifiable in time depending only on $H$ (often linear in $L$), independent of $N$ and $M$.
+Such a proof is verifiable in time depending only on $H$ (typically linear in $L$), independent of $N$ and $M$.
 
 A simple variation generates random bipartite graphs: $G_k = (V_0 \cup V_1,E)$ where (assuming $N$ is even)
 $V_0=\{v_0,v_2,\ldots,v_{N-2}\}$, $V_1=\{v_1,v_3,\ldots,v_{N-1}\}$, and
@@ -97,14 +117,15 @@ E=\{(v_{2(h(k,2i) \bmod \frac{N}{2})}, v_{2(h(k,2i+1) \bmod \frac{N}{2})+1}) | i
 
 The expected number of occurrences of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
 and in many cases is roughly a function of $\frac{M}{N}$ (half the average node degree).
-For fixed $N$, the function is monotonically increasing in $M$.
+For fixed $N$, this function is monotonically increasing in $M$.
 To make the proof-of-work challenging, one chooses a value of $M$ that yields less than one
 expected solution.
 
-\section{Cuckoo Cycle}
 The simplest possible choice of subgraph is a fully connected one, or a {\em clique}.
 While an interesting choice, akin to the number-theoretic notion of a prime-cluster,
 as used in Riecoin, we leave its consideration to a future paper.
+
+\section{Cuckoo Cycle}
 In this paper we focus on what is perhaps the next-simplest possible choice, the {\em cycle}.
 Specifically, we propose the hash function \hash\ with a $K=128$ bit key, $W_i = W_o = 64$ input
 and output bits, $N \leq 2^{64}$ a 2-power, $M=N/2$, and $H$ an $L$-cycle.
@@ -739,64 +760,16 @@ proof-of-work power should be acceptable.
 
 It remains to decide what exact form the ``difficulties too low'' condition should take.
 
-% \section{Memory latency; the great equalizer}
-% While cpu-speed and (sequential) memory bandwidth are highly variable across
-% time and architectures, main memory latencies have remained relatively
-% stable. This suggests making the proof-of-work system latency-bound in order
-% to level the mining playing field.
-% We introduce the very first graph-theoretic proof-of-work system.
-% which aims to satisfy most of the above properties,
-% except for parallel-hardness (see the later section on parallelizability).
-% Amazingly, it amounts to little more than enumerating nonces and storing them
-% in a hashtable. While all hashtables break down when trying to store more
-% items than it was designed to handle, in one hashtable design in particular
-% this breakdown is of a special nature that can be turned into a concise and
-% easily verified proof. Enter the cuckoo hashtable.
-
-\section{Computation versus memory}
-Starting out at 32 leading zeroes in 2009, Bitcoin difficulty
-has steadily climbed and is currently at 67,
-representing an incredible $2^{67}/10$ double-hashes per minute.
-This growth was enabled by the migration of hash computation from 
-desktop processors (CPUs) to graphics-card processors (GPUs),
-to field-programmable gate arrays (FPGAs), and finally to custom designed
-chips (ASICs).
-
-Downsides of this development include rapid obsolescence,
-large power consumption, and centralization of mining power.
-Although ASICs are the most energy-efficient way of computing hashes,
-the tiny amount of die-space needed for a single SHA256 circuit allows
-a huge number of them (e.g. 1440 on KnC's Neptune) to be crammed onto a
-single chip, consuming 100s of Watts and requiring ample cooling.
-%Thus, energy costs dominate the economics of mining.
-
-This has led people to look for alternative proof-of-work systems
-that, by requiring a non-trivial amounts of memory, resist such
-massive parallelizability, and narrow the performance gap
-with commodity hardware.
-%Memory chips, in the form of DRAM,
-%have only a small portion of their circuitry active at any
-%time\footnote{this applies to each of the 8 or so {\em banks} that make up the memory in each chip,
-%while operating in parallel} and thus require orders of magnitude less power.
-
-Litecoin replaces the SHA256 hash function in hashcash by a single round
-version of the {\em scrypt} key derivation function. Its memory requirement
-of 128KB is a compromise between computation-hardness for the prover and
-verification efficiency for the verifier. Although designed to be
-GPU-resistant, GPUs are now at least an order of magnitude faster
-than CPUs for Litecoin mining. ASICs first appeared on the market in early 2014
-and have started to dominate Litecoin mining by the third quarter.
-
-Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
-and present.
-
 \section{Conclusion}
 Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines scalable
 memory requirements with instant verifiability, and the first where
 memory latency dominates the runtime\footnote{and with dynamic sizing,
 will continue to do so into the distant future.}.
 This narrows the mining performance gap between custom and commodity hardware and
-could lead to mining costs being dominated by investments in DRAM.
+could lead to mining costs being dominated by investments in DRAM rather than power costs.
+While \cite{poelstra2014} argues that this benefits established miners who amortized
+their equipment, it fails to account for a potentially larger contingent of
+non-miners with already amortized equipment that can join their ranks to reduce centralization.
 Resulting changes in the economics of mining are potentially beneficial but
 will certainly require additional study.
 More research is also needed to determine the effectiveness of GPUs and FPGAs
