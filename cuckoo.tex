@@ -71,16 +71,29 @@ combining scalable memory usage with trivial verifiability.
 In section~\ref{cycle_length_choice} we show that Momentum is in essence a special case of Cuckoo Cycle,
 one that is particularly susceptible to time-memory tradeoffs.
 
-Adam Back~\cite{back2014} has a good overview of proof-of-work papers past
-and present.
+Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
 
 \section{Motivation}
-Cuckoo Cycle aims to minimize the performance gap between CPUs and ASICs by being memory-bound
-rather than compute-bound, having a memory footprint that exceeds single chips, and making the
-tradeoff of memory for time incur a substantial penalty. In short, the aim is to make DRAM
-the ASIC for Cuckoo Cycle. Of course one also needs computational logic to drive the DRAM chips,
-but only enough to make memory access latency the bottleneck, which might be achievable by
-a relatively cheap commodity part\footnote{Thanks to development of many-core cpus in the near future.}.
+Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is, to minimize performance differences
+across hardware architectures. This is best achieved by making memory latency the bottleneck, since
+main memory latencies have remained relatively stable, while cpu-speed and memory bandwidth are highly
+variable across both time and architecture.
+
+We thus aim to have a memory footprint that exceeds a single memory-chip, to minimize the amount
+of computation in between random memory accesses, and making any tradeoff of memory for time
+incur a substantial penalty.
+
+The above aims should apply only to proof attempts---the real work---but not to proof verification,
+which ideally requires negligable memory and time. Thus, we aim for a highly assymetric design.
+A final aim is to keep the design very simple.
+
+We do not aim to have provable lower bounds on memory usage. Such bounds appear to be
+attainable only under the so called {\em random oracle model}, where memory tends to be used
+merely as a store for chains of outputs of some compute-intensive hash function.
+Instead we will present a ``reference'' efficient proof-finding algorithm,
+along with our best attempts at memory-time tradeoffs,
+and conjecture that these cannot be significantly improved upon.
+In that sense, this work is more empirical than formal.
 
 \section{Graph-theoretic proofs-of-work}
 We propose to base proofs-of-work on finding certain subgraphs in large pseudo-random graphs.
