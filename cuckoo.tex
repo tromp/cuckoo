@@ -71,7 +71,8 @@ combining scalable memory usage with trivial verifiability.
 In section~\ref{cycle_length_choice} we show that Momentum is in essence a special case of Cuckoo Cycle,
 one that is particularly susceptible to time-memory tradeoffs.
 
-Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
+Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present,
+while \cite{poelstra2014} argues the virtues of Bitcoin's choice of PoW.
 
 \section{Motivation}
 Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is, to minimize performance differences
@@ -89,7 +90,7 @@ A final aim is to keep the design very simple.
 
 We do not aim to have provable lower bounds on memory usage. Such bounds appear to be
 attainable only under the so called {\em random oracle model}, where memory tends to be used
-merely as a store for chains of outputs of some compute-intensive hash function.
+merely as a store for chains of values of some compute-intensive hash function.
 Instead we will present a ``reference'' efficient proof-finding algorithm,
 along with our best attempts at memory-time tradeoffs,
 and conjecture that these cannot be significantly improved upon.
@@ -525,8 +526,8 @@ finding a solution. Since there is possible overlap between the BFS forests of d
 especially with the second algorithm, the distributions are skewed toward lower numbers. To maximize solution
 finding rate then, it pays to give up on a graph when the first few subsets tried fail to provide a solution.
 For each algorithm and cycle length, we determined the minimum number of tries needed to guarantee solutions
-in at least 50 of the 200 graphs. In Figure~\ref{slowdown} we plot the slowdown relative to the reference algorithm also using 4MB
-(2MB for edges and 2MB for nodes).
+in at least 50 of the 200 graphs. In Figure~\ref{slowdown} we plot the slowdown relative
+to the reference algorithm also using 4MB (2MB for edges and 2MB for nodes).
 
 \begin{figure}
 \begin{center}
@@ -627,7 +628,7 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 \end{axis}
 \end{tikzpicture}
 \end{center}
-\lcaption{Cycle length}
+\caption{Cycle length}
 \label{cyclelengths}
 \end{figure}
 
@@ -726,6 +727,7 @@ graph sizes and counter-partition levels.
 \end{axis}
 \end{tikzpicture}
 \end{center}
+\caption{Speedup}
 \label{speedup}
 \end{figure}
 
@@ -776,15 +778,14 @@ It remains to decide what exact form the ``difficulties too low'' condition shou
 \section{Conclusion}
 Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines scalable
 memory requirements with instant verifiability, and the first where
-memory latency dominates the runtime\footnote{and with dynamic sizing,
-will continue to do so into the distant future.}.
+memory latency dominates the runtime.
+%\footnote{and with dynamic sizing, will continue to do so into the distant future.}.
 This narrows the mining performance gap between custom and commodity hardware and
-could lead to mining costs being dominated by investments in DRAM rather than power costs.
-While \cite{poelstra2014} argues that this benefits established miners who amortized
-their equipment, it fails to account for a potentially larger contingent of
-non-miners with already amortized equipment that can join their ranks to reduce centralization.
-Resulting changes in the economics of mining are potentially beneficial but
-will certainly require additional study.
+could lead to mining costs being dominated by upfront investments in DRAM rather than ongoing power costs.
+Just as SRAM is one order of magnitude faster but 2 orders more expensive than DRAM,
+and as such a big net loss for Cuckoo Cycle throughput per dollar,
+so it is conceivable that development and production of custom cuckoo memory chips
+will incur a big enough cost premium to wipe out any performance gains.
 More research is also needed to determine the effectiveness of GPUs and FPGAs
 at running Cuckoo Cycle.
 
