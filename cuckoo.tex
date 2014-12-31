@@ -71,20 +71,38 @@ combining scalable memory usage with trivial verifiability.
 In section~\ref{cycle_length_choice} we show that Momentum is in essence a special case of Cuckoo Cycle,
 one that is particularly susceptible to time-memory tradeoffs.
 
-Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present,
-while \cite{poelstra2014} argues the virtues of Bitcoin's choice of PoW.
+Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
 
 \section{Motivation}
-Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is, to minimize performance differences
-across hardware architectures. This is best achieved by making memory latency the bottleneck, since
-main memory latencies have remained relatively stable, while cpu-speed and memory bandwidth are highly
-variable across both time and architecture.
+Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is,
+to minimize performance-per-dollar differences across hardware architectures,
+and make mining on commodity hardware cost-effective.
+This is best achieved by making main memory latency the bottleneck, since
+DRAM latencies have remained relatively stable, while cpu-speed and memory bandwidth are highly
+variable across hardware architecture and process technology.
 
-We thus aim to have a memory footprint that exceeds a single memory-chip, to minimize the amount
-of computation in between random memory accesses, and making any tradeoff of memory for time
-incur a substantial penalty.
+Our aim of a memory-bound PoW translates to the following desirable properties:
 
-The above aims should apply only to proof attempts---the real work---but not to proof verification,
+\begin{description}
+\item[MB1] a memory footprint that exceeds a single memory-chip
+\item[MB2] a pattern of random memory accesses
+\item[MB3] a minimum amount of computation per random memory access\footnote{Preferably less than
+the roughly $50$ns row activation delay for switching rows on a memory bank.}
+\item[MB4] no feasible tradeoff of memory for time\footnote{We (rather arbitrarily)
+consider a tradeoff infeasible if it incurs an order of magnitude increase in time $\times$ memory.}
+\end{description}
+
+This aims to take advantage of the huge economies of scale of commodity DRAM production
+to make DRAM chips the most cost-effective vehicle for mining,
+Just as SRAM is one order of magnitude faster but two orders more expensive than DRAM,
+so it is conceivable that development and production of custom memory chips for a memory bound PoW
+will incur a big enough cost premium to wipe out most performance gains.
+We thus disagree with the premise of \cite{poelstra2014} that PoWs should be compute bound
+in order to have ongoing energy costs dominate mining, which results in an ASIC design arms race to
+drive down performance per Watt, rapid hardware obsolescence, and geographical centralization towards
+cheap electric power.
+
+The above properties should apply only to proof attempts---the actual work---but not to proof verification,
 which ideally requires negligable memory and time. Thus, we aim for a highly assymetric design.
 A final aim is to keep the design very simple.
 
@@ -94,7 +112,8 @@ merely as a store for chains of values of some compute-intensive hash function.
 Instead we will present a ``reference'' efficient proof-finding algorithm,
 along with our best attempts at memory-time tradeoffs,
 and conjecture that these cannot be significantly improved upon.
-In that sense, this work is more empirical than formal.
+Lacking precise definitions and proofs of memory-boundness, this work should be considered
+more empirical than formal.
 
 \section{Graph-theoretic proofs-of-work}
 We propose to base proofs-of-work on finding certain subgraphs in large pseudo-random graphs.
@@ -732,7 +751,8 @@ graph sizes and counter-partition levels.
 \end{figure}
 
 \section{Choice of graph size}
-The chosen Cuckoo graph size affects what type of hardware can mine effectively at a given block interval time.
+For cryptocurrency purposes, the choice of Cuckoo graph size should be in accordance to its
+block interval time.
 To illustrate, suppose an average desktop machine needs 1 minute for a single proof attempt,
 and the block interval time is only 2 minutes. Then it will waste a large fraction (almost half)
 of its attempts, as about half the time, someone else finds a proof in under 2 minutes. To reduce such waste
@@ -740,25 +760,20 @@ to a small percentage, the time for a single proof attempt should be a similarly
 interval time. This desirable property is known as {\em progress-freeness}, and in our case
 is achieved more easily with a small graph (and hence memory) size.
 
-Larger memory sizes have two advantages though. First, they make it harder for botnets to mine without
-causing excessive swapping. Sending a computer into swap-hell will likely alert its owner and trigger a cleanup,
-so botnet operators can be expected to eschew memory-intensive proofs-of-work in favor of low-memory ones.
-
-Second, they make it harder for custom FPGA or ASIC implementations to remain self-contained.
-Rather, to remain cost effective, they will likely need to make use of commodity DRAM chips,
-and incur a roughly $50$ns row activation delay for random access to each memory bank.
-If a future CPU with hardware siphash24 support can saturate DRAM, then there may no need
-to develop ASICs (and keep them on the leading edge of process technology)
-for the computational part of Cuckoo Cycle.
+Larger memory sizes have two advantages. Beyond satisfying property MB1,
+they also make it harder for botnets to mine without causing excessive swapping.
+Sending a computer into swap-hell will likely alert its owner and trigger a cleanup,
+so botnet operators can be expected to eschew memory-bound PoWs in favor of low-memory ones.
 
 We expect these opposing goals to lead to graph sizes from $2^{28}$ to $2^{32}$, with the larger ones geared
 more toward longer block interval times and faster mining hardware.
 
 \section{Dynamic Sizing}
-Ideally, graph size should grow with evolving memory chip capacities and cache sizes.
+Ideally, graph size should grow with evolving memory chip capacities, so as to preserve property MB1.
 Although these have shown remarkable adherence to Moore's Law in the past,
-this cannot be relied on for the more distant future. We therefore propose to re-evaluate the graph size
-every so-many difficulty adjustments. If the difficulty target is sufficiently low, then the
+this cannot be relied on for the more distant future.
+We therefore propose to re-evaluate the graph size every so-many difficulty adjustments.
+If the difficulty target is sufficiently low, then the
 graph size is deemed to have become "too easy" for existing hardware, and gets doubled.
 
 In order to make this transition smoother and avoid severe loss of proof-of-work power,
@@ -776,18 +791,14 @@ proof-of-work power should be acceptable.
 It remains to decide what exact form the ``difficulties too low'' condition should take.
 
 \section{Conclusion}
-Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines scalable
-memory requirements with instant verifiability, and the first where
-memory latency dominates the runtime.
-%\footnote{and with dynamic sizing, will continue to do so into the distant future.}.
-This narrows the mining performance gap between custom and commodity hardware and
-could lead to mining costs being dominated by upfront investments in DRAM rather than ongoing power costs.
-Just as SRAM is one order of magnitude faster but 2 orders more expensive than DRAM,
-and as such a big net loss for Cuckoo Cycle throughput per dollar,
-so it is conceivable that development and production of custom cuckoo memory chips
-will incur a big enough cost premium to wipe out any performance gains.
-More research is also needed to determine the effectiveness of GPUs and FPGAs
-at running Cuckoo Cycle.
+Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines
+scalable memory requirements with instant verifiability,
+and the first where memory latency dominates the runtime.
+
+Barring any unforeseen memory-time tradeoffs, it makes for a near-ideal memory-bound proof-of-work
+whose cost-effectiveness on commodity hardware could greatly benefit decentralization of mining.
+% More research is also needed to determine the effectiveness of GPUs and FPGAs
+% at running Cuckoo Cycle.
 
 \bibliographystyle{IEEEtran}
 \bibliography{cuckoo}
