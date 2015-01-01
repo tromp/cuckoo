@@ -76,7 +76,7 @@ Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and p
 \section{Motivation}
 Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is,
 to minimize performance-per-dollar differences across hardware architectures,
-and make mining on commodity hardware cost-effective.
+and make mining---the process of looking for proofs---on commodity hardware cost-effective.
 This is best achieved by making main memory latency the bottleneck, since
 DRAM latencies have remained relatively stable, while cpu-speed and memory bandwidth are highly
 variable across hardware architecture and process technology.
@@ -89,7 +89,8 @@ Our aim of a memory-bound PoW translates to the following desirable properties:
 \item[MB3] a minimum amount of computation per random memory access\footnote{Preferably less than
 the roughly $50$ns row activation delay for switching rows on a memory bank.}
 \item[MB4] no feasible tradeoff of memory for time\footnote{We (rather arbitrarily)
-consider a tradeoff infeasible if it incurs an order of magnitude increase in time $\times$ memory.}
+consider a tradeoff infeasible if it incurs an order of magnitude increase
+in $\mbox{time}\times\mbox{memory}$ used per expected solution.}
 \end{description}
 
 This aims to take advantage of the huge economies of scale of commodity DRAM production
@@ -102,17 +103,17 @@ in order to have ongoing energy costs dominate mining, which results in an ASIC 
 drive down performance per Watt, rapid hardware obsolescence, and geographical centralization towards
 cheap electric power.
 
-The above properties should apply only to proof attempts---the actual work---but not to proof verification,
+Note that the above properties should apply only to mining, not to proof verification,
 which ideally requires negligable memory and time. Thus, we aim for a highly assymetric design.
 A final aim is to keep the design very simple.
 
 We do not aim to have provable lower bounds on memory usage. Such bounds appear to be
 attainable only under the so called {\em random oracle model}, where memory tends to be used
 merely as a store for chains of values of some compute-intensive hash function.
-Instead we will present a ``reference'' efficient proof-finding algorithm,
+Instead we will present an efficient proof-finding algorithm,
 along with our best attempts at memory-time tradeoffs,
 and conjecture that these cannot be significantly improved upon.
-Lacking precise definitions and proofs of memory-boundness, this work should be considered
+Lacking precise definitions and proofs of memory-bound-ness, this work should be considered
 more empirical than formal.
 
 \section{Graph-theoretic proofs-of-work}
@@ -273,7 +274,7 @@ that and add the new edge as $(10 \rightarrow 13)$, resulting in the right diagr
 \draw [->] (10) -- (13);
 \end{tikzpicture}
 \end{center}
-\caption{Cycle Formation}
+\caption{cycle formation and detection in a Cuckoo graph}
 \label{cycleformation}
 \end{figure}
 When adding the 10th edge $(8,9)$, we find the paths $8 \rightarrow 5
@@ -341,7 +342,7 @@ as the percentage of hashing to total runtime, ending up around 5\%.
 \addlegendentry{total runtime}
 \end{axis}
 \end{tikzpicture}
-% \hspace{1mm}
+\hspace{1cm}
 \begin{tikzpicture}
 \begin{axis}[xlabel={$\mbox{log}_2(N)$}, ylabel={\% runtime}, legend pos=north east]
 \addplot[color=blue] coordinates {
@@ -354,7 +355,7 @@ as the percentage of hashing to total runtime, ending up around 5\%.
 \end{axis}
 \end{tikzpicture}
 \end{center}
-\caption{Runtime}
+\caption{Runtime and compute intensity of the basic algorithm}
 \label{runtimes}
 \end{figure}
 
@@ -369,7 +370,7 @@ In total the basic algorithm averages 3.3 reads and 1.1 writes per edge.
 \begin{figure}
 \begin{center}
 \begin{tikzpicture}
-\begin{axis}[xlabel={$\frac{M}{N}$ in \%}, ylabel={\% runtime}, legend pos=north west]
+\begin{axis}[xlabel={$\frac{M}{N}$ in \%}, ylabel={probability}, legend pos=north west]
 \addplot[color=blue] coordinates {
 (40,0) (41,0.00001) (42,0.00003) (43,0.0001) (44,0.00031) (45,0.00067)
 (46,0.00141) (47,0.00385) (48,0.00967) (49,0.02222) (50,0.05076)
@@ -377,12 +378,12 @@ In total the basic algorithm averages 3.3 reads and 1.1 writes per edge.
 (56,0.63614) (57,0.73955) (58,0.82352) (59,0.88719) (60,0.93182)
 (61,0.9616) (62,0.97949) (63,0.98956) (64,0.99503) (65,0.99799)
 (66,0.99907) (67,0.9996) (68,0.99989) (69,0.99997) (70,0.99998) (71,1) };
-\addlegendentry{solution prob.}
+\addlegendentry{has 42-cycle}
 \end{axis}
 \end{tikzpicture}
 % \hspace{1cm}
 \begin{tikzpicture}
-\begin{axis}[xlabel={\% nonces processed}, ylabel={\# memory accesses}, ymin=0, legend pos=north west]
+\begin{axis}[xlabel={\% nonces processed}, ylabel={\# memory accesses per nonce}, ymin=0, legend pos=north west]
 \addplot[color=green] coordinates {
 (0,2.01) (1,2.02) (2,2.03) (3,2.04) (4,2.05) (5,2.06) (6,2.07) (7,2.08) (8,2.09) (9,2.10) (10,2.11) (11,2.12) (12,2.13) (13,2.15) (14,2.16) (15,2.17) (16,2.18) (17,2.20) (18,2.21) (19,2.22) (20,2.23) (21,2.25) (22,2.26) (23,2.28) (24,2.29) (25,2.30) (26,2.32) (27,2.33) (28,2.35) (29,2.36) (30,2.38) (31,2.40) (32,2.41) (33,2.43) (34,2.45) (35,2.46) (36,2.48) (37,2.50) (38,2.52) (39,2.54) (40,2.56) (41,2.58) (42,2.60) (43,2.62) (44,2.64) (45,2.66) (46,2.68) (47,2.71) (48,2.73) (49,2.76) (50,2.78) (51,2.81) (52,2.83) (53,2.86) (54,2.89) (55,2.92) (56,2.95) (57,2.98) (58,3.01) (59,3.05) (60,3.08) (61,3.12) (62,3.15) (63,3.19) (64,3.23) (65,3.27) (66,3.32) (67,3.36) (68,3.41) (69,3.45) (70,3.51) (71,3.56) (72,3.61) (73,3.67) (74,3.73) (75,3.80) (76,3.86) (77,3.93) (78,4.01) (79,4.09) (80,4.17) (81,4.26) (82,4.36) (83,4.46) (84,4.57) (85,4.69) (86,4.83) (87,4.97) (88,5.13) (89,5.30) (90,5.49) (91,5.71) (92,5.96) (93,6.25) (94,6.59) (95,6.99) (96,7.51) (97,8.18) (98,9.20) (99,10.93) };
 \addlegendentry{reads}
@@ -392,7 +393,7 @@ In total the basic algorithm averages 3.3 reads and 1.1 writes per edge.
 \end{axis}
 \end{tikzpicture}
 \end{center}
-\caption{Memory acceses}
+\caption{Threshold nature of solution, and increasing memory usage on threshold approach}
 \label{accesses}
 \end{figure}
 
@@ -502,7 +503,7 @@ would be pointless.
 \draw [-]  (8) -- (9);
 \end{tikzpicture}
 \end{center}
-\caption{Edge Trimming}
+\caption{Trimming of edges which cannot be part of a cycle}
 \label{trimming}
 \end{figure}
 
@@ -571,13 +572,14 @@ to the reference algorithm also using 4MB (2MB for edges and 2MB for nodes).
 \end{axis}
 \end{tikzpicture}
 \end{center}
-\caption{Slowdown}
+\caption{Reduction in solution finding rate for two TMTO algorithms}
 \label{slowdown}
 \end{figure}
 
 The zigzagging is caused by the current implementation being limited to 2-power sizes of
-both subsets and cuckoo tables while the load of the latter is kept between 45\% and 90\%\footnote{We
-plan to lift this restriction in the near future and produce smoother plots with constant load cuckoo tables.}
+both subsets and cuckoo tables while the load of the latter is kept between 45\% and 90.
+%We plan to lift this restriction in the near future and
+%produce smoother plots with constant load cuckoo tables.
 The BFS($L$) algorithm exhibits at least one order of magnitude slowdown, that grows very slowly
 with cycle length, while the BFS($L/2$) algorithm exhibits roughly linear slowdown.
 Assuming that these algorithms cannot be significantly improved upon, we obtain an order of magnitude
@@ -647,7 +649,7 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 \end{axis}
 \end{tikzpicture}
 \end{center}
-\caption{Cycle length}
+\caption{Distribution of cycle lengths in random graphs}
 \label{cyclelengths}
 \end{figure}
 
@@ -746,7 +748,7 @@ graph sizes and counter-partition levels.
 \end{axis}
 \end{tikzpicture}
 \end{center}
-\caption{Speedup}
+\caption{Multi-threading speedup}
 \label{speedup}
 \end{figure}
 
