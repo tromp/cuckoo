@@ -6,7 +6,7 @@
 \newcommand{\hash}{{\rm siphash}}
 \usepackage{hyperref}
 \usepackage{listings}
-\title{Cuckoo Cycle: \protect\\ a memory-bound graph-theoretic proof-of-work system}
+\title{Cuckoo Cycle: \protect\\ a memory-bound graph-theoretic proof-of-work}
 \author{John Tromp}
 \begin{document}
 \maketitle
@@ -26,15 +26,15 @@ on cycle length, guiding the latter's choice. Our algorithms are shown to parall
 \end{abstract}
 
 \section{Introduction}
-A ``proof of work'' (PoW) system allows a verifier to check with negligible
+A {\em proof-of-work} (PoW) system allows a verifier to check with negligible
 effort that a prover has expended a large amount of computational effort.
 Originally introduced as a spam fighting measure, 
 where the effort is the price paid by an email sender for demanding the
 recipient's attention, they now form one of the cornerstones of crypto-currencies.
 
 As proof-of-work for new blocks of transactions,
-Bitcoin~\cite{nakamoto2009bitcoin} adopted Adam Back's hashcash~\cite{back2002} proof-of-work.
-This entails finding a nonce value such that application of a cryptographic hash function
+Bitcoin~\cite{nakamoto2009bitcoin} adopted Adam Back's hashcash~\cite{back2002}.
+Hashcash entails finding a nonce value such that application of a cryptographic hash function
 to this nonce and the rest of the block header, results in a number below a
 target threshold\footnote{or, less accurately, results in many leading 0s}.
 The threshold is dynamically adjusted by the protocol
@@ -48,7 +48,7 @@ chips (ASICs), with huge improvements in energy-efficiency at every step.
 
 Since Bitcoin, many other crypto-currencies have adopted hashcash, with various
 choices of underlying hash function. the most well-known being {\em scrypt} as
-introduced by Tenebrix~\cite{tenebrix2011}---which since faded into obscurity---and
+introduced by Tenebrix~\cite{tenebrix2011}---since faded into obscurity---and
 copied by Litecoin~\cite{litecoin2011}.
 Scrypt, designed as a sequential memory-hard key derivation function,
 was specifically chosen to resist the migration away from CPUs and be ``GPU-hostile''.
@@ -62,8 +62,8 @@ by a certain relation to the block header.
 Verification of these chains, while very slow compared to bitcoin's, is much faster
 than attempting to find one.
 This asymmetry between proof (attempt) and verification is typical in non-hashcash proofs of work.
-Recently, another prime-number based crypto-currency, Riecoin, was introduced, based
-on finding clusters rather than chains of prime numbers.
+Recently, two other prime-number based crypto-currencies were introduced. Riecoin is based
+on finding clusters of prime numbers, and Gapcoin on finding large gaps between consecutive prime numbers.
 
 Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs,
 in what could well be the simplest possible assymetric proof-of-work,
@@ -77,15 +77,15 @@ Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and p
 Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is,
 to minimize performance-per-dollar differences across hardware architectures,
 and make mining---the process of looking for proofs---on commodity hardware cost-effective.
-This is best achieved by making main memory latency the bottleneck, since
-DRAM latencies have remained relatively stable, while cpu-speed and memory bandwidth are highly
-variable across hardware architecture and process technology.
+This is best achieved by making main memory latency a bottleneck, since
+DRAM latencies have remained relatively stable while cpu-speed and memory bandwidth vary highly
+across hardware architecture and process technology.
 
-Our aim of a memory-bound PoW translates to the following desirable properties:
+Our aim of a memory-bound PoW translates to the following desirable properties for the mining algorithm:
 
 \begin{description}
-\item[MB1] a memory footprint that exceeds a single memory-chip
-\item[MB2] a pattern of random memory accesses
+\item[MB1] a target memory footprint that exceeds a single memory-chip
+\item[MB2] a pattern of necessarily random memory accesses
 \item[MB3] a minimum amount of computation per random memory access\footnote{Preferably less than
 the roughly $50$ns row activation delay for switching rows on a memory bank.}
 \item[MB4] no feasible tradeoff of memory for time\footnote{We (rather arbitrarily)
@@ -103,14 +103,14 @@ in order to have ongoing energy costs dominate mining, which results in an ASIC 
 drive down performance per Watt, rapid hardware obsolescence, and geographical centralization towards
 cheap electric power.
 
-Note that the above properties should apply only to mining, not to proof verification,
-which ideally requires negligable memory and time. Thus, we aim for a highly assymetric design.
-A final aim is to keep the design very simple.
+Note that the above properties apply only to mining, not to proof verification,
+which ideally requires negligable memory and time.
+Thus, we aim for a highly assymetric design. A final aim is to keep the design very simple.
 
 We do not aim to have provable lower bounds on memory usage. Such bounds appear to be
 attainable only under the so called {\em random oracle model}, where memory tends to be used
 merely as a store for chains of values of some compute-intensive hash function.
-Instead we will present an efficient proof-finding algorithm,
+Instead, we present an efficient proof-finding algorithm
 along with our best attempts at memory-time tradeoffs,
 and conjecture that these cannot be significantly improved upon.
 Lacking precise definitions and proofs of memory-bound-ness, this work should be considered
@@ -156,13 +156,14 @@ To make the proof-of-work challenging, one chooses a value of $M$ that yields le
 expected solution.
 
 The simplest possible choice of subgraph is a fully connected one, or a {\em clique}.
-While an interesting choice, akin to the number-theoretic notion of a prime-cluster,
+While an interesting choice, akin to the number-theoretic notion of a prime-cluster
 as used in Riecoin, we leave its consideration to a future paper.
 
 \section{Cuckoo Cycle}
 In this paper we focus on what is perhaps the next-simplest possible choice, the {\em cycle}.
 Specifically, we propose the hash function \hash\ with a $K=128$ bit key, $W_i = W_o = 64$ input
 and output bits, $N \leq 2^{64}$ a 2-power, $M=N/2$, and $H$ an $L$-cycle.
+Using the lightweight \hash\-2-4 with only 6 rounds helps to attain property MB3.
 The reason for calling the resulting proof-of-work Cuckoo Cycle is that
 inserting items in a Cuckoo hashtable naturally leads to cycle formation
 in random bipartite graphs.
@@ -342,7 +343,7 @@ as the percentage of hashing to total runtime, ending up around 5\%.
 \addlegendentry{total runtime}
 \end{axis}
 \end{tikzpicture}
-\hspace{1cm}
+% \hspace{1cm}
 \begin{tikzpicture}
 \begin{axis}[xlabel={$\mbox{log}_2(N)$}, ylabel={\% runtime}, legend pos=north east]
 \addplot[color=blue] coordinates {
@@ -429,7 +430,8 @@ Next, for all alive edges, compute its even endpoint and increase the correspond
 capping the value at 2.
 Next, for all alive edges, compute its even endpoint and if the corresponding counter is less than 2,
 set the edge to be not-alive.
-These steps are repeated for all odd endpoints.
+These steps, both of which cause the random accesses required in property MB2,
+are repeated for all odd endpoints.
 
 Preprocessor symbol PART\_BITS, whose value we'll denote as $B$,
 allows for {\em counter partitioning}, which trades off node counter storage for runtime,
@@ -520,7 +522,8 @@ David Andersen also suggested an alternative method of trimming that avoids stor
 Expanding on that idea led to the algorithm implemented in tomato\_miner.h,
 which, unlike the main algorithm, can trade-off memory directly for runtime.
 On the downside, to even achieve memory parity with the main algorithm, it already incurs a big slowdown.
-To the extent that this slowdown is unavoidable, it can be called the {\em memory hardness} of the proof-of-work.
+To the extent that this slowdown is unavoidable, it can be called
+the {\em memory hardness} of the proof-of-work.
 
 The TMTO algorithm selects a suitably small subset $Z$ of even vertices as a base layer,
 and on top of that builds a breadth-first-search
@@ -582,8 +585,8 @@ both subsets and cuckoo tables while the load of the latter is kept between 45\%
 %produce smoother plots with constant load cuckoo tables.
 The BFS($L$) algorithm exhibits at least one order of magnitude slowdown, that grows very slowly
 with cycle length, while the BFS($L/2$) algorithm exhibits roughly linear slowdown.
-Assuming that these algorithms cannot be significantly improved upon, we obtain an order of magnitude
-memory hardness for Cuckoo Cycle with larger cycle lengths.
+Assuming that these algorithms cannot be significantly improved upon,
+this shows Cuckoo Cycle with larger cycle lengths satisfying property MB4,
 
 \section{Choice of cycle length}
 \label{cycle_length_choice}
@@ -798,7 +801,7 @@ scalable memory requirements with instant verifiability,
 and the first where memory latency dominates the runtime.
 
 Barring any unforeseen memory-time tradeoffs, it makes for a near-ideal memory-bound proof-of-work
-whose cost-effectiveness on commodity hardware could greatly benefit decentralization of mining.
+whose cost effectiveness on commodity hardware could greatly benefit decentralization of mining.
 % More research is also needed to determine the effectiveness of GPUs and FPGAs
 % at running Cuckoo Cycle.
 
