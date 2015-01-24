@@ -1,46 +1,54 @@
 \documentclass{beamer}
 \mode<presentation>
+
+\usetheme{Berlin}
+
 % \usepackage[margin=.9in]{geometry}
 % \usepackage{pgfplots}
+% \usepackage{listings}
 % \pgfplotsset{compat=default}
 \newcommand{\cuckoo}{{\rm cuckoo}}
 \newcommand{\hash}{{\rm siphash}}
 % \usepackage{hyperref}
-% \usepackage{listings}
+
 \title{Cuckoo Cycle}
 \subtitle{a memory bound graph-theoretic proof-of-work}
 \author{John Tromp}
+\date{\today}
 \begin{document}
-\maketitle
+\begin{frame}
+  \titlepage
+\end{frame}
 
-\begin{abstract}
-We introduce the first graph-theoretic proof-of-work system,
-based on finding small cycles or other structures in large random graphs.
-Such problems are trivially verifiable and arbitrarily scalable, 
-presumably requiring memory linear in graph size to solve efficiently.
-Our cycle finding algorithm uses one bit per edge, and up to one bit per node.
-Runtime is linear in graph size and dominated by random access latency,
-ideal properties for a memory bound proof-of-work.
-We exhibit two alternative algorithms that allow for a memory-time trade-off
-(TMTO)---decreased memory usage, by a factor $k$, coupled with increased runtime, by a factor $\Omega(k)$.
-The constant implied in $\Omega()$ gives a notion of memory-hardness, which is shown to be dependent
-on cycle length, guiding the latter's choice. Our algorithms are shown to parallelize reasonably well.
-\end{abstract}
+\section*{Outline}
+\begin{frame}
+\frametitle{Outline}
+  \tableofcontents
+\end{frame}
 
-\section{Introduction}
-A {\em proof-of-work} (PoW) system allows a verifier to check with negligible
+\begin{frame}
+\frametitle{What is a proof-of-work system?}
+A \alert{proof-of-work} (PoW) system allows a verifier to check with negligible
 effort that a prover has expended a large amount of computational effort.
-Originally introduced as a spam fighting measure, 
-where the effort is the price paid by an email sender for demanding the
-recipient's attention, they now form one of the cornerstones of crypto currencies.
 
-As proof-of-work for new blocks of transactions,
-Bitcoin~\cite{nakamoto2009bitcoin} adopted Adam Back's hashcash~\cite{back2002}.
-Hashcash entails finding a nonce value such that application of a cryptographic hash function
-to this nonce and the rest of the block header, results in a number below a
-target threshold\footnote{or, less accurately, results in many leading zeroes}.
-The threshold is dynamically adjusted by the protocol
-so as to maintain an average block interval of 10 minutes.
+Applications include
+\begin{itemize}
+\item spam prevention
+\item Denial-of-Service prevention
+\item achieving consensus in crypto currencies
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Example PoW: Hashcash, by Adam Back (1997)}
+A \alert{proof} for a message $m$ is a {\em nonce} $n$ such that
+\begin{equation}
+H(m|n)
+\end{equation} starts with many zero bits,
+for some fixed hash function $H$ and notion of many.
+
+Bitcoin uses Hashcash with double-SHA256.
+\end{frame}
 
 Bitcoin's choice of the simple and purely compute-bound SHA256 hash function
 allowed for an easy migration of hash computation from 
@@ -816,5 +824,8 @@ whose cost effectiveness on commodity hardware could greatly benefit decentraliz
 
 %\section{Appendix C: cuckoo\_miner.cpp}
 %\lstinputlisting{cuckoo_miner.cpp}
+
+\begin{frame}
+\end{frame}
 
 \end{document}  
