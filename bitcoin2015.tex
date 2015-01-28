@@ -4,8 +4,8 @@
 \usetheme{Berlin}
 
 % \usepackage[margin=.9in]{geometry}
-% \usepackage{pgfplots}
-% \usepackage{listings}
+\usepackage{pgfplots}
+\usepackage{listings}
 % \pgfplotsset{compat=default}
 \newcommand{\cuckoo}{{\rm cuckoo}}
 \newcommand{\hash}{{\rm siphash}}
@@ -16,6 +16,7 @@
 \author{John Tromp}
 \date{\today}
 \begin{document}
+
 \begin{frame}
   \titlepage
 \end{frame}
@@ -28,115 +29,80 @@
 
 \begin{frame}
 \frametitle{What is a proof-of-work system?}
-A \alert{proof-of-work} (PoW) system allows a verifier to check with negligible
-effort that a prover has expended a large amount of computational effort.
-
-Applications include
 \begin{itemize}
-\item spam prevention
-\item Denial-of-Service prevention
-\item achieving consensus in crypto currencies
+\item
+Allows a verifier to check with negligible effort, that a prover has expended a large amount of computational effort.
+\pause
+\item {Applications}
+\begin{itemize}
+\item Spam
+\pause
+\item Denial-of-Service
+\pause
+\item Crypto Currencies
+\end{itemize}
 \end{itemize}
 \end{frame}
 
 \begin{frame}
 \frametitle{Example PoW: Hashcash, by Adam Back (1997)}
 A \alert{proof} for a message $m$ is a {\em nonce} $n$ such that
-\begin{equation}
+\begin{equation*}
 H(m|n)
-\end{equation} starts with many zero bits,
-for some fixed hash function $H$ and notion of many.
-
+\end{equation*} starts with many zero bits,
+for some fixed hash function $H$.
+%  and notion of many.
+\pause
+\begin{itemize}
+\item
 Bitcoin uses Hashcash with double-SHA256.
+\end{itemize}
 \end{frame}
 
-Bitcoin's choice of the simple and purely compute-bound SHA256 hash function
-allowed for an easy migration of hash computation from 
-desktop processors (CPUs) to graphics-card processors (GPUs),
-to field-programmable gate arrays (FPGAs), and finally to custom designed
-chips (ASICs), with huge improvements in energy-efficiency at every step.
-
-Since Bitcoin, many other crypto-currencies have adopted hashcash, with various
-choices of underlying hash function. the most well-known being {\em scrypt} as
-introduced by Tenebrix~\cite{tenebrix2011} (since faded into obscurity)
-and copied by Litecoin~\cite{litecoin2011}.
-Scrypt, designed as a sequential memory-hard key derivation function,
-was specifically chosen to resist the migration away from CPUs and be ``GPU-hostile''.
-However, to adapt to the efficient verifiability requirement of proof-of-work, its
-memory footprint was severely limited, and migration slowed down only slightly.
-
-Primecoin~\cite{king2013} introduced the notion of a number-theoretic proof-of-work,
-thereby offering the first alternative to hashcash among crypto-currencies.
-Primecoin identifies long chains of nearly doubled prime numbers, constrained
-by a certain relation to the block header.
-Verification of these chains, while very slow compared to bitcoin's, is much faster
-than attempting to find one.
-This asymmetry between proof attempt and verification is typical in non-hashcash proofs of work.
-Recently, two other prime-number based crypto-currencies were introduced. Riecoin is based
-on finding clusters of prime numbers, and Gapcoin on finding large gaps between consecutive prime numbers.
-
-Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs,
-in what could well be the simplest possible asymetric proof-of-work,
-combining scalable memory usage with trivial verifiability.
-In section~\ref{cycle_length_choice} we show that Momentum is in essence a special case of Cuckoo Cycle,
-one that is particularly susceptible to time-memory trade-offs.
-
-Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
-
-\section{Motivation}
-Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is,
-to minimize performance-per-dollar differences across hardware architectures,
-and make mining---the process of looking for proofs---on commodity hardware cost-effective.
-This is to be achieved by making main memory latency a bottleneck, since
-DRAM latencies have remained relatively stable while cpu-speed and memory bandwidth vary highly
-across hardware architecture and process technology.
-
-Our aim of a memory bound PoW translates to the following desirable properties:
+\begin{frame}
+\frametitle{Motivation}
+\begin{itemize}
+\item Make mining more ``egalitarian''
+\pause
+\item make main memory latency a bottleneck
+\pause
+\item make DRAM the PoW ASIC
+\end{itemize}
+\pause
 
 \begin{description}
 \item[MB1] a target memory footprint that exceeds a single memory chip
+\pause
 \item[MB2] a pattern of necessarily random memory accesses
-\item[MB3] minimal computation per random memory access\footnote{Preferably less than
-the roughly $50$ nanosecond row activation delay for switching rows on a memory bank.}
-\item[MB4] no feasible trade-off of memory for time\footnote{Rather arbitrarily
-defined as incurring an order of magnitude increase
-in $\mbox{time}\times\mbox{memory}$ used per expected solution.}
+\pause
+\item[MB3] minimal computation per random memory access
+\pause
+\item[MB4] no feasible trade-off of memory for time
+\pause
 \end{description}
+\end{frame}
 
-A memory bound PoW aims to take advantage of the huge economies of scale of commodity DRAM production
-to make DRAM chips the most cost-effective vehicle for mining.
-Just as SRAM is one order of magnitude faster but two orders more expensive than DRAM,
-so it is conceivable that development and production of custom memory chips for a memory bound PoW
-will incur a sufficient cost premium to wipe out any performance gains.
+\begin{frame}
+\frametitle{What about SRAM?}
+\begin{itemize}
+\item order of magnitude faster
+\pause
+\item two orders more expensive
+\pause
+\item not cost effective
+\pause
+\item minimize memory accesses per second per dollar
+\end{frame}
 
-We thus disagree with the premise of \cite{poelstra2014} that PoWs should be compute bound
-in order to have ongoing energy costs dominate mining, which results in an expensive ASIC
-design arms race to drive down performance per Watt, rapid hardware obsolescence,
-and geographical centralization towards cheap electric power.
+\begin{frame}
+\frametitle{Random Graphs}
+\begin{itemize}
+\item Erd\H{o}s-R\'{e}nyi model, denoted $G(N,M)$
 
-We will not strive for provable lower bounds on memory usage. Such bounds appear to be
-attainable only under the so-called {\em random oracle model}, where memory tends to be used
-merely as a store for chains of compute-intensive hash outputs.
-Instead, we present an efficient proof-finding algorithm
-along with our best attempts at memory-time trade-offs,
-and conjecture that these cannot be significantly improved upon.
-Lacking precise definitions and proofs of memory bound-ness, this work should be considered
-more empirical than formal.
-
-\section{Graph-theoretic proofs-of-work}
-We propose to base proofs-of-work on finding certain subgraphs in large pseudo-random graphs.
-In the Erd\H{o}s-R\'{e}nyi model, denoted $G(N,M)$, a graph is chosen uniformly at random
-from the collection of all graphs with $N$ nodes and $M$ edges. Instead, we choose edges
-deterministically from the output of a keyed hash function, whose key could be chosen
-uniformly at random. For a well-behaved hash function, these two classes of random graphs
-should have nearly identical properties.
-
-Formally, fix a keyed hash function
-$h: \{0,1\}^K \times \{0,1\}^{W_i} \rightarrow \{0,1\}^{W_o}$,
-and a small graph $H$ as a target subgraph\footnote{hash functions generally have arbitrary length inputs,
-but here we fix the input width at $W_i$ bits.}.
-Now pick a large number $N \leq 2^{W_o}$ as the number of nodes,
-and $M \leq 2^{W_i-1}$ as the number of edges.
+\item $h: \{0,1\}^K \times \{0,1\}^{W_i} \rightarrow \{0,1\}^{W_o}$,
+\item small target subgraph $H$
+\item $N \leq 2^{W_o}$ nodes
+\item $M \leq 2^{W_i-1}$ edges
 Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{v_0,\ldots,v_{N-1}\}$, and
 \begin{equation}
 E=\{(v_{h(k,2i) \bmod N},v_{h(k,2i+1) \bmod N}) | i \in [0,\ldots,M-1]\}
