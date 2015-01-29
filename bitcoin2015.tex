@@ -7,6 +7,7 @@
 \usepackage{pgfplots}
 \usepackage{listings}
 % \pgfplotsset{compat=default}
+\pgfplotsset{compat=1.10}
 \newcommand{\cuckoo}{{\rm cuckoo}}
 \newcommand{\hash}{{\rm siphash}}
 % \usepackage{hyperref}
@@ -169,8 +170,10 @@ Bitcoin uses Hashcash with double-SHA256.
 \item In each tree, all edges are directed, toward its {\em root}
 \pause
 \item if different roots:
+\pause
 \begin{itemize}
 \item reverse edges on shorter path
+\pause
 \item join trees
 \end{itemize}
 \end{itemize}
@@ -350,14 +353,17 @@ Bitcoin uses Hashcash with double-SHA256.
 \frametitle{Difficulty control}
 \item 
 Ratio $\frac{M}{N} \geq 0.7$ practically guaranteed solution
+\pause
 \item
 crypto currencies need precise control
+\pause
 
 % The implementation default $\frac{M}{N}=\frac{1}{2}$ gives a solution probability of roughly $2.2\%$,
 %while the average number of cycles found increases slowly with size; from 2 at $2^{20}$ to 3 at $2^{30}$.
 
 \item
 introduce difficulty target $0 < T < 2^{256}$ is introduced
+\pause
 \item
 require sha256 digest of ascending proof cycle nonces be less than $T$
 \end{itemize}
@@ -383,16 +389,21 @@ significant fraction of edges expected to be leaf edges.
 \begin{itemize}
 \item
 maintain bitvector of {\em alive} edges
+\pause
 \item
 Initialize 2-bit degree counters (one per even node) to 0
+\pause
 \item
 for all alive edges, increase counter for even endpoint,
 capping the value at 2.
+\pause
 \item
 for all alive edges, if counter for even endpoint is less than 2,
 kill the edge
+\pause
 % set the edge to be not-alive.
 \item repeat for all odd endpoints
+\pause
 \item 
 Support {\em counter partitioning}, process $N / 2^{B}$ endpoints at a time
 \end{itemize}
@@ -429,51 +440,28 @@ Support {\em counter partitioning}, process $N / 2^{B}$ endpoints at a time
 \end{tikzpicture}
 \end{frame}
 
-After all edge trimming rounds, the counter memory is freed, and allocated to a
-custom cuckoo\_hashtable (based on \cite{preshing2013}) that presents the same interface as the
-simple array in the basic algorithm, but gets by with much fewer locations, as long as its {\em load},
-the ratio of remaining edges to number of locations, is bounded away from 1; e.g. under 90 percent.
+% After all edge trimming rounds, the counter memory is freed, and allocated to a
+% custom cuckoo\_hashtable (based on \cite{preshing2013}) that presents the same interface as the
+% simple array in the basic algorithm, but gets by with much fewer locations, as long as its {\em load},
+% the ratio of remaining edges to number of locations, is bounded away from 1; e.g. under 90 percent.
 
-The number of trimming rounds, which can be set with option {\tt -n}, defaults to
-$1+(B+3)*(B+4)/2$, which was determined empirically to achieve a load close to $50\%$.
+\begin{frame}
+\frametitle{Time-Memory Trade-Offs (TMTOs)}
+\begin{itemize}
+\item use $k$ times less memory
+\pause
+\item but run $c \times k$ times slower
+\pause
+\item memory-hardness $c$
+\pause
+\item based on breadth-first-search (BFS)
+\pause
+\item either $L$ or $L/2$ levels
+\end{itemize}
+\end{frame}
 
-\section{Time-Memory Trade-Offs (TMTOs)}
-David Andersen also suggested an alternative method of trimming that avoids storing a bit per edge.
-Expanding on that idea led to the algorithm implemented in tomato\_miner.h,
-which, unlike the main algorithm, can trade-off memory directly for runtime.
-On the downside, to even achieve memory parity with the main algorithm, it already incurs a big slowdown.
-To the extent that this slowdown is unavoidable, it can be called
-the {\em memory hardness} of the proof-of-work.
-
-The TMTO algorithm selects a suitably small subset $Z$ of even vertices as a base layer,
-and on top of that builds a breadth-first-search
-(BFS) forest of depth $L/2$, i.e. half the cycle length.
-For each new BFS layer, it enumerates all edges to see which ones are incident
-to the previous layer, adding the other endpoint.
-It maintains a directed forest on all BFS nodes, like the base algorithm does on all nodes.
-For increased efficiency, the base layer $Z$ is filtered for nodes with multiple incident edges.
-If the graph has an $L$-cycle one of whose nodes is in $Z$, then the above procedure will find it.
-If one choice of $Z$ doesn't yield a solution, then the data structures are cleared and the next
-subset is tried.
-
-A variation on the above algorithm omits the filtering of $Z$, and expands
-the BFS to a whole $L$ levels. This way, an $L$-cycle will be found as long as the distance from (any node in)
-$Z$ to the cycle is at most $L/2$. It thus has a much higher chance of finding a cycle, but requires
-more space to store the significantly bigger BFS forest.
-
-For each each value of $L \in \{2,4,6,8,10,12,14,16,20,24,28,32,40,48,56,64\}$ we ran these 2 algorithms
-on 200 graphs of size $2^{25}$ that include an $L$-cycle,
-choosing subset size as a 2-power that results in a memory usage of 4MB,
-and analysed the distribution of number of subsets tried before
-finding a solution. Since there is possible overlap between the BFS forests of different initial subsets,
-especially with the second algorithm, the distributions are skewed toward lower numbers. To maximize solution
-finding rate then, it pays to give up on a graph when the first few subsets tried fail to provide a solution.
-For each algorithm and cycle length, we determined the minimum number of tries needed to guarantee solutions
-in at least 50 of the 200 graphs. In Figure~\ref{slowdown} we plot the slowdown relative
-to the reference algorithm also using 4MB (2MB for edges and 2MB for nodes).
-
-\begin{figure}
-\begin{center}
+\begin{frame}
+\frametitle{Solution Rate Reduction}
 \begin{tikzpicture}
 % \begin{axis}[ymin=0, xtick={2,8,16,24,32,40,48,56,64}, xlabel={cycle length $L$}, ylabel={slowdown factor}, legend pos=north west]
 \begin{axis}[ymin=0, xlabel={cycle length $L$}, ylabel={slowdown factor}, legend pos=north west]
@@ -494,53 +482,40 @@ to the reference algorithm also using 4MB (2MB for edges and 2MB for nodes).
 \addlegendentry{}
 \end{axis}
 \end{tikzpicture}
-\end{center}
-\caption{Reduction in solution finding rate for two TMTO algorithms}
-\label{slowdown}
-\end{figure}
+\end{frame}
 
-The zigzagging is caused by the current implementation being limited to 2-power sizes of
-both subsets and cuckoo tables while the load of the latter is kept between 45\% and 90.
-%We plan to lift this restriction in the near future and
-%produce smoother plots with constant load cuckoo tables.
-The BFS($L$) algorithm exhibits at least one order of magnitude slowdown, that grows very slowly
-with cycle length, while the BFS($L/2$) algorithm exhibits roughly linear slowdown.
-Assuming that these algorithms cannot be significantly improved upon,
-this shows Cuckoo Cycle with larger cycle lengths satisfying property MB4,
+\begin{frame}
+\frametitle{Choice of cycle length}
+\begin{itemize}
+\item
+\pause
+length 2 cycle: two nonces with identical edge endpoints
+\pause
+\item {\em collision} in edge space.
+\pause
+\item
+Essentially the {\em Momentum} PoW.
+\pause
 
-\section{Choice of cycle length}
-\label{cycle_length_choice}
-A cycle of length 2 means that two nonces produce identical edge endpoints---a {\em collision} in edge space.
-The Momentum proof-of-work looks for collisions on 50 bits of hash output among $2^{26}$ nonces.
-This is in essence Cuckoo Cycle with $N=2^{25}+2^{25}$ nodes and cycle length $L=2$, with
-two differences.
+%Second, the choice of $M=2^{26}$ gives a ratio $\frac{M}{N}$ of 1 rather than $\frac{1}{2}$ and as such
+%prohibits the use of edge trimming.
+\item likely has greater variety of efficient algorithms
+\pause
+\item improved BFS($L/2$) TMTO algorithm
+\pause
+\item slowdown only $1.75$, a lack of memory-hardness.
+\pause
+\item suggest length in range 20-64
+\end{itemize}
+\end{frame}
 
-First, edges are generated not by equation~(\ref{hash_edges}), but by splitting a SHA512 hash of
-$(k,\mbox{nonce} / 8)$ into 8 64-bit words, taking the most significant 50 bits of the
-($\mbox{nonce} \bmod 8)th$ one, and viewing that as a pair of two 25-bit edge endpoints, appending
-a bit to make them even and odd.
+%The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
+%as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
+%beyond $L=100$ are not shown. For reference, the longest cycle found was of length 2120.
 
-Second, the choice of $M=2^{26}$ gives a ratio $\frac{M}{N}$ of 1 rather than $\frac{1}{2}$ and as such
-prohibits the use of edge trimming.
-
-Since the extreme case of $L=2$ is so special, there is likely to be a greater variety of algorithms that are more
-efficient than for the general case. While we haven't found (and don't know of) a improved main algorithm,
-we did find an improved BFS($L/2$) TMTO algorithm (implemented in momentomatum.cpp)
-that cuts the memory usage in half, resulting in a slowdown of only $1.75$---a lack of memory-hardness.
-
-The preceding analysis suggests that cycle length should be at least 20 to guard against the more efficient
-BFS($L/2$) algorithm, with an additional safety factor of 2.
-
-In order to keep proof size manageable, the cycle length should not be too large either.
-We thus consider 20-64 to be a healthy range, and suggest the use of the average of 42.
-
-The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
-as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
-beyond $L=100$ are not shown. For reference, the longest cycle found was of length 2120.
-
-\begin{figure}
-\begin{center}
-\begin{tikzpicture}
+\begin{frame}
+\frametitle{Time-Memory Trade-Offs (TMTOs)}
+\begin{tikzpicture}[scale=1.2]
 \begin{axis}[ymin=0, xlabel={cycle length $L$}, ylabel={probability}, legend pos=north east]
 \addplot[color=orange] coordinates {
 (4,0.24862) (6,0.15673) (8,0.10907) (10,0.07952) (12,0.05783) (14,0.04269) (16,0.0303)
@@ -571,174 +546,68 @@ beyond $L=100$ are not shown. For reference, the longest cycle found was of leng
 \addlegendentry{25}
 \end{axis}
 \end{tikzpicture}
-\end{center}
-\caption{Distribution of cycle lengths in random graphs}
-\label{cyclelengths}
-\end{figure}
-
-\section{Parallelization}
-All our implementations allow the number of threads to be set with option {\tt -t}.
-For $0\leq t < T$, thread $t$ processes all nonces $t \bmod T$.
-Parallelization in the basic algorithm presents some minor algorithmic challenges.
-Paths from an edge's two endpoints
-are not well-defined when other edge additions and path reversals are still in progress.
-One example of such a path conflict is the check for duplicate edges yielding a false negative,
-if in between checking the two endpoints, another thread reverses a path through those nodes.
-Another is the inadvertent creation of cycles when a reversal in progress hampers another thread's
-path following causing it to overlook root equality.
-Thus, in a parallel implementation, path following can no longer be assumed to terminate.
-Instead of using a cycle detection algorithm such as~\cite{1980-brent-cycles}, our implementation
-notices when the path length exceeds MAXPATHLEN (8192 by default),
-and reports whether this is due to a path conflict.
-
-In the main algorithm, cycle detection only takes a small fraction of total runtime and
-the conflicts above could be avoided altogether by running the cycle detection single threaded.
-
-In edge trimming, parallelization is achieved by partitioning the set of edges. To maintain efficient access
-to the bitmap of live edges, each thread handles words (of 32 edge-bits each) spaced $T$ apart.
-%Partitioning the bitmap over threads by whole words also avoids the need for atomic access.
-
-Atomic access is used by default for accessing the 2-bit counters. Disabling this results in a small
-chance of removing multiple edges incident to a node that access the counter at the same time.
-
-The implementation further benefits from bucketing the addresses of counters to be updated or tested,
-based on their most significant bits. Thus, when a bucket becomes full and is emptied by actually
-performing those updates/tests, the accesses are limited to a certain address range, which turns
-out to reduce memory access latencies.
-
-The plots below show the speedup over single thread performance achieved by multithreading at various
-graph sizes and counter-partition levels.
-
-\begin{figure}
-\begin{center}
-\begin{tikzpicture}
-\begin{axis}[ymin=0, xlabel={number of threads}, ylabel={speedup factor}, legend pos=north west]
-\addplot [color=green] coordinates {
-(1,1.000) (2,1.921) (3,2.988) (4,3.757) (5,4.668) 
-(6,5.347) (7,6.138) (8,6.792) (9,7.504) (10,8.108) 
-(11,8.873) (12,9.380) (13,10.061) (14,10.543) (15,11.190) 
-(16,11.608) (17,12.231) (18,12.535) (19,13.008) (20,13.433) 
-};
-\addlegendentry{speedup30}
-\addplot [color=blue] coordinates {
-(1,1.336) (2,2.179) (3,3.148) (4,3.984) (5,4.781) 
-(6,5.462) (7,6.061) (8,6.706) (9,7.354) (10,7.876) 
-(11,8.333) (12,9.036) (13,9.457) (14,9.838) (15,10.250) 
-(16,10.713) (17,11.048) (18,11.479) (19,11.736) (20,12.088) 
-};
-\addlegendentry{speedup30.0}
-\addplot [color=purple] coordinates {
-(1,0.795) (2,1.416) (3,2.082) (4,2.683) (5,3.255) 
-(6,3.762) (7,4.285) (8,4.759) (9,5.222) (10,5.639) 
-(11,6.105) (12,6.605) (13,7.033) (14,7.400) (15,7.821) 
-(16,8.144) (17,8.583) (18,9.014) (19,9.303) (20,9.585) 
-};
-\addlegendentry{speedup30.1}
-\addplot [color=red] coordinates {
-(1,0.498) (2,0.919) (3,1.373) (4,1.761) (5,2.176) 
-(6,2.538) (7,2.913) (8,3.234) (9,3.599) (10,3.883) 
-(11,4.239) (12,4.527) (13,4.903) (14,5.234) (15,5.570) 
-(16,5.845) (17,6.194) (18,6.511) (19,6.661) (20,7.003) 
-};
-\addlegendentry{speedup30.2}
-\end{axis}
-\end{tikzpicture}
-% \hspace{1cm}
-\begin{tikzpicture}
-\begin{axis}[ymin=0, xlabel={number of threads}, ylabel={speedup factor}, legend pos=north west]
-\addplot [color=green] coordinates {
-(1,1.000) (2,1.752) (3,2.813) (4,3.439) (5,5.810) 
-(6,6.762) (7,7.732) (8,8.669) (9,9.646) (10,10.460) 
-(11,11.348) (12,12.077) (13,13.107) (14,13.663) (15,14.698) 
-(16,15.363) (17,16.202) (18,16.623) (19,17.446) (20,18.207) 
-};
-\addlegendentry{speedup32}
-\addplot [color=blue] coordinates {
-(1,2.337) (2,3.767) (3,5.445) (4,6.949) (5,8.319) 
-(6,9.432) (7,10.462) (8,11.632) (9,12.648) (10,13.658) 
-(11,14.717) (12,15.652) (13,16.461) (14,17.286) (15,18.063) 
-(16,18.393) (17,19.149) (18,19.647) (19,20.169) (20,20.761) 
-};
-\addlegendentry{speedup32.0}
-\addplot [color=purple] coordinates {
-(1,1.343) (2,2.404) (3,3.534) (4,4.526) (5,5.570) 
-(6,6.410) (7,7.367) (8,8.208) (9,9.085) (10,9.932) 
-(11,10.707) (12,11.590) (13,12.297) (14,12.954) (15,13.647) 
-(16,14.294) (17,15.060) (18,15.718) (19,16.371) (20,16.804) 
-};
-\addlegendentry{speedup32.1}
-
-\end{axis}
-\end{tikzpicture}
-\end{center}
-\caption{Multi-threading speedup}
-\label{speedup}
-\end{figure}
-
-\section{Choice of graph size}
-For cryptocurrency purposes, the choice of Cuckoo graph size should be in accordance to its
-block interval time.
-To illustrate, suppose an average desktop machine needs 1 minute for a single proof attempt,
-and the block interval time is only 2 minutes. Then it will waste a large fraction (almost half)
-of its attempts, as about half the time, someone else finds a proof in under 2 minutes. To reduce such waste
-to a small percentage, the time for a single proof attempt should be a similarly small fraction of the block
-interval time. This desirable property is known as {\em progress-freeness}, and in our case
-is achieved more easily with a small graph (and hence memory) size.
-
-Larger memory sizes have two advantages. Beyond satisfying property MB1,
-they also make it harder for botnets to mine without causing excessive swapping.
-Sending a computer into swap-hell will likely alert its owner and trigger a cleanup,
-so botnet operators can be expected to eschew memory bound PoWs in favor of low-memory ones.
-
-We expect these opposing goals to lead to graph sizes from $2^{28}$ to $2^{32}$, with the larger ones geared
-more toward longer block interval times and faster mining hardware.
-
-\section{Dynamic Sizing}
-Ideally, graph size should grow with evolving memory chip capacities, so as to preserve property MB1.
-Although these have shown remarkable adherence to Moore's Law in the past,
-this cannot be relied on for the more distant future.
-We therefore propose to re-evaluate the graph size every so-many difficulty adjustments.
-If the difficulty target is sufficiently low, then the
-graph size is deemed to have become "too easy" for existing hardware, and gets doubled.
-
-In order to make this transition smoother and avoid severe loss of proof-of-work power,
-we propose having a range of sizes allowed at any time,
-namely $k$ consecutive 2-powers for some small number $k\geq 2$.
-As with Myriad-coin, separate difficulty controls are maintained for each size,
-adjusted so that each size accounts for roughly $\frac{1}{k}$ of all blocks.
-
-Doubling graph sizes is then equivalent to disabling the smallest 2-power,
-and enabling a new largest one, whose initial difficulty target is twice that of the previous largest.
-Even if none of the hardware that was working on the smallest 2-power is repurposed for a larger size,
-since this hardware only accounted for a fraction $\frac{1}{k}$ of the rewards, the loss of
-proof-of-work power should be acceptable.
-
-It remains to decide what exact form the ``difficulties too low'' condition should take.
-
-\section{Conclusion}
-Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines
-scalable memory requirements with instant verifiability,
-and the first where memory latency dominates the runtime.
-
-Barring any unforeseen memory-time trade-offs, it makes for a near-ideal memory bound proof-of-work
-whose cost effectiveness on commodity hardware could greatly benefit decentralization of mining.
-% More research is also needed to determine the effectiveness of GPUs and FPGAs
-% at running Cuckoo Cycle.
-
-\bibliographystyle{IEEEtran}
-\bibliography{cuckoo}
-
-\lstset{language=C,basicstyle=\footnotesize}
-\section{Appendix A: cuckoo.h}
-\lstinputlisting{cuckoo.h}
-
-%\section{Appendix B: cuckoo\_miner.h}
-%\lstinputlisting{cuckoo_miner.h}
-
-%\section{Appendix C: cuckoo\_miner.cpp}
-%\lstinputlisting{cuckoo_miner.cpp}
+\end{frame}
 
 \begin{frame}
+\frametitle{Choice of graph size}
+\begin{itemize}
+\item Larger sizes makes it hard to fit in single memory chip
+\pause
+\item also harder for botnets to mine without excessive swapping.
+\pause
+%Sending a computer into swap-hell will likely alert its owner and trigger a cleanup,
+%so botnet operators can be expected to eschew memory bound PoWs in favor of low-memory ones.
+\item but allow fewer attempts per block interval, wasting effort spent on last attempt
+\pause
+% progress freeness
+\item suggest graph sizes $2^{28}$ - $2^{32}$
+%  with the larger ones geared more toward longer block interval times and faster mining hardware.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Dynamic Sizing}
+\begin{itemize}
+\item memory chip capacities evolve
+\pause
+\item
+re-evaluate the graph size now and then
+\pause
+\item
+double size when difficulty drops too much
+% graph size is deemed to have become "too easy" for existing hardware, and gets doubled.
+\item smooth transition and avoid loss of hashing power
+  with range of sizes (Myriad style)
+%namely $k$ consecutive 2-powers for some small number $k\geq 2$.
+%As with Myriad-coin, separate difficulty controls are maintained for each size,
+% adjusted so that each size accounts for roughly $\frac{1}{k}$ of all blocks.
+
+% Doubling graph sizes is then equivalent to disabling the smallest 2-power,
+% and enabling a new largest one, whose initial difficulty target is twice that of the previous largest.
+% Even if none of the hardware that was working on the smallest 2-power is repurposed for a larger size,
+% since this hardware only accounted for a fraction $\frac{1}{k}$ of the rewards, the loss of
+% % proof-of-work power should be acceptable.
+
+% It remains to decide what exact form the ``difficulties too low'' condition should take.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Summary}
+\begin{itemize}
+\item
+novel graph-theoretic proof-of-work design
+\item scalable memory
+\pause
+\item instant verifiability
+\pause
+\item first where memory latency dominates the runtime.
+\pause
+% Barring any unforeseen memory-time trade-offs, it makes for a 
+\item near-ideal memory bound PoW
+\pause
+\item potential for decentralization of mining.
+\end{itemize}
 \end{frame}
 
 \end{document}  
