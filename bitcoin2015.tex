@@ -1,7 +1,7 @@
 \documentclass{beamer}
 \mode<presentation>
 
-% \usetheme{Berlin}
+\usetheme{Madrid}
 
 % \usepackage[margin=.9in]{geometry}
 \usepackage{pgfplots}
@@ -32,7 +32,7 @@
 \frametitle{What is a proof-of-work system?}
 \begin{itemize}
 \item
-Allows a verifier to check with negligible effort, that a prover has expended a large amount of computational effort.
+Allows a verifier to check, with negligible effort, that a prover has expended a large amount of computational effort.
 % \pause
 \item {Applications}
 \begin{itemize}
@@ -139,7 +139,7 @@ independent of $N$ and $M$.
 \item $M=N/2$
 % \pause
 \item $h$ is siphash2-4, a lightweight 6 round hash function
-with 128-bit key and 64-bit input/output
+with 128-bit key and 64-bit output.
 \end{itemize}
 \end{frame}
 
@@ -168,7 +168,6 @@ with 128-bit key and 64-bit input/output
 % \pause
 \item upon insertion: if both occupied
 % \pause
-\item
 \item kick one out and insert in alternate location
 % \pause
 \item repeat until vacancy or some max iteration reached
@@ -178,18 +177,18 @@ with 128-bit key and 64-bit input/output
 \begin{frame}
 \frametitle{Cycle detection in Cuckoo Cycle}
 \begin{itemize}
-\item edd edges one by one
+\item enumerate nonces one by one
+\item insert nonce in Cuckoo hashtable, but store alternate
+location, and forget nonce
 % \pause
 \item maintain {\em forest}, a disjoint union of trees.
 \item In each tree, all edges are directed toward its {\em root}
 % \pause
 \item if edge endpoints have different roots:
 % \pause
-\begin{itemize}
 \item reverse edges on shorter path
 % \pause
 \item join trees
-\end{itemize}
 \end{itemize}
 \end{frame}
 
