@@ -27,8 +27,8 @@ requiring considerable resources, and some luck
 (for a given header, the odds of its graph having a 42-cycle are about 2.5%).
 
 Where Satoshi Nakamoto aimed for "one-CPU-one-vote", Cuckoo Cycle aims for
-one memory bank plus virtual core equals one vote
--------------------------------------------------
+1 memory bank + 1 virtual core = 1 vote
+---------------------------------------
 
 The algorithm implemented in cuckoo_miner.h runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
