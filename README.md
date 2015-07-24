@@ -7,7 +7,7 @@ Cuckoo Cycle is the first graph-theoretic proof-of-work,
 and by far the most memory bound, with memory latency
 dominating the mining runtime, yet with instant verification.
 
-Proofs take the form of a length 42-cycle in a bipartite graph
+Proofs take the form of a length 42 cycle in a bipartite graph
 with N nodes and N/2 edges, with N scalable from millions to billions and beyond.
 
 This makes verification trivial: compute the 42x2 edge endpoints
@@ -25,8 +25,10 @@ requiring hardly any code, time, or memory to verify.
 Finding a 42-cycle, on the other hand, is far from trivial,
 requiring considerable resources, and some luck
 (for a given header, the odds of its graph having a 42-cycle are about 2.5%).
-Where Satoshi Nakamoto aimed for "one-CPU-one-vote",
-Cuckoo Cycle offers "one memory bank plus virtual core equals one vote".
+
+Where Satoshi Nakamoto aimed for "one-CPU-one-vote", Cuckoo Cycle aims for
+one memory bank plus virtual core equals one vote
+-------------------------------------------------
 
 The algorithm implemented in cuckoo_miner.h runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
@@ -52,7 +54,7 @@ To that end, I offer the following bounties:
 
 Speedup Bounty
 --------------
-$500 for an open source implementation that finds 42-cycles twice as fast (disregarding memory use).
+$500 for an open source implementation that finds 42-cycles twice as fast, possibly using more memory.
 
 Linear Time-Memory Trade-Off Bounty
 -----------------------------------
@@ -64,8 +66,9 @@ and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with
 
 GPU Speed Parity Bounty
 -----------------------
-$1000 for an open source implementation for an AMD R9 280X or nVidia GeForce GTX 770 (or similar high-end GPU)
-that is as fast as a high-end Intel Xeon running 16 threads. Again with N ranging over {2^28,2^30,2^32}.
+$500 for an open source implementation for a consumer GPU
+that is as fast as a high-end Intel Core i7 running 16 threads.
+Again with N ranging over {2^28,2^30,2^32}.
 
 Note that there is already a cuda_miner.cu, my attempted port of the edge trimming part
 of cuckoo_miner.c to CUDA, but while it seems to run ok for medium graph sizes,
@@ -73,7 +76,7 @@ it crashes my computer at larger sizes, and I haven't had the chance to debug th
 (I prefer to let my computer work on solving 8x8 connect-4:-)
 Anyway, this could make a good starting point.
 
-These bounties are to expire at the end of this year. They are admittedly modest in size, but then
+These bounties are to expire at the end of 2015. They are admittedly modest in size, but then
 claiming them might only require one or two insightful tweaks to my existing implementations.
 
 I invite anyone who'd like to see my claims refuted to extend any of these bounties
