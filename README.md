@@ -1,7 +1,7 @@
 whitepaper: https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
-Cuckoo Cycle: 1 virtual core + 1 memory bank = 1 vote
-=====================================================
+Cuckoo Cycle
+============
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work,
 and by far the most memory bound, with memory latency
@@ -25,6 +25,8 @@ requiring hardly any code, time, or memory to verify.
 Finding a 42-cycle, on the other hand, is far from trivial,
 requiring considerable resources, and some luck
 (for a given header, the odds of its graph having a 42-cycle are about 2.5%).
+Where Satoshi Nakamoto aimed for "one-CPU-one-vote",
+Cuckoo Cycle offers "one memory bank plus virtual core equals one vote".
 
 The algorithm implemented in cuckoo_miner.h runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
