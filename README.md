@@ -1,70 +1,26 @@
-whitepaper: https://github.com/tromp/cuckoo/blob/master/cuckoo.pdf?raw=true
+whitepaper: https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
-Cuckoo Cycle
-============
+Cuckoo Cycle: 1 virtual core + 1 memory bank = 1 vote
+=====================================================
 
-Cuckoo Cycle is the first graph-theoretic proof-of-work.
-Keyed hash functions define arbitrarily large random graphs,
-in which certain fixed-size subgraphs occur with suitably small probability.
-Asking for a cycle, or a clique, is a close analogue of asking for
-a chain or cluster of primes numbers, which were adopted as the
-number-theoretic proof-of-work in Primecoin and Riecoin, respectively.
-The latest implementaton incorporates a huge memory savings proposed by Dave Andersen in
-
-http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
-
-
-Cuckoo Cycle represents a breakthrough in three important ways:
-
-1) it performs only one very cheap siphash computation for each random access to memory,
-
-2) (intended) memory usage grows linearly with graph size, which can be set arbitrarily.
-   there may be very limited opportunity to reduce memory usage without undue slowdown.
-
-3) verification of the proof of work is instant, requiring 2 sha256 and 42x2 siphash computations.
-
-Runtime in Cuckoo Cycle is dominated by memory latency (67%).
-Any ASIC developed for Cuckoo Cycle will need to rely on commodity DRAM chips
-(SRAM, while an order of magnitude faster, is also 2 orders of magnitude more expensive,
- and thus not competitive).
-Such an ASIC would be focussed on orchestrating all the memory accesses which form the bottleneck,
-and thus replacable by a programmable part (or FPGA) without much loss in efficiency.
-In this way Cuckoo Cycle limits the advantage of custom designed single-purpose hardware
-over commodity general-purpose hardware.
-
-Other features:
-
-4) proofs take the form of a length 42 cycle in the Cuckoo graph.
-
-5) it has a natural notion of (base) difficulty, namely the number of edges in the graph;
-   above about 60% of size, a 42-cycle is almost guaranteed, but below 50% the probability
-   starts to fall sharply.
-
-6) running time on high end x86 is 9min/GB single-threaded, and 1min/GB for 20 threads.
-
-
-On July 23 2014, I posted the following message on https://bitcointalk.org/index.php?topic=707879.0
-
-Cuckoo Cycle Speed Challenge; $2500 in bounties
-===============================================
-
-Cuckoo Cycle is the first graph-theoretic proof-of-work.
+Cuckoo Cycle is the first graph-theoretic proof-of-work,
+and by far the most memory bound, with memory latency
+dominating the mining runtime, yet with instant verification.
 
 Proofs take the form of a length 42-cycle in a bipartite graph
 with N nodes and N/2 edges, with N scalable from millions to billions and beyond.
+
 This makes verification trivial: compute the 42x2 edge endpoints
-with one initialising sha256 and 84 siphash24 computations, check that
-each endpoint occurs twice, and that you come back to the
+with one initialising sha256 and 84 very cheap siphash-2-4 hashes,
+check that each endpoint occurs twice, and that you come back to the
 starting point only after traversing 42 edges.
-A final sha256 can check whether the 42-cycle meets a difficulty target.
 
-With siphash24 being a very lightweight hash function, this makes for
-practically instant verification.
+A final sha256 hash on the sorted 42 nonces can check whether the 42-cycle meets a difficulty target.
 
-This is implemented in just 157 lines of C code (files cuckoo.h and cuckoo.c) at
-https://github.com/tromp/cuckoo, where you can also find a whitepaper.
+This is implemented in just 157 lines of C code (files src/cuckoo.h and src/cuckoo.c).
 
-From this point of view, Cuckoo Cycle is a rather simple PoW.
+From this point of view, Cuckoo Cycle is a very simple PoW,
+requiring hardly any code, time, or memory to verify.
 
 Finding a 42-cycle, on the other hand, is far from trivial,
 requiring considerable resources, and some luck
@@ -74,13 +30,18 @@ The algorithm implemented in cuckoo_miner.h runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
 only compute a fraction of all edges, and the odds of all 42 edges of a cycle
 occurring in this fraction are astronomically small).
+
 Memory-wise, it uses N/2 bits to maintain a subset of all edges (potential cycle edges)
 and N additional bits (or N/2^k bits with corresponding slowdown)
 to trim the subset in a series of edge trimming rounds.
+This is the phase that takes the vast majority of (latency dominated) runtime.
+
 Once the subset is small enough, an algorithm inspired by Cuckoo Hashing
 is used to recognise all cycles, and recover those of the right length.
 
-I'd like to claim that this implementation is a reasonably optimal Cuckoo miner,
+The runtime of a single proof attempt on a high end x86 is 9min/GB single-threaded, or 1min/GB for 20 threads.
+
+I claim that this implementation is a reasonably optimal Cuckoo miner,
 and that trading off memory for running time, as implemented in tomato_miner.h,
 incurs at least one order of magnitude extra slowdown.
 I'd further like to claim that GPUs cannot achieve speed parity with server CPUs.
