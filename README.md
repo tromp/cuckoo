@@ -1,7 +1,7 @@
-whitepaper: https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
 Cuckoo Cycle
 ============
+whitepaper: https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work,
 and by far the most memory bound, with memory latency
