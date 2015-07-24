@@ -6,11 +6,8 @@ CC = cc -std=c99 $(FLAGS)
 GPP = g++ -std=c++11 -DATOMIC $(FLAGS)
 # leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
 
-cuckoo.bbl:	cuckoo.bib
-	bibtex cuckoo
-
-cuckoo.pdf:	cuckoo.tex cuckoo.bbl
-	pdflatex cuckoo.tex
+test:	cuckoo20 verify20 Makefile
+	./cuckoo20 -h 85 | tail -1 | ./verify20 -h 85
 
 cuckoo4:	cuckoo.h cuckoo_miner.h simple_miner.cpp Makefile
 	$(GPP) -o cuckoo4 -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 simple_miner.cpp $(LIBS)
@@ -44,9 +41,6 @@ cuckoo20.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 
 verify20:	cuckoo.h cuckoo.c Makefile
 	$(CC) -o verify20 -DSIZESHIFT=20 cuckoo.c $(LIBS)
-
-test:	cuckoo20 verify20 Makefile
-	./cuckoo20 -h 85 | tail -1 | ./verify20 -h 85
 
 cuckoo25:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo25 -DSIZESHIFT=25 cuckoo_miner.cpp $(LIBS)
@@ -182,6 +176,3 @@ tomato25.2.-1:	cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 
 tmto25.2.-1m:	found25 tomato25.2.-1
 	egrep "^([0-9]| +2-)" < found25 | grep -B 1 found | grep "^[0-9]" | head -200 | xargs -L 1 time ./tomato25.2.-1 -m -t 1 -h &> tmto25.2.-1m &
-
-tar:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h simple_miner.cpp tomato_miner.h tomato_miner.cpp found.pl found25 Makefile
-	tar -cf cuckoo.tar cuckoo.h cuckoo_miner.h cuckoo_miner.cpp osx_barrier.h simple_miner.cpp tomato_miner.h tomato_miner.cpp found.pl found25 Makefile
