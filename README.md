@@ -1,7 +1,7 @@
 
 Cuckoo Cycle
 ============
-whitepaper: https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
+Whitepaper at https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work,
 and by far the most memory bound, with memory latency
@@ -28,7 +28,7 @@ requiring considerable resources, and some luck
 
 Where Satoshi Nakamoto aimed for "one-CPU-one-vote", Cuckoo Cycle aims for
 1 memory bank + 1 virtual core = 1 vote
----------------------------------------
+--------------
 
 The algorithm implemented in cuckoo_miner.h runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
@@ -57,7 +57,7 @@ Speedup Bounty
 $500 for an open source implementation that finds 42-cycles twice as fast, possibly using more memory.
 
 Linear Time-Memory Trade-Off Bounty
------------------------------------
+--------------
 $500 for an open source implementation that uses at most N/k bits while running up to 15 k times slower,
 for any k>=2.
 
@@ -65,7 +65,7 @@ Both of these bounties require N ranging over {2^28,2^30,2^32} and #threads rang
 and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with regular flags as in my Makefile.
 
 GPU Speed Parity Bounty
------------------------
+--------------
 $500 for an open source implementation for a consumer GPU
 that is as fast as a high-end Intel Core i7 running 16 threads.
 Again with N ranging over {2^28,2^30,2^32}.
