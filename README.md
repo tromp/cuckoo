@@ -48,7 +48,7 @@ The runtime of a single proof attempt on a high end x86 is 9min/GB single-thread
 I claim that this implementation is a reasonably optimal Cuckoo miner,
 and that trading off memory for running time, as implemented in tomato_miner.h,
 incurs at least one order of magnitude extra slowdown.
-I'd further like to claim that GPUs cannot achieve speed parity with server CPUs.
+I'd further like to claim that GPUs cannot achieve speed parity with CPUs.
 
 To that end, I offer the following bounties:
 
@@ -67,7 +67,7 @@ and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with
 GPU Speed Parity Bounty
 -----------------------
 $500 for an open source implementation for a consumer GPU
-that is as fast as a high-end Intel Core i7 running 16 threads.
+that is as fast as a high-end Intel Core i7 running 8 threads.
 Again with N ranging over {2^28,2^30,2^32}.
 
 Note that there is already a cuda_miner.cu, my attempted port of the edge trimming part

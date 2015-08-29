@@ -1,5 +1,5 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2014 John Tromp
+// Copyright (c) 2013-2015 John Tromp
 
 import java.util.Set;
 import java.util.HashSet;
