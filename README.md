@@ -67,7 +67,7 @@ and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with
 GPU Speed Parity Bounty
 --------------
 $500 for an open source implementation for a consumer GPU
-that is as fast as an Intel Core i7 running a single-threaded instance on each of 8 cores.
+that is as fast as a high-end Intel Core i7 running 16 threads.
 Again with N ranging over {2^28,2^30,2^32}.
 
 Note that there is already a cuda_miner.cu, my attempted port of the edge trimming part
