@@ -48,7 +48,7 @@ The runtime of a single proof attempt on a high end x86 is 9min/GB single-thread
 I claim that this implementation is a reasonably optimal Cuckoo miner,
 and that trading off memory for running time, as implemented in tomato_miner.h,
 incurs at least one order of magnitude extra slowdown.
-I'd further like to claim that GPUs cannot achieve speed parity with CPUs.
+I'd further like to claim that GPUs cannot achieve a significant speed advantage over CPUs.
 
 To that end, I offer the following bounties:
 
@@ -64,13 +64,14 @@ for any k>=2.
 Both of these bounties require N ranging over {2^28,2^30,2^32} and #threads ranging over {1,2,4,8},
 and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with regular flags as in my Makefile.
 
-GPU Speed Parity Bounty
+GPU Advantage Bounty
 --------------
-$250 for an open source implementation for a consumer GPU
-that is as fast as a high-end Intel Core i7 running 16 threads.
+$500 for an open source implementation for a consumer GPU
+that is twice as fast as a high-end Intel Core i7 (4 cores/8 threads).
 Again with N ranging over {2^28,2^30,2^32}.
 
-cuda_miner.cu is a straightforward port of the miner that, without any GPU specific optimizations, is about as fast as an i7 running 8 threads, so an experienced GPU coder might be able to speed it up by a factor of 2.
+cuda_miner.cu is a straightforward port of the miner that, without any GPU specific optimizations,
+is about as fast as an Intel Core i7, but already spends 85% of its time waiting on memory accesses.
 
 These bounties are to expire at the end of 2015. They are admittedly modest in size, but then
 claiming them might only require one or two insightful tweaks to my existing implementations.
