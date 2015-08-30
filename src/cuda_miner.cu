@@ -89,7 +89,6 @@ typedef u64 au64;
 // higher values are not that interesting
 #define PART_BITS 0
 #endif
-// L3 cache should exceed NBUCKETS buckets of BUCKETSIZE uint_64_t (0.5MB below)
 
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) == sizeof(twice_set), so
@@ -206,12 +205,10 @@ public:
   shrinkingset alive;
   twice_set nonleaf;
   int nthreads;
-  u32 ntrims;
 
-  cuckoo_ctx(const char* header, u32 n_threads, u32 n_trims) {
+  cuckoo_ctx(const char* header, u32 n_threads) {
     setheader(&sip_ctx, header);
     nthreads = n_threads;
-    ntrims = n_trims;
   }
 };
 
@@ -222,45 +219,36 @@ public:
 #define NODEPARTMASK	(NODEMASK >> PART_BITS)
 #define NONCETRUNC	(1L << (64 - NONCESHIFT))
 
-
-__global__ void trim_edges(cuckoo_ctx *ctx) {
+__global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
   twice_set &nonleaf = ctx->nonleaf;
-  u64 bucket[32];
-  u32 bucketsize;
-
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  for (u32 round=0; round < ctx->ntrims; round++) {
-    for (u32 uorv = 0; uorv < 2; uorv++) {
-      for (u32 part = 0; part <= PART_MASK; part++) {
-        if (id == 0)
-          nonleaf.reset();
-        __syncthreads();
-        for (u32 qkill = 0; qkill < 2; qkill++) {
-          for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
-            u32 alive32 = alive.block(block); // GLOBAL 1 SEQ
-            bucketsize = 0;
-            for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
-              if (alive32 & 1) {
-                node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
-                if ((u & PART_MASK) == part) {
-                  bucket[bucketsize++] = ((u64)nonce << NONCESHIFT) | (u >> PART_BITS);
-                }
-              }
-            }
-            for (u32 i=0; i<bucketsize; i++) {
-              u64 bi = bucket[i];
-              if (!qkill) {
-                nonleaf.set(bi & NODEPARTMASK); // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
-              } else {
-                if (!nonleaf.test(bi & NODEPARTMASK)) { // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
-                  nonce_t n = (block & -NONCETRUNC) | (bi >> NONCESHIFT);
-                  alive.reset(n < block+32 ? n : n-NONCETRUNC); // GLOBAL SEQ 
-                }
-              }
-            }
+  for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+    u32 alive32 = alive.block(block);
+    for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
+      if (alive32 & 1) {
+        node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
+        if ((u & PART_MASK) == part) {
+          nonleaf.set(u >> PART_BITS);
+        }
+      }
+    }
+  }
+}
+
+__global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
+  shrinkingset &alive = ctx->alive;
+  twice_set &nonleaf = ctx->nonleaf;
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+    u32 alive32 = alive.block(block);
+    for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
+      if (alive32 & 1) {
+        node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
+        if ((u & PART_MASK) == part) {
+          if (!nonleaf.test(u >> PART_BITS)) {
+            alive.reset(nonce);
           }
-          __syncthreads();
         }
       }
     }
@@ -335,11 +323,10 @@ int main(int argc, char **argv) {
                PROOFSIZE, SIZESHIFT, header, ntrims, nthreads);
   u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
 
-  cuckoo_ctx ctx(header, nthreads, ntrims);
+  cuckoo_ctx ctx(header, nthreads);
   checkCudaErrors(cudaMalloc((void**)&ctx.alive.bits, edgeBytes));
   checkCudaErrors(cudaMemset(ctx.alive.bits, 0, edgeBytes));
   checkCudaErrors(cudaMalloc((void**)&ctx.nonleaf.bits, nodeBytes));
-  checkCudaErrors(cudaMemset(ctx.nonleaf.bits, 0, nodeBytes));
 
   int edgeUnit=0, nodeUnit=0;
   u64 eb = edgeBytes, nb = nodeBytes;
@@ -352,7 +339,15 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaMalloc((void**)&device_ctx, sizeof(cuckoo_ctx)));
   cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
 
-  trim_edges<<<nthreads,1>>>(device_ctx);
+  for (u32 round=0; round < ntrims; round++) {
+    for (u32 uorv = 0; uorv < 2; uorv++) {
+      for (u32 part = 0; part <= PART_MASK; part++) {
+        checkCudaErrors(cudaMemset(ctx.nonleaf.bits, 0, nodeBytes));
+        count_node_deg<<<nthreads,1>>>(device_ctx,uorv,part);
+        kill_leaf_edges<<<nthreads,1>>>(device_ctx,uorv,part);
+      }
+    }
+  }
 
   u32 *bits;
   assert(bits = (u32 *)calloc(HALFSIZE/32, sizeof(u32)));
