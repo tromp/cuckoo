@@ -210,7 +210,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
       if (nu == ~0)
         printf("maximum path length exceeded\n");
       else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
-      pthread_exit(NULL);
+      exit(0);
     }
     us[nu] = u;
   }
@@ -278,7 +278,7 @@ int main(int argc, char **argv) {
 
   u32 cnt = 0;
   for (int i = 0; i < HALFSIZE/32; i++) {
-    for (u32 b = bits[i]; b; b &= b-1)
+    for (u32 b = ~bits[i]; b; b &= b-1)
       cnt++;
   }
   u32 load = (u32)(100L * cnt / CUCKOO_SIZE);
@@ -317,12 +317,13 @@ int main(int argc, char **argv) {
             for (nonce_t nce = n = 0; nce < HALFSIZE; nce++)
               if (!(bits[nce/32] >> (nce%32) & 1)) {
                 node_t u, v;
-                sipedge(&ctx.sip_ctx, nonce, &u, &v);
+                sipedge(&ctx.sip_ctx, nce, &u, &v);
                 edge e(u,v);
                 if (cycle.find(e) != cycle.end()) {
                   printf(" %lx", nonce);
                   if (PROOFSIZE > 2)
                     cycle.erase(e);
+                  n++;
                 }
               }
             assert(n==PROOFSIZE);
