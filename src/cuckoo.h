@@ -78,6 +78,11 @@ u64 siphash24(siphash_ctx *ctx, u64 nonce) {
   return v0 ^ v1 ^ v2  ^ v3;
 }
 
+// generate edge endpoint in cuckoo graph without partition bit
+node_t _sipnode(siphash_ctx *ctx, nonce_t nonce, u32 uorv) {
+  return (siphash24(ctx, 2*nonce + uorv) & NODEMASK);
+}
+
 // generate edge endpoint in cuckoo graph
 node_t sipnode(siphash_ctx *ctx, nonce_t nonce, u32 uorv) {
   return (siphash24(ctx, 2*nonce + uorv) & NODEMASK) << 1 | uorv;

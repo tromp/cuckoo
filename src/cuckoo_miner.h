@@ -240,10 +240,10 @@ void trim_edges(thread_ctx *tp, u32 round) {
         for (u32 b=0; b < NBUCKETS; b++)
           bucketsizes[b] = 0;
         for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
-          u32 alive32 = alive->block(block); // GLOBAL 1 SEQ
+          u32 alive32 = alive->block(block);
           for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
             if (alive32 & 1) {
-              node_t u = sipnode(&ctx->sip_ctx, nonce, uorv) >> 1;
+              node_t u = _sipnode(&ctx->sip_ctx, nonce, uorv);
               if ((u & PART_MASK) == part) {
                 u32 b = u >> BUCKETSHIFT;
                 u32 *bsize = &bucketsizes[b];
@@ -253,11 +253,11 @@ void trim_edges(thread_ctx *tp, u32 round) {
                   for (u32 i=0; i<BUCKETSIZE; i++) {
                     u64 bi = buckets[b][i];
                     if (!qkill) {
-                      nonleaf->set(bi & NODEPARTMASK); // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
+                      nonleaf->set(bi & NODEPARTMASK);
                     } else {
-                      if (!nonleaf->test(bi & NODEPARTMASK)) { // GLOBAL 1 RND BUCKETSIZE-1 SEQ 
+                      if (!nonleaf->test(bi & NODEPARTMASK)) {
                         nonce_t n = (nonce & -NONCETRUNC) | (bi >> NONCESHIFT);
-                        alive->reset(n <= nonce ? n : n-NONCETRUNC, tp->id); // GLOBAL SEQ 
+                        alive->reset(n <= nonce ? n : n-NONCETRUNC, tp->id);
                       }
                     }
                   }
@@ -275,7 +275,7 @@ void trim_edges(thread_ctx *tp, u32 round) {
             } else {
               if (!nonleaf->test(bi & NODEPARTMASK)) {
                 nonce_t n = (HALFSIZE & -NONCETRUNC) | (bi >> NONCESHIFT);
-                alive->reset(n < HALFSIZE  ? n : n-NONCETRUNC, tp->id); // GLOBAL SEQ 
+                alive->reset(n < HALFSIZE  ? n : n-NONCETRUNC, tp->id);
               }
             }
           }

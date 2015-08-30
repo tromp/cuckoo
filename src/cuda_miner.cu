@@ -345,6 +345,7 @@ int main(int argc, char **argv) {
         checkCudaErrors(cudaMemset(ctx.nonleaf.bits, 0, nodeBytes));
         count_node_deg<<<nthreads,1>>>(device_ctx,uorv,part);
         kill_leaf_edges<<<nthreads,1>>>(device_ctx,uorv,part);
+        printf("round %d part %c%d\n", round, "UV"[uorv], part);
       }
     }
   }
