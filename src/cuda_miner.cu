@@ -6,64 +6,11 @@
 
 #include <stdint.h>
 #include <string.h>
+#include "cuckoo.h"
 #include <openssl/sha.h>
 
-// proof-of-work parameters
-#ifndef SIZESHIFT 
-#define SIZESHIFT 25
-#endif
-#ifndef PROOFSIZE
-#define PROOFSIZE 42
-#endif
-
-#define SIZE (1UL<<SIZESHIFT)
-#define HALFSIZE (SIZE/2)
-#define NODEMASK (HALFSIZE-1)
-
-typedef uint32_t u32;
-typedef uint64_t u64;
-#if SIZESHIFT < 32
-typedef u32 nonce_t;
-typedef u32 node_t;
-#else
-typedef u64 nonce_t;
-typedef u64 node_t;
-#endif
-
-typedef struct {
-  u64 v[4];
-} siphash_ctx;
- 
-#define U8TO64_LE(p) \
-  (((u64)((p)[0])      ) | ((u64)((p)[1]) <<  8) | \
-   ((u64)((p)[2]) << 16) | ((u64)((p)[3]) << 24) | \
-   ((u64)((p)[4]) << 32) | ((u64)((p)[5]) << 40) | \
-   ((u64)((p)[6]) << 48) | ((u64)((p)[7]) << 56))
- 
-// derive siphash key from header
-void setheader(siphash_ctx *ctx, const char *header) {
-  unsigned char hdrkey[32];
-  SHA256((unsigned char *)header, strlen(header), hdrkey);
-  u64 k0 = U8TO64_LE(hdrkey);
-  u64 k1 = U8TO64_LE(hdrkey+8);
-  ctx->v[0] = k0 ^ 0x736f6d6570736575ULL;
-  ctx->v[1] = k1 ^ 0x646f72616e646f6dULL;
-  ctx->v[2] = k0 ^ 0x6c7967656e657261ULL;
-  ctx->v[3] = k1 ^ 0x7465646279746573ULL;
-}
-
-#define ROTL(x,b) (u64)( ((x) << (b)) | ( (x) >> (64 - (b))) )
-#define SIPROUND \
-  do { \
-    v0 += v1; v2 += v3; v1 = ROTL(v1,13); \
-    v3 = ROTL(v3,16); v1 ^= v0; v3 ^= v2; \
-    v0 = ROTL(v0,32); v2 += v1; v0 += v3; \
-    v1 = ROTL(v1,17);   v3 = ROTL(v3,21); \
-    v1 ^= v2; v3 ^= v0; v2 = ROTL(v2,32); \
-  } while(0)
- 
 // generate edge endpoint in cuckoo graph
-__device__ node_t sipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
+__device__ node_t dipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
   u64 nonce = 2*nce + uorv;
   u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
   SIPROUND; SIPROUND;
@@ -227,7 +174,7 @@ __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
       if (alive32 & 1) {
-        node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
+        node_t u = dipnode(&ctx->sip_ctx, nonce, uorv);
         if ((u & PART_MASK) == part) {
           nonleaf.set(u >> PART_BITS);
         }
@@ -244,7 +191,7 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
       if (alive32 & 1) {
-        node_t u = sipnode(&ctx->sip_ctx, nonce, uorv);
+        node_t u = dipnode(&ctx->sip_ctx, nonce, uorv);
         if ((u & PART_MASK) == part) {
           if (!nonleaf.test(u >> PART_BITS)) {
             alive.reset(nonce);
@@ -255,7 +202,6 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   }
 }
 
-#if 0
 u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   u32 nu;
   for (nu = 0; u; u = cuckoo[u]) {
@@ -273,33 +219,10 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
 
 typedef std::pair<node_t,node_t> edge;
 
-void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
-  std::set<edge> cycle;
-  u32 n;
-  cycle.insert(edge(*us, *vs));
-  while (nu--)
-    cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
-  while (nv--)
-    cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-  for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
-    if (ctx->alive.test(nonce)) {
-      edge e(sipnode(&ctx->sip_ctx, nonce, 0), HALFSIZE+sipnode(&ctx->sip_ctx, nonce, 1));
-      if (cycle.find(e) != cycle.end()) {
-        printf(" %lx", (long)nonce);
-        if (PROOFSIZE > 2)
-          cycle.erase(e);
-      }
-    }
-  assert(n==PROOFSIZE);
-  printf("\n");
-}
-#endif
-
 #include <unistd.h>
 
 int main(int argc, char **argv) {
   int nthreads = 1;
-  int maxsols  = 8;
   int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
   const char *header = "";
   int c;
@@ -307,9 +230,6 @@ int main(int argc, char **argv) {
     switch (c) {
       case 'h':
         header = optarg;
-        break;
-      case 'm':
-        maxsols = atoi(optarg);
         break;
       case 'n':
         ntrims = atoi(optarg);
@@ -345,7 +265,7 @@ int main(int argc, char **argv) {
         checkCudaErrors(cudaMemset(ctx.nonleaf.bits, 0, nodeBytes));
         count_node_deg<<<nthreads,1>>>(device_ctx,uorv,part);
         kill_leaf_edges<<<nthreads,1>>>(device_ctx,uorv,part);
-        printf("round %d part %c%d\n", round, "UV"[uorv], part);
+        // printf("round %d part %c%d\n", round, "UV"[uorv], part);
       }
     }
   }
@@ -357,39 +277,57 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaFree(ctx.nonleaf.bits));
 
   u32 cnt = 0;
-  for (nonce_t nonce = 0; nonce < HALFSIZE; nonce++)
-    cnt += ((bits[nonce/32] >> (nonce%32)) & 1) ^ 1;
-
+  for (int i = 0; i < HALFSIZE/32; i++) {
+    for (u32 b = bits[i]; b; b &= b-1)
+      cnt++;
+  }
   u32 load = (u32)(100L * cnt / CUCKOO_SIZE);
   printf("final load %d%%\n", load);
 
-#if 0
-  if (tp->id == 0) {
-    load = (u32)(100 * alive.count() / CUCKOO_SIZE);
-    if (load >= 90) {
-      printf("overloaded! exiting...");
-      exit(0);
-    }
-    delete ctx->nonleaf;
-    ctx->nonleaf = 0;
-    ctx->cuckoo = new cuckoo_hash();
+  if (load >= 90) {
+    printf("overloaded! exiting...");
+    exit(0);
   }
-  barrier(&ctx->barry);
-  cuckoo_hash &cuckoo = *ctx->cuckoo;
+
+  cuckoo_hash &cuckoo = *(new cuckoo_hash());
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-  for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+  for (nonce_t block = 0; block < HALFSIZE; block += 32) {
     for (nonce_t nonce = block; nonce < block+32 && nonce < HALFSIZE; nonce++) {
-      if (alive.test(nonce)) {
-        node_t u0 = sipnode(ctx, nonce, 0), v0 = sipnode(ctx, nonce, 1) + HALFSIZE;  // make v's different from u's
+      if (!(bits[nonce/32] >> (nonce%32) & 1)) {
+        node_t u0, v0;
+        sipedge(&ctx.sip_ctx, nonce, &u0, &v0);
+        if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
+          continue;
         node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
         u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
         if (us[nu] == vs[nv]) {
           u32 min = nu < nv ? nu : nv;
           for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
           u32 len = nu + nv + 1;
-          printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100L/HALFSIZE));
-          if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
-            solution(ctx, us, nu, vs, nv);
+          printf("% 4d-cycle found at %d:%d%%\n", len, 0, (u32)(nonce*100L/HALFSIZE));
+          if (len == PROOFSIZE) {
+            printf("Solution");
+            std::set<edge> cycle;
+            u32 n;
+            cycle.insert(edge(*us, *vs));
+            while (nu--)
+              cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
+            while (nv--)
+              cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
+            for (nonce_t nce = n = 0; nce < HALFSIZE; nce++)
+              if (!(bits[nce/32] >> (nce%32) & 1)) {
+                node_t u, v;
+                sipedge(&ctx.sip_ctx, nonce, &u, &v);
+                edge e(u,v);
+                if (cycle.find(e) != cycle.end()) {
+                  printf(" %lx", nonce);
+                  if (PROOFSIZE > 2)
+                    cycle.erase(e);
+                }
+              }
+            assert(n==PROOFSIZE);
+            printf("\n");
+          }
           continue;
         }
         if (nu < nv) {
@@ -404,24 +342,5 @@ int main(int argc, char **argv) {
       }
     }
   }
-
-  thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
-  assert(threads);
-  for (int t = 0; t < nthreads; t++) {
-    threads[t].id = t;
-    threads[t].ctx = &ctx;
-    assert(pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]) == 0);
-  }
-  for (int t = 0; t < nthreads; t++)
-    assert(pthread_join(threads[t].thread, NULL) == 0);
-  free(threads);
-
-  for (unsigned s = 0; s < ctx.nsols; s++) {
-    printf("Solution");
-    for (int i = 0; i < PROOFSIZE; i++)
-      printf(" %lx", (long)ctx.sols[s][i]);
-    printf("\n");
-  }
-#endif
   return 0;
 }
