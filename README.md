@@ -66,15 +66,11 @@ and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with
 
 GPU Speed Parity Bounty
 --------------
-$500 for an open source implementation for a consumer GPU
+$250 for an open source implementation for a consumer GPU
 that is as fast as a high-end Intel Core i7 running 16 threads.
 Again with N ranging over {2^28,2^30,2^32}.
 
-Note that there is already a cuda_miner.cu, my attempted port of the edge trimming part
-of cuckoo_miner.c to CUDA, but while it seems to run ok for medium graph sizes,
-it crashes my computer at larger sizes, and I haven't had the chance to debug the issue yet
-(I prefer to let my computer work on solving 8x8 connect-4:-)
-Anyway, this could make a good starting point.
+cuda_miner.cu is a straightforward port of the miner that, without any GPU specific optimizations, is about as fast as an i7 running 8 threads, so an experienced GPU coder might be able to speed it up by a factor of 2.
 
 These bounties are to expire at the end of 2015. They are admittedly modest in size, but then
 claiming them might only require one or two insightful tweaks to my existing implementations.
