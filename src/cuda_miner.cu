@@ -9,7 +9,7 @@
 #include "cuckoo.h"
 #include <openssl/sha.h>
 
-// generate edge endpoint in cuckoo graph
+// d(evice s)ipnode
 __device__ node_t dipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
   u64 nonce = 2*nce + uorv;
   u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
@@ -23,8 +23,6 @@ __device__ node_t dipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-typedef u32 au32;
-typedef u64 au64;
 #include <set>
 
 // algorithm parameters
@@ -78,9 +76,9 @@ public:
 
 class twice_set {
 public:
-  au32 *bits;
+  u32 *bits;
   __device__ void reset() {
-    memset(bits, 0, TWICE_WORDS * sizeof(au32));
+    memset(bits, 0, TWICE_WORDS * sizeof(u32));
   }
   __device__ void set(node_t u) {
     node_t idx = u/16;
@@ -103,10 +101,10 @@ public:
 
 class cuckoo_hash {
 public:
-  au64 *cuckoo;
+  u64 *cuckoo;
 
   cuckoo_hash() {
-    assert(cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64)));
+    assert(cuckoo = (u64 *)calloc(CUCKOO_SIZE, sizeof(u64)));
   }
   ~cuckoo_hash() {
     free(cuckoo);
@@ -158,13 +156,6 @@ public:
     nthreads = n_threads;
   }
 };
-
-#define LOGNBUCKETS	0
-#define NBUCKETS	1
-#define BUCKETSHIFT	(SIZESHIFT-1)
-#define NONCESHIFT	(SIZESHIFT-1 - PART_BITS)
-#define NODEPARTMASK	(NODEMASK >> PART_BITS)
-#define NONCETRUNC	(1L << (64 - NONCESHIFT))
 
 __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
@@ -265,7 +256,6 @@ int main(int argc, char **argv) {
         checkCudaErrors(cudaMemset(ctx.nonleaf.bits, 0, nodeBytes));
         count_node_deg<<<nthreads,1>>>(device_ctx,uorv,part);
         kill_leaf_edges<<<nthreads,1>>>(device_ctx,uorv,part);
-        // printf("round %d part %c%d\n", round, "UV"[uorv], part);
       }
     }
   }
