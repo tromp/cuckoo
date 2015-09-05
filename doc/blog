@@ -1,0 +1,469 @@
+CPU Mining is the use of a computer’s CPU to perform proof of work mining for a cryptocurrency.
+
+Proof of Work cryptocurrency mining requires a processor to perform calculations called hashes. These calculations can be performed by a regular general purpose Central Processing Unit (CPU) of the kind you will find in any computer, by a slightly more specialized Graphics Processing Unit (GPU), or a highly specialized ASIC chip designed just for performing that type of calculation.
+
+The relative merits of each method will depend on the hashing algorithm used by the digital currency in question.
+
+Usually CPU mining is the least effective, ASIC mining is the most efficacious, and GPU mining is somewhere in the middle. This is considered to be problematic by some, because the more specialist and expensive the hardware needed for profitable mining becomes, the fewer people get involved in it, leading to mining centralization and therefore a less secure network.
+
+For many people the ideal situation would be for anybody to be able to join in the process of mining on their home computer and still have a chance of earning block rewards. This increases decentralization and therefore creates a more secure and equitable network.
+
+Because of this some cryptocurrencies have been deliberately designed to be ASIC-resistant, meaning that it is difficult to gain an advantage in performing the necessary calculations by developing specialist custom processors. Other coins have even sought to minimize or remove any advantage to be gained by the use of high-end GPU chips, which are not fitted as standard to most computers. This latter type are known as CPU mined coins.
+
+
+Any cryptocurrency which uses the ‘CryptoNight’ algorithm can be effectively mined with a CPU only on any computer. In fact, they do not offer any advantage to GPUs whatsoever
+
+AXIOM developers pinged me to give an opinion on the GPU speedup of the AXIOM PoW function.
+
+I wrote the draft of the paper about RandMemoHash back in 2013, after playing with RandMemoHash a bit. I tested it with a SINGLE GPU (that was even older), and could not get any speedup. My paper does not show any proof, not any real world comparison over several GPU models, so it is definitively unfinished. The suggested parameters are not proven to be valid for all existent GPU models (and less for future models). People should never take for granted what an non-peer-reviewed privately-published draft paper says.
+
+I would have liked that Axiom developers would have pinged me to give an update on it before implementing it.
+
+Having said this, I find that a 5x GPU speedup quite good resistance, considering that a GPU is generally better than a CPU in almost every task. CPUs are good at executing large programs, doing paging, protecting memory, doing I/O. Nothing that a PoW can make use of.
+
+GPU memory system is designed for throughput, and it has generally about 6 times the bandwidth available to a CPU. RandMemoHash bottleneck is the DDR/GDDR memory bus, so that speedup can be expected.
+
+Also you must consider power-usage in the equation: that may make it better or worse for GPU-mining.
+
+I don't know if tweaking the parameters would improve it. Maybe using 8 MB instead of 2 MB can prevent the use of some L2 caches in some boards. But the more space you require, the slower it is to verify the PoW. And this is a cat-and-mouse race, since future models will probably increase the size of the cache.
+
+The Axiom developers & community could collect some real world numbers and try to find an improved parameter set (if it is really needed and if there is a better one).
+
+
+
+We introduce the first graph-theoretic proof-of-work system,
+based on finding small cycles or other structures in large random graphs.
+Such problems are trivially verifiable and arbitrarily scalable, 
+presumably requiring memory linear in graph size to solve efficiently.
+Our cycle finding algorithm uses one bit per edge, and up to one bit per node.
+Runtime is linear in graph size and dominated by random access latency,
+ideal properties for a memory bound proof-of-work.
+We exhibit two alternative algorithms that allow for a memory-time trade-off
+(TMTO)---decreased memory usage, by a factor $k$, coupled with increased runtime, by a factor $\Omega(k)$.
+The constant implied in $\Omega()$ gives a notion of memory-hardness, which is shown to be dependent
+on cycle length, guiding the latter's choice. Our algorithms are shown to parallelize reasonably well.
+
+A {\em proof-of-work} (PoW) system allows a verifier to check with negligible
+effort that a prover has expended a large amount of computational effort.
+Originally introduced as a spam fighting measure, 
+where the effort is the price paid by an email sender for demanding the
+recipient's attention, they now form one of the cornerstones of crypto currencies.
+
+As proof-of-work for new blocks of transactions,
+Bitcoin~\cite{nakamoto2009bitcoin} adopted Adam Back's hashcash~\cite{back2002}.
+Hashcash entails finding a nonce value such that application of a cryptographic hash function
+to this nonce and the rest of the block header, results in a number below a
+target threshold\footnote{or, less accurately, results in many leading zeroes}.
+The threshold is dynamically adjusted by the protocol
+so as to maintain an average block interval of 10 minutes.
+
+Bitcoin's choice of the simple and purely compute-bound SHA256 hash function
+allowed for an easy migration of hash computation from 
+desktop processors (CPUs) to graphics-card processors (GPUs),
+to field-programmable gate arrays (FPGAs), and finally to custom designed
+chips (ASICs), with huge improvements in energy-efficiency at every step.
+
+Since Bitcoin, many other crypto-currencies have adopted hashcash, with various
+choices of underlying hash function. the most well-known being {\em scrypt} as
+introduced by Tenebrix~\cite{tenebrix2011} (since faded into obscurity)
+and copied by Litecoin~\cite{litecoin2011}.
+Scrypt, designed as a sequential memory-hard key derivation function,
+was specifically chosen to resist the migration away from CPUs and be ``GPU-hostile''.
+However, to adapt to the efficient verifiability requirement of proof-of-work, its
+memory footprint was severely limited, and migration slowed down only slightly.
+
+Primecoin~\cite{king2013} introduced the notion of a number-theoretic proof-of-work,
+thereby offering the first alternative to hashcash among crypto-currencies.
+Primecoin identifies long chains of nearly doubled prime numbers, constrained
+by a certain relation to the block header.
+Verification of these chains, while very slow compared to bitcoin's, is much faster
+than attempting to find one.
+This asymmetry between proof attempt and verification is typical in non-hashcash proofs of work.
+Recently, two other prime-number based crypto-currencies were introduced. Riecoin is based
+on finding clusters of prime numbers, and Gapcoin on finding large gaps between consecutive prime numbers.
+
+Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs,
+in what could well be the simplest possible asymetric proof-of-work,
+combining scalable memory usage with trivial verifiability.
+In section~\ref{cycle_length_choice} we show that Momentum is in essence a special case of Cuckoo Cycle,
+one that is particularly susceptible to time-memory trade-offs.
+
+Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
+
+Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is,
+to minimize performance-per-dollar differences across hardware architectures,
+and make mining---the process of looking for proofs---on commodity hardware cost-effective.
+This is to be achieved by making main memory latency a bottleneck, since
+DRAM latencies have remained relatively stable while cpu-speed and memory bandwidth vary highly
+across hardware architecture and process technology.
+
+Our aim of a memory bound PoW translates to the following desirable properties:
+
+\item[MB1] a target memory footprint that exceeds a single memory chip
+\item[MB2] a pattern of necessarily random memory accesses
+\item[MB3] minimal computation per random memory access\footnote{Preferably less than
+the roughly $50$ nanosecond row activation delay for switching rows on a memory bank.}
+\item[MB4] no feasible trade-off of memory for time\footnote{Rather arbitrarily
+defined as incurring an order of magnitude increase
+in $\mbox{time}\times\mbox{memory}$ used per expected solution.}
+
+A memory bound PoW aims to take advantage of the huge economies of scale of commodity DRAM production
+to make DRAM chips the most cost-effective vehicle for mining.
+Just as SRAM is one order of magnitude faster but two orders more expensive than DRAM,
+so it is conceivable that development and production of custom memory chips for a memory bound PoW
+will incur a sufficient cost premium to wipe out any performance gains.
+
+We thus disagree with the premise of \cite{poelstra2014} that PoWs should be compute bound
+in order to have ongoing energy costs dominate mining, which results in an expensive ASIC
+design arms race to drive up performance per Watt, rapid hardware obsolescence,
+and geographical centralization towards cheap electric power.
+
+We will not strive for provable lower bounds on memory usage. Such bounds appear to be
+attainable only under the so-called {\em random oracle model}, where memory tends to be used
+merely as a store for chains of compute-intensive hash outputs.
+Instead, we present an efficient proof-finding algorithm
+along with our best attempts at memory-time trade-offs,
+and conjecture that these cannot be significantly improved upon.
+Lacking precise definitions and proofs of memory bound-ness, this work should be considered
+more empirical than formal.
+
+We propose to base proofs-of-work on finding certain subgraphs in large pseudo-random graphs.
+In the Erd\H{o}s-R\'{e}nyi model, denoted $G(N,M)$, a graph is chosen uniformly at random
+from the collection of all graphs with $N$ nodes and $M$ edges. Instead, we choose edges
+deterministically from the output of a keyed hash function, whose key could be chosen
+uniformly at random. For a well-behaved hash function, these two classes of random graphs
+should have nearly identical properties.
+
+Formally, fix a keyed hash function
+$h: \{0,1\}^K \times \{0,1\}^{W_i} \rightarrow \{0,1\}^{W_o}$,
+and a small graph $H$ as a target subgraph\footnote{hash functions generally have arbitrary length inputs,
+but here we fix the input width at $W_i$ bits.}.
+Now pick a large number $N \leq 2^{W_o}$ as the number of nodes,
+and $M \leq 2^{W_i-1}$ as the number of edges.
+Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{v_0,\ldots,v_{N-1}\}$, and
+E=\{(v_{h(k,2i) \bmod N},v_{h(k,2i+1) \bmod N}) | i \in [0,\ldots,M-1]\}
+The inputs $i \in [0,\ldots,M-1]$ are also called {\em nonces}\footnote{These
+{\em micro} nonces should be distinguished from the {\em macro} nonce used to generate key $k$.}
+The graph has a {\em solution} if $H$ occurs as a subgraph.
+Denote the number of edges in $H$ as $L$.
+A proof of solution is an ordered list of $L$ nonces that generate the edges
+of $H$'s occurrence in $G_k$.
+Such a proof is verifiable in time depending only on $H$ (typically linear in $L$), independent of $N$ and $M$.
+
+A simple variation generates random bipartite graphs: $G_k = (V_0 \cup V_1,E)$ where (assuming $N$ is even)
+$V_0=\{v_0,v_2,\ldots,v_{N-2}\}$, $V_1=\{v_1,v_3,\ldots,v_{N-1}\}$, and
+\label{hash_edges}
+E=\{(v_{2(h(k,2i) \bmod \frac{N}{2})}, v_{2(h(k,2i+1) \bmod \frac{N}{2})+1}) | i \in [0,\ldots,M-1]\}
+
+The expected number of occurrences of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
+and in many cases is roughly a function of $\frac{M}{N}$ (half the average node degree).
+For fixed $N$, this function is monotonically increasing in $M$.
+To make the proof-of-work challenging, one chooses a value of $M$ that yields less than one
+expected solution.
+
+The simplest possible choice of subgraph is a fully connected one, or a {\em clique}.
+While an interesting choice, akin to the number-theoretic notion of a prime-cluster
+as used in Riecoin, we leave its consideration to a future paper.
+
+In this paper we focus on what is perhaps the next-simplest possible choice, the {\em cycle}.
+Specifically, we propose the hash function \hash\ with a $K=128$ bit key, $W_i = W_o = 64$ input
+and output bits, $N \leq 2^{64}$ a 2-power, $M=N/2$, and $H$ an $L$-cycle.
+Using the lightweight \hash\-2-4 with only 6 rounds helps to attain property MB3.
+The reason for calling the resulting proof-of-work Cuckoo Cycle is that
+inserting items in a Cuckoo hashtable naturally leads to cycle formation
+in random bipartite graphs.
+
+Introduced by Rasmus Pagh and Flemming Friche
+Rodler~\cite{Pagh04cuckoohashing}, a Cuckoo hashtable consists of two
+same-sized tables each with its own hash function mapping a key to a table
+location, providing two possible locations for each key.
+Upon insertion of a new key, if both locations are already occupied by keys,
+then one is kicked out and inserted in its alternate location, possibly
+displacing yet another key, repeating the process until either a vacant
+location is found, or some maximum number of iterations is reached.
+The latter is bound to happen once cycles have formed in the {\em Cuckoo graph}.
+This is a bipartite graph with a node for each location and an
+edge for every inserted key, connecting the two locations it can reside at.
+It matches the bipartite graph defined above if the cuckoo hashtable
+were based on function $h$.
+In fact, the insertion procedure suggests a simple algorithm for detecting cycles.
+
+We enumerate the $M$ nonces, but instead of storing the nonce itself as a key
+in the Cuckoo hashtable, we store the alternate key location,
+and forget about the nonce.  We thus maintain the {\em directed}
+cuckoo graph, in which the edge for a key is directed from the location where
+it resides to its alternate location.  Moving a key to its alternate location
+thus corresponds to reversing its edge.  The outdegree of every node in this
+graph is either 0 or 1.  When there are no cycles yet, the graph is a {\em
+forest}, a disjoint union of trees.  In each tree, all edges are directed,
+directly, or indirectly, to its {\em root}, the only node in the tree with
+outdegree 0.  Initially there are just $N$ singleton trees consisting of
+individual nodes which are all roots.
+Addition of a new key causes a cycle if and only if its two endpoints are
+nodes in the same tree, which we can test by following the path from each
+endpoint to its root.
+In case of different roots, we reverse all edges on the shorter of the two
+paths, and finally create the edge for the new key itself, thereby joining
+the two trees into one. Let us illustrate this process with an actual example.
+
+The left diagram in Figure~\ref{cycleformation} shows the directed cuckoo graph for header ``39'' on
+$N=8+8$ nodes after adding edges
+$(2,15),(4,9),(8,5),(4,15),(12,11),(10,5)$ and $(4,13)$ (nodes
+with no incident edges are omitted for clarity).
+In order to add the 8th edge $(10,11)$, we follow the paths $10 \rightarrow 5
+\rightarrow 8$ and $11 \rightarrow 12$ to find different roots $8$ and $12$.
+Since the latter path is shorter, we reverse it to $12 \rightarrow 11$ so we
+can add the new edge as $(11 \rightarrow 10)$, resulting in the middle diagram.
+In order to add to 9th edge
+$(10,13)$ we now find the path from $10$ to be the shorter one, so we reverse
+that and add the new edge as $(10 \rightarrow 13)$, resulting in the right diagram.
+
+When adding the 10th edge $(8,9)$, we find the paths $8 \rightarrow 5
+\rightarrow 10 \rightarrow 13 \rightarrow 4 \rightarrow 15 \rightarrow 2$ and
+$9 \rightarrow 4 \rightarrow 15 \rightarrow 2$ with equal roots.
+In this case, we can compute the length of the resulting cycle as
+1 plus the sum of the path-lengths to the node where the two paths join.
+In the diagram, the paths join at node $4$, and the cycle length is computed as $1+4+1=6$.
+
+The above representation of the directed cuckoo graph is an example of
+a {\em disjoint-set data structure}~\cite{wikidsds2014}, and our algorithm is
+closely related to the well-known union-find algorithm, where the find operation
+determines which subset an element is in, and the union operation joins two subsets
+into a single one. For each edge addition to the cuckoo graph we perform the equivalent
+of two find operations and one union operation.
+The difference is that the union-find algorithm is free to add
+directed edges between arbitrary elements. Thus it can join two subsets by adding an edge
+from one root to another, with no need to reverse any edges.
+Our algorithm on the other hand solves the union-find problem by maintaining
+a direction on all union operations while keeping the maximum outdegree at 1.
+
+The above algorithm for inserting edges and detecting cycles forms the basis
+for our basic proof-of-work algorithm.
+If a cycle of length $L$ is found, then we solved the problem, and recover the proof
+by storing the cycle edges in a set and enumerating nonces once more to see which ones
+generate edges in the set.
+If a cycle of a different length is found, then we keep the graph acyclic by ignoring the edge.
+There is some risk of overlooking other $L$-cycles
+through that edge, but when the expected number of cycles is low (which is what we design for),
+this ignoring of cycle forming edges hardly affects the rate of solution finding.
+
+This algorithm is available online at \url{https://github.com/tromp/cuckoo}
+as either the C-program simple\_miner.cpp or the Java program SimpleMiner.java.
+A proof verifier is available as cuckoo.c or Cuckoo.java, while the repository
+also has a Makefile, as well as the latest version of this paper.
+% `make test' tests everything.
+`make example' reproduces the example shown above.
+The simple program uses 32 bits per node to represent the directed cuckoo graph,
+plus about 64KB per thread for two path-following arrays.
+The left plot in Figure~\ref{runtimes} shows both the total runtime in seconds and the runtime of just
+the hash computation, as a function of (log)size. The latter is purely
+linear, while the former is superlinear due to increasing memory latency
+as the nodes no longer fit in cache. The right plot show this more clearly
+as the percentage of hashing to total runtime, ending up around 5\%.
+
+The left plot in Figure~\ref{accesses} shows the probability of finding a 42-cycle as a function
+of the percentage edges/nodes, while the right plot shows the average number of
+memory reads and writes per edge as a function of the percentage
+of processed nonces (progress through main loop).
+Both were determined from 10000 runs at size $2^{20}$;
+results at size $2^{25}$ look almost identical.
+In total the basic algorithm averages 3.3 reads and 1.1 writes per edge.
+
+The ratio $\frac{M}{N}$ determines a base level of difficulty,
+which may suffice for applications where difficulty is to remain fixed.
+Ratios $\frac{M}{N} \geq 0.7$ are suitable when a practically guaranteed solution is desired.
+
+For crypto currencies, where difficulty must scale in precisely
+controlled manner across a large range, adjusting the number of edges is not suitable.
+The implementation default $\frac{M}{N}=\frac{1}{2}$ gives a solution probability of roughly $2.2\%$,
+while the average number of cycles found increases slowly with size; from 2 at $2^{20}$
+to 3 at $2^{30}$.
+
+For further control, a difficulty target $0 < T < 2^{256}$ is introduced,
+and we impose the additional constraint that the sha256 digest of the
+cycle nonces in ascending order be less than $T$, thus
+reducing the success probability by a factor $\frac{2^{256}}{T}$.
+
+David Andersen~\cite{dga2014} suggested drastically reducing the number of edges
+our basic algorithm has to process, by repeatedly identifying nodes of degree one
+and eliminating their incident edge. Such {\em leaf edges} can never be part of a cycle.
+This works well when $\frac{M}{N} \leq \frac{1}{2}$ since the expected degree of a node is then at most 1,
+and a significant fraction of edges are expected to be leaf edges.
+
+Trimming is implemented in our main algorithm in cuckoo\_miner and hcuckoo\_miner.cpp.
+It maintains a set of {\em alive} edges as a bit vector. Initially all edges are alive.
+In each of a given number of trimming rounds, it shrinks this set as follows.
+A vector of 2-bit degree counters, one per even node, is initialized to all zeroes.
+Next, for all alive edges, compute its even endpoint and increase the corresponding counter,
+capping the value at 2.
+Next, for all alive edges, compute its even endpoint and if the corresponding counter is less than 2,
+set the edge to be not-alive.
+These steps, both of which cause the random accesses required in property MB2,
+are repeated for all odd endpoints.
+
+Preprocessor symbol PART\_BITS, whose value we'll denote as $B$,
+allows for {\em counter partitioning}, which trades off node counter storage for runtime,
+by processing nodes in multiple passes depending on the value of their $B$ least significant
+bits\footnote{excluding the very least significant bit distinguishing even from odd nodes.}.
+The memory usage is $M$ bits for the alive set and $N / 2^{B}$ for the counters.
+
+The diagrams in Figure~\ref{trimming} show two rounds of edge trimming on the earlier example. In round one
+even nodes 2 and 12 lose their single incident edge and in round two, odd nodes 11 and 15 lose
+their remaining single incident edge. At this point only the 6-cycle is left, so further trimming
+would be pointless.
+
+After all edge trimming rounds, the counter memory is freed, and allocated to a
+custom cuckoo\_hashtable (based on \cite{preshing2013}) that presents the same interface as the
+simple array in the basic algorithm, but gets by with much fewer locations, as long as its {\em load},
+the ratio of remaining edges to number of locations, is bounded away from 1; e.g. under 90 percent.
+
+The number of trimming rounds, which can be set with option {\tt -n}, defaults to
+$1+(B+3)*(B+4)/2$, which was determined empirically to achieve a load close to $50\%$.
+
+David Andersen also suggested an alternative method of trimming that avoids storing a bit per edge.
+Expanding on that idea led to the algorithm implemented in tomato\_miner.h,
+which, unlike the main algorithm, can trade-off memory directly for runtime.
+On the downside, to even achieve memory parity with the main algorithm, it already incurs a big slowdown.
+To the extent that this slowdown is unavoidable, it can be called
+the {\em memory hardness} of the proof-of-work.
+
+The TMTO algorithm selects a suitably small subset $Z$ of even vertices as a base layer,
+and on top of that builds a breadth-first-search
+(BFS) forest of depth $L/2$, i.e. half the cycle length.
+For each new BFS layer, it enumerates all edges to see which ones are incident
+to the previous layer, adding the other endpoint.
+It maintains a directed forest on all BFS nodes, like the base algorithm does on all nodes.
+For increased efficiency, the base layer $Z$ is filtered for nodes with multiple incident edges.
+If the graph has an $L$-cycle one of whose nodes is in $Z$, then the above procedure will find it.
+If one choice of $Z$ doesn't yield a solution, then the data structures are cleared and the next
+subset is tried.
+
+A variation on the above algorithm omits the filtering of $Z$, and expands
+the BFS to a whole $L$ levels. This way, an $L$-cycle will be found as long as the distance from (any node in)
+$Z$ to the cycle is at most $L/2$. It thus has a much higher chance of finding a cycle, but requires
+more space to store the significantly bigger BFS forest.
+
+For each each value of $L \in \{2,4,6,8,10,12,14,16,20,24,28,32,40,48,56,64\}$ we ran these 2 algorithms
+on 200 graphs of size $2^{25}$ that include an $L$-cycle,
+choosing subset size as a 2-power that results in a memory usage of 4MB,
+and analysed the distribution of number of subsets tried before
+finding a solution. Since there is possible overlap between the BFS forests of different initial subsets,
+especially with the second algorithm, the distributions are skewed toward lower numbers. To maximize solution
+finding rate then, it pays to give up on a graph when the first few subsets tried fail to provide a solution.
+For each algorithm and cycle length, we determined the minimum number of tries needed to guarantee solutions
+in at least 50 of the 200 graphs. In Figure~\ref{slowdown} we plot the slowdown relative
+to the reference algorithm also using 4MB (2MB for edges and 2MB for nodes).
+
+The zigzagging is caused by the current implementation being limited to 2-power sizes of
+both subsets and cuckoo tables while the load of the latter is kept between 45\% and 90.
+%We plan to lift this restriction in the near future and
+%produce smoother plots with constant load cuckoo tables.
+The BFS($L$) algorithm exhibits at least one order of magnitude slowdown, that grows very slowly
+with cycle length, while the BFS($L/2$) algorithm exhibits roughly linear slowdown.
+Assuming that these algorithms cannot be significantly improved upon,
+this shows Cuckoo Cycle with larger cycle lengths satisfying property MB4,
+
+A cycle of length 2 means that two nonces produce identical edge endpoints---a {\em collision} in edge space.
+The Momentum proof-of-work looks for collisions on 50 bits of hash output among $2^{26}$ nonces.
+This is in essence Cuckoo Cycle with $N=2^{25}+2^{25}$ nodes and cycle length $L=2$, with
+two differences.
+
+First, edges are generated not by equation~(\ref{hash_edges}), but by splitting a SHA512 hash of
+$(k,\mbox{nonce} / 8)$ into 8 64-bit words, taking the most significant 50 bits of the
+($\mbox{nonce} \bmod 8)th$ one, and viewing that as a pair of two 25-bit edge endpoints, appending
+a bit to make them even and odd.
+
+Second, the choice of $M=2^{26}$ gives a ratio $\frac{M}{N}$ of 1 rather than $\frac{1}{2}$ and as such
+prohibits the use of edge trimming.
+
+Since the extreme case of $L=2$ is so special, there is likely to be a greater variety of algorithms that are more
+efficient than for the general case. While we haven't found (and don't know of) a improved main algorithm,
+we did find an improved BFS($L/2$) TMTO algorithm (implemented in momentomatum.cpp)
+that cuts the memory usage in half, resulting in a slowdown of only $1.75$---a lack of memory-hardness.
+
+The preceding analysis suggests that cycle length should be at least 20 to guard against the more efficient
+BFS($L/2$) algorithm, with an additional safety factor of 2.
+
+In order to keep proof size manageable, the cycle length should not be too large either.
+We thus consider 20-64 to be a healthy range, and suggest the use of the average of 42.
+
+The plot below shows the distribution of cycle lengths found for sizes $2^{10},2^{15},2^{20},2^{25}$,
+as determined from 100000,100000,10000, and 10000 runs respectively. The tails of the distributions
+beyond $L=100$ are not shown. For reference, the longest cycle found was of length 2120.
+
+All our implementations allow the number of threads to be set with option {\tt -t}.
+For $0\leq t < T$, thread $t$ processes all nonces $t \bmod T$.
+Parallelization in the basic algorithm presents some minor algorithmic challenges.
+Paths from an edge's two endpoints
+are not well-defined when other edge additions and path reversals are still in progress.
+One example of such a path conflict is the check for duplicate edges yielding a false negative,
+if in between checking the two endpoints, another thread reverses a path through those nodes.
+Another is the inadvertent creation of cycles when a reversal in progress hampers another thread's
+path following causing it to overlook root equality.
+Thus, in a parallel implementation, path following can no longer be assumed to terminate.
+Instead of using a cycle detection algorithm such as~\cite{1980-brent-cycles}, our implementation
+notices when the path length exceeds MAXPATHLEN (8192 by default),
+and reports whether this is due to a path conflict.
+
+In the main algorithm, cycle detection only takes a small fraction of total runtime and
+the conflicts above could be avoided altogether by running the cycle detection single threaded.
+
+In edge trimming, parallelization is achieved by partitioning the set of edges. To maintain efficient access
+to the bitmap of live edges, each thread handles words (of 32 edge-bits each) spaced $T$ apart.
+%Partitioning the bitmap over threads by whole words also avoids the need for atomic access.
+
+Atomic access is used by default for accessing the 2-bit counters. Disabling this results in a small
+chance of removing multiple edges incident to a node that access the counter at the same time.
+
+The implementation further benefits from bucketing the addresses of counters to be updated or tested,
+based on their most significant bits. Thus, when a bucket becomes full and is emptied by actually
+performing those updates/tests, the accesses are limited to a certain address range, which turns
+out to reduce memory access latencies.
+
+The plots below show the speedup over single thread performance achieved by multithreading at various
+graph sizes and counter-partition levels.
+
+For cryptocurrency purposes, the choice of Cuckoo graph size should be in accordance to its
+block interval time.
+To illustrate, suppose an average desktop machine needs 1 minute for a single proof attempt,
+and the block interval time is only 2 minutes. Then it will waste a large fraction (almost half)
+of its attempts, as about half the time, someone else finds a proof in under 2 minutes. To reduce such waste
+to a small percentage, the time for a single proof attempt should be a similarly small fraction of the block
+interval time. This desirable property is known as {\em progress-freeness}, and in our case
+is achieved more easily with a small graph (and hence memory) size.
+
+Larger memory sizes have two advantages. Beyond satisfying property MB1,
+they also make it harder for botnets to mine without causing excessive swapping.
+Sending a computer into swap-hell will likely alert its owner and trigger a cleanup,
+so botnet operators can be expected to eschew memory bound PoWs in favor of low-memory ones.
+
+We expect these opposing goals to lead to graph sizes from $2^{28}$ to $2^{32}$, with the larger ones geared
+more toward longer block interval times and faster mining hardware.
+
+Ideally, graph size should grow with evolving memory chip capacities, so as to preserve property MB1.
+Although these have shown remarkable adherence to Moore's Law in the past,
+this cannot be relied on for the more distant future.
+We therefore propose to re-evaluate the graph size every so-many difficulty adjustments.
+If the difficulty target is sufficiently low, then the
+graph size is deemed to have become "too easy" for existing hardware, and gets doubled.
+
+In order to make this transition smoother and avoid severe loss of proof-of-work power,
+we propose having a range of sizes allowed at any time,
+namely $k$ consecutive 2-powers for some small number $k\geq 2$.
+As with Myriad-coin, separate difficulty controls are maintained for each size,
+adjusted so that each size accounts for roughly $\frac{1}{k}$ of all blocks.
+
+Doubling graph sizes is then equivalent to disabling the smallest 2-power,
+and enabling a new largest one, whose initial difficulty target is twice that of the previous largest.
+Even if none of the hardware that was working on the smallest 2-power is repurposed for a larger size,
+since this hardware only accounted for a fraction $\frac{1}{k}$ of the rewards, the loss of
+proof-of-work power should be acceptable.
+
+It remains to decide what exact form the ``difficulties too low'' condition should take.
+
+Cuckoo Cycle is a novel graph-theoretic proof-of-work design that combines
+scalable memory requirements with instant verifiability,
+and the first where memory latency dominates the runtime.
+
+Barring any unforeseen memory-time trade-offs, it makes for a near-ideal memory bound proof-of-work
+whose cost effectiveness on commodity hardware could greatly benefit decentralization of mining.
