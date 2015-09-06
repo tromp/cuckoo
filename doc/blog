@@ -38,11 +38,15 @@ and 2 bits per city to count if there are 0, 1, or more useful roads to that cit
 
 We can repeatedly compute all the counts for cities, and then mark roads that lead to a city with count 1 as not useful.
 This very straightforward procedure results in billions of random global memory accesses.
-As a result, about 2/3 of the runtime is memory latency, and this is the only known PoW not dominated
-by computation.
+As a result, about 2/3 of the runtime is memory latency.
 
 After a sufficient number of counting and marking rounds, so few useful roads remain that another algorithm
-can quickly identify cycles (reusing the memoey for the no longer needed counters).
+can quickly identify cycles (reusing the memory for the no longer needed counters).
 
-It is the author's hope that the instantly verifiable Cuckoo Cycle can reduce the
-performance gap between custom and commodity mining hardware, by using lots of memory and sheer simplicity.
+Cuckoo Cycle has some downsides as well. First of all, proofs are large and will roughly triple the size of block headers.
+Secondly, it is very slow, taking for instance 46 seconds on a high end CPU looking for a cycle in the case of a billion roads.
+In order to give slower CPUs a (somewhat) fair chance to win, the block interval should be much longer than
+a single proof attempt, so the amount of memory Cuckoo Cycle can use is constrained by the choice of block interval length.
+
+These seem like reasonable compromises for an instantly verifiable memory bound PoW that is unique in being dominated
+by latency rather than computation, and may offer the best hope of limiting the advantage of custom hardware.
