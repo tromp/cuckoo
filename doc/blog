@@ -1,10 +1,14 @@
-There's more to mining than hashing
------------------------------------
+Beyond the Hashcash Proof-of-Work
+(there's more to mining than hashing)
+-------------------------------------
 
 Many people equate Proof of Work (PoW) with one particular instance of it.
 It's not hard to understand why. The Hashcash PoW is used not only in Bitcoin
-but in the vast majority of altcoins as well. In Hashcash, miners look for a so called `nonce' which,
-if input to a hash function (together with other parts of a block header) results in a numerically small enough output.
+but in the vast majority of altcoins as well.
+
+In Hashcash, miners all compete to look for a so called `nonce' which,
+if provided as input (together with other parts of a block header) to a hash function, 
+yields an output that's numerically small enough to claim the next block reward.
 
 Where most crypto currencies differ is in the choice of hash function; the Hashcash flavor as it were.
 Besides Bitcoin's `vanilla' flavor of SHA256, there is Litecoin's scrypt, Cryptonote's CryptoNight,
@@ -19,13 +23,13 @@ the difficulty threshold. Which is exactly the same effort as a single proof att
 Thus, in order to keep verification cheap, hash functions in Hashcash must restrict their resource usage as well.
 That's why scrypt is configured to use only 128KB of memory.
 
-This is where PoWs different from Hashcash come in. They are usually asymmetric, with verification much cheaper
+Non-Hashcash PoWs do not suffer this limitation; they are asymmetric, with verification much cheaper
 than proof attempt. The first example is Primecoin, which finds chains of nearly doubled prime numbers.
 The most recent example is my Cuckoo Cycle PoW, which was presented at the BITCOIN'2015
 workshop in January. The whitepaper can be found at https://github.com/tromp/cuckoo,
 which also hosts various implementations, as well as bounties for improving on them.
 
-In Cuckoo Cycle, proofs take the form of a nonce together with a length 42 cycle in a large random graph defined by that nonce.
+In Cuckoo Cycle, proofs take the form of a length 42 cycle (loop) in a large random graph defined by some nonce.
 Imagine two countries, each with a billion cities, and imagine picking a billion border crossing roads that
 connect a random city in one country to a random city in the other country (the PoW actually uses a cheaply
 computed hash function to map the nonce, road number, and country to a city).
@@ -38,15 +42,23 @@ and 2 bits per city to count if there are 0, 1, or more useful roads to that cit
 
 We can repeatedly compute all the counts for cities, and then mark roads that lead to a city with count 1 as not useful.
 This very straightforward procedure results in billions of random global memory accesses.
-As a result, about 2/3 of the runtime is memory latency.
+As a result, about 2/3 of the runtime is memory latency, making this a low-power algorithm that will keep your
+computer running cool.
 
 After a sufficient number of counting and marking rounds, so few useful roads remain that another algorithm
-can quickly identify cycles (reusing the memory for the no longer needed counters).
+can quickly identify cycles (re-using the memory for the no longer needed counters).
 
 Cuckoo Cycle has some downsides as well. First of all, proofs are large and will roughly triple the size of block headers.
-Secondly, it is very slow, taking for instance 46 seconds on a high end CPU looking for a cycle in the case of a billion roads.
+Secondly, it is very slow, taking for instance 46 seconds on a high end CPU (or GPU, which offer roughly the same speed)
+to look for a cycle among a billion roads.
+
 In order to give slower CPUs a (somewhat) fair chance to win, the block interval should be much longer than
 a single proof attempt, so the amount of memory Cuckoo Cycle can use is constrained by the choice of block interval length.
 
 These seem like reasonable compromises for an instantly verifiable memory bound PoW that is unique in being dominated
-by latency rather than computation, and may offer the best hope of limiting the advantage of custom hardware.
+by latency rather than computation. In that sense, mining Cuckoo Cycle is a form of ASIC mining where DRAM chips serve
+the application of randomly reading and writing billions of bits. 
+
+When even phones charging overnight can mine without orders of magnitude loss in efficiency, not with a mindset
+of profitability but of playing the lottery, the mining hardware landscape will see vast expansion, with many
+benefits to decentralization.
