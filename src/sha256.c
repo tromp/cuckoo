@@ -112,7 +112,7 @@ void sha256_update(sha256 *sha,
      * bytes, to the total length of the messages hashed to
      * date, counted in bits and stored in 8 separate bytes. */
     for (i = 7; i >= 0; --i) {
-        int bits;
+        size_t bits;
 		if (i == 7)
 			bits = length << 3;
 		else if (i == 0 || i == 1 || i == 2)
@@ -123,7 +123,7 @@ void sha256_update(sha256 *sha,
         if (sha->length[i] + bits > 0xff) {
             for (j = i - 1; j >= 0 && sha->length[j]++ == 0xff; --j);
         }
-        sha->length[i] += bits;
+        sha->length[i] += (uint8_t)bits;
     }
     /* Add the received message to the SHA buffer, updating the
      * hash at each block (each time the buffer is filled). */
