@@ -52,7 +52,8 @@ public:
   au32 *bits;
 
   twice_set() {
-    assert(bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32)));
+    bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32));
+    assert(bits != 0);
   }
   void reset() {
     memset(bits, 0, TWICE_WORDS*sizeof(au32));
@@ -95,7 +96,8 @@ public:
   au32 nstored;
 
   cuckoo_hash() {
-    assert(cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64)));
+    cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64));
+    assert(cuckoo != 0);
   }
   ~cuckoo_hash() {
     free(cuckoo);
@@ -164,7 +166,8 @@ public:
     cuckoo = new cuckoo_hash();
     minimalbfs = minimal_bfs;
     nonleaf = new twice_set();
-    assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
+    int err = pthread_barrier_init(&barry, NULL, nthreads);
+    assert(err == 0);
   }
   ~cuckoo_ctx() {
     delete cuckoo;

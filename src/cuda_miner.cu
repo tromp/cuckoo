@@ -104,7 +104,8 @@ public:
   u64 *cuckoo;
 
   cuckoo_hash() {
-    assert(cuckoo = (u64 *)calloc(CUCKOO_SIZE, sizeof(u64)));
+    cuckoo = (u64 *)calloc(CUCKOO_SIZE, sizeof(u64));
+    assert(cuckoo != 0);
   }
   ~cuckoo_hash() {
     free(cuckoo);
@@ -261,7 +262,8 @@ int main(int argc, char **argv) {
   }
 
   u32 *bits;
-  assert(bits = (u32 *)calloc(HALFSIZE/32, sizeof(u32)));
+  bits = (u32 *)calloc(HALFSIZE/32, sizeof(u32));
+  assert(bits != 0);
   cudaMemcpy(bits, ctx.alive.bits, (HALFSIZE/32) * sizeof(u32), cudaMemcpyDeviceToHost);
   checkCudaErrors(cudaFree(ctx.alive.bits));
   checkCudaErrors(cudaFree(ctx.nonleaf.bits));

@@ -64,7 +64,7 @@ public:
     cnt[0] = HALFSIZE;
   }
   u64 count() const {
-    u64 sum = 0L;
+    u64 sum = 0LL;
     for (u32 i=0; i<cnt.size(); i++)
       sum += cnt[i];
     return sum;
@@ -90,7 +90,8 @@ public:
   au32 *bits;
 
   twice_set() {
-    assert(bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32)));
+    bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32));
+    assert(bits != 0);
   }
   void reset() {
     memset(bits, 0, TWICE_WORDS*sizeof(au32));
@@ -122,15 +123,16 @@ public:
 #define CUCKOO_MASK (CUCKOO_SIZE - 1)
 // number of (least significant) key bits that survives leftshift by SIZESHIFT
 #define KEYBITS (64-SIZESHIFT)
-#define KEYMASK ((1L << KEYBITS) - 1)
-#define MAXDRIFT (1L << (KEYBITS - IDXSHIFT))
+#define KEYMASK ((1LL << KEYBITS) - 1)
+#define MAXDRIFT (1LL << (KEYBITS - IDXSHIFT))
 
 class cuckoo_hash {
 public:
   au64 *cuckoo;
 
   cuckoo_hash() {
-    assert(cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64)));
+    cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64));
+    assert(cuckoo != 0);
   }
   ~cuckoo_hash() {
     free(cuckoo);
@@ -190,8 +192,10 @@ public:
     cuckoo = 0;
     nonleaf = new twice_set;
     ntrims = n_trims;
-    assert(pthread_barrier_init(&barry, NULL, nthreads) == 0);
-    assert(sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(nonce_t)));
+    int err = pthread_barrier_init(&barry, NULL, nthreads);
+    assert(err == 0);
+    sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(nonce_t));
+    assert(sols != 0);
     nsols = 0;
   }
   ~cuckoo_ctx() {
@@ -222,7 +226,7 @@ void barrier(pthread_barrier_t *barry) {
 #define BUCKETSHIFT	(SIZESHIFT-1 - LOGNBUCKETS)
 #define NONCESHIFT	(SIZESHIFT-1 - PART_BITS)
 #define NODEPARTMASK	(NODEMASK >> PART_BITS)
-#define NONCETRUNC	(1L << (64 - NONCESHIFT))
+#define NONCETRUNC	(1LL << (64 - NONCESHIFT))
 
 void trim_edges(thread_ctx *tp, u32 round) {
   cuckoo_ctx *ctx = tp->ctx;
@@ -283,7 +287,7 @@ void trim_edges(thread_ctx *tp, u32 round) {
         barrier(&ctx->barry);
       }
       if (tp->id == 0) {
-        u32 load = (u32)(100L * alive->count() / CUCKOO_SIZE);
+        u32 load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
         printf("round %d part %c%d load %d%%\n", round, "UV"[uorv], part, load);
       }
     }
@@ -339,17 +343,18 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
 
 void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
-  assert(tp->buckets = (u64 (*)[BUCKETSIZE])calloc(NBUCKETS * BUCKETSIZE, sizeof(u64)));
+  tp->buckets = (u64 (*)[BUCKETSIZE])calloc(NBUCKETS * BUCKETSIZE, sizeof(u64));
+  assert(tp->buckets != 0);
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset *alive = ctx->alive;
-  u32 load = 100L * HALFSIZE / CUCKOO_SIZE;
+  u32 load = 100LL * HALFSIZE / CUCKOO_SIZE;
   if (tp->id == 0)
     printf("initial load %d%%\n", load);
   for (u32 round=1; round <= ctx->ntrims; round++)
     trim_edges(tp, round);
   if (tp->id == 0) {
-    load = (u32)(100L * alive->count() / CUCKOO_SIZE);
+    load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
     if (load >= 90) {
       printf("overloaded! exiting...");
       exit(0);
@@ -374,7 +379,7 @@ void *worker(void *vp) {
           u32 min = nu < nv ? nu : nv;
           for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
           u32 len = nu + nv + 1;
-          printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100L/HALFSIZE));
+          printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
           if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
             solution(ctx, us, nu, vs, nv);
           continue;
@@ -393,4 +398,5 @@ void *worker(void *vp) {
   }
   free(tp->buckets);
   pthread_exit(NULL);
+  return 0;
 }

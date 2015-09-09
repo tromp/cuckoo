@@ -106,7 +106,7 @@ void sha256_initialize(sha256 *sha) {
 //    from const unsigned char, unsigned long respectively
 void sha256_update(sha256 *sha,
                    const uint8_t *message,
-                   uint32_t length) {
+                   size_t length) {
     int i, j;
     /* Add the length of the received message, counted in
      * bytes, to the total length of the messages hashed to
@@ -223,7 +223,7 @@ void sha256_update(sha256 *sha,
 //    from const unsigned char, unsigned long respectively
 void sha256_finalize(sha256 *sha,
                      const uint8_t *message,
-                     uint32_t length) {
+                     size_t length) {
     int i;
 	// Changed by RKW, unsigned char becomes uint8_t
     uint8_t terminator[64 + 8] = { 0x80 };
@@ -246,7 +246,7 @@ void sha256_finalize(sha256 *sha,
 //    from unsigned char, const unsigned char respectively
 void sha256_get(uint8_t hash[32],
                 const uint8_t *message,
-                int length) {	
+                size_t length) {	
     int i;
     sha256 sha;
     sha256_initialize(&sha);
@@ -255,7 +255,7 @@ void sha256_get(uint8_t hash[32],
 }
 
 #if 1
-void SHA256(const unsigned char *header, int len, unsigned char hash[32]) { 
+void SHA256(const unsigned char *header, size_t len, unsigned char hash[32]) { 
   sha256_get(hash, header, len);
 }
 #else
