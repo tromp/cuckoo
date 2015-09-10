@@ -19,13 +19,6 @@
 
 typedef uint32_t u32;
 typedef uint64_t u64;
-#if SIZESHIFT <= 32
-typedef u32 nonce_t;
-typedef u32 node_t;
-#else
-typedef u64 nonce_t;
-typedef u64 node_t;
-#endif
 
 typedef struct {
   u64 v[4];
@@ -79,25 +72,25 @@ u64 siphash24(siphash_ctx *ctx, u64 nonce) {
 }
 
 // generate edge endpoint in cuckoo graph without partition bit
-node_t _sipnode(siphash_ctx *ctx, nonce_t nonce, u32 uorv) {
+u64 _sipnode(siphash_ctx *ctx, u64 nonce, u32 uorv) {
   return (siphash24(ctx, 2*nonce + uorv) & NODEMASK);
 }
 
 // generate edge endpoint in cuckoo graph
-node_t sipnode(siphash_ctx *ctx, nonce_t nonce, u32 uorv) {
+u64 sipnode(siphash_ctx *ctx, u64 nonce, u32 uorv) {
   return (siphash24(ctx, 2*nonce + uorv) & NODEMASK) << 1 | uorv;
 }
 
-void sipedge(siphash_ctx *ctx, nonce_t nonce, node_t *pu, node_t *pv) {
+void sipedge(siphash_ctx *ctx, u64 nonce, u64 *pu, u64 *pv) {
   *pu = sipnode(ctx, nonce, 0);
   *pv = sipnode(ctx, nonce, 1);
 }
 
 // verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
-int verify(nonce_t nonces[PROOFSIZE], const char *header, u64 easiness) {
+int verify(u64 nonces[PROOFSIZE], const char *header, u64 easiness) {
   siphash_ctx ctx;
   setheader(&ctx, header);
-  node_t uvs[2*PROOFSIZE];
+  u64 uvs[2*PROOFSIZE];
   for (u32 n = 0; n < PROOFSIZE; n++) {
     if (nonces[n] >= easiness || (n && nonces[n] <= nonces[n-1]))
       return 0;
