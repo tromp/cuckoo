@@ -36,10 +36,13 @@ int main(int argc, char **argv) {
   for (int t = 0; t < nthreads; t++) {
     threads[t].id = t;
     threads[t].ctx = &ctx;
-    assert(pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]) == 0);
+    int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
+    assert(err == 0);
   }
-  for (int t = 0; t < nthreads; t++)
-    assert(pthread_join(threads[t].thread, NULL) == 0);
+  for (int t = 0; t < nthreads; t++) {
+    int err = pthread_join(threads[t].thread, NULL);
+    assert(err == 0);
+  }
   free(threads);
   return 0;
 }
