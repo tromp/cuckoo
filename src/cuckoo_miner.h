@@ -20,6 +20,13 @@ typedef std::atomic<u64> au64;
 typedef u32 au32;
 typedef u64 au64;
 #endif
+#if SIZESHIFT <= 32
+typedef u32 nonce_t;
+typedef u32 node_t;
+#else
+typedef u64 nonce_t;
+typedef u64 node_t;
+#endif
 #include <set>
 
 // algorithm parameters
@@ -326,13 +333,11 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
 #endif
   for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
     if (ctx->alive->test(nonce)) {
-      node_t u, v;
-      sipedge(&ctx->sip_ctx, nonce, &u, &v);
-      edge e(u,v);
+      edge e(sipnode(&ctx->sip_ctx, nonce, 0), sipnode(&ctx->sip_ctx, nonce, 1));
       if (cycle.find(e) != cycle.end()) {
         ctx->sols[soli][n++] = nonce;
 #ifdef SHOWSOL
-        printf("e(%x)=(%x,%x)%c", nonce, u, v, n==PROOFSIZE?'\n':' ');
+        printf("e(%x)=(%x,%x)%c", nonce, e.first, e.second, n==PROOFSIZE?'\n':' ');
 #endif
         if (PROOFSIZE > 2)
           cycle.erase(e);
@@ -369,8 +374,7 @@ void *worker(void *vp) {
   for (nonce_t block = tp->id*32; block < HALFSIZE; block += ctx->nthreads*32) {
     for (nonce_t nonce = block; nonce < block+32 && nonce < HALFSIZE; nonce++) {
       if (alive->test(nonce)) {
-        node_t u0, v0;
-        sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
+        node_t u0=sipnode(&ctx->sip_ctx, nonce, 0), v0=sipnode(&ctx->sip_ctx, nonce, 1);
         if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
           continue;
         node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];

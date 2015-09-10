@@ -81,11 +81,6 @@ u64 sipnode(siphash_ctx *ctx, u64 nonce, u32 uorv) {
   return (siphash24(ctx, 2*nonce + uorv) & NODEMASK) << 1 | uorv;
 }
 
-void sipedge(siphash_ctx *ctx, u64 nonce, u64 *pu, u64 *pv) {
-  *pu = sipnode(ctx, nonce, 0);
-  *pv = sipnode(ctx, nonce, 1);
-}
-
 // verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
 int verify(u64 nonces[PROOFSIZE], const char *header, u64 easiness) {
   siphash_ctx ctx;
@@ -94,7 +89,8 @@ int verify(u64 nonces[PROOFSIZE], const char *header, u64 easiness) {
   for (u32 n = 0; n < PROOFSIZE; n++) {
     if (nonces[n] >= easiness || (n && nonces[n] <= nonces[n-1]))
       return 0;
-    sipedge(&ctx, nonces[n], &uvs[2*n], &uvs[2*n+1]);
+    uvs[2*n  ] = sipnode(&ctx, nonces[n], 0);
+    uvs[2*n+1] = sipnode(&ctx, nonces[n], 1);
   }
   u32 i = 0;
   for (u32 n = PROOFSIZE; n; ) { // follow cycle for n more steps

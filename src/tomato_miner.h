@@ -20,6 +20,13 @@ typedef std::atomic<u64> au64;
 typedef u32 au32;
 typedef u64 au64;
 #endif
+#if SIZESHIFT <= 32
+typedef u32 nonce_t;
+typedef u32 node_t;
+#else
+typedef u64 nonce_t;
+typedef u64 node_t;
+#endif
 #include <set>
 
 // algorithm parameters

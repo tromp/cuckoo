@@ -7,6 +7,13 @@
 #include <stdint.h>
 #include <string.h>
 #include "cuckoo.h"
+#if SIZESHIFT <= 32
+typedef u32 nonce_t;
+typedef u32 node_t;
+#else
+typedef u64 nonce_t;
+typedef u64 node_t;
+#endif
 #include <openssl/sha.h>
 
 // d(evice s)ipnode
@@ -286,8 +293,7 @@ int main(int argc, char **argv) {
   for (nonce_t block = 0; block < HALFSIZE; block += 32) {
     for (nonce_t nonce = block; nonce < block+32 && nonce < HALFSIZE; nonce++) {
       if (!(bits[nonce/32] >> (nonce%32) & 1)) {
-        node_t u0, v0;
-        sipedge(&ctx.sip_ctx, nonce, &u0, &v0);
+        node_t u0=sipnode(&ctx.sip_ctx, nonce, 0), v0=sipnode(&ctx.sip_ctx, nonce, 1);
         if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
           continue;
         node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
@@ -308,9 +314,7 @@ int main(int argc, char **argv) {
               cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
             for (nonce_t nce = n = 0; nce < HALFSIZE; nce++)
               if (!(bits[nce/32] >> (nce%32) & 1)) {
-                node_t u, v;
-                sipedge(&ctx.sip_ctx, nce, &u, &v);
-                edge e(u,v);
+                edge e(sipnode(&ctx.sip_ctx, nce, 0), sipnode(&ctx.sip_ctx, nce, 1));
                 if (cycle.find(e) != cycle.end()) {
                   printf(" %lx", nonce);
                   if (PROOFSIZE > 2)
