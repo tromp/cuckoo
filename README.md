@@ -3,6 +3,8 @@ Cuckoo Cycle
 ============
 Whitepaper at https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
+Recent blog article explaining Cuckoo Cycle at http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing
+
 Cuckoo Cycle is the first graph-theoretic proof-of-work,
 and by far the most memory bound, with memory latency
 dominating the mining runtime, yet with instant verification.
