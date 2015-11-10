@@ -43,9 +43,10 @@ int main(int argc, char **argv) {
     int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
     assert(err == 0);
   }
-  for (int t = 0; t < nthreads; t++)
+  for (int t = 0; t < nthreads; t++) {
     int err = pthread_join(threads[t].thread, NULL);
     assert(err == 0);
+  }
   free(threads);
   for (unsigned s = 0; s < ctx.nsols; s++) {
     printf("Solution");

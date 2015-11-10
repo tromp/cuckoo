@@ -3,7 +3,7 @@ FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L -O3 -pthrea
 LIBS = -lssl -lcrypto
 # leave out -l crypto if using sha256.c instead of openssl
 CC = cc -std=c99 $(FLAGS)
-GPP = g++ -std=c++11 -DATOMIC $(FLAGS)
+GPP = g++ -std=c++11 -DATOMIC -DPREFETCH $(FLAGS)
 # leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
 
 test:	cuckoo20 verify20 Makefile
