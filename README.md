@@ -45,7 +45,7 @@ This is the phase that takes the vast majority of (latency dominated) runtime.
 Once the subset is small enough, an algorithm inspired by Cuckoo Hashing
 is used to recognise all cycles, and recover those of the right length.
 
-The runtime of a single proof attempt on a high end x86 is 7min/GB single-threaded, or 1min/GB for 16 threads.
+The runtime of a single proof attempt on a high end x86 is 5.5min/GB single-threaded, or 1.5min/GB for 8 threads.
 
 I claim that this implementation is a reasonably optimal Cuckoo miner,
 and that trading off memory for running time, as implemented in tomato_miner.h,
