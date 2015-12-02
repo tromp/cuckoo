@@ -24,9 +24,6 @@
   <ItemGroup>
     <CudaCompile Include="..\src\cuda_miner.cu" />
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\src\vector.cuh" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3766FACB-CA51-4296-9C41-207DF0BC486C}</ProjectGuid>
     <RootNamespace>cuckcuuda</RootNamespace>
