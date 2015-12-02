@@ -21,13 +21,24 @@ typedef u64 node_t;
 
 // d(evice s)ipnode
 __device__ node_t dipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
-  u64 nonce = 2*nce + uorv;
-  u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
-  SIPROUND; SIPROUND;
-  v0 ^= nonce;
-  v2 ^= 0xff;
-  SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return (v0 ^ v1 ^ v2  ^ v3) & NODEMASK;
+#if (__CUDA_ARCH__  < 320)
+	u64 nonce = 2*nce + uorv;
+	u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
+	SIPROUND; SIPROUND;
+	v0 ^= nonce;
+	v2 ^= 0xff;
+	SIPROUND; SIPROUND; SIPROUND; SIPROUND;
+	return (v0 ^ v1 ^ v2  ^ v3) & NODEMASK;
+#else
+	uint2 nonce = vectorize((nce << 1) + uorv);
+	uint2 v0, v1, v2, v3;
+	v0 = ctx->vv[0], v1 = ctx->vv[1], v2 = ctx->vv[2], v3 = ctx->vv[3] ^ nonce;
+	SIPROUND2; SIPROUND2;
+	v0 ^= nonce;
+	v2 ^= vectorize(0xff);
+	SIPROUND2; SIPROUND2; SIPROUND2; SIPROUND2;
+	return devectorize(v0 ^ v1 ^ v2  ^ v3) & NODEMASK;
+#endif
 }
 
 #include <stdio.h>
