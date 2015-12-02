@@ -5,6 +5,8 @@
 #include <string.h>
 #include <openssl/sha.h> // if openssl absent, use #include "sha256.c"
 
+#include "vector.cuh"
+
 // proof-of-work parameters
 #ifndef SIZESHIFT 
 #define SIZESHIFT 25
@@ -20,8 +22,10 @@
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-typedef struct {
+typedef union {
   u64 v[4];
+  uint2 vv[4];
+  uint4 vvvv[4];
 } siphash_ctx;
  
 #define U8TO64_LE(p) \
@@ -60,7 +64,16 @@ void setheader(siphash_ctx *ctx, const char *header) {
     v1 = ROTL(v1,17);   v3 = ROTL(v3,21); \
     v1 ^= v2; v3 ^= v0; v2 = ROTL(v2,32); \
   } while(0)
- 
+
+#define SIPROUND2 \
+  do { \
+    v0 += v1; v2 += v3; v1 = ROL2(v1,13); \
+    v3 = ROL2(v3,16); v1 ^= v0; v3 ^= v2; \
+    v0 = ROL2(v0,32); v2 += v1; v0 += v3; \
+    v1 = ROL2(v1,17);   v3 = ROL2(v3,21); \
+    v1 ^= v2; v3 ^= v0; v2 = ROL2(v2,32); \
+      } while(0)
+
 // SipHash-2-4 specialized to precomputed key and 8 byte nonces
 u64 siphash24(siphash_ctx *ctx, u64 nonce) {
   u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
