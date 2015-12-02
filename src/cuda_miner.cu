@@ -224,10 +224,8 @@ kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   twice_set &nonleaf = ctx->nonleaf;
   
   siphash_ctx sip_ctx;
-  sip_ctx.v[0] = ctx->sip_ctx.v[0];
-  sip_ctx.v[1] = ctx->sip_ctx.v[1];
-  sip_ctx.v[2] = ctx->sip_ctx.v[2];
-  sip_ctx.v[3] = ctx->sip_ctx.v[3];
+  sip_ctx.vvvv[0] = ctx->sip_ctx.vvvv[0];
+  sip_ctx.vvvv[1] = ctx->sip_ctx.vvvv[1];
 
 
   int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -235,7 +233,7 @@ kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
       if (alive32 & 1) {
-		 node_t u = dipnode(&sip_ctx, nonce, uorv);
+		node_t u = dipnode(&sip_ctx, nonce, uorv);
         if ((u & PART_MASK) == part) {
           if (!nonleaf.test(u >> PART_BITS)) {
             alive.reset(nonce);
