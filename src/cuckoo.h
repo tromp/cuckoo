@@ -34,8 +34,8 @@ typedef struct {
 #define SHA256(d, n, md) do { \
     SHA256_CTX c; \
     SHA256_Init(&c); \
-    SHA256_Update(&c, d, n); \
-    SHA256_Final(md, &c); \
+    SHA256_Update(&c, (uint8_t *)d, n); \
+    SHA256_Final((uint8_t *)md, &c); \
   } while (0)
 #endif
  
