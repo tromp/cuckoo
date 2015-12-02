@@ -4,9 +4,15 @@
 // The edge=trimming time-memory trade-off is due to Dave Anderson:
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
+
+
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 #include "cuckoo.h"
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
 #if SIZESHIFT <= 32
 typedef u32 nonce_t;
 typedef u32 node_t;
@@ -18,13 +24,24 @@ typedef u64 node_t;
 
 // d(evice s)ipnode
 __device__ node_t dipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
-  u64 nonce = 2*nce + uorv;
-  u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
-  SIPROUND; SIPROUND;
-  v0 ^= nonce;
-  v2 ^= 0xff;
-  SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return (v0 ^ v1 ^ v2  ^ v3) & NODEMASK;
+#if (__CUDA_ARCH__  < 320)
+	u64 nonce = 2*nce + uorv;
+	u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
+	SIPROUND; SIPROUND;
+	v0 ^= nonce;
+	v2 ^= 0xff;
+	SIPROUND; SIPROUND; SIPROUND; SIPROUND;
+	return (v0 ^ v1 ^ v2  ^ v3) & NODEMASK;
+#else
+	uint2 nonce = vectorize((nce << 1) + uorv);
+	uint2 v0, v1, v2, v3;
+	v0 = ctx->vv[0], v1 = ctx->vv[1], v2 = ctx->vv[2], v3 = ctx->vv[3] ^ nonce;
+	SIPROUND2; SIPROUND2;
+	v0 ^= nonce;
+	v2 ^= vectorize(0xff);
+	SIPROUND2; SIPROUND2; SIPROUND2; SIPROUND2;
+	return devectorize(v0 ^ v1 ^ v2  ^ v3) & NODEMASK;
+#endif
 }
 
 #include <stdio.h>
@@ -165,7 +182,11 @@ public:
   }
 };
 
-__global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
+#define TPB 128
+
+__global__ void
+__launch_bounds__(TPB, 1)
+count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
   twice_set &nonleaf = ctx->nonleaf;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -182,7 +203,9 @@ __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   }
 }
 
-__global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
+__global__ void
+__launch_bounds__(TPB, 1)
+kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
   twice_set &nonleaf = ctx->nonleaf;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -218,14 +241,19 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
 
 typedef std::pair<node_t,node_t> edge;
 
+#ifndef WIN32
 #include <unistd.h>
+#else
+#include "getopt/getopt.h"
+#endif
 
 int main(int argc, char **argv) {
   int nthreads = 1;
   int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
   const char *header = "";
+  bool profiling = false;
   int c;
-  while ((c = getopt (argc, argv, "h:m:n:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:t:p")) != -1) {
     switch (c) {
       case 'h':
         header = optarg;
@@ -236,6 +264,9 @@ int main(int argc, char **argv) {
       case 't':
         nthreads = atoi(optarg);
         break;
+	  case 'p':
+		  profiling = true;
+		  break;
     }
   }
   printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %d threads\n",
@@ -258,16 +289,32 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaMalloc((void**)&device_ctx, sizeof(cuckoo_ctx)));
   cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
 
+  cudaEvent_t start, stop;
+
+  if (profiling) {  
+	  checkCudaErrors(cudaEventCreate(&start));
+	  checkCudaErrors(cudaEventCreate(&stop));
+	  cudaEventRecord(start, nullptr);
+  }
+
   for (u32 round=0; round < ntrims; round++) {
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         checkCudaErrors(cudaMemset(ctx.nonleaf.bits, 0, nodeBytes));
-        count_node_deg<<<nthreads,1>>>(device_ctx,uorv,part);
-        kill_leaf_edges<<<nthreads,1>>>(device_ctx,uorv,part);
+		count_node_deg << <nthreads / TPB, TPB >> >(device_ctx, uorv, part);
+		kill_leaf_edges << <nthreads / TPB, TPB >> >(device_ctx, uorv, part);
+		cudaDeviceSynchronize();
       }
     }
   }
+  if (profiling) {
+	  cudaEventRecord(stop, nullptr);
+	  cudaEventSynchronize(stop);
 
+	  float duration;
+	  cudaEventElapsedTime(&duration, start, stop);
+	  printf("%d rounds completed in %.2f seconds.\n", ntrims, duration / 1000.0f);
+  }
   u32 *bits;
   bits = (u32 *)calloc(HALFSIZE/32, sizeof(u32));
   assert(bits != 0);
