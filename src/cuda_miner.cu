@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 #include "cuckoo.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -250,8 +251,9 @@ int main(int argc, char **argv) {
   int nthreads = 1;
   int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
   const char *header = "";
+  bool profiling = false;
   int c;
-  while ((c = getopt (argc, argv, "h:m:n:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:t:p")) != -1) {
     switch (c) {
       case 'h':
         header = optarg;
@@ -262,6 +264,9 @@ int main(int argc, char **argv) {
       case 't':
         nthreads = atoi(optarg);
         break;
+	  case 'p':
+		  profiling = true;
+		  break;
     }
   }
   printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %d threads\n",
@@ -284,6 +289,14 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaMalloc((void**)&device_ctx, sizeof(cuckoo_ctx)));
   cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
 
+  cudaEvent_t start, stop;
+
+  if (profiling) {  
+	  checkCudaErrors(cudaEventCreate(&start));
+	  checkCudaErrors(cudaEventCreate(&stop));
+	  cudaEventRecord(start, nullptr);
+  }
+
   for (u32 round=0; round < ntrims; round++) {
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
@@ -294,7 +307,14 @@ int main(int argc, char **argv) {
       }
     }
   }
+  if (profiling) {
+	  cudaEventRecord(stop, nullptr);
+	  cudaEventSynchronize(stop);
 
+	  float duration;
+	  cudaEventElapsedTime(&duration, start, stop);
+	  printf("%d rounds completed in %.2f seconds.\n", ntrims, duration / 1000.0f);
+  }
   u32 *bits;
   bits = (u32 *)calloc(HALFSIZE/32, sizeof(u32));
   assert(bits != 0);
