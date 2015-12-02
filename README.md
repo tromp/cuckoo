@@ -50,7 +50,7 @@ The runtime of a single proof attempt on a high end x86 is 5.5min/GB single-thre
 I claim that this implementation is a reasonably optimal Cuckoo miner,
 and that trading off memory for running time, as implemented in tomato_miner.h,
 incurs at least one order of magnitude extra slowdown.
-I'd further like to claim that GPUs cannot achieve a significant speed advantage over CPUs.
+I'd further like to claim that GPUs are up to twice as fast as CPUs.
 
 To that end, I offer the following bounties:
 
@@ -69,11 +69,11 @@ and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with
 GPU Advantage Bounty
 --------------
 $500 for an open source implementation for a consumer GPU
-that is twice as fast as a high-end Intel Core i7 (4 cores/8 threads).
+that is 4x as fast as a 4-core 8-thread Intel Core i7.
 Again with N ranging over {2^28,2^30,2^32}.
 
 cuda_miner.cu is a straightforward port of the miner that, without any GPU specific optimizations,
-is about as fast as an Intel Core i7, but already spends 85% of its time waiting on memory accesses.
+will soon be about twice as fast as an Intel Core i7.
 
 These bounties are to expire at the end of 2015. They are admittedly modest in size, but then
 claiming them might only require one or two insightful tweaks to my existing implementations.

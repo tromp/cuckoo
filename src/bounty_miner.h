@@ -5,6 +5,193 @@
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
 #include "cuckoo.h"
+
+#ifdef SIMD
+// Scalar and AVX2 implementations of siphash24 for 8B nonces
+// gcc -march=native -std=gnu99 -O3 -g -Wall -Wextra siphash.c -o siphash -lcrypto
+
+#include <x86intrin.h>
+
+typedef __m256i ymm_t;
+typedef __m128i xmm_t;
+
+typedef struct {
+  ymm_t v[4];
+} ymm_siphash_ctx;
+
+#define YMM_ROTATE_LEFT(vec, bits) \
+  _mm256_or_si256(_mm256_slli_epi64(vec, bits), _mm256_srli_epi64(vec, (64 - bits)))
+
+// swapping high and low is equivalent to rotating bits 32
+#define YMM_SWAP_HIGH_LOW_32(vec) \
+  _mm256_shuffle_epi32(vec, _MM_SHUFFLE(2, 3, 0, 1))
+
+// Starting Byte Order: {0x0706050403020100, 0x0F0E0D0C0B0A0908}
+static ymm_t ymmRotateLeft16 = {0x0504030201000706, 0x0D0C0B0A09080F0E,
+                                0x0504030201000706, 0x0D0C0B0A09080F0E};
+#define YMM_ROTATE_LEFT_16(vec) \
+  _mm256_shuffle_epi8(vec, ymmRotateLeft16)
+
+// commented out calculations for first round are done in advance
+#define YMM_SIP_FIRST_ROUND(VEC)                     \
+  VEC.v[2] = _mm256_add_epi64(VEC.v[2], VEC.v[3]); \
+  VEC.v[3] = YMM_ROTATE_LEFT_16(VEC.v[3]);         \
+  VEC.v[3] = _mm256_xor_si256(VEC.v[2], VEC.v[3]); \
+  VEC.v[2] = _mm256_add_epi64(VEC.v[2], VEC.v[1]); \
+  VEC.v[1] = YMM_ROTATE_LEFT(VEC.v[1], 17);        \
+  VEC.v[0] = _mm256_add_epi64(VEC.v[0], VEC.v[3]); \
+  VEC.v[3] = YMM_ROTATE_LEFT(VEC.v[3], 21);        \
+  VEC.v[1] = _mm256_xor_si256(VEC.v[2], VEC.v[1]); \
+  VEC.v[2] = YMM_SWAP_HIGH_LOW_32(VEC.v[2]);       \
+  VEC.v[3] = _mm256_xor_si256(VEC.v[0], VEC.v[3])
+
+// full round on 4x64-bit values in a 256-bit ymm_t vector
+#define YMM_SIP_FULL_ROUND(VEC)      \
+  VEC.v[0] = _mm256_add_epi64(VEC.v[0], VEC.v[1]); \
+  VEC.v[1] = YMM_ROTATE_LEFT(VEC.v[1], 13);        \
+  VEC.v[2] = _mm256_add_epi64(VEC.v[2], VEC.v[3]); \
+  VEC.v[3] = YMM_ROTATE_LEFT_16(VEC.v[3]);         \
+  VEC.v[1] = _mm256_xor_si256(VEC.v[0], VEC.v[1]); \
+  VEC.v[0] = YMM_SWAP_HIGH_LOW_32(VEC.v[0]);       \
+  VEC.v[3] = _mm256_xor_si256(VEC.v[2], VEC.v[3]); \
+  VEC.v[2] = _mm256_add_epi64(VEC.v[2], VEC.v[1]); \
+  VEC.v[1] = YMM_ROTATE_LEFT(VEC.v[1], 17);        \
+  VEC.v[0] = _mm256_add_epi64(VEC.v[0], VEC.v[3]); \
+  VEC.v[3] = YMM_ROTATE_LEFT(VEC.v[3], 21);        \
+  VEC.v[1] = _mm256_xor_si256(VEC.v[2], VEC.v[1]); \
+  VEC.v[2] = YMM_SWAP_HIGH_LOW_32(VEC.v[2]);       \
+  VEC.v[3] = _mm256_xor_si256(VEC.v[0], VEC.v[3])
+
+ymm_t ymm_siphash24(ymm_siphash_ctx VEC, ymm_t vecNonces) {
+  ymm_t vec0xFF = {0xFF, 0xFF, 0xFF, 0xFF};
+
+  VEC.v[3] = _mm256_xor_si256(VEC.v[3], vecNonces);
+  YMM_SIP_FIRST_ROUND(VEC);
+  YMM_SIP_FULL_ROUND(VEC);
+  VEC.v[2] = _mm256_xor_si256(VEC.v[2], vec0xFF);
+  VEC.v[0] = _mm256_xor_si256(VEC.v[0], vecNonces);
+  YMM_SIP_FULL_ROUND(VEC);
+  YMM_SIP_FULL_ROUND(VEC);
+  YMM_SIP_FULL_ROUND(VEC);
+  YMM_SIP_FULL_ROUND(VEC);
+
+  VEC.v[0] = _mm256_xor_si256(VEC.v[0], VEC.v[1]);
+  VEC.v[2] = _mm256_xor_si256(VEC.v[2], VEC.v[3]);
+  VEC.v[0] = _mm256_xor_si256(VEC.v[0], VEC.v[2]);
+
+  return VEC.v[0];
+}
+
+// Y2X routines work on 2 4x64-bit vectors simultaneously
+#define Y2X_SIP_FIRST_ROUND(VEC0, VEC1) \
+  VEC0.v[2] = _mm256_add_epi64(VEC0.v[2], VEC0.v[3]); \
+  VEC1.v[2] = _mm256_add_epi64(VEC1.v[2], VEC1.v[3]); \
+  VEC0.v[3] = YMM_ROTATE_LEFT_16(VEC0.v[3]);          \
+  VEC1.v[3] = YMM_ROTATE_LEFT_16(VEC1.v[3]);          \
+  VEC0.v[3] = _mm256_xor_si256(VEC0.v[2], VEC0.v[3]); \
+  VEC1.v[3] = _mm256_xor_si256(VEC1.v[2], VEC1.v[3]); \
+  VEC0.v[2] = _mm256_add_epi64(VEC0.v[2], VEC0.v[1]); \
+  VEC1.v[2] = _mm256_add_epi64(VEC1.v[2], VEC1.v[1]); \
+  VEC0.v[1] = YMM_ROTATE_LEFT(VEC0.v[1], 17);         \
+  VEC1.v[1] = YMM_ROTATE_LEFT(VEC1.v[1], 17);         \
+  VEC0.v[0] = _mm256_add_epi64(VEC0.v[0], VEC0.v[3]); \
+  VEC1.v[0] = _mm256_add_epi64(VEC1.v[0], VEC1.v[3]); \
+  VEC0.v[3] = YMM_ROTATE_LEFT(VEC0.v[3], 21);         \
+  VEC1.v[3] = YMM_ROTATE_LEFT(VEC1.v[3], 21);         \
+  VEC0.v[1] = _mm256_xor_si256(VEC0.v[2], VEC0.v[1]); \
+  VEC1.v[1] = _mm256_xor_si256(VEC1.v[2], VEC1.v[1]); \
+  VEC0.v[2] = YMM_SWAP_HIGH_LOW_32(VEC0.v[2]);        \
+  VEC1.v[2] = YMM_SWAP_HIGH_LOW_32(VEC1.v[2]);        \
+  VEC0.v[3] = _mm256_xor_si256(VEC0.v[0], VEC0.v[3]); \
+  VEC1.v[3] = _mm256_xor_si256(VEC1.v[0], VEC1.v[3])
+
+#define Y2X_SIP_FULL_ROUND(VEC0, VEC1)  \
+  VEC0.v[0] = _mm256_add_epi64(VEC0.v[0], VEC0.v[1]); \
+  VEC1.v[0] = _mm256_add_epi64(VEC1.v[0], VEC1.v[1]); \
+  VEC0.v[1] = YMM_ROTATE_LEFT(VEC0.v[1], 13);         \
+  VEC1.v[1] = YMM_ROTATE_LEFT(VEC1.v[1], 13);         \
+  VEC0.v[2] = _mm256_add_epi64(VEC0.v[2], VEC0.v[3]); \
+  VEC1.v[2] = _mm256_add_epi64(VEC1.v[2], VEC1.v[3]); \
+  VEC0.v[3] = YMM_ROTATE_LEFT_16(VEC0.v[3]);          \
+  VEC1.v[3] = YMM_ROTATE_LEFT_16(VEC1.v[3]);          \
+  VEC0.v[1] = _mm256_xor_si256(VEC0.v[0], VEC0.v[1]); \
+  VEC1.v[1] = _mm256_xor_si256(VEC1.v[0], VEC1.v[1]); \
+  VEC0.v[0] = YMM_SWAP_HIGH_LOW_32(VEC0.v[0]);        \
+  VEC1.v[0] = YMM_SWAP_HIGH_LOW_32(VEC1.v[0]);        \
+  VEC0.v[3] = _mm256_xor_si256(VEC0.v[2], VEC0.v[3]); \
+  VEC1.v[3] = _mm256_xor_si256(VEC1.v[2], VEC1.v[3]); \
+  VEC0.v[2] = _mm256_add_epi64(VEC0.v[2], VEC0.v[1]); \
+  VEC1.v[2] = _mm256_add_epi64(VEC1.v[2], VEC1.v[1]); \
+  VEC0.v[1] = YMM_ROTATE_LEFT(VEC0.v[1], 17);         \
+  VEC1.v[1] = YMM_ROTATE_LEFT(VEC1.v[1], 17);         \
+  VEC0.v[0] = _mm256_add_epi64(VEC0.v[0], VEC0.v[3]); \
+  VEC1.v[0] = _mm256_add_epi64(VEC1.v[0], VEC1.v[3]); \
+  VEC0.v[3] = YMM_ROTATE_LEFT(VEC0.v[3], 21);         \
+  VEC1.v[3] = YMM_ROTATE_LEFT(VEC1.v[3], 21);         \
+  VEC0.v[1] = _mm256_xor_si256(VEC0.v[2], VEC0.v[1]); \
+  VEC1.v[1] = _mm256_xor_si256(VEC1.v[2], VEC1.v[1]); \
+  VEC0.v[2] = YMM_SWAP_HIGH_LOW_32(VEC0.v[2]);        \
+  VEC1.v[2] = YMM_SWAP_HIGH_LOW_32(VEC1.v[2]);        \
+  VEC0.v[3] = _mm256_xor_si256(VEC0.v[0], VEC0.v[3]); \
+  VEC1.v[3] = _mm256_xor_si256(VEC1.v[0], VEC1.v[3])
+
+void ymm_siphash24_2x(ymm_siphash_ctx *vec, u64 *sinput, u64 *soutput) {
+  ymm_t vecNonce0 = _mm256_loadu_si256((ymm_t *)&sinput[0]);
+  ymm_t vecNonce1 = _mm256_loadu_si256((ymm_t *)&sinput[4]);
+
+  ymm_t vec0xFF = {0xFF, 0xFF, 0xFF, 0xFF};
+
+  ymm_siphash_ctx vec0, vec1;
+  vec0.v[0] = vec1.v[0] = vec->v[0];
+  vec0.v[1] = vec1.v[1] = vec->v[1];
+  vec0.v[2] = vec1.v[2] = vec->v[2];
+  vec0.v[3] = _mm256_xor_si256(vec->v[3], vecNonce0);
+  vec1.v[3] = _mm256_xor_si256(vec->v[3], vecNonce1);
+
+  Y2X_SIP_FIRST_ROUND(vec0, vec1); Y2X_SIP_FULL_ROUND(vec0, vec1);
+
+  vec0.v[2] = _mm256_xor_si256(vec0.v[2], vec0xFF);
+  vec1.v[2] = _mm256_xor_si256(vec1.v[2], vec0xFF);
+
+  vec0.v[0] = _mm256_xor_si256(vec0.v[0], vecNonce0);
+  vec1.v[0] = _mm256_xor_si256(vec1.v[0], vecNonce1);
+
+  Y2X_SIP_FULL_ROUND(vec0, vec1); Y2X_SIP_FULL_ROUND(vec0, vec1);
+  Y2X_SIP_FULL_ROUND(vec0, vec1); Y2X_SIP_FULL_ROUND(vec0, vec1);
+
+  vec0.v[0] = _mm256_xor_si256(vec0.v[0], vec0.v[1]);
+  vec1.v[0] = _mm256_xor_si256(vec1.v[0], vec1.v[1]);
+
+  vec0.v[2] = _mm256_xor_si256(vec0.v[2], vec0.v[3]);
+  vec1.v[2] = _mm256_xor_si256(vec1.v[2], vec1.v[3]);
+
+  vec0.v[0] = _mm256_xor_si256(vec0.v[0], vec0.v[2]);
+  vec1.v[0] = _mm256_xor_si256(vec1.v[0], vec1.v[2]);
+
+  _mm256_storeu_si256((ymm_t *)&soutput[0], vec0.v[0]);
+  _mm256_storeu_si256((ymm_t *)&soutput[4], vec1.v[0]);
+}
+
+#define YMM_SET_ALL(x) _mm256_broadcastq_epi64(_mm_cvtsi64_si128(x))
+
+// FUTURE: add alternative to calculate same nonce with 4 different headers (transpose vecs)
+void ymm_sip_header(ymm_siphash_ctx *VEC, const char *header) {
+  uint64_t generated[4];
+  SHA256(header, strlen(header), &generated);
+
+  // set all elements within a vector to same value
+  VEC->v[0] = YMM_SET_ALL(generated[0] ^ 0x736f6d6570736575ULL);
+  VEC->v[1] = YMM_SET_ALL(generated[1] ^ 0x646f72616e646f6dULL);
+  VEC->v[2] = YMM_SET_ALL(generated[0] ^ 0x6c7967656e657261ULL);
+  VEC->v[3] = YMM_SET_ALL(generated[1] ^ 0x7465646279746573ULL);
+
+  // do the invariant start of the first sip round 
+  VEC->v[0] = _mm256_add_epi64(VEC->v[0], VEC->v[1]);
+  VEC->v[1] = _mm256_xor_si256(VEC->v[0], YMM_ROTATE_LEFT(VEC->v[1], 13));
+  VEC->v[0] = YMM_SWAP_HIGH_LOW_32(VEC->v[0]);
+}
+#endif
+
 #ifdef __APPLE__
 #include "osx_barrier.h"
 #endif
@@ -181,6 +368,9 @@ public:
 class cuckoo_ctx {
 public:
   siphash_ctx sip_ctx;
+#ifdef SIMD
+  ymm_siphash_ctx ymm_sip_ctx;
+#endif
   shrinkingset *alive;
   twice_set *nonleaf;
   cuckoo_hash *cuckoo;
@@ -193,6 +383,9 @@ public:
 
   cuckoo_ctx(const char* header, u32 n_threads, u32 n_trims, u32 max_sols) {
     setheader(&sip_ctx, header);
+#ifdef SIMD
+    ymm_sip_header(&ymm_sip_ctx, header);
+#endif
     nthreads = n_threads;
     alive = new shrinkingset(nthreads);
     cuckoo = 0;
@@ -236,15 +429,45 @@ void count_node_deg(thread_ctx *tp, u32 uorv, u32 part) {
   shrinkingset *alive = ctx->alive;
   twice_set *nonleaf = ctx->nonleaf;
   u64 buffer[64];
+#ifdef SIMD
+  u64 sinput[8], soutput[8];
+#endif
 
   for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
     u32 bsize = 0;
+#ifdef SIMD
+    u32 nsin = 0;
+#endif
     u64 alive64 = alive->block(block);
     for (nonce_t nonce = block; alive64; alive64>>=1, nonce++) if (alive64 & 1LL) {
+#ifdef SIMD
+      sinput[nsin++] = 2*nonce + uorv;
+      if (nsin == 8) {
+        ymm_siphash24_2x(&ctx->ymm_sip_ctx, sinput, soutput); // SINPUT AND SOUTPUT CLD BE SHARED?!
+        for (u32 i=0; i<8; i++) {
+          node_t u = soutput[i] & NODEMASK;
+          if ((u & PART_MASK) == part) {
+            buffer[bsize++] = u >> PART_BITS;
+            nonleaf->prefetch(u >> PART_BITS);
+          }
+        }
+        nsin = 0;
+      }
+    }
+    if (nsin) {
+      ymm_siphash24_2x(&ctx->ymm_sip_ctx, sinput, soutput);
+      for (u32 i=0; i<nsin; i++) {
+        node_t u = soutput[i] & NODEMASK;
+        if ((u & PART_MASK) == part) {
+          buffer[bsize++] = u >> PART_BITS;
+          nonleaf->prefetch(u >> PART_BITS);
+        }
+#else
       node_t u = _sipnode(&ctx->sip_ctx, nonce, uorv);
       if ((u & PART_MASK) == part) {
         buffer[bsize++] = u >> PART_BITS;
         nonleaf->prefetch(u >> PART_BITS);
+#endif
       }
     }
     for (u32 i=0; i<bsize; i++)
@@ -257,15 +480,46 @@ void kill_leaf_edges(thread_ctx *tp, u32 uorv, u32 part) {
   shrinkingset *alive = ctx->alive;
   twice_set *nonleaf = ctx->nonleaf;
   u64 buffer[64];
+#ifdef SIMD
+  u64 nce[8], sinput[8], soutput[8];
+#endif
 
   for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
     u32 bsize = 0;
+#ifdef SIMD
+    u32 nsin = 0;
+#endif
     u64 alive64 = alive->block(block);
     for (nonce_t nonce = block; alive64; alive64>>=1, nonce++) if (alive64 & 1LL) {
+#ifdef SIMD
+      nce[nsin] = nonce;
+      sinput[nsin++] = 2*nonce + uorv;
+      if (nsin == 8) {
+        ymm_siphash24_2x(&ctx->ymm_sip_ctx, sinput, soutput); // SINPUT AND SOUTPUT CLD BE SHARED?!
+        for (u32 i=0; i<8; i++) {
+          node_t u = soutput[i] & NODEMASK;
+          if ((u & PART_MASK) == part) {
+            buffer[bsize++] = ((u64)nce[i] << NONCESHIFT) | (u >> PART_BITS);
+            nonleaf->prefetch(u >> PART_BITS);
+          }
+        }
+        nsin = 0;
+      }
+    }
+    if (nsin) {
+      ymm_siphash24_2x(&ctx->ymm_sip_ctx, sinput, soutput);
+      for (u32 i=0; i<nsin; i++) {
+        node_t u = soutput[i] & NODEMASK;
+        if ((u & PART_MASK) == part) {
+          buffer[bsize++] = ((u64)nce[i] << NONCESHIFT) | (u >> PART_BITS);
+          nonleaf->prefetch(u >> PART_BITS);
+        }
+#else
       node_t u = _sipnode(&ctx->sip_ctx, nonce, uorv);
       if ((u & PART_MASK) == part) {
         buffer[bsize++] = ((u64)nonce << NONCESHIFT) | (u >> PART_BITS);
         nonleaf->prefetch(u >> PART_BITS);
+#endif
       }
     }
     for (u32 i=0; i<bsize; i++) {
