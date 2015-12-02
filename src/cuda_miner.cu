@@ -22,13 +22,12 @@ typedef u64 node_t;
 #endif
 #include <openssl/sha.h>
 
-__shared__ siphash_ctx shared_siphash_ctx;
-
 // d(evice s)ipnode
-__device__ node_t dipnode(nonce_t nce, u32 uorv) {
+__device__ node_t dipnode(siphash_ctx * ctx, nonce_t nce, u32 uorv) {
 #if (__CUDA_ARCH__  < 320)
 	u64 nonce = 2*nce + uorv;
-	u64 v0 = shared_siphash_ctx.v[0], v1 = shared_siphash_ctx.v[1], v2 = shared_siphash_ctx.v[2], v3 = shared_siphash_ctx.v[3] ^ nonce;
+	//u64 v0 = shared_siphash_ctx.v[0], v1 = shared_siphash_ctx.v[1], v2 = shared_siphash_ctx.v[2], v3 = shared_siphash_ctx.v[3] ^ nonce;
+	u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
 
 	SIPROUND; SIPROUND;
 	v0 ^= nonce;
@@ -38,7 +37,7 @@ __device__ node_t dipnode(nonce_t nce, u32 uorv) {
 #else
 	uint2 nonce = vectorize((nce << 1) + uorv);
 	uint2 v0, v1, v2, v3;
-	v0 = shared_siphash_ctx.vv[0], v1 = shared_siphash_ctx.vv[1], v2 = shared_siphash_ctx.vv[2], v3 = shared_siphash_ctx.vv[3] ^ nonce;
+	v0 = ctx->vv[0], v1 = ctx->vv[1], v2 = ctx->vv[2], v3 = ctx->vv[3] ^ nonce;
 
 	SIPROUND2; SIPROUND2;
 	v0 ^= nonce;
@@ -196,15 +195,12 @@ __launch_bounds__(TPB, 1)
 count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
   twice_set &nonleaf = ctx->nonleaf;
-  
-  if (threadIdx.x == 0) {
-	  shared_siphash_ctx.v[0] = ctx->sip_ctx.v[0];
-	  shared_siphash_ctx.v[1] = ctx->sip_ctx.v[1];
-	  shared_siphash_ctx.v[2] = ctx->sip_ctx.v[2];
-	  shared_siphash_ctx.v[3] = ctx->sip_ctx.v[3];
-  }
-  __syncthreads();
-  
+
+  siphash_ctx sip_ctx;
+  sip_ctx.vvvv[0] = ctx->sip_ctx.vvvv[0];
+  sip_ctx.vvvv[1] = ctx->sip_ctx.vvvv[1];
+
+
   int id = blockIdx.x * blockDim.x + threadIdx.x;
 
   for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
@@ -212,7 +208,7 @@ count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
 
     for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
       if (alive32 & 1) {
-        node_t u = dipnode(nonce, uorv);
+		  node_t u = dipnode(&sip_ctx, nonce, uorv);
         if ((u & PART_MASK) == part) {
           nonleaf.set(u >> PART_BITS);
         }
@@ -227,20 +223,19 @@ kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
   twice_set &nonleaf = ctx->nonleaf;
   
-  if (threadIdx.x == 0) {
-	  shared_siphash_ctx.v[0] = ctx->sip_ctx.v[0];
-	  shared_siphash_ctx.v[1] = ctx->sip_ctx.v[1];
-	  shared_siphash_ctx.v[2] = ctx->sip_ctx.v[2];
-	  shared_siphash_ctx.v[3] = ctx->sip_ctx.v[3];
-  }
-  __syncthreads();
-  
+  siphash_ctx sip_ctx;
+  sip_ctx.v[0] = ctx->sip_ctx.v[0];
+  sip_ctx.v[1] = ctx->sip_ctx.v[1];
+  sip_ctx.v[2] = ctx->sip_ctx.v[2];
+  sip_ctx.v[3] = ctx->sip_ctx.v[3];
+
+
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
       if (alive32 & 1) {
-        node_t u = dipnode(nonce, uorv);
+		 node_t u = dipnode(&sip_ctx, nonce, uorv);
         if ((u & PART_MASK) == part) {
           if (!nonleaf.test(u >> PART_BITS)) {
             alive.reset(nonce);

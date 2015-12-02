@@ -25,6 +25,7 @@ typedef uint64_t u64;
 typedef union {
   u64 v[4];
   uint2 vv[4];
+  uint4 vvvv[4];
 } siphash_ctx;
  
 #define U8TO64_LE(p) \
