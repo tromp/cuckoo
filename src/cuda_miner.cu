@@ -47,8 +47,9 @@ __device__ __forceinline__ uint64_t devectorize(uint2 x) {
   asm("mov.b64 %0,{%1,%2}; \n\t" : "=l"(result) : "r"(x.x), "r"(x.y));
   return result;
 }
-__device__ node_t dipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
-  uint2 nonce = vectorize(2*nce + uorv); uint2 v0 = ctx->v2[0], v1 = ctx->v2[1], v2 = ctx->v2[2], v3 = ctx->v2[3] ^ nonce;
+__device__ node_t dipnode(siphash_ctx &ctx, nonce_t nce, u32 uorv) {
+  uint2 nonce = vectorize(2*nce + uorv);
+  uint2 v0 = ctx.v2[0], v1 = ctx.v2[1], v2 = ctx.v2[2], v3 = ctx.v2[3] ^ nonce;
   SIPROUND; SIPROUND;
   v0 ^= nonce;
   v2 ^= vectorize(0xff);
@@ -58,8 +59,9 @@ __device__ node_t dipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
 
 #else
 
-__device__ node_t dipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
-  u64 nonce = 2*nce + uorv; u64 v0 = ctx->v[0], v1 = ctx->v[1], v2 = ctx->v[2], v3 = ctx->v[3] ^ nonce;
+__device__ node_t dipnode(siphash_ctx &ctx, nonce_t nce, u32 uorv) {
+  u64 nonce = 2*nce + uorv;
+  u64 v0 = ctx.v[0], v1 = ctx.v[1], v2 = ctx.v[2], v3 = ctx.v[3] ^ nonce;
   SIPROUND; SIPROUND;
   v0 ^= nonce;
   v2 ^= 0xff;
@@ -220,7 +222,7 @@ __global__ __launch_bounds__(TPB,1) void count_node_deg(cuckoo_ctx *ctx, u32 uor
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
       if (alive32 & 1) {
-        node_t u = dipnode(&sip_ctx, nonce, uorv);
+        node_t u = dipnode(sip_ctx, nonce, uorv);
         if ((u & PART_MASK) == part) {
           nonleaf.set(u >> PART_BITS);
         }
@@ -238,7 +240,7 @@ __global__ __launch_bounds__(TPB,1) void kill_leaf_edges(cuckoo_ctx *ctx, u32 uo
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
       if (alive32 & 1) {
-        node_t u = dipnode(&sip_ctx, nonce, uorv);
+        node_t u = dipnode(sip_ctx, nonce, uorv);
         if ((u & PART_MASK) == part) {
           if (!nonleaf.test(u >> PART_BITS)) {
             alive.reset(nonce);
