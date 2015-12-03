@@ -48,13 +48,14 @@ is used to recognise all cycles, and recover those of the right length.
 The runtime of a single proof attempt on a high end x86 is 5.5min/GB single-threaded, or 1.5min/GB for 8 threads.
 
 I claim that this implementation is a reasonably optimal Cuckoo miner,
-and that trading off memory for running time, as implemented in tomato_miner.h,
-incurs at least one order of magnitude extra slowdown.
-I'd further like to claim that GPUs are up to twice as fast as CPUs.
+secondly, that trading off memory for running time, as implemented in tomato_miner.h,
+incurs at least one order of magnitude extra slowdown,
+and finally, that cuda_miner.cu is a reasonably optimal GPU miner.
+The latter runs about twice as fast on an NVIDA GTX 980 as on a 4-core 8-thread Intel Core-i7 CPU.
 
 To that end, I offer the following bounties:
 
-Speedup Bounty
+CPU Speedup Bounty
 --------------
 $500 for an open source implementation that finds 42-cycles twice as fast, possibly using more memory.
 
@@ -66,14 +67,11 @@ for any k>=2.
 Both of these bounties require N ranging over {2^28,2^30,2^32} and #threads ranging over {1,2,4,8},
 and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with regular flags as in my Makefile.
 
-GPU Advantage Bounty
+GPU Speedup Bounty
 --------------
 $500 for an open source implementation for a consumer GPU
-that is 4x as fast as a 4-core 8-thread Intel Core i7.
+that finds 42-cycles twice as fast as cuda_miner.cu on comparable hardware.
 Again with N ranging over {2^28,2^30,2^32}.
-
-cuda_miner.cu is a straightforward port of the miner that, without any GPU specific optimizations,
-will soon be about twice as fast as an Intel Core i7.
 
 These bounties are to expire at the end of 2015. They are admittedly modest in size, but then
 claiming them might only require one or two insightful tweaks to my existing implementations.
