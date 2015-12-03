@@ -97,7 +97,7 @@ __device__ node_t dipnode(siphash_ctx *ctx, nonce_t nce, u32 uorv) {
 #define MAXPATHLEN (8 << (SIZESHIFT/3))
 
 #define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, char *file, int line, bool abort=true) {
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
   if (code != cudaSuccess) {
     fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
     if (abort) exit(code);
