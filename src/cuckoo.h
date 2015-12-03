@@ -20,8 +20,11 @@
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-typedef struct {
+typedef union {
   u64 v[4];
+#ifdef __CUDACC__
+  uint2 v2[4];
+#endif
 } siphash_ctx;
  
 #define U8TO64_LE(p) \
@@ -34,8 +37,8 @@ typedef struct {
 #define SHA256(d, n, md) do { \
     SHA256_CTX c; \
     SHA256_Init(&c); \
-    SHA256_Update(&c, (uint8_t *)d, n); \
-    SHA256_Final((uint8_t *)md, &c); \
+    SHA256_Update(&c, d, n); \
+    SHA256_Final(md, &c); \
   } while (0)
 #endif
  
