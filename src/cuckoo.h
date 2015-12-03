@@ -20,8 +20,11 @@
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-typedef struct {
+typedef union {
   u64 v[4];
+#ifdef __CUDACC__
+  uint2 v2[4];
+#endif
 } siphash_ctx;
  
 #define U8TO64_LE(p) \
