@@ -103,13 +103,13 @@ bounty32:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
 	$(GPP) -o bounty32 -DSIMD -DSIZESHIFT=32 bounty_miner.cpp $(LIBS)
 
 cuda28:	cuda_miner.cu Makefile
-	nvcc -o cuda28 -DSIZESHIFT=28 -arch sm_20 cuda_miner.cu -lssl -lcrypto 
+	nvcc -o cuda28 -DSIZESHIFT=28 -arch sm_35 cuda_miner.cu -lssl -lcrypto 
 
 cuda30:	cuda_miner.cu Makefile
-	nvcc -o cuda30 -DSIZESHIFT=30 -arch sm_20 cuda_miner.cu -lssl -lcrypto
+	nvcc -o cuda30 -DSIZESHIFT=30 -arch sm_35 cuda_miner.cu -lssl -lcrypto
 
 cuda32:	cuda_miner.cu Makefile
-	nvcc -o cuda32 -DSIZESHIFT=32 -arch sm_20 cuda_miner.cu -lssl -lcrypto
+	nvcc -o cuda32 -DSIZESHIFT=32 -arch sm_35 cuda_miner.cu -lssl -lcrypto
 
 cpubounty:	cuckoo28 bounty28 cuckoo30 bounty30 cuckoo32 bounty32 Makefile
 	for c in 28 30 32; do for t in 1 2 4 8; do time for h in {0..9}; do ./cuckoo$$c -t $$t -h $$h; done; time for h in {0..9}; do ./bounty$$c -t $$t -h $$h; done;done; done
@@ -148,7 +148,7 @@ java:	Cuckoo.class SimpleMiner.class Makefile
 	java SimpleMiner -h 85 | tail -1 | java Cuckoo -h 85
 
 cuda:	cuda_miner.cu Makefile
-	nvcc -o cuda -DSIZESHIFT=14 -arch sm_20 cuda_miner.cu -lssl -lcrypto
+	nvcc -o cuda -DSIZESHIFT=14 -arch sm_35 cuda_miner.cu -lssl -lcrypto
 
 runcuda:	cuda
 	./cuda -h header
