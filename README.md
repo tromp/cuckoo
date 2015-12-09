@@ -43,11 +43,11 @@ Memory-wise, it uses N/2 bits to maintain a subset of all edges (potential cycle
 and N additional bits (or N/2^k bits with corresponding slowdown)
 to trim the subset in a series of edge trimming rounds.
 This is the phase that takes the vast majority of (latency dominated) runtime, at least on CPUs
-(On GPUs, edge trimming is about 5x faster).
+(on GPUs, edge trimming is about 5x faster).
 
 Once the subset is small enough, an algorithm inspired by Cuckoo Hashing
 is used to recognise all cycles, and recover those of the right length
-(This final phase may not benefit from GPUs).
+(this final phase may not benefit from GPUs).
 
 The runtime of a single proof attempt on a high end x86 is 5.5min/GB single-threaded, or 1.5min/GB for 8 threads.
 

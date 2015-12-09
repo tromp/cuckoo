@@ -209,11 +209,7 @@ public:
   }
 };
 
-#ifndef TPB
-#define TPB 128 // 51% speed gain over previous TPB=1
-#endif
-
-__global__ __launch_bounds__(TPB,1) void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
+__global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
   twice_set &nonleaf = ctx->nonleaf;
   siphash_ctx sip_ctx = ctx->sip_ctx; // local copy sip context; 2.5% speed gain
@@ -231,7 +227,7 @@ __global__ __launch_bounds__(TPB,1) void count_node_deg(cuckoo_ctx *ctx, u32 uor
   }
 }
 
-__global__ __launch_bounds__(TPB,1) void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
+__global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
   twice_set &nonleaf = ctx->nonleaf;
   siphash_ctx sip_ctx = ctx->sip_ctx;
@@ -308,12 +304,15 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaMalloc((void**)&device_ctx, sizeof(cuckoo_ctx)));
   cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
 
+  int tpb = 1;
+  while (tpb*tpb < nthreads) tpb *= 2; // set threads per block to roughly square root of threads
+
   for (u32 round=0; round < ntrims; round++) {
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         checkCudaErrors(cudaMemset(ctx.nonleaf.bits, 0, nodeBytes));
-        count_node_deg<<<nthreads/TPB,TPB >>>(device_ctx, uorv, part);
-        kill_leaf_edges<<<nthreads/TPB,TPB >>>(device_ctx, uorv, part);
+        count_node_deg<<<nthreads/tpb,tpb >>>(device_ctx, uorv, part);
+        kill_leaf_edges<<<nthreads/tpb,tpb >>>(device_ctx, uorv, part);
       }
     }
   }
