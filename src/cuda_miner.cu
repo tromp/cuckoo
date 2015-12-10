@@ -269,9 +269,10 @@ typedef std::pair<node_t,node_t> edge;
 int main(int argc, char **argv) {
   int nthreads = 1;
   int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
+  int tpb = 0;
   const char *header = "";
   int c;
-  while ((c = getopt (argc, argv, "h:m:n:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:n:t:p:")) != -1) {
     switch (c) {
       case 'h':
         header = optarg;
@@ -282,10 +283,16 @@ int main(int argc, char **argv) {
       case 't':
         nthreads = atoi(optarg);
         break;
+      case 'p':
+        tpb = atoi(optarg);
+        break;
     }
   }
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %d threads\n",
-               PROOFSIZE, SIZESHIFT, header, ntrims, nthreads);
+  if (!tpb) // if not set, then default threads per block to roughly square root of threads
+    for (tpb = 1; tpb*tpb < nthreads; tpb *= 2) ;
+
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %d threads %d per block\n",
+               PROOFSIZE, SIZESHIFT, header, ntrims, nthreads, tpb);
   u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
 
   cuckoo_ctx ctx(header, nthreads);
@@ -303,9 +310,6 @@ int main(int argc, char **argv) {
   cuckoo_ctx *device_ctx;
   checkCudaErrors(cudaMalloc((void**)&device_ctx, sizeof(cuckoo_ctx)));
   cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
-
-  int tpb = 1;
-  while (tpb*tpb < nthreads) tpb *= 2; // set threads per block to roughly square root of threads
 
   for (u32 round=0; round < ntrims; round++) {
     for (u32 uorv = 0; uorv < 2; uorv++) {
