@@ -216,12 +216,12 @@ __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
-    for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
-      if (alive32 & 1) {
-        node_t u = dipnode(sip_ctx, nonce, uorv);
-        if ((u & PART_MASK) == part) {
-          nonleaf.set(u >> PART_BITS);
-        }
+    for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __ffs(alive32);
+      nonce += ffs; alive32 >>= ffs;
+      node_t u = dipnode(sip_ctx, nonce, uorv);
+      if ((u & PART_MASK) == part) {
+        nonleaf.set(u >> PART_BITS);
       }
     }
   }
@@ -234,13 +234,13 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
-    for (nonce_t nonce = block; alive32; alive32>>=1, nonce++) {
-      if (alive32 & 1) {
-        node_t u = dipnode(sip_ctx, nonce, uorv);
-        if ((u & PART_MASK) == part) {
-          if (!nonleaf.test(u >> PART_BITS)) {
-            alive.reset(nonce);
-          }
+    for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __ffs(alive32);
+      nonce += ffs; alive32 >>= ffs;
+      node_t u = dipnode(sip_ctx, nonce, uorv);
+      if ((u & PART_MASK) == part) {
+        if (!nonleaf.test(u >> PART_BITS)) {
+          alive.reset(nonce);
         }
       }
     }
