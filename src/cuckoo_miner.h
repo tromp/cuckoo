@@ -240,12 +240,15 @@ void count_node_deg(thread_ctx *tp, u32 uorv, u32 part) {
   for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
     u32 bsize = 0;
     u64 alive64 = alive->block(block);
-    for (nonce_t nonce = block; alive64; alive64>>=1, nonce++) if (alive64 & 1LL) {
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
       node_t u = _sipnode(&ctx->sip_ctx, nonce, uorv);
       if ((u & PART_MASK) == part) {
         buffer[bsize++] = u >> PART_BITS;
         nonleaf->prefetch(u >> PART_BITS);
       }
+      if (ffs & 64) break; // can't shift by 64
     }
     for (u32 i=0; i<bsize; i++)
       nonleaf->set(buffer[i]);
@@ -261,12 +264,15 @@ void kill_leaf_edges(thread_ctx *tp, u32 uorv, u32 part) {
   for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
     u32 bsize = 0;
     u64 alive64 = alive->block(block);
-    for (nonce_t nonce = block; alive64; alive64>>=1, nonce++) if (alive64 & 1LL) {
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
       node_t u = _sipnode(&ctx->sip_ctx, nonce, uorv);
       if ((u & PART_MASK) == part) {
         buffer[bsize++] = ((u64)nonce << NONCESHIFT) | (u >> PART_BITS);
         nonleaf->prefetch(u >> PART_BITS);
       }
+      if (ffs & 64) break; // can't shift by 64
     }
     for (u32 i=0; i<bsize; i++) {
       u64 bi = buffer[i];
