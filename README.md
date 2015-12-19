@@ -42,20 +42,18 @@ occurring in this fraction are astronomically small).
 Memory-wise, it uses N/2 bits to maintain a subset of all edges (potential cycle edges)
 and N additional bits (or N/2^k bits with corresponding slowdown)
 to trim the subset in a series of edge trimming rounds.
-This is the phase that takes the vast majority of (latency dominated) runtime, at least on CPUs
-(on GPUs, edge trimming is about 5x faster).
+This is the phase that takes the vast majority of (latency dominated) runtime.
 
 Once the subset is small enough, an algorithm inspired by Cuckoo Hashing
-is used to recognise all cycles, and recover those of the right length
-(this final phase may not benefit from GPUs).
+is used to recognise all cycles, and recover those of the right length.
 
 The runtime of a single proof attempt on a high end x86 is 5.5min/GB single-threaded, or 1.5min/GB for 8 threads.
 
 I claim that this implementation is a reasonably optimal Cuckoo miner,
 secondly, that trading off memory for running time, as implemented in tomato_miner.h,
 incurs at least one order of magnitude extra slowdown,
-and finally, that a combination of cuda_miner.cu and cuckoo_miner.h is a reasonably optimal hybrid  miner.
-The latter runs almost 5x faster on an NVIDA GTX 980 plus Intel Core-i7 CPU, than on the latter alone.
+and finally, that cuda_miner.cu is a reasonably optimal GPU miner.
+The latter runs about 4x-5x faster on an NVIDA GTX 980 than on an Intel Core-i7 CPU. 
 To that end, I offer the following bounties:
 
 CPU Speedup Bounty
@@ -72,8 +70,8 @@ and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with
 
 GPU Speedup Bounty
 --------------
-$500 for an open source implementation for a consumer GPU/CPU combo
-that finds 42-cycles twice as fast as a cuda_miner.cu/cuckoo_miner.h hybrid.
+$500 for an open source implementation for a consumer GPU combo
+that finds 42-cycles twice as fast as cuda_miner.cu on comparable hardware.
 Again with N ranging over {2^28,2^30,2^32}.
 
 These bounties are to expire at the end of 2015. They are admittedly modest in size, but then
