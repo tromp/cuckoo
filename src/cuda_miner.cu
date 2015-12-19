@@ -321,16 +321,16 @@ int main(int argc, char **argv) {
     }
   }
 
-  u32 *bits;
-  bits = (u32 *)calloc(HALFSIZE/32, sizeof(u32));
+  u64 *bits;
+  bits = (u64 *)calloc(HALFSIZE/64, sizeof(u64));
   assert(bits != 0);
-  cudaMemcpy(bits, ctx.alive.bits, (HALFSIZE/32) * sizeof(u32), cudaMemcpyDeviceToHost);
+  cudaMemcpy(bits, ctx.alive.bits, (HALFSIZE/64) * sizeof(u64), cudaMemcpyDeviceToHost);
   checkCudaErrors(cudaFree(ctx.alive.bits));
   checkCudaErrors(cudaFree(ctx.nonleaf.bits));
 
   u32 cnt = 0;
-  for (int i = 0; i < HALFSIZE/32; i++) {
-    for (u32 b = ~bits[i]; b; b &= b-1)
+  for (int i = 0; i < HALFSIZE/64; i++) {
+    for (u64 b = ~bits[i]; b; b &= b-1)
       cnt++;
   }
   u32 load = (u32)(100L * cnt / CUCKOO_SIZE);
@@ -343,53 +343,55 @@ int main(int argc, char **argv) {
 
   cuckoo_hash &cuckoo = *(new cuckoo_hash());
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-  for (nonce_t block = 0; block < HALFSIZE; block += 32) {
-    for (nonce_t nonce = block; nonce < block+32 && nonce < HALFSIZE; nonce++) {
-      if (!(bits[nonce/32] >> (nonce%32) & 1)) {
-        node_t u0=sipnode(&ctx.sip_ctx, nonce, 0), v0=sipnode(&ctx.sip_ctx, nonce, 1);
-        if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
-          continue;
-        node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
-        u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
-        if (us[nu] == vs[nv]) {
-          u32 min = nu < nv ? nu : nv;
-          for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-          u32 len = nu + nv + 1;
-          printf("% 4d-cycle found at %d:%d%%\n", len, 0, (u32)(nonce*100L/HALFSIZE));
-          if (len == PROOFSIZE) {
-            printf("Solution");
-            std::set<edge> cycle;
-            u32 n;
-            cycle.insert(edge(*us, *vs));
-            while (nu--)
-              cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
-            while (nv--)
-              cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-            for (nonce_t nce = n = 0; nce < HALFSIZE; nce++)
-              if (!(bits[nce/32] >> (nce%32) & 1)) {
-                edge e(sipnode(&ctx.sip_ctx, nce, 0), sipnode(&ctx.sip_ctx, nce, 1));
-                if (cycle.find(e) != cycle.end()) {
-                  printf(" %x", nce);
-                  if (PROOFSIZE > 2)
-                    cycle.erase(e);
-                  n++;
-                }
-              }
-            assert(n==PROOFSIZE);
-            printf("\n");
-          }
-          continue;
-        }
-        if (nu < nv) {
+  for (nonce_t block = 0; block < HALFSIZE; block += 64) {
+    u64 alive64 = ~bits[block/64];
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
+      node_t u0=sipnode(&ctx.sip_ctx, nonce, 0), v0=sipnode(&ctx.sip_ctx, nonce, 1);
+      if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
+        continue;
+      node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
+      u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+      if (us[nu] == vs[nv]) {
+        u32 min = nu < nv ? nu : nv;
+        for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
+        u32 len = nu + nv + 1;
+        printf("% 4d-cycle found at %d:%d%%\n", len, 0, (u32)(nonce*100L/HALFSIZE));
+        if (len == PROOFSIZE) {
+          printf("Solution");
+          std::set<edge> cycle;
+          u32 n;
+          cycle.insert(edge(*us, *vs));
           while (nu--)
-            cuckoo.set(us[nu+1], us[nu]);
-          cuckoo.set(u0, v0);
-        } else {
+            cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
           while (nv--)
-            cuckoo.set(vs[nv+1], vs[nv]);
-          cuckoo.set(v0, u0);
+            cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
+          for (nonce_t nce = n = 0; nce < HALFSIZE; nce++)
+            if (!(bits[nce/32] >> (nce%32) & 1)) {
+              edge e(sipnode(&ctx.sip_ctx, nce, 0), sipnode(&ctx.sip_ctx, nce, 1));
+              if (cycle.find(e) != cycle.end()) {
+                printf(" %x", nce);
+                if (PROOFSIZE > 2)
+                  cycle.erase(e);
+                n++;
+              }
+            }
+          assert(n==PROOFSIZE);
+          printf("\n");
         }
+        continue;
       }
+      if (nu < nv) {
+        while (nu--)
+          cuckoo.set(us[nu+1], us[nu]);
+        cuckoo.set(u0, v0);
+      } else {
+        while (nv--)
+          cuckoo.set(vs[nv+1], vs[nv]);
+        cuckoo.set(v0, u0);
+      }
+      if (ffs & 64) break; // can't shift by 64
     }
   }
   return 0;
