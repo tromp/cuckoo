@@ -1,6 +1,6 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2015 John Tromp
-// The edge=trimming time-memory trade-off is due to Dave Anderson:
+// The edge-trimming time-memory trade-off is due to Dave Anderson:
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
 #define PROOFSIZE 2

@@ -129,6 +129,9 @@ speedup30.3:	cuckoo30.3 Makefile
 cuckoo32:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32 -DSIZESHIFT=32 cuckoo_miner.cpp $(LIBS)
 
+cuckoo35:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo35 -DSIZESHIFT=35 cuckoo_miner.cpp $(LIBS)
+
 cuckoo32.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32.1 -DPART_BITS=1 -DSIZESHIFT=32 cuckoo_miner.cpp $(LIBS)
 

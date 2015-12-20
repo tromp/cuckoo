@@ -1,7 +1,7 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2015 John Tromp
 
-// The edge=trimming time-memory trade-off is due to Dave Anderson:
+// The edge-trimming time-memory trade-off is due to Dave Anderson:
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
 #include <stdint.h>
@@ -329,10 +329,8 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaFree(ctx.nonleaf.bits));
 
   u32 cnt = 0;
-  for (int i = 0; i < HALFSIZE/64; i++) {
-    for (u64 b = ~bits[i]; b; b &= b-1)
-      cnt++;
-  }
+  for (int i = 0; i < HALFSIZE/64; i++)
+    cnt += __builtin_popcountll(~bits[i]);
   u32 load = (u32)(100L * cnt / CUCKOO_SIZE);
   printf("final load %d%%\n", load);
 
