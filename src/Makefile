@@ -63,6 +63,9 @@ cuckoo28.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 speedup:	cuckoo28 Makefile
 	for i in 1 2 4 6 8 12 16 20 24 28 32 40 48 56 64 72; do echo $$i; (time for j in {0..6}; do ./cuckoo28 -t $$i -h $$j; done) 2>&1; done > speedup
 
+cudaspeedup:	cuda28.2 Makefile
+	for t in 4096 1024 256 64 16 4 1; do echo $$t; for h in 0 1 2 3 4; do time ./cuda28.2 -t $$t -n 24 -h $$h; done; done
+
 cuckoo30:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo30 -DSIZESHIFT=30 cuckoo_miner.cpp $(LIBS)
 
