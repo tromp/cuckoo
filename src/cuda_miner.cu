@@ -359,14 +359,17 @@ int main(int argc, char **argv) {
         if (len == PROOFSIZE) {
           printf("Solution");
           std::set<edge> cycle;
-          u32 n;
+          u32 n = 0;
           cycle.insert(edge(*us, *vs));
           while (nu--)
             cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
           while (nv--)
             cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-          for (nonce_t nce = n = 0; nce < HALFSIZE; nce++)
-            if (!(bits[nce/32] >> (nce%32) & 1)) {
+          for (nonce_t blk = 0; blk < HALFSIZE; blk += 64) {
+            u64 alv64 = ~bits[blk/64];
+            for (nonce_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
+              u32 ffs = __builtin_ffsll(alv64);
+              nce += ffs; alv64 >>= ffs;
               edge e(sipnode(&ctx.sip_ctx, nce, 0), sipnode(&ctx.sip_ctx, nce, 1));
               if (cycle.find(e) != cycle.end()) {
                 printf(" %x", nce);
@@ -374,7 +377,9 @@ int main(int argc, char **argv) {
                   cycle.erase(e);
                 n++;
               }
+              if (ffs & 64) break; // can't shift by 64
             }
+          }
           assert(n==PROOFSIZE);
           printf("\n");
         }
