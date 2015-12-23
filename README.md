@@ -18,7 +18,7 @@ This makes verification trivial: compute the 42x2 edge endpoints
 with one initialising sha256 and 84 very cheap siphash-2-4 hashes,
 check that each endpoint occurs twice, and that you come back to the
 starting point only after traversing 42 edges
-(this also makes Cuckoo Cycle, unlike Hashcash, immune from Grover's quantum search algorithm).
+(this also makes Cuckoo Cycle, unlike Hashcash, relatively immune from Grover's quantum search algorithm).
 
 A final sha256 hash on the sorted 42 nonces can check whether the 42-cycle meets a difficulty target.
 
