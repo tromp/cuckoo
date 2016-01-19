@@ -108,6 +108,9 @@ bounty32:	cuckoo.h bounty_miner.h bounty_miner.cpp Makefile
 cuda28:	cuda_miner.cu Makefile
 	nvcc -o cuda28 -DSIZESHIFT=28 -arch sm_35 cuda_miner.cu -lssl -lcrypto 
 
+cycle28:	cycle_miner.cu Makefile
+	nvcc -o cycle28 -DSIZESHIFT=28 -arch sm_35 cycle_miner.cu -lssl -lcrypto 
+
 cuda30:	cuda_miner.cu Makefile
 	nvcc -o cuda30 -DSIZESHIFT=30 -arch sm_35 cuda_miner.cu -lssl -lcrypto
 

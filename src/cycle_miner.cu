@@ -1,5 +1,5 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2015 John Tromp
+// Copyright (c) 2013-2016 John Tromp
 
 // The edge-trimming time-memory trade-off is due to Dave Anderson:
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
@@ -154,21 +154,38 @@ class cuckoo_hash {
 public:
   u64 *cuckoo;
 
-  __device__ void set(node_t u, node_t v) {
+  cuckoo_hash() {
+    cuckoo = (u64 *)calloc(CUCKOO_SIZE, sizeof(u64));
+    assert(cuckoo != 0);
+  }
+  ~cuckoo_hash() {
+    free(cuckoo);
+  }
+  void set(node_t u, node_t v) {
     u64 niew = (u64)u << SIZESHIFT | v;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-      u64 old = atomicCAS(&cuckoo[ui], 0L, niew);
-      if (old == 0L)
+#ifdef ATOMIC
+      u64 old = 0;
+      if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
         return;
       if ((old >> SIZESHIFT) == (u & KEYMASK)) {
+        cuckoo[ui].store(niew, std::memory_order_relaxed);
+#else
+      u64 old = cuckoo[ui];
+      if (old == 0 || (old >> SIZESHIFT) == (u & KEYMASK)) {
         cuckoo[ui] = niew;
+#endif
         return;
       }
     }
   }
-  __device__ node_t node(node_t u) const {
+  node_t operator[](node_t u) const {
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
+#ifdef ATOMIC
+      u64 cu = cuckoo[ui].load(std::memory_order_relaxed);
+#else
       u64 cu = cuckoo[ui];
+#endif
       if (!cu)
         return 0;
       if ((cu >> SIZESHIFT) == (u & KEYMASK)) {
@@ -184,11 +201,16 @@ public:
   siphash_ctx sip_ctx;
   shrinkingset alive;
   twice_set nonleaf;
+  cuckoo_hash cuckoo;
+  nonce_t (*sols)[PROOFSIZE];
+  u32 maxsols;
+  u32 nsols;
   int nthreads;
 
-  cuckoo_ctx(const char* header, u32 n_threads) {
+  cuckoo_ctx(const char* header, u32 n_threads, u32 max_sols) {
     setheader(&sip_ctx, header);
     nthreads = n_threads;
+    maxsols = max_sols;
   }
 };
 
@@ -230,20 +252,84 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   }
 }
 
-__device__ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
+u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   u32 nu;
-  for (nu = 0; u; u = cuckoo.node(u)) {
+  for (nu = 0; u; u = cuckoo[u]) {
     if (++nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
       if (nu == ~0)
-        // printf("maximum path length exceeded\n");
-      else // printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
-      // exit(0);
-      return ~0;
+        printf("maximum path length exceeded\n");
+      else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
+      exit(0);
     }
     us[nu] = u;
   }
   return nu;
+}
+
+__device__ void solution( void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
+  printf("Solution");
+  std::set<edge> cycle;
+  u32 n = 0;
+  cycle.insert(edge(*us, *vs));
+  while (nu--)
+    cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
+  while (nv--)
+    cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
+  shrinkingset &alive = ctx->alive;
+  for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+    u32 alive32 = alive.block(block);
+    for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive32);
+      nonce += ffs; alive32 >>= ffs;
+      edge e(sipnode(&ctx.sip_ctx, nonce, 0), sipnode(&ctx.sip_ctx, nonce, 1));
+      if (cycle.find(e) != cycle.end()) {
+        printf(" %x", nonce);
+        if (PROOFSIZE > 2)
+          cycle.erase(e);
+        n++;
+      }
+    }
+  }
+  assert(n==PROOFSIZE);
+  printf("\n");
+}
+
+__global__ void find_cycles(cuckoo_ctx *ctx) {
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  node_t us[MAXPATHLEN], vs[MAXPATHLEN];
+  shrinkingset &alive = ctx->alive;
+  for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+    u32 alive32 = alive.block(block);
+    for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive32);
+      nonce += ffs; alive32 >>= ffs;
+      node_t u0=sipnode(&ctx.sip_ctx, nonce, 0), v0=sipnode(&ctx.sip_ctx, nonce, 1);
+      if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
+        continue;
+      node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
+      u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+      if (us[nu] == vs[nv]) {
+        u32 min = nu < nv ? nu : nv;
+        for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
+        u32 len = nu + nv + 1;
+        printf("% 4d-cycle found at %d:%d%%\n", len, id, (u32)(nonce*100L/HALFSIZE));
+        if (len == PROOFSIZE)
+          solution(ctx, us, nu, vs, nv);
+        continue;
+      }
+      if (nu < nv) {
+        while (nu--)
+          cuckoo.set(us[nu+1], us[nu]);
+        cuckoo.set(u0, v0);
+      } else {
+        while (nv--)
+          cuckoo.set(vs[nv+1], vs[nv]);
+        cuckoo.set(v0, u0);
+      }
+      if (ffs & 64) break; // can't shift by 64
+    }
+  }
 }
 
 typedef std::pair<node_t,node_t> edge;
@@ -252,14 +338,18 @@ typedef std::pair<node_t,node_t> edge;
 
 int main(int argc, char **argv) {
   int nthreads = 1;
+  int maxsols = 8;
   int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
   int tpb = 0;
   const char *header = "";
   int c;
-  while ((c = getopt (argc, argv, "h:n:t:p:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:t:p:")) != -1) {
     switch (c) {
       case 'h':
         header = optarg;
+        break;
+      case 'm':
+        maxsols = atoi(optarg);
         break;
       case 'n':
         ntrims = atoi(optarg);
@@ -279,7 +369,7 @@ int main(int argc, char **argv) {
                PROOFSIZE, SIZESHIFT, header, ntrims, nthreads, tpb);
   u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
 
-  cuckoo_ctx ctx(header, nthreads);
+  cuckoo_ctx ctx(header, nthreads, maxsols);
   checkCudaErrors(cudaMalloc((void**)&ctx.alive.bits, edgeBytes));
   checkCudaErrors(cudaMemset(ctx.alive.bits, 0, edgeBytes));
   checkCudaErrors(cudaMalloc((void**)&ctx.nonleaf.bits, nodeBytes));
@@ -299,8 +389,8 @@ int main(int argc, char **argv) {
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         checkCudaErrors(cudaMemset(ctx.nonleaf.bits, 0, nodeBytes));
-        count_node_deg<<<nthreads/tpb,tpb >>>(device_ctx, uorv, part);
-        kill_leaf_edges<<<nthreads/tpb,tpb >>>(device_ctx, uorv, part);
+        count_node_deg<<<nthreads/tpb,tpb>>>(device_ctx, uorv, part);
+        kill_leaf_edges<<<nthreads/tpb,tpb>>>(device_ctx, uorv, part);
       }
     }
   }
@@ -309,7 +399,6 @@ int main(int argc, char **argv) {
   bits = (u64 *)calloc(HALFSIZE/64, sizeof(u64));
   assert(bits != 0);
   cudaMemcpy(bits, ctx.alive.bits, (HALFSIZE/64) * sizeof(u64), cudaMemcpyDeviceToHost);
-  checkCudaErrors(cudaFree(ctx.alive.bits));
   checkCudaErrors(cudaFree(ctx.nonleaf.bits));
 
   u32 cnt = 0;
@@ -323,63 +412,18 @@ int main(int argc, char **argv) {
     exit(0);
   }
 
-  cuckoo_hash &cuckoo = *(new cuckoo_hash());
-  node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-  for (nonce_t block = 0; block < HALFSIZE; block += 64) {
-    u64 alive64 = ~bits[block/64];
-    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
-      u32 ffs = __builtin_ffsll(alive64);
-      nonce += ffs; alive64 >>= ffs;
-      node_t u0=sipnode(&ctx.sip_ctx, nonce, 0), v0=sipnode(&ctx.sip_ctx, nonce, 1);
-      if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
-        continue;
-      node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
-      u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
-      if (us[nu] == vs[nv]) {
-        u32 min = nu < nv ? nu : nv;
-        for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-        u32 len = nu + nv + 1;
-        printf("% 4d-cycle found at %d:%d%%\n", len, 0, (u32)(nonce*100L/HALFSIZE));
-        if (len == PROOFSIZE) {
-          printf("Solution");
-          std::set<edge> cycle;
-          u32 n = 0;
-          cycle.insert(edge(*us, *vs));
-          while (nu--)
-            cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
-          while (nv--)
-            cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-          for (nonce_t blk = 0; blk < HALFSIZE; blk += 64) {
-            u64 alv64 = ~bits[blk/64];
-            for (nonce_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
-              u32 ffs = __builtin_ffsll(alv64);
-              nce += ffs; alv64 >>= ffs;
-              edge e(sipnode(&ctx.sip_ctx, nce, 0), sipnode(&ctx.sip_ctx, nce, 1));
-              if (cycle.find(e) != cycle.end()) {
-                printf(" %x", nce);
-                if (PROOFSIZE > 2)
-                  cycle.erase(e);
-                n++;
-              }
-              if (ffs & 64) break; // can't shift by 64
-            }
-          }
-          assert(n==PROOFSIZE);
-          printf("\n");
-        }
-        continue;
-      }
-      if (nu < nv) {
-        while (nu--)
-          cuckoo.set(us[nu+1], us[nu]);
-        cuckoo.set(u0, v0);
-      } else {
-        while (nv--)
-          cuckoo.set(vs[nv+1], vs[nv]);
-        cuckoo.set(v0, u0);
-      }
-      if (ffs & 64) break; // can't shift by 64
-    }
-  }
+  u32 cuckooBytes = CUCKOO_SIZE * sizeof(u64);
+  checkCudaErrors(cudaMalloc((void**)&ctx.cuckoo.cuckoo, cuckooBytes));
+  checkCudaErrors(cudaMemset(ctx.cuckoo.cuckoo, 0, cuckooBytes));
+  u32 solsBytes = maxsols * PROOFSIZE*sizeof(nonce_t);
+  checkCudaErrors(cudaMalloc((void**)&ctx.sols, solsBytes));
+
+  find_cycles<<<nthreads/tpb,tpb>>>(device_ctx);
+ 
+  // cudaMemcpy(found_cycles, &ctx.sols, solsBytes, cudaMemcpyDeviceToHost);
+
+  checkCudaErrors(cudaFree(ctx.alive.bits));
+  checkCudaErrors(cudaFree(ctx.cuckoo.cuckoo));
+  checkCudaErrors(cudaFree(ctx.sols));
   return 0;
 }
