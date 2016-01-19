@@ -303,7 +303,7 @@ typedef std::pair<node_t,node_t> edge;
 
 void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
   std::set<edge> cycle;
-  u32 n;
+  u32 n = 0;
   cycle.insert(edge(*us, *vs));
   while (nu--)
     cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
@@ -314,8 +314,11 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
 #else
   u32 soli = ctx->nsols++;
 #endif
-  for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
-    if (ctx->alive->test(nonce)) {
+  for (nonce_t block = 0; block < HALFSIZE; block += 64) {
+    u64 alive64 = ctx->alive->block(block);
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
       edge e(sipnode(&ctx->sip_ctx, nonce, 0), sipnode(&ctx->sip_ctx, nonce, 1));
       if (cycle.find(e) != cycle.end()) {
         ctx->sols[soli][n++] = nonce;
@@ -325,7 +328,9 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
         if (PROOFSIZE > 2)
           cycle.erase(e);
       }
+      if (ffs & 64) break; // can't shift by 64
     }
+  }
   assert(n==PROOFSIZE);
 }
 
@@ -368,32 +373,34 @@ void *worker(void *vp) {
   cuckoo_hash &cuckoo = *ctx->cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
-    for (nonce_t nonce = block; nonce < block+64 && nonce < HALFSIZE; nonce++) {
-      if (alive->test(nonce)) {
-        node_t u0=sipnode(&ctx->sip_ctx, nonce, 0), v0=sipnode(&ctx->sip_ctx, nonce, 1);
-        if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
-          continue;
-        node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
-        u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
-        if (us[nu] == vs[nv]) {
-          u32 min = nu < nv ? nu : nv;
-          for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-          u32 len = nu + nv + 1;
-          printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
-          if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
-            solution(ctx, us, nu, vs, nv);
-          continue;
-        }
-        if (nu < nv) {
-          while (nu--)
-            cuckoo.set(us[nu+1], us[nu]);
-          cuckoo.set(u0, v0);
-        } else {
-          while (nv--)
-            cuckoo.set(vs[nv+1], vs[nv]);
-          cuckoo.set(v0, u0);
-        }
+    u64 alive64 = alive->block(block);
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
+      node_t u0=sipnode(&ctx->sip_ctx, nonce, 0), v0=sipnode(&ctx->sip_ctx, nonce, 1);
+      if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
+        continue;
+      node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
+      u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+      if (us[nu] == vs[nv]) {
+        u32 min = nu < nv ? nu : nv;
+        for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
+        u32 len = nu + nv + 1;
+        printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
+        if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
+          solution(ctx, us, nu, vs, nv);
+        continue;
       }
+      if (nu < nv) {
+        while (nu--)
+          cuckoo.set(us[nu+1], us[nu]);
+        cuckoo.set(u0, v0);
+      } else {
+        while (nv--)
+          cuckoo.set(vs[nv+1], vs[nv]);
+        cuckoo.set(v0, u0);
+      }
+      if (ffs & 64) break; // can't shift by 64
     }
   }
   pthread_exit(NULL);
