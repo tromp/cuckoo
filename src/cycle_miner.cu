@@ -15,6 +15,7 @@
   typedef u64 node_t;
 #endif
 #include <openssl/sha.h>
+typedef unsigned long long ull;
 
 // d(evice s)ipnode
 #if (__CUDA_ARCH__  >= 320) // redefine ROTL to use funnel shifter, 3% speed gain
@@ -154,38 +155,22 @@ class cuckoo_hash {
 public:
   u64 *cuckoo;
 
-  cuckoo_hash() {
-    cuckoo = (u64 *)calloc(CUCKOO_SIZE, sizeof(u64));
-    assert(cuckoo != 0);
-  }
-  ~cuckoo_hash() {
-    free(cuckoo);
-  }
-  void set(node_t u, node_t v) {
+
+  __device__ void set(node_t u, node_t v) {
     u64 niew = (u64)u << SIZESHIFT | v;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-#ifdef ATOMIC
-      u64 old = 0;
-      if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
+      u64 old = atomicCAS((ull *)&cuckoo[ui], (ull)0, (ull)niew);
+      if (old == 0L)
         return;
       if ((old >> SIZESHIFT) == (u & KEYMASK)) {
-        cuckoo[ui].store(niew, std::memory_order_relaxed);
-#else
-      u64 old = cuckoo[ui];
-      if (old == 0 || (old >> SIZESHIFT) == (u & KEYMASK)) {
         cuckoo[ui] = niew;
-#endif
         return;
       }
     }
   }
-  node_t operator[](node_t u) const {
+  __device__ node_t node(node_t u) const {
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-#ifdef ATOMIC
-      u64 cu = cuckoo[ui].load(std::memory_order_relaxed);
-#else
       u64 cu = cuckoo[ui];
-#endif
       if (!cu)
         return 0;
       if ((cu >> SIZESHIFT) == (u & KEYMASK)) {
@@ -252,22 +237,24 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   }
 }
 
-u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
+__device__ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   u32 nu;
-  for (nu = 0; u; u = cuckoo[u]) {
+  for (nu = 0; u; u = cuckoo.node(u)) {
     if (++nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
       if (nu == ~0)
         printf("maximum path length exceeded\n");
       else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
-      exit(0);
+      // exit(0);
+      return ~0;
     }
     us[nu] = u;
   }
   return nu;
 }
 
-__device__ void solution( void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
+#if 0
+__device__ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
   printf("Solution");
   std::set<edge> cycle;
   u32 n = 0;
@@ -294,20 +281,23 @@ __device__ void solution( void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, nod
   assert(n==PROOFSIZE);
   printf("\n");
 }
+#endif
 
 __global__ void find_cycles(cuckoo_ctx *ctx) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   shrinkingset &alive = ctx->alive;
+  siphash_ctx sip_ctx = ctx->sip_ctx;
+  cuckoo_hash &cuckoo = ctx->cuckoo;
   for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
-      u32 ffs = __builtin_ffsll(alive32);
+      u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
-      node_t u0=sipnode(&ctx.sip_ctx, nonce, 0), v0=sipnode(&ctx.sip_ctx, nonce, 1);
+      node_t u0=dipnode(sip_ctx, nonce, 0), v0=dipnode(sip_ctx, nonce, 1);
       if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
         continue;
-      node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
+      node_t u = cuckoo.node(us[0] = u0), v = cuckoo.node(vs[0] = v0);
       u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
       if (us[nu] == vs[nv]) {
         u32 min = nu < nv ? nu : nv;
@@ -315,7 +305,7 @@ __global__ void find_cycles(cuckoo_ctx *ctx) {
         u32 len = nu + nv + 1;
         printf("% 4d-cycle found at %d:%d%%\n", len, id, (u32)(nonce*100L/HALFSIZE));
         if (len == PROOFSIZE)
-          solution(ctx, us, nu, vs, nv);
+          // solution(ctx, us, nu, vs, nv);
         continue;
       }
       if (nu < nv) {
@@ -417,6 +407,7 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaMemset(ctx.cuckoo.cuckoo, 0, cuckooBytes));
   u32 solsBytes = maxsols * PROOFSIZE*sizeof(nonce_t);
   checkCudaErrors(cudaMalloc((void**)&ctx.sols, solsBytes));
+  cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
 
   find_cycles<<<nthreads/tpb,tpb>>>(device_ctx);
  
