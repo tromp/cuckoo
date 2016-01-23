@@ -75,7 +75,7 @@ $500 for an open source implementation for a consumer GPU combo
 that finds 42-cycles twice as fast as cuda_miner.cu on comparable hardware.
 Again with N ranging over {2^28,2^30,2^32}.
 
-These bounties are to expire at the end of 2015. They are admittedly modest in size, but then
+These bounties are to expire at the end of 2016. They are admittedly modest in size, but then
 claiming them might only require one or two insightful tweaks to my existing implementations.
 
 I invite anyone who'd like to see my claims refuted to extend any of these bounties
