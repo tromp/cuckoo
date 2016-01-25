@@ -1,6 +1,7 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2015 John Tromp
 
+#include <inttypes.h>
 #include "cuckoo.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +27,7 @@ int main(int argc, char **argv) {
   assert(err == 0);
   u64 nonces[PROOFSIZE];
   for (int n = 0; n < PROOFSIZE; n++) {
-    int nscan = scanf(" %lx", (long *)&nonces[n]);
+    int nscan = scanf(" %" SCNx64, &nonces[n]);
     assert(nscan == 1);
   }
   u64 easiness = easipct * SIZE / 100;
