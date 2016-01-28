@@ -1,5 +1,6 @@
 # -Wno-deprecated-declarations shuts up Apple OSX clang
-FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L -O3 -pthread 
+OPT = -O3
+FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) -pthread 
 LIBS = -lssl -lcrypto
 # leave out -l crypto if using sha256.c instead of openssl
 CC = cc -std=c99 $(FLAGS)
