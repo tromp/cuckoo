@@ -432,7 +432,7 @@ int main(int argc, char **argv) {
       printf("Solution");
       qsort(ctx.sols[i], PROOFSIZE, sizeof(noncedge_t), noncedge_cmp);
       for (u32 j = 0; j < PROOFSIZE; j++)
-        printf(" %x", ctx.sols[i][j].nonce);
+        printf(" %jx", (uintmax_t)ctx.sols[i][j].nonce);
       printf("\n");
     }
   }
