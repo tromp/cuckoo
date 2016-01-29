@@ -237,6 +237,7 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   twice_set &nonleaf = ctx->nonleaf;
   siphash_ctx sip_ctx = ctx->sip_ctx;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
+if ((id & 0xfff) == 0) printf("Hello from kill_leaf_edges %d\n", id);
   for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
@@ -270,6 +271,7 @@ __device__ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
 
 __global__ void find_cycles(cuckoo_ctx *ctx) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
+if ((id & 0xfff) == 0) printf("Hello from find_cycles %d\n", id);
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   shrinkingset &alive = ctx->alive;
   siphash_ctx sip_ctx = ctx->sip_ctx;
@@ -284,6 +286,8 @@ __global__ void find_cycles(cuckoo_ctx *ctx) {
         continue;
       node_t u = cuckoo.node(us[0] = u0), v = cuckoo.node(vs[0] = v0);
       u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+ if (nonce == 0x4bd4c678LL || nonce == 0xf9533fb4LL)
+   printf("u=%llx-%d->%llx v=%llx-%d->%llx\n", u, nu, us[nu], v, nv, vs[nv]);
       if (us[nu] == vs[nv]) {
         u32 min = nu < nv ? nu : nv;
         for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
@@ -422,7 +426,9 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaMemset(ctx.cuckoo.cuckoo, 0, cuckooBytes));
   cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
   
+  printf("Calling find_cycles \n");
   find_cycles<<<nthreads/tpb,tpb>>>(device_ctx);
+  printf("Done with find_cycles \n");
   cudaMemcpy(&ctx, device_ctx, sizeof(cuckoo_ctx), cudaMemcpyDeviceToHost);
 
   if (ctx.nsols) {

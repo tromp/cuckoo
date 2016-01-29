@@ -372,7 +372,7 @@ int main(int argc, char **argv) {
               nce += ffs; alv64 >>= ffs;
               edge e(sipnode(&ctx.sip_ctx, nce, 0), sipnode(&ctx.sip_ctx, nce, 1));
               if (cycle.find(e) != cycle.end()) {
-                printf(" %x", nce);
+                printf(" %jx", (uintmax_t)nce);
                 if (PROOFSIZE > 2)
                   cycle.erase(e);
                 n++;
