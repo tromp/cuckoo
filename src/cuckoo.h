@@ -13,7 +13,7 @@
 #define PROOFSIZE 42
 #endif
 
-#define SIZE (1UL<<SIZESHIFT)
+#define SIZE (1ULL<<SIZESHIFT)
 #define HALFSIZE (SIZE/2)
 #define NODEMASK (HALFSIZE-1)
 

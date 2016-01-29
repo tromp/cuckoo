@@ -122,15 +122,15 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
 public:
-  u32 *bits;
+  u64 *bits;
   __device__ void reset(nonce_t n) {
-    bits[n/32] |= 1 << (n%32);
+    bits[n/64] |= 1LL << (n%64);
   }
   __device__ bool test(node_t n) const {
-    return !((bits[n/32] >> (n%32)) & 1);
+    return !((bits[n/64] >> (n%64)) & 1);
   }
-  __device__ u32 block(node_t n) const {
-    return ~bits[n/32];
+  __device__ u64 block(node_t n) const {
+    return ~bits[n/64];
   }
 };
 
@@ -219,11 +219,11 @@ __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   twice_set &nonleaf = ctx->nonleaf;
   siphash_ctx sip_ctx = ctx->sip_ctx; // local copy sip context; 2.5% speed gain
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
-    u32 alive32 = alive.block(block);
-    for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
-      u32 ffs = __ffs(alive32);
-      nonce += ffs; alive32 >>= ffs;
+  for (nonce_t block = id*64; block < HALFSIZE; block += ctx->nthreads*64) {
+    u64 alive64 = alive.block(block);
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u64 ffs = __ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
       node_t u = dipnode(sip_ctx, nonce, uorv);
       if ((u & PART_MASK) == part) {
         nonleaf.set(u >> PART_BITS);
@@ -237,12 +237,11 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   twice_set &nonleaf = ctx->nonleaf;
   siphash_ctx sip_ctx = ctx->sip_ctx;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-if ((id & 0xfff) == 0) printf("Hello from kill_leaf_edges %d\n", id);
-  for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
-    u32 alive32 = alive.block(block);
-    for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
-      u32 ffs = __ffs(alive32);
-      nonce += ffs; alive32 >>= ffs;
+  for (nonce_t block = id*64; block < HALFSIZE; block += ctx->nthreads*64) {
+    u64 alive64 = alive.block(block);
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u64 ffs = __ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
       node_t u = dipnode(sip_ctx, nonce, uorv);
       if ((u & PART_MASK) == part) {
         if (!nonleaf.test(u >> PART_BITS)) {
@@ -271,16 +270,15 @@ __device__ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
 
 __global__ void find_cycles(cuckoo_ctx *ctx) {
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-if ((id & 0xfff) == 0) printf("Hello from find_cycles %d\n", id);
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   shrinkingset &alive = ctx->alive;
   siphash_ctx sip_ctx = ctx->sip_ctx;
   cuckoo_hash &cuckoo = ctx->cuckoo;
-  for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
-    u32 alive32 = alive.block(block);
-    for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
-      u32 ffs = __ffs(alive32);
-      nonce += ffs; alive32 >>= ffs;
+  for (nonce_t block = id*64; block < HALFSIZE; block += ctx->nthreads*64) {
+    u64 alive64 = alive.block(block);
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u64 ffs = __ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
       node_t u0=dipnode(sip_ctx, nonce, 0)<<1, v0=dipnode(sip_ctx, nonce, 1)<<1|1;
       if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
         continue;
@@ -324,11 +322,11 @@ __global__ void find_nonces(cuckoo_ctx *ctx) {
   shrinkingset &alive = ctx->alive;
   siphash_ctx sip_ctx = ctx->sip_ctx;
 
-  for (nonce_t block = id * 32; block < HALFSIZE; block += ctx->nthreads * 32) {
-    u32 alive32 = alive.block(block);
-    for (nonce_t nonce = block - 1; alive32;) { // -1 compensates for 1-based ffs
-      u32 ffs = __ffs(alive32);
-      nonce += ffs; alive32 >>= ffs;
+  for (nonce_t block = id * 64; block < HALFSIZE; block += ctx->nthreads * 64) {
+    u64 alive64 = alive.block(block);
+    for (nonce_t nonce = block - 1; alive64;) { // -1 compensates for 1-based ffs
+      u64 ffs = __ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
       edge_t edge = make_edge(dipnode(sip_ctx,nonce,0)<<1, dipnode(sip_ctx,nonce,1)<<1|1);
       for (u32 i = 0; i < ctx->nsols; i++) {
         noncedge_t *sol = ctx->sols[i];
@@ -408,10 +406,10 @@ int main(int argc, char **argv) {
   assert(bits != 0);
   cudaMemcpy(bits, ctx.alive.bits, (HALFSIZE/64) * sizeof(u64), cudaMemcpyDeviceToHost);
 
-  u32 cnt = 0;
+  u64 cnt = 0;
   for (int i = 0; i < HALFSIZE/64; i++)
     cnt += __builtin_popcountll(~bits[i]);
-  u32 load = (u32)(100L * cnt / CUCKOO_SIZE);
+  u32 load = (u32)(100 * cnt / CUCKOO_SIZE);
   printf("final load %d%%\n", load);
 
   if (load >= 90) {
@@ -426,9 +424,7 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaMemset(ctx.cuckoo.cuckoo, 0, cuckooBytes));
   cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
   
-  printf("Calling find_cycles \n");
   find_cycles<<<nthreads/tpb,tpb>>>(device_ctx);
-  printf("Done with find_cycles \n");
   cudaMemcpy(&ctx, device_ctx, sizeof(cuckoo_ctx), cudaMemcpyDeviceToHost);
 
   if (ctx.nsols) {
