@@ -441,7 +441,7 @@ int noncedge_cmp(const void *a, const void *b) {
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-  nonce_t gpu_lim = 0;
+  int gpu_pct = 50;
   int nthreads = 1;
   int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
   int tpb = 0;
@@ -456,7 +456,7 @@ int main(int argc, char **argv) {
         ntrims = atoi(optarg);
         break;
       case 'g':
-        gpu_lim = atoi(optarg);
+        gpu_pct = atoi(optarg);
         break;
       case 't':
         nthreads = atoi(optarg);
@@ -469,10 +469,11 @@ int main(int argc, char **argv) {
   if (!tpb) // if not set, then default threads per block to roughly square root of threads
     for (tpb = 1; tpb*tpb < nthreads; tpb *= 2) ;
 
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, gpu<%x, %d threads %d per block\n",
-               PROOFSIZE, SIZESHIFT, header, ntrims, gpu_lim, nthreads, tpb);
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %d%% gpu, %d threads %d per block\n",
+               PROOFSIZE, SIZESHIFT, header, ntrims, gpu_pct, nthreads, tpb);
   u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
 
+  nonce_t gpu_lim = HALFSIZE*gpu_pct/100 & ~0x3f;
   cuckoo_ctx ctx(header, gpu_lim, nthreads);
   checkCudaErrors(cudaMalloc((void**)&ctx.alive.bits, edgeBytes));
   checkCudaErrors(cudaMemset(ctx.alive.bits, 0, edgeBytes));
