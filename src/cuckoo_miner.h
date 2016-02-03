@@ -378,26 +378,24 @@ void *worker(void *vp) {
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
       node_t u0=sipnode(&ctx->sip_ctx, nonce, 0), v0=sipnode(&ctx->sip_ctx, nonce, 1);
-      if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
-        continue;
-      u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
-      if (us[nu] == vs[nv]) {
-        u32 min = nu < nv ? nu : nv;
-        for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-        u32 len = nu + nv + 1;
-        printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
-        if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
-          solution(ctx, us, nu, vs, nv);
-        continue;
-      }
-      if (nu < nv) {
-        while (nu--)
-          cuckoo.set(us[nu+1], us[nu]);
-        cuckoo.set(u0, v0);
-      } else {
-        while (nv--)
-          cuckoo.set(vs[nv+1], vs[nv]);
-        cuckoo.set(v0, u0);
+      if (u0) {// ignore vertex 0 so it can be used as nil for cuckoo[]
+        u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
+        if (us[nu] == vs[nv]) {
+          u32 min = nu < nv ? nu : nv;
+          for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
+          u32 len = nu + nv + 1;
+          printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
+          if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
+            solution(ctx, us, nu, vs, nv);
+        } else if (nu < nv) {
+          while (nu--)
+            cuckoo.set(us[nu+1], us[nu]);
+          cuckoo.set(u0, v0);
+        } else {
+          while (nv--)
+            cuckoo.set(vs[nv+1], vs[nv]);
+          cuckoo.set(v0, u0);
+        }
       }
       if (ffs & 64) break; // can't shift by 64
     }
