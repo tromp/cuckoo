@@ -347,51 +347,49 @@ int main(int argc, char **argv) {
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
       node_t u0=sipnode(&ctx.sip_ctx, nonce, 0), v0=sipnode(&ctx.sip_ctx, nonce, 1);
-      if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
-        continue;
-      u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
-      if (us[nu] == vs[nv]) {
-        u32 min = nu < nv ? nu : nv;
-        for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-        u32 len = nu + nv + 1;
-        printf("% 4d-cycle found at %d:%d%%\n", len, 0, (u32)(nonce*100L/HALFSIZE));
-        if (len == PROOFSIZE) {
-          printf("Solution");
-          std::set<edge> cycle;
-          u32 n = 0;
-          cycle.insert(edge(*us, *vs));
-          while (nu--)
-            cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
-          while (nv--)
-            cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-          for (nonce_t blk = 0; blk < HALFSIZE; blk += 64) {
-            u64 alv64 = ~bits[blk/64];
-            for (nonce_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
-              u32 ffs = __builtin_ffsll(alv64);
-              nce += ffs; alv64 >>= ffs;
-              edge e(sipnode(&ctx.sip_ctx, nce, 0), sipnode(&ctx.sip_ctx, nce, 1));
-              if (cycle.find(e) != cycle.end()) {
-                printf(" %jx", (uintmax_t)nce);
-                if (PROOFSIZE > 2)
-                  cycle.erase(e);
-                n++;
+      if (u0) {
+        u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
+        if (us[nu] == vs[nv]) {
+          u32 min = nu < nv ? nu : nv;
+          for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
+          u32 len = nu + nv + 1;
+          printf("% 4d-cycle found at %d:%d%%\n", len, 0, (u32)(nonce*100L/HALFSIZE));
+          if (len == PROOFSIZE) {
+            printf("Solution");
+            std::set<edge> cycle;
+            u32 n = 0;
+            cycle.insert(edge(*us, *vs));
+            while (nu--)
+              cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
+            while (nv--)
+              cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
+            for (nonce_t blk = 0; blk < HALFSIZE; blk += 64) {
+              u64 alv64 = ~bits[blk/64];
+              for (nonce_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
+                u32 ffs = __builtin_ffsll(alv64);
+                nce += ffs; alv64 >>= ffs;
+                edge e(sipnode(&ctx.sip_ctx, nce, 0), sipnode(&ctx.sip_ctx, nce, 1));
+                if (cycle.find(e) != cycle.end()) {
+                  printf(" %jx", (uintmax_t)nce);
+                  if (PROOFSIZE > 2)
+                    cycle.erase(e);
+                  n++;
+                }
+                if (ffs & 64) break; // can't shift by 64
               }
-              if (ffs & 64) break; // can't shift by 64
             }
+            assert(n==PROOFSIZE);
+            printf("\n");
           }
-          assert(n==PROOFSIZE);
-          printf("\n");
+        } else if (nu < nv) {
+          while (nu--)
+            cuckoo.set(us[nu+1], us[nu]);
+          cuckoo.set(u0, v0);
+        } else {
+          while (nv--)
+            cuckoo.set(vs[nv+1], vs[nv]);
+          cuckoo.set(v0, u0);
         }
-        continue;
-      }
-      if (nu < nv) {
-        while (nu--)
-          cuckoo.set(us[nu+1], us[nu]);
-        cuckoo.set(u0, v0);
-      } else {
-        while (nv--)
-          cuckoo.set(vs[nv+1], vs[nv]);
-        cuckoo.set(v0, u0);
       }
       if (ffs & 64) break; // can't shift by 64
     }
