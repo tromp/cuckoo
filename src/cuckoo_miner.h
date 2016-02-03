@@ -287,16 +287,16 @@ void kill_leaf_edges(thread_ctx *tp, u32 uorv, u32 part) {
 u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   u32 nu;
   for (nu = 0; u; u = cuckoo[u]) {
-    if (++nu >= MAXPATHLEN) {
+    if (nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
       if (!~nu)
         printf("maximum path length exceeded\n");
       else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
       pthread_exit(NULL);
     }
-    us[nu] = u;
+    us[nu++] = u;
   }
-  return nu;
+  return nu-1;
 }
 
 typedef std::pair<node_t,node_t> edge;
@@ -380,8 +380,7 @@ void *worker(void *vp) {
       node_t u0=sipnode(&ctx->sip_ctx, nonce, 0), v0=sipnode(&ctx->sip_ctx, nonce, 1);
       if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
         continue;
-      node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
-      u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+      u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
       if (us[nu] == vs[nv]) {
         u32 min = nu < nv ? nu : nv;
         for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
