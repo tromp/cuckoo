@@ -314,7 +314,48 @@ __global__ void find_cycles(cuckoo_ctx *ctx) {
       int nredo = 0;
 redo: if (nredo++) printf("redo\n");
       node_t u1 = cuckoo.node(u0), v1 = cuckoo.node(v0);
-      u32 nu = dpath(cuckoo, u1, us), nv = dpath(cuckoo, v1, vs);
+
+      u32 nu, nv;
+      nonce_t u=u0;
+      for (nu = 0; u; u = cuckoo.node(u)) {
+        if (nu++ >= MAXPATHLEN) {
+          while (nu-- && us[nu] != u) ;
+          if (nu == ~0)
+            printf("maximum path length exceeded\n");
+          else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
+          break;
+        }
+        us[nu] = u;
+        if (nu>=2 && u==us[nu-2])
+          break;
+      }
+      if (u) {
+       //printf("oops\n");
+       continue;
+      }
+      us[nu+1] = 0;
+
+      nonce_t v=v0;
+      for (nv = 0; v; v = cuckoo.node(v)) {
+        if (nv++ >= MAXPATHLEN) {
+          while (nv-- && vs[nv] != v) ;
+          if (nv == ~0)
+            printf("maximum path length exceeded\n");
+          else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
+          break;
+        }
+        vs[nv] = v;
+        if (nv>=2 && v==vs[nv-2])
+          break;
+      }
+      if (v) {
+       //printf("oops\n");
+       continue;
+      }
+      vs[nv+1] = 0;
+
+      // u32 nu = dpath(cuckoo, u1, us), nv = dpath(cuckoo, v1, vs);
+
       if (nu==~0 || nv==~0) continue;
       if (us[nu] == vs[nv]) {
         u32 min = nu < nv ? nu : nv;
