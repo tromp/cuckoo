@@ -8,13 +8,6 @@
 #include <string.h>
 #include "cuckoo.h"
 
-#ifndef GPUPCT
-#define GPUPCT 50
-#endif
-#ifndef GPU_NONCE_LIM
-#define GPU_NONCE_LIM (HALFSIZE*GPUPCT/1000) 
-#endif
-
 #ifndef MAXSOLS
 #define MAXSOLS 1
 #endif
@@ -116,7 +109,9 @@ __device__ node_t dipnode(siphash_ctx &ctx, nonce_t nce, u32 uorv) {
 #define IDXSHIFT (PART_BITS + 6)
 #endif
 // grow with cube root of size, hardly affected by trimming
+#ifndef MAXPATHLEN
 #define MAXPATHLEN (8 << (SIZESHIFT/3))
+#endif
 
 #define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
@@ -185,14 +180,15 @@ public:
       }
     }
   }
-  __device__ void dset(node_t u, node_t oldv, node_t newv) {
+  __device__ bool dset(node_t u, node_t oldv, node_t newv) {
     u64 old, exp = (oldv ? (u64)u << SIZESHIFT | oldv : 0), nuw = (u64)u << SIZESHIFT | newv;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
       old = atomicCAS((ull *)&cuckoo[ui], (ull)exp, (ull)nuw);
-      if (old == exp)
-        return;
+      if (old == exp) {
+        return true;
+      }
       if ((old >> SIZESHIFT) == (u & KEYMASK)) {
-        return;
+        return false;
       }
     }
   }
@@ -233,10 +229,12 @@ public:
   cuckoo_hash cuckoo;
   noncedge_t sols[MAXSOLS][PROOFSIZE];
   u32 nsols;
-  int nthreads;
+  nonce_t gpu_nonce_lim;
+  u32 nthreads;
 
-  cuckoo_ctx(const char* header, u32 n_threads) {
+  cuckoo_ctx(const char* header, nonce_t gpulim, u32 n_threads) {
     setheader(&sip_ctx, header);
+    gpu_nonce_lim = gpulim & ~0x3f; // need multiple of 64
     nthreads = n_threads;
     nsols = 0;
   }
@@ -304,7 +302,7 @@ __global__ void find_cycles(cuckoo_ctx *ctx) {
   shrinkingset &alive = ctx->alive;
   siphash_ctx sip_ctx = ctx->sip_ctx;
   cuckoo_hash &cuckoo = ctx->cuckoo;
-  for (nonce_t block = id*64; block < GPU_NONCE_LIM; block += ctx->nthreads*64) {
+  for (nonce_t block = id*64; block < ctx->gpu_nonce_lim; block += ctx->nthreads*64) {
     u64 alive64 = alive.block(block);
     for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __ffsll(alive64);
@@ -313,6 +311,8 @@ __global__ void find_cycles(cuckoo_ctx *ctx) {
       if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
         continue;
       us[0] = u0; vs[0] = v0;
+      int nredo = 0;
+redo: if (nredo++) printf("redo\n");
       node_t u1 = cuckoo.node(u0), v1 = cuckoo.node(v0);
       u32 nu = dpath(cuckoo, u1, us), nv = dpath(cuckoo, v1, vs);
       if (nu==~0 || nv==~0) continue;
@@ -336,12 +336,12 @@ __global__ void find_cycles(cuckoo_ctx *ctx) {
       }
       if (nu < nv) {
         while (nu--)
-          cuckoo.dset(us[nu+1], us[nu+2], us[nu]);
-        cuckoo.dset(u0, u1, v0);
+          if (!cuckoo.dset(us[nu+1], us[nu+2], us[nu])) goto redo;
+        if (!cuckoo.dset(u0, u1, v0)) goto redo;
       } else {
         while (nv--)
-          cuckoo.dset(vs[nv+1], vs[nv+2], vs[nv]);
-        cuckoo.dset(v0, v1, u0);
+          if (!cuckoo.dset(vs[nv+1], vs[nv+2], vs[nv])) goto redo;
+        if (!cuckoo.dset(v0, v1, u0)) goto redo;
       }
     }
   }
@@ -367,7 +367,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
 
 void find_more_cycles(cuckoo_ctx *ctx, cuckoo_hash &cuckoo, u64 *bits) {
   node_t us[MAXPATHLEN+2], vs[MAXPATHLEN+2];
-  for (nonce_t block = GPU_NONCE_LIM; block < HALFSIZE; block += 64) {
+  for (nonce_t block = ctx->gpu_nonce_lim; block < HALFSIZE; block += 64) {
     u64 alive64 = ~bits[block/64];
     for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       // printf("nonce %d\n", nonce);
@@ -441,18 +441,22 @@ int noncedge_cmp(const void *a, const void *b) {
 #include <unistd.h>
 
 int main(int argc, char **argv) {
+  nonce_t gpu_lim = 0;
   int nthreads = 1;
   int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
   int tpb = 0;
   const char *header = "";
   int c;
-  while ((c = getopt (argc, argv, "h:m:n:t:p:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:g:t:p:")) != -1) {
     switch (c) {
       case 'h':
         header = optarg;
         break;
       case 'n':
         ntrims = atoi(optarg);
+        break;
+      case 'g':
+        gpu_lim = atoi(optarg);
         break;
       case 't':
         nthreads = atoi(optarg);
@@ -465,11 +469,11 @@ int main(int argc, char **argv) {
   if (!tpb) // if not set, then default threads per block to roughly square root of threads
     for (tpb = 1; tpb*tpb < nthreads; tpb *= 2) ;
 
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, %lf%% gpu, %d threads %d per block\n",
-               PROOFSIZE, SIZESHIFT, header, ntrims, 100.0*GPU_NONCE_LIM/HALFSIZE, nthreads, tpb);
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\") with 50%% edges, %d trims, gpu<%x, %d threads %d per block\n",
+               PROOFSIZE, SIZESHIFT, header, ntrims, gpu_lim, nthreads, tpb);
   u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
 
-  cuckoo_ctx ctx(header, nthreads);
+  cuckoo_ctx ctx(header, gpu_lim, nthreads);
   checkCudaErrors(cudaMalloc((void**)&ctx.alive.bits, edgeBytes));
   checkCudaErrors(cudaMemset(ctx.alive.bits, 0, edgeBytes));
   checkCudaErrors(cudaMalloc((void**)&ctx.nonleaf.bits, nodeBytes));
@@ -528,7 +532,7 @@ int main(int argc, char **argv) {
   cnt = 0;
   for (int i = 0; i < CUCKOO_SIZE; i++)
     cnt += (cuckoo->cuckoo[i] != 0);
-  printf("%lu nonzero cuckoos\n", cnt);
+  printf("%lu gpu edges\n", cnt);
 
   find_more_cycles(&ctx, *cuckoo, bits);
   free(cuckoo->cuckoo);
