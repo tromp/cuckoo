@@ -58,6 +58,9 @@ momentomatum:	cuckoo.h momentomatum.h momentomatum.cpp Makefile
 cuckoo28:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
+cuckoo28s:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo28s -DSINGLECYCLING -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+
 cuckoo28.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28.1 -DPART_BITS=1 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 

@@ -1,8 +1,10 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2016 John Tromp
 // The edge-trimming time-memory trade-off is due to Dave Anderson:
-// The use of prefetching was suggested by Alexander Peslyak (aka Solar Designer)
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
+// The use of prefetching was suggested by Alexander Peslyak (aka Solar Designer)
+// define SINGLECYCLING to run cycle finding single threaded which runs slower
+// but avoids losing cycles to race conditions (not worth it in my testing)
 
 #include "cuckoo.h"
 #ifdef __APPLE__
@@ -146,7 +148,7 @@ public:
   void set(node_t u, node_t v) {
     u64 niew = (u64)u << SIZESHIFT | v;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-#ifdef ATOMIC
+#if !defined(SINGLECYCLING) && defined(ATOMIC)
       u64 old = 0;
       if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
         return;
@@ -163,7 +165,7 @@ public:
   }
   node_t operator[](node_t u) const {
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-#ifdef ATOMIC
+#if !defined(SINGLECYCLING) && defined(ATOMIC)
       u64 cu = cuckoo[ui].load(std::memory_order_relaxed);
 #else
       u64 cu = cuckoo[ui];
@@ -369,10 +371,18 @@ void *worker(void *vp) {
     ctx->nonleaf = 0;
     ctx->cuckoo = new cuckoo_hash();
   }
+#ifdef SINGLECYCLING
+  else pthread_exit(NULL);
+#else
   barrier(&ctx->barry);
+#endif
   cuckoo_hash &cuckoo = *ctx->cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
+#ifdef SINGLECYCLING
+  for (nonce_t block = 0; block < HALFSIZE; block += 64) {
+#else
   for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
+#endif
     u64 alive64 = alive->block(block);
     for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
