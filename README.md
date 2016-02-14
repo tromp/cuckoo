@@ -63,8 +63,7 @@ $500 for an open source implementation that finds 42-cycles twice as fast, possi
 
 Linear Time-Memory Trade-Off Bounty
 --------------
-$500 for an open source implementation that uses at most N/k bits while running up to 15 k times slower,
-for any k>=2.
+$500 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 15 k times slower, for any k>=2.
 
 Both of these bounties require N ranging over {2^28,2^30,2^32} and #threads ranging over {1,2,4,8},
 and further assume a high-end Intel Core i7 or Xeon and recent gcc compiler with regular flags as in my Makefile.
@@ -78,11 +77,7 @@ Again with N ranging over {2^28,2^30,2^32}.
 These bounties are to expire at the end of 2016. They are admittedly modest in size, but then
 claiming them might only require one or two insightful tweaks to my existing implementations.
 
-I invite anyone who'd like to see my claims refuted to extend any of these bounties
-with amounts of your crypto-currency of choice.
-
-(I don't have any crypto-currencies to offer myself, but if need be, I might be able to convert
-a bounty through a trusted 3rd party)
+I invite anyone who'd like to see my claims tested to extend any of these bounties.
 
 Happy bounty hunting!
 

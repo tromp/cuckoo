@@ -1,28 +1,25 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2015 John Tromp
 
-#include <inttypes.h>
 #include "cuckoo.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <assert.h>
+#include <inttypes.h> // for SCNx64 macro
+#include <stdio.h>    // printf/scanf
+#include <stdlib.h>   // exit
+#include <unistd.h>   // getopt
+#include <assert.h>   // d'uh
 
 int main(int argc, char **argv) {
   const char *header = "";
-  int c, easipct = 50;
-  while ((c = getopt (argc, argv, "e:h:")) != -1) {
+  int c;
+  while ((c = getopt (argc, argv, "h:")) != -1) {
     switch (c) {
-      case 'e':
-        easipct = atoi(optarg);
-        break;
-          case 'h':
+      case 'h':
         header = optarg;
         break;
     }
   }
-  printf("Verifying size %d proof for cuckoo%d(\"%s\") with %d%% edges\n",
-               PROOFSIZE, SIZESHIFT, header, easipct);
+  printf("Verifying size %d proof for cuckoo%d(\"%s\")\n",
+               PROOFSIZE, SIZESHIFT, header);
   int err = scanf("Solution");
   assert(err == 0);
   u64 nonces[PROOFSIZE];
@@ -30,10 +27,9 @@ int main(int argc, char **argv) {
     int nscan = scanf(" %" SCNx64, &nonces[n]);
     assert(nscan == 1);
   }
-  u64 easiness = easipct * SIZE / 100;
-  int ok = verify(nonces, header, easiness);
-  if (!ok) {
-    printf("FAILED\n");
+  int pow_rc = verify(nonces, header);
+  if (pow_rc != POW_OK) {
+    printf("FAILED with code %d\n", pow_rc);
     exit(1);
   }
   printf("Verified with cyclehash ");

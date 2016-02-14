@@ -1,27 +1,37 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2016 John Tromp
 
-#include <stdint.h>
-#include <string.h>
+#include <stdint.h> // for types uint32_t,uint64_t
+#include <string.h> // for functions strlen, memset
 #include <openssl/sha.h> // if openssl absent, use #include "sha256.c"
 
 // proof-of-work parameters
 #ifndef SIZESHIFT 
+// the main parameter is the 2log of the graph size,
+// which is the size in bits of the node identifiers
 #define SIZESHIFT 25
 #endif
 #ifndef PROOFSIZE
+// the next most important parameter is (even) length
+// of the cycle to be found. a minimum of 12 is recommended
 #define PROOFSIZE 42
 #endif
 
+// the graph size / number of nodes
 #define SIZE (1ULL<<SIZESHIFT)
+// number of nodes in one partition (eg. all even nodes)
 #define HALFSIZE (SIZE/2)
+// used to mask siphash output
 #define NODEMASK (HALFSIZE-1)
 
+// save some keystrokes since i'm a lazy typer
 typedef uint32_t u32;
 typedef uint64_t u64;
 
+// siphash uses a state of four 64-bit words,
 typedef union {
   u64 v[4];
+// or four 32-bit-word-pairs for the benefit of CUDA funnel shifter
 #ifdef __CUDACC__
   uint2 v2[4];
 #endif
@@ -84,31 +94,36 @@ u64 sipnode(siphash_ctx *ctx, u64 nonce, u32 uorv) {
   return (siphash24(ctx, 2*nonce + uorv) & NODEMASK) << 1 | uorv;
 }
 
-// verify that (ascending) nonces, all less than easiness, form a cycle in header-generated graph
-int verify(u64 nonces[PROOFSIZE], const char *header, u64 easiness) {
+enum verify_code { POW_OK, POW_NONCE_TOO_BIG, POW_OUT_OF_ORDER, POW_NODE_DEG_HIGH, POW_NODE_DEG_LOW, POW_SHORT_CYCLE, POW_INCONCEIVABLE};
+
+// verify that nonces are ascending and form a cycle in header-generated graph
+int verify(u64 nonces[PROOFSIZE], const char *header) {
   siphash_ctx ctx;
   setheader(&ctx, header);
   u64 uvs[2*PROOFSIZE];
   for (u32 n = 0; n < PROOFSIZE; n++) {
-    if (nonces[n] >= easiness || (n && nonces[n] <= nonces[n-1]))
-      return 0;
+    if (nonces[n] >= HALFSIZE)
+      return POW_NONCE_TOO_BIG;
+    if (n && nonces[n] <= nonces[n-1])
+      return POW_OUT_OF_ORDER;
     uvs[2*n  ] = sipnode(&ctx, nonces[n], 0);
     uvs[2*n+1] = sipnode(&ctx, nonces[n], 1);
   }
   u32 i = 0;
   for (u32 n = PROOFSIZE; n; ) { // follow cycle for n more steps
     u32 j = i;
-    for (u32 k = i&1; k < 2*PROOFSIZE; k += 2) // find unique other j with same parity and uvs[j]
+    for (u32 k = i&1; k < 2*PROOFSIZE; k += 2) { // find unique other j with same parity and uvs[j]
       if (k != i && uvs[k] == uvs[i]) {
         if (j != i)
-          return 0; // more than 2 occurences
+          return POW_NODE_DEG_HIGH; // more than 2 occurences
         j = k;
+      }
     }
     if (j == i)
-      return 0; // no other occurence
+      return POW_NODE_DEG_LOW; // no other occurence
     i = j^1;
     if (--n && i == 0) // don't return to 0 too soon
-      return 0;
+      return POW_SHORT_CYCLE;
   }
-  return i == 0;
+  return i == 0 ? POW_OK : POW_INCONCEIVABLE;
 }
