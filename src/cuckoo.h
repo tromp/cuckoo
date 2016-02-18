@@ -94,36 +94,38 @@ u64 sipnode(siphash_ctx *ctx, u64 nonce, u32 uorv) {
   return (siphash24(ctx, 2*nonce + uorv) & NODEMASK) << 1 | uorv;
 }
 
-enum verify_code { POW_OK, POW_NONCE_TOO_BIG, POW_OUT_OF_ORDER, POW_NODE_DEG_HIGH, POW_NODE_DEG_LOW, POW_SHORT_CYCLE, POW_INCONCEIVABLE};
+enum verify_code { POW_OK, POW_TOO_BIG, POW_TOO_SMALL, POW_NON_MATCHING, POW_BRANCH, POW_DEAD_END, POW_SHORT_CYCLE};
 
 // verify that nonces are ascending and form a cycle in header-generated graph
 int verify(u64 nonces[PROOFSIZE], const char *header) {
   siphash_ctx ctx;
   setheader(&ctx, header);
   u64 uvs[2*PROOFSIZE];
+  u64 xor0=0,xor1=0;
   for (u32 n = 0; n < PROOFSIZE; n++) {
     if (nonces[n] >= HALFSIZE)
-      return POW_NONCE_TOO_BIG;
+      return POW_TOO_BIG;
     if (n && nonces[n] <= nonces[n-1])
-      return POW_OUT_OF_ORDER;
-    uvs[2*n  ] = sipnode(&ctx, nonces[n], 0);
-    uvs[2*n+1] = sipnode(&ctx, nonces[n], 1);
+      return POW_TOO_SMALL;
+    xor0 ^= uvs[2*n  ] = sipnode(&ctx, nonces[n], 0);
+    xor1 ^= uvs[2*n+1] = sipnode(&ctx, nonces[n], 1);
   }
-  u32 i = 0;
-  for (u32 n = PROOFSIZE; n; ) { // follow cycle for n more steps
-    u32 j = i;
-    for (u32 k = i&1; k < 2*PROOFSIZE; k += 2) { // find unique other j with same parity and uvs[j]
-      if (k != i && uvs[k] == uvs[i]) {
+  if (xor0|xor1)                        // matching endpoints imply zero xors
+    return POW_NON_MATCHING;
+  u32 n = 0, i = 0;
+  do { // follow cycle
+    u32 j = i;                          // indicate matching endpoint not yet found
+    for (u32 k = i&1; k < 2*PROOFSIZE; k += 2) {
+      if (uvs[k] == uvs[i] && k != i) { // find unique other edge endpoint j identical to i
         if (j != i)
-          return POW_NODE_DEG_HIGH; // more than 2 occurences
+          return POW_BRANCH;            // not so unique
         j = k;
       }
     }
     if (j == i)
-      return POW_NODE_DEG_LOW; // no other occurence
+      return POW_DEAD_END;              // no matching endpoint
     i = j^1;
-    if (--n && i == 0) // don't return to 0 too soon
-      return POW_SHORT_CYCLE;
-  }
-  return i == 0 ? POW_OK : POW_INCONCEIVABLE;
+    n++;
+  } while (i != 0);
+  return n == PROOFSIZE ? POW_OK : POW_SHORT_CYCLE;
 }
