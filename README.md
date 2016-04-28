@@ -3,7 +3,7 @@ Cuckoo Cycle
 ============
 Whitepaper at https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
-Recent blog article explaining Cuckoo Cycle at http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing
+Blog article explaining Cuckoo Cycle at http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing
 
 This repo is Linux based. Microsoft Windows friendly code at https://github.com/Genoil/cuckoo
 
@@ -22,7 +22,7 @@ starting point only after traversing 42 edges
 
 A final sha256 hash on the sorted 42 nonces can check whether the 42-cycle meets a difficulty target.
 
-This is implemented in just 157 lines of C code (files src/cuckoo.h and src/cuckoo.c).
+This is implemented in just 173 lines of C code (files src/cuckoo.h and src/cuckoo.c).
 
 From this point of view, Cuckoo Cycle is a very simple PoW,
 requiring hardly any code, time, or memory to verify.
