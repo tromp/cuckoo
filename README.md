@@ -81,4 +81,19 @@ I invite anyone who'd like to see my claims tested to extend any of these bounti
 
 Happy bounty hunting!
 
+A less wasteful POW
+--------------
+
+A common criticism of POW is that it is immensely wasteful and serves no use.
+In this regard, Cuckoo Cycle may be more useful in that it encourages the development
+of energy efficient DRAM, which will offset the POW energy use with huge energy savings in
+general purpose computing. Several suggestions for improved DRAM design can already be found
+in the literature, e.g.
+
+<a href="https://www.cs.utah.edu/~rajeev/pubs/isca10.pdf">Rethinking DRAM design and organization for energy-constrained multi-cores</a> and
+
+<a href="citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.359.7847">Adaptive granularity memory systems: a tradeoff between storage efficiency and throughput</a>
+but face a chicken-and-egg problem in being adopted due to required changes in memory controller design.
+
+
 -John
