@@ -103,5 +103,5 @@ of energy efficient DRAM, which will offset the POW energy use with huge energy 
 general purpose computing. Several suggestions for improved DRAM design can already be found
 in the literature, e.g.
 <a href="https://www.cs.utah.edu/~rajeev/pubs/isca10.pdf">Rethinking DRAM design and organization for energy-constrained multi-cores</a> and 
-<a href="mbsullivan.info/attachments/papers/yoon2012dgms.pdf">The Dynamic Granularity Memory System</a>
+<a href="http://mbsullivan.info/attachments/papers/yoon2012dgms.pdf">The Dynamic Granularity Memory System</a>
 but face a chicken-and-egg adoption problem due to required changes in memory controller design.
