@@ -11,6 +11,9 @@
 // ok for size up to 2^32
 #define MAXPATHLEN 8192
 
+typedef u32 nonce_t;
+typedef u32 node_t;
+
 class cuckoo_ctx {
 public:
   siphash_ctx sip_ctx;
@@ -55,11 +58,9 @@ void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   printf("Solution");
   for (nonce_t nonce = n = 0; nonce < ctx->easiness; nonce++) {
-    node_t u, v;
-    sipedge(&ctx->sip_ctx, nonce, &u, &v);
-    edge e(u,v);
+    edge e(sipnode(&ctx->sip_ctx, nonce, 0), sipnode(&ctx->sip_ctx, nonce, 1));
     if (cycle.find(e) != cycle.end()) {
-      printf(" %lx", nonce);
+      printf(" %x", nonce);
       cycle.erase(e);
     }
   }
@@ -70,17 +71,17 @@ void worker(cuckoo_ctx *ctx) {
   node_t *cuckoo = ctx->cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   for (node_t nonce = 0; nonce < ctx->easiness; nonce++) {
-    node_t u0, v0;
-    sipedge(&ctx->sip_ctx, nonce, &u0, &v0);
+    node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0);
     if (u0 == 0) continue; // reserve 0 as nil; v0 guaranteed non-zero
+    node_t v0 = sipnode(&ctx->sip_ctx, nonce, 1);
     node_t u = cuckoo[u0], v = cuckoo[v0];
     us[0] = u0;
     vs[0] = v0;
 #ifdef SHOW
     for (unsigned j=1; j<SIZE; j++)
       if (!cuckoo[j]) printf("%2d:   ",j);
-      else           printf("%2d:%02ld ",j,cuckoo[j]);
-    printf(" %lx (%ld,%ld)\n", nonce,*us,*vs);
+      else           printf("%2d:%02d ",j,cuckoo[j]);
+    printf(" %x (%d,%d)\n", nonce,*us,*vs);
 #endif
     int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
     if (us[nu] == vs[nv]) {
