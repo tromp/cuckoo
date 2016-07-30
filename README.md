@@ -51,7 +51,8 @@ implement these, likely due to the need for more advanced memory controllers whi
 themselves and uncertainty about market demand. However, a widely adopted PoW whose very bottleneck
 is purely random accesses to billions of bits would provide such demand.
 
-
+Cycle finding
+--------------
 The algorithm implemented in cuckoo_miner.h runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
 only compute a fraction of all edges, and the odds of all 42 edges of a cycle
