@@ -49,7 +49,7 @@ DRAM designs. While this paper and others like
 have proposed several sensible and promising design improvements, memory manufacturers have
 taken a wait-and-see approach, likely due to the need for more advanced memory controllers, which they don't develop
 themselves, and uncertainty about market demand. However, a widely adopted PoW whose very bottleneck
-is purely random accesses to billions of bits would provide such demand.
+is purely random accesses to billions of individual bits would provide such demand.
 
 Cycle finding
 --------------
