@@ -36,8 +36,8 @@ requiring considerable resources, and some luck
 
 An indirectly useful Proof of Work
 --------------
-Global bitcoin mining power consumes hundreds of megawatts, which many people have characterized
-as a colossal waste. Meanwhile, datacenters worldwide consume hundreds of millions of megawatts,
+Global bitcoin mining consumes hundreds of megawatts, which many people have characterized
+as a colossal waste. Meanwhile, datacenters worldwide consume thousands of megawatts,
 an estimated 25-40% of which is spent on DRAM memory. Quoting from
 <a href="https://www.cs.utah.edu/~rajeev/pubs/isca10.pdf">Rethinking DRAM design and organization for energy-constrained multi-cores</a>,
 modern DRAM architectures are ill-suited for energy-efficient operation because
