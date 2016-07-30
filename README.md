@@ -50,6 +50,9 @@ have proposed several sensible and promising design improvements, memory manufac
 taken a wait-and-see approach, likely due to the need for more advanced memory controllers, which they don't develop
 themselves, and uncertainty about market demand. However, a widely adopted PoW whose very bottleneck
 is purely random accesses to billions of individual bits would provide such demand.
+The world has little need for the extremely specialized SHA256 computation being efficient.
+But it stands to benefit a lot from more energy efficient random access memories (that, unlike SRAM, also
+remain very cost effient).
 
 Cycle finding
 --------------
