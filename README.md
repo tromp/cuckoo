@@ -34,7 +34,7 @@ Finding a 42-cycle, on the other hand, is far from trivial,
 requiring considerable resources, and some luck
 (for a given header, the odds of its graph having a 42-cycle are about 2.5%).
 
-A useful Proof of Work
+An indirectly useful Proof of Work
 --------------
 Global bitcoin mining power consumes hundreds of megawatts, which many people have characterized
 as a collosal waste. Meanwhile, datacenters worldwide consume hundreds of millions of megawatts,
