@@ -1,4 +1,3 @@
-
 Cuckoo Cycle
 ============
 Whitepaper at
@@ -26,8 +25,7 @@ immune from Grover's quantum search algorithm).
 A final sha256 hash on the sorted 42 nonces can check whether the 42-cycle
 meets a difficulty target.
 
-This is implemented in just 173 lines of C code (files src/cuckoo.h and
-src/cuckoo.c).
+This is implemented in just 173 lines of C code (files src/cuckoo.h and src/cuckoo.c).
 
 From this point of view, Cuckoo Cycle is a very simple PoW,
 requiring hardly any code, time, or memory to verify.
@@ -36,9 +34,23 @@ Finding a 42-cycle, on the other hand, is far from trivial,
 requiring considerable resources, and some luck
 (for a given header, the odds of its graph having a 42-cycle are about 2.5%).
 
-Where Satoshi Nakamoto aimed for "one-CPU-one-vote", Cuckoo Cycle aims for
-1 memory bank + 1 virtual core = 1 vote
+A useful POW
 --------------
+Global bitcoin mining power consumes hundreds of megawatts, which many people have characterized
+as a collosal waste. Meanwhile datacenters worldwide consume hundreds of millions of megawatts,
+an estimated 25-40% of which is spent on DRAM memory. Quoting from
+<a href="https://www.cs.utah.edu/~rajeev/pubs/isca10.pdf">Rethinking DRAM design and organization for energy-constrained multi-cores</a>,
+Modern DRAM architectures are ill-suited for energy-efficient operation because
+they are designed to fetch much more data than required, having long been optimized for cost-per-bit
+rather than energy efficiency.
+Thus there is enourmous energy savings potential in accelerating the development of more efficient
+DRAM designs. While this paper and others like
+<a href="http://mbsullivan.info/attachments/papers/yoon2012dgms.pdf">The Dynamic Granularity Memory System</a>
+have proposed several sensible and promising design improvements, memory manufacturers have been slow to
+implement these, likely due to the need for more advanced memory controllers which they don't develop
+themselves and uncertainty about market demand. However, a widely adopted PoW whose very bottleneck
+is purely random accesses to billions of bits would provide such demand.
+
 
 The algorithm implemented in cuckoo_miner.h runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
@@ -94,14 +106,3 @@ bounties.
 
 Happy bounty hunting!
 
-A less wasteful POW
---------------
-
-A common criticism of POW is that it is immensely wasteful and serves no useful purpose.
-In this regard, Cuckoo Cycle may be more useful in that it encourages the development
-of energy efficient DRAM, which will offset the POW energy use with huge energy savings in
-general purpose computing. Several suggestions for improved DRAM design can already be found
-in the literature, e.g.
-<a href="https://www.cs.utah.edu/~rajeev/pubs/isca10.pdf">Rethinking DRAM design and organization for energy-constrained multi-cores</a> and 
-<a href="http://mbsullivan.info/attachments/papers/yoon2012dgms.pdf">The Dynamic Granularity Memory System</a>
-but face a chicken-and-egg adoption problem due to required changes in memory controller design.
