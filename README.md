@@ -46,8 +46,8 @@ rather than energy efficiency.
 Thus there is enourmous energy savings potential in accelerating the development of more efficient
 DRAM designs. While this paper and others like
 <a href="http://mbsullivan.info/attachments/papers/yoon2012dgms.pdf">The Dynamic Granularity Memory System</a>
-have proposed several sensible and promising design improvements, memory manufacturers taken a wait-and-see approach,
-likely due to the need for more advanced memory controllers, which they don't develop
+have proposed several sensible and promising design improvements, memory manufacturers have
+taken a wait-and-see approach, likely due to the need for more advanced memory controllers, which they don't develop
 themselves, and uncertainty about market demand. However, a widely adopted PoW whose very bottleneck
 is purely random accesses to billions of bits would provide such demand.
 
