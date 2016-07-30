@@ -37,18 +37,18 @@ requiring considerable resources, and some luck
 A useful POW
 --------------
 Global bitcoin mining power consumes hundreds of megawatts, which many people have characterized
-as a collosal waste. Meanwhile datacenters worldwide consume hundreds of millions of megawatts,
+as a collosal waste. Meanwhile, datacenters worldwide consume hundreds of millions of megawatts,
 an estimated 25-40% of which is spent on DRAM memory. Quoting from
 <a href="https://www.cs.utah.edu/~rajeev/pubs/isca10.pdf">Rethinking DRAM design and organization for energy-constrained multi-cores</a>,
-Modern DRAM architectures are ill-suited for energy-efficient operation because
+modern DRAM architectures are ill-suited for energy-efficient operation because
 they are designed to fetch much more data than required, having long been optimized for cost-per-bit
 rather than energy efficiency.
 Thus there is enourmous energy savings potential in accelerating the development of more efficient
 DRAM designs. While this paper and others like
 <a href="http://mbsullivan.info/attachments/papers/yoon2012dgms.pdf">The Dynamic Granularity Memory System</a>
-have proposed several sensible and promising design improvements, memory manufacturers have been slow to
-implement these, likely due to the need for more advanced memory controllers which they don't develop
-themselves and uncertainty about market demand. However, a widely adopted PoW whose very bottleneck
+have proposed several sensible and promising design improvements, memory manufacturers taken a wait-and-see approach,
+likely due to the need for more advanced memory controllers, which they don't develop
+themselves, and uncertainty about market demand. However, a widely adopted PoW whose very bottleneck
 is purely random accesses to billions of bits would provide such demand.
 
 Cycle finding
