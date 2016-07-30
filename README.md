@@ -52,7 +52,7 @@ themselves, and uncertainty about market demand. However, a widely adopted PoW w
 is purely random accesses to billions of individual bits would provide such demand.
 The world has little need for the extremely specialized SHA256 computation being efficient.
 But it stands to benefit a lot from more energy efficient random access memories (that, unlike SRAM, also
-remain very cost effient).
+remain very cost efficient).
 
 Cycle finding
 --------------
