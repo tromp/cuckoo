@@ -1,0 +1,27 @@
+https://arxiv.org/abs/1606.03588
+Egalitarian computing
+Alex Biryukov, Dmitry Khovratovich
+(Submitted on 11 Jun 2016)
+
+Finally, we mention schemes Momentum [21] and Cuckoo
+cycle [32], which provide fast verification due to their combi-
+natorial nature. They rely on the memory requirements for the
+collision search (Momentum) or graph cycle finding (Cuckoo).
+However, Momentum is vulnerable to a sublinear time-space
+tradeoff [11], whereas the first version of the Cuckoo scheme
+was recently broken in [6].
+
+			Cuckoo Cycle	Equihash
+
+Amortization-free	High		Medium
+Solution Size		Medium		High
+TMTO steepness		linear (>15)	exponential
+Time Tunable		V		V
+Memory Tunable		V		V
+Time&Memory Tunable			Medium
+Optimization Free	High		Medium
+Progress Free		V		V
+Bandwidth Limited			V
+Latency Limited		V
+AT Cost			High		High
+Speed			Low		Medium

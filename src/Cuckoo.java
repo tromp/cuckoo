@@ -1,5 +1,5 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2015 John Tromp
+// Copyright (c) 2013-2016 John Tromp
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
