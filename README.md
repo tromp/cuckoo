@@ -108,6 +108,6 @@ my existing implementations.
 I invite anyone who'd like to see my claims tested to extend any of these bounties.
 The Cuckoo Cycle Bounty Fund is accepting donations in BTC at
 
-1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN
+<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a>
 
 Happy bounty hunting!
