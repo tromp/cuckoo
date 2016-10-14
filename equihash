@@ -1,3 +1,30 @@
+			Cuckoo Cycle	Equihash
+
+Problem Size		Huge		Medium
+Solution Size		Medium		Medium to High
+Progress Free		Y		Y
+Amortization-free	High		Medium
+TMTO steepness		linear (~20)	exponential
+Time+Memory Tunable	Smoothly	Roughly
+Time*Memory Tunable			Roughly
+Optimization Free	High		Medium to High
+Bandwidth Limited			Y
+Latency Limited		Y
+Speed			Low		Medium
+Awesome Logo		Y		
+
+
+http://discussions.password-hashing.narkive.com/BQbAY4yu/phc-asymmetric-proof-of-work-based-on-the-generalized-birthday-problem
+
+(individual messages in above thread also available at
+http://lists.openwall.net/phc-discussions/2015/09/30/11
+http://lists.openwall.net/phc-discussions/2015/09/30/12
+http://lists.openwall.net/phc-discussions/2015/09/30/13
+http://lists.openwall.net/phc-discussions/2015/09/30/14
+)
+
+https://www.reddit.com/r/Bitcoin/comments/3n5nws/research_paper_asymmetric_proofofwork_based_on/
+
 https://arxiv.org/abs/1606.03588
 Egalitarian computing
 Alex Biryukov, Dmitry Khovratovich
@@ -11,17 +38,7 @@ However, Momentum is vulnerable to a sublinear time-space
 tradeoff [11], whereas the first version of the Cuckoo scheme
 was recently broken in [6].
 
-			Cuckoo Cycle	Equihash
 
-Amortization-free	High		Medium
-Solution Size		Medium		High
-TMTO steepness		linear (>15)	exponential
-Time Tunable		V		V
-Memory Tunable		V		V
-Time&Memory Tunable			Medium
-Optimization Free	High		Medium
-Progress Free		V		V
-Bandwidth Limited			V
-Latency Limited		V
-AT Cost			High		High
-Speed			Low		Medium
+https://github.com/zcash/zcash/issues/27
+"Select a mining proof-of-work algorithm. on Dec 11, 2014"
+
