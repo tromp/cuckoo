@@ -24,6 +24,11 @@
 // used to mask siphash output
 #define NODEMASK (HALFSIZE-1)
 
+// length of header (including nonce) hashed into siphash key
+#ifndef HEADERLEN
+#define HEADERLEN 80
+#endif
+
 // save some keystrokes since i'm a lazy typer
 typedef uint32_t u32;
 typedef uint64_t u64;
@@ -53,9 +58,9 @@ typedef union {
 #endif
  
 // derive siphash key from header
-void setheader(siphash_ctx *ctx, const char *header) {
+void setheader(siphash_ctx *ctx, const char *headernonce) {
   unsigned char hdrkey[32];
-  SHA256((unsigned char *)header, strlen(header), hdrkey);
+  SHA256((unsigned char *)headernonce, HEADERLEN, hdrkey);
   u64 k0 = U8TO64_LE(hdrkey);
   u64 k1 = U8TO64_LE(hdrkey+8);
   ctx->v[0] = k0 ^ 0x736f6d6570736575ULL;
@@ -94,12 +99,15 @@ u64 sipnode(siphash_ctx *ctx, u64 nonce, u32 uorv) {
   return (siphash24(ctx, 2*nonce + uorv) & NODEMASK) << 1 | uorv;
 }
 
-enum verify_code { POW_OK, POW_TOO_BIG, POW_TOO_SMALL, POW_NON_MATCHING, POW_BRANCH, POW_DEAD_END, POW_SHORT_CYCLE};
+enum verify_code { POW_OK, POW_HEADER_LENGTH, POW_TOO_BIG, POW_TOO_SMALL, POW_NON_MATCHING, POW_BRANCH, POW_DEAD_END, POW_SHORT_CYCLE};
+const char *errstr[] = { "OK", "wrong header length", "proof too big", "proof too small", "endpoints don't match up", "branch in cycle", "cycle dead ends", "cycle too short"};
 
 // verify that nonces are ascending and form a cycle in header-generated graph
-int verify(u64 nonces[PROOFSIZE], const char *header) {
+int verify(u64 nonces[PROOFSIZE], const char *headernonce, const u32 headerlen) {
+  if (headerlen != HEADERLEN)
+    return POW_HEADER_LENGTH;
   siphash_ctx ctx;
-  setheader(&ctx, header);
+  setheader(&ctx, headernonce);
   u64 uvs[2*PROOFSIZE];
   u64 xor0=0,xor1=0;
   for (u32 n = 0; n < PROOFSIZE; n++) {
@@ -121,9 +129,7 @@ int verify(u64 nonces[PROOFSIZE], const char *header) {
           return POW_BRANCH;            // not so unique
         j = k;
       }
-    }
-    if (j == i)
-      return POW_DEAD_END;              // no matching endpoint
+    } if (j == i) return POW_DEAD_END;              // no matching endpoint
     i = j^1;
     n++;
   } while (i != 0);

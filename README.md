@@ -111,3 +111,7 @@ The Cuckoo Cycle Bounty Fund is accepting donations in BTC at
 <a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a>
 
 Happy bounty hunting!
+
+Cryptocurrencies using Cuckoo Cycle
+--------------
+<a href="https://github.com/ignopeverell/grin">Minimal implementation of the MimbleWimble protocol</a>

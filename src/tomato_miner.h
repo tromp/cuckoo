@@ -41,7 +41,7 @@ typedef u64 node_t;
 #ifndef LOGPROOFSIZE
 // roughly the binary logarithm of cycle length rounded down
 // tweak if necessary to get cuckoo hash load between 45 and 90%
-#define LOGPROOFSIZE 3
+#define LOGPROOFSIZE 5
 #endif
 #ifndef UPART_BITS
 // #bits used to partition vertex set to save memory
@@ -167,8 +167,7 @@ public:
   u32 nthreads;
   pthread_barrier_t barry;
 
-  cuckoo_ctx(const char* header, u32 n_threads, u32 n_parts, bool minimal_bfs) {
-    setheader(&sip_ctx, header);
+  cuckoo_ctx(u32 n_threads, u32 n_parts, bool minimal_bfs) {
     nthreads = n_threads;
     nparts = n_parts;
     cuckoo = new cuckoo_hash();
@@ -177,6 +176,10 @@ public:
       nonleaf = new twice_set();
     int err = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
+  }
+  void setheadernonce(char* headernonce, const u32 len, const u32 nonce) {
+    ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+    setheader(&sip_ctx, headernonce);
   }
   ~cuckoo_ctx() {
     delete cuckoo;
@@ -226,9 +229,7 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   printf("Solution: ");
   for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++) {
-    node_t u,v;
-    sipedge(&ctx->sip_ctx, nonce, &u, &v);
-    edge e(u,v);
+    edge e(sipnode(&ctx->sip_ctx, nonce, 0), sipnode(&ctx->sip_ctx, nonce, 1));
     if (cycle.find(e) != cycle.end()) {
       printf("%x%c", nonce, ++n == PROOFSIZE?'\n':' ');
       if (PROOFSIZE > 2)
@@ -248,7 +249,7 @@ void *worker(void *vp) {
   for (node_t upart=0; upart < ctx->nparts; upart++) {
     if (ctx->minimalbfs) {
       for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
-        node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0) >> 1;
+        node_t u0 = _sipnode(&ctx->sip_ctx, nonce, 0);
         if (u0 != 0 && (u0 & UPART_MASK) == upart)
             nonleaf->set(u0 >> UPART_BITS);
       }

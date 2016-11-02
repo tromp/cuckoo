@@ -106,7 +106,8 @@ void worker(cuckoo_ctx *ctx) {
 }
 
 int main(int argc, char **argv) {
-  const char *header = "";
+  char header[HEADERLEN];
+  memset(header, 0, HEADERLEN);
   int c, easipct = 50;
   while ((c = getopt (argc, argv, "e:h:")) != -1) {
     switch (c) {
@@ -114,7 +115,7 @@ int main(int argc, char **argv) {
         easipct = atoi(optarg);
         break;
       case 'h':
-        header = optarg;
+        memcpy(header, optarg, strlen(optarg));
         break;
     }
   }

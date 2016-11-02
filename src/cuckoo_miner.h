@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <assert.h>
-#include <vector>
 #ifdef ATOMIC
 #include <atomic>
 typedef std::atomic<u32> au32;
@@ -57,18 +56,23 @@ typedef u64 node_t;
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
 public:
-  std::vector<u64> bits;
-  std::vector<u64> cnt;
+  u64 *bits;
+  u64 *cnt;
+  u32 nthreads;
 
-  shrinkingset(u32 nthreads) {
-    nonce_t nwords = HALFSIZE/64;
-    bits.resize(nwords);
-    cnt.resize(nthreads);
+  shrinkingset(const u32 nt) {
+    bits = (u64 *)malloc(HALFSIZE/8);
+    cnt  = (u64 *)malloc(nt * sizeof(u64));
+    nthreads = nt;
+  }
+  void clear() {
+    memset(bits, 0, HALFSIZE/8);
+    memset(cnt, 0, nthreads * sizeof(u64));
     cnt[0] = HALFSIZE;
   }
   u64 count() const {
     u64 sum = 0LL;
-    for (u32 i=0; i<cnt.size(); i++)
+    for (u32 i=0; i<nthreads; i++)
       sum += cnt[i];
     return sum;
   }
@@ -96,7 +100,8 @@ public:
     bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32));
     assert(bits != 0);
   }
-  void reset() {
+  void clear() {
+    assert(bits);
     memset(bits, 0, TWICE_WORDS*sizeof(au32));
   }
   void prefetch(node_t u) const {
@@ -138,12 +143,8 @@ class cuckoo_hash {
 public:
   au64 *cuckoo;
 
-  cuckoo_hash() {
-    cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64));
-    assert(cuckoo != 0);
-  }
-  ~cuckoo_hash() {
-    free(cuckoo);
+  cuckoo_hash(void *recycle) {
+    cuckoo = (au64 *)recycle;
   }
   void set(node_t u, node_t v) {
     u64 niew = (u64)u << SIZESHIFT | v;
@@ -187,14 +188,14 @@ public:
   twice_set *nonleaf;
   cuckoo_hash *cuckoo;
   nonce_t (*sols)[PROOFSIZE];
+  u32 nonce;
   u32 maxsols;
   au32 nsols;
   u32 nthreads;
   u32 ntrims;
   pthread_barrier_t barry;
 
-  cuckoo_ctx(const char* header, u32 n_threads, u32 n_trims, u32 max_sols) {
-    setheader(&sip_ctx, header);
+  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) {
     nthreads = n_threads;
     alive = new shrinkingset(nthreads);
     cuckoo = 0;
@@ -206,12 +207,17 @@ public:
     assert(sols != 0);
     nsols = 0;
   }
+  void setheadernonce(char* headernonce, const u32 len, const u32 nce) {
+    nonce = nce;
+    ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+    setheader(&sip_ctx, headernonce);
+    alive->clear(); // set all edges to be alive
+    nsols = 0;
+  }
   ~cuckoo_ctx() {
     delete alive;
-    if (nonleaf)
-      delete nonleaf;
-    if (cuckoo)
-      delete cuckoo;
+    delete nonleaf;
+    delete cuckoo;
   }
 };
 
@@ -293,7 +299,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
       while (nu-- && us[nu] != u) ;
       if (!~nu)
         printf("maximum path length exceeded\n");
-      else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
+      else printf("illegal %4d-cycle\n", MAXPATHLEN-nu);
       pthread_exit(NULL);
     }
     us[nu++] = u;
@@ -345,10 +351,11 @@ void *worker(void *vp) {
   if (tp->id == 0)
     printf("initial load %d%%\n", load);
   for (u32 round=1; round <= ctx->ntrims; round++) {
+    if (tp->id == 0) printf("round %2d partition loads", round);
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         if (tp->id == 0)
-          ctx->nonleaf->reset();
+          ctx->nonleaf->clear(); // clear all counts
         barrier(&ctx->barry);
         count_node_deg(tp,uorv,part);
         barrier(&ctx->barry);
@@ -356,20 +363,20 @@ void *worker(void *vp) {
         barrier(&ctx->barry);
         if (tp->id == 0) {
           u32 load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
-          printf("round %d part %c%d load %d%%\n", round, "UV"[uorv], part, load);
+          printf(" %c%d %4d%%", "UV"[uorv], part, load);
         }
       }
     }
+    if (tp->id == 0) printf("\n");
   }
   if (tp->id == 0) {
     load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
+    printf("nonce %d: %d trims completed  final load %d%%\n", ctx->nonce, ctx->ntrims, load);
     if (load >= 90) {
       printf("overloaded! exiting...");
-      exit(0);
+      pthread_exit(NULL);
     }
-    delete ctx->nonleaf;
-    ctx->nonleaf = 0;
-    ctx->cuckoo = new cuckoo_hash();
+    ctx->cuckoo = new cuckoo_hash(ctx->nonleaf->bits);
   }
 #ifdef SINGLECYCLING
   else pthread_exit(NULL);
@@ -394,7 +401,7 @@ void *worker(void *vp) {
           u32 min = nu < nv ? nu : nv;
           for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
           u32 len = nu + nv + 1;
-          printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
+          printf("%4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
           if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
             solution(ctx, us, nu, vs, nv);
         } else if (nu < nv) {
