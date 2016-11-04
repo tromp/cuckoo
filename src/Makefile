@@ -52,7 +52,7 @@ cuckoo28.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28.1 -DATOMIC -DPART_BITS=1 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
 cuckoo28st:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo28 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+	$(GPP) -o cuckoo28st -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
 cuckoo28sc:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28sc -DATOMIC -DSINGLECYCLING -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)

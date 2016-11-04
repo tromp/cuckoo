@@ -119,18 +119,18 @@ public:
 #ifdef ATOMIC
     u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
     if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
-  }
-  u32 test(node_t u) const {
-    return (bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2;
-  }
 #else
     u32 old = bits[idx];
     bits[idx] = old | (bit + (old & bit));
-  }
-  u32 test(node_t u) const {
-    return bits[u/16] >> (2 * (u%16)) & 2;
-  }
 #endif
+  }
+  bool test(node_t u) const {
+#ifdef ATOMIC
+    return ((bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2) != 0;
+#else
+    return (bits[u/16] >> (2 * (u%16)) & 2) != 0;
+#endif
+  }
   ~twice_set() {
     free(bits);
   }
