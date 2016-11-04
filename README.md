@@ -106,6 +106,11 @@ These bounties are admittedly modest in size,
 but then claiming them might only require one or two insightful tweaks to
 my existing implementations.
 
+Half bounties
+--------------
+In order to minimize the risk of missing out on less drastic improvements,
+I offer half of the above bounties for improvements within sqrt(2) of the target.
+
 I invite anyone who'd like to see my claims tested to donate to
 the Cuckoo Cycle Bounty Fund at
 
