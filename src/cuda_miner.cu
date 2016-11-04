@@ -47,9 +47,12 @@ __device__ __forceinline__ uint64_t devectorize(uint2 x) {
   asm("mov.b64 %0,{%1,%2}; \n\t" : "=l"(result) : "r"(x.x), "r"(x.y));
   return result;
 }
-__device__ node_t dipnode(siphash_ctx &ctx, nonce_t nce, u32 uorv) {
+__device__ node_t dipnode(siphash_keys &keys, nonce_t nce, u32 uorv) {
   uint2 nonce = vectorize(2*nce + uorv);
-  uint2 v0 = ctx.v2[0], v1 = ctx.v2[1], v2 = ctx.v2[2], v3 = ctx.v2[3] ^ nonce;
+  uint2 v0 = vectorize(keys.k0 ^ 0x736f6d6570736575ULL),
+        v1 = vectorize(keys.k1 ^ 0x646f72616e646f6dULL),
+        v2 = vectorize(keys.k0 ^ 0x6c7967656e657261ULL),
+        v3 = vectorize(keys.k1 ^ 0x7465646279746573ULL) ^ nonce;
   SIPROUND; SIPROUND;
   v0 ^= nonce;
   v2 ^= vectorize(0xff);
@@ -59,9 +62,10 @@ __device__ node_t dipnode(siphash_ctx &ctx, nonce_t nce, u32 uorv) {
 
 #else
 
-__device__ node_t dipnode(siphash_ctx &ctx, nonce_t nce, u32 uorv) {
+__device__ node_t dipnode(siphash_keys &keys, nonce_t nce, u32 uorv) {
   u64 nonce = 2*nce + uorv;
-  u64 v0 = ctx.v[0], v1 = ctx.v[1], v2 = ctx.v[2], v3 = ctx.v[3] ^ nonce;
+  u64 v0 = keys.k0 ^ 0x736f6d6570736575ULL, v1 = keys.k0 ^ 0x646f72616e646f6dULL,
+      v2 = keys.k0 ^ 0x6c7967656e657261ULL, v3 = keys.k0 ^ 0x7465646279746573ULL ^ nonce;
   SIPROUND; SIPROUND;
   v0 ^= nonce;
   v2 ^= 0xff;
@@ -198,7 +202,7 @@ public:
 
 class cuckoo_ctx {
 public:
-  siphash_ctx sip_ctx;
+  siphash_keys sip_keys;
   shrinkingset alive;
   twice_set nonleaf;
   int nthreads;
@@ -208,21 +212,21 @@ public:
   }
   void setheadernonce(char* headernonce, const u32 nonce) {
     ((u32 *)headernonce)[HEADERLEN/sizeof(u32)-1] = htole32(nonce); // place nonce at end
-    setheader(&sip_ctx, headernonce);
+    setheader(&sip_keys, headernonce);
   }
 };
 
 __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
   twice_set &nonleaf = ctx->nonleaf;
-  siphash_ctx sip_ctx = ctx->sip_ctx; // local copy sip context; 2.5% speed gain
+  siphash_keys sip_keys = ctx->sip_keys; // local copy sip context; 2.5% speed gain
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
-      node_t u = dipnode(sip_ctx, nonce, uorv);
+      node_t u = dipnode(sip_keys, nonce, uorv);
       if ((u & PART_MASK) == part) {
         nonleaf.set(u >> PART_BITS);
       }
@@ -233,14 +237,14 @@ __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
 __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
   twice_set &nonleaf = ctx->nonleaf;
-  siphash_ctx sip_ctx = ctx->sip_ctx;
+  siphash_keys sip_keys = ctx->sip_keys;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
   for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
     for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
-      node_t u = dipnode(sip_ctx, nonce, uorv);
+      node_t u = dipnode(sip_keys, nonce, uorv);
       if ((u & PART_MASK) == part) {
         if (!nonleaf.test(u >> PART_BITS)) {
           alive.reset(nonce);
@@ -374,7 +378,7 @@ int main(int argc, char **argv) {
       for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        node_t u0=sipnode(&ctx.sip_ctx, nonce, 0), v0=sipnode(&ctx.sip_ctx, nonce, 1);
+        node_t u0=sipnode(&ctx.sip_keys, nonce, 0), v0=sipnode(&ctx.sip_keys, nonce, 1);
         if (u0) {
           u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
           if (us[nu] == vs[nv]) {
@@ -396,7 +400,7 @@ int main(int argc, char **argv) {
                 for (nonce_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
                   u32 ffs = __builtin_ffsll(alv64);
                   nce += ffs; alv64 >>= ffs;
-                  edge e(sipnode(&ctx.sip_ctx, nce, 0), sipnode(&ctx.sip_ctx, nce, 1));
+                  edge e(sipnode(&ctx.sip_keys, nce, 0), sipnode(&ctx.sip_keys, nce, 1));
                   if (cycle.find(e) != cycle.end()) {
                     printf(" %jx", (uintmax_t)nce);
                     if (PROOFSIZE > 2)
