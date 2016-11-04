@@ -57,6 +57,10 @@ u64 siphash24(siphash_keys *keys, u64 nonce) {
   v0 ^= nonce;
   v2 ^= 0xff;
   SIPROUND; SIPROUND; SIPROUND; SIPROUND;
+#ifdef HASHONLY
+  return ((v0 ^ v1) ^ (v2  ^ v3)) & 1;
+#else
   return (v0 ^ v1) ^ (v2  ^ v3);
+#endif
 }
 #endif // ifdef INCLUDE_SIPHASH_H

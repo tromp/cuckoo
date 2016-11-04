@@ -138,6 +138,18 @@ tmtobounty:	tomato28 tomato30 tomato32
 gpubounty:	cuda28 cuda30 cuda32
 	for s in 28 30 32; do time ./cuda$$s -r 10; done
 
+hash_only: hash_only.cpp Makefile
+	$(GPP) -o hash_only -DSIZESHIFT=32 hash_only.cpp $(LIBS)
+
+hash_only_avx2: hash_only.cpp Makefile
+	$(GPP) -o hash_only_avx2 -DUSE_AVX2 -DSIZESHIFT=32 hash_only.cpp $(LIBS)
+
+hash28:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o hash28 -DHASHONLY -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+
+hash28avx2:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o hash28avx2 -DHASHONLY -DUSE_AVX2 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+
 verify28:	cuckoo.h cuckoo.c Makefile
 	$(GPP) -o verify28 -DSIZESHIFT=28 cuckoo.c $(LIBS)
 

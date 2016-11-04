@@ -59,7 +59,11 @@ class SipTreeHashState {
     // Mix in bits to avoid leaking the key if all packets were zero.
     v2 ^= V4x64U(0xFF);
     Compress<4>();
+#ifdef HASHONLY
+    return ((v0 ^ v1) ^ (v2 ^ v3)) & V4x64U(1ull);
+#else
     return (v0 ^ v1) ^ (v2 ^ v3);
+#endif
   }
 
  private:
