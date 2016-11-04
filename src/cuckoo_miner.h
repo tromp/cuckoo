@@ -30,6 +30,10 @@ typedef u64 nonce_t;
 typedef u64 node_t;
 #endif
 #include <set>
+#ifdef USE_AVX2
+#include "highwayhash/siphashx4.h"
+typedef highwayhash::uint64 ull64;
+#endif
 
 // algorithm parameters
 #ifndef PART_BITS
@@ -183,7 +187,7 @@ public:
 
 class cuckoo_ctx {
 public:
-  siphash_ctx sip_ctx;
+  siphash_keys sip_keys;
   shrinkingset *alive;
   twice_set *nonleaf;
   cuckoo_hash *cuckoo;
@@ -210,7 +214,7 @@ public:
   void setheadernonce(char* headernonce, const u32 len, const u32 nce) {
     nonce = nce;
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
-    setheader(&sip_ctx, headernonce);
+    setheader(&sip_keys, headernonce);
     alive->clear(); // set all edges to be alive
     nsols = 0;
   }
@@ -239,6 +243,83 @@ void barrier(pthread_barrier_t *barry) {
 #define NODEPARTMASK	(NODEMASK >> PART_BITS)
 #define NONCETRUNC	(1LL << (64 - NONCESHIFT))
 
+#ifdef USE_AVX2
+void count_node_deg(thread_ctx *tp, u32 uorv, u32 part) {
+  cuckoo_ctx *ctx = tp->ctx;
+  shrinkingset *alive = ctx->alive;
+  twice_set *nonleaf = ctx->nonleaf;
+  alignas(64) u64 indices[4];
+  alignas(64) u64 hashes[64];
+
+  for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
+    u32 nidx = 0;
+    u64 alive64 = alive->block(block);
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
+      indices[nidx++ % 4] = 2*nonce + uorv;
+      if (nidx % 4 == 0) {
+        highwayhash::siphashx4(&ctx->sip_keys, (ull64 *)indices, (ull64 *)hashes+nidx-4);
+        for (u32 i=0; i < 4; i++) {
+          u32 node = (hashes[nidx-4+i] & NODEMASK) >> PART_BITS;
+          nonleaf->prefetch(node);
+        }
+      }
+      if (ffs & 64) break; // can't shift by 64
+    }
+    if (nidx % 4 != 0) {
+      highwayhash::siphashx4(&ctx->sip_keys, (ull64 *)indices, (ull64 *)hashes+(nidx&-4));
+      for (u32 i=0; i < nidx%4; i++) {
+        u32 node = (hashes[(nidx&-4)+i] & NODEMASK) >> PART_BITS;
+        nonleaf->prefetch(node);
+      }
+    }
+    for (u32 i=0; i<nidx; i++) {
+      u32 node = (hashes[i] & NODEMASK) >> PART_BITS;
+      nonleaf->set(node);
+    }
+  }
+}
+
+void kill_leaf_edges(thread_ctx *tp, u32 uorv, u32 part) {
+  cuckoo_ctx *ctx = tp->ctx;
+  shrinkingset *alive = ctx->alive;
+  twice_set *nonleaf = ctx->nonleaf;
+  alignas(64) u64 indices[64];
+  alignas(64) u64 hashes[64];
+
+  for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
+    u32 nidx = 0;
+    u64 alive64 = alive->block(block);
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
+      indices[nidx++] = 2*nonce + uorv;
+      if (nidx % 4 == 0) {
+        highwayhash::siphashx4(&ctx->sip_keys, (ull64 *)indices+nidx-4, (ull64 *)hashes+nidx-4);
+        for (u32 i=0; i < 4; i++) {
+          u32 node = (hashes[nidx-4+i] & NODEMASK) >> PART_BITS;
+          nonleaf->prefetch(node);
+        }
+      }
+      if (ffs & 64) break; // can't shift by 64
+    }
+    if (nidx % 4 != 0) {
+      highwayhash::siphashx4(&ctx->sip_keys, (ull64 *)indices+(nidx&-4), (ull64 *)hashes+(nidx&-4));
+      for (u32 i=0; i < nidx%4; i++) {
+        u32 node = (hashes[(nidx&-4)+i] & NODEMASK) >> PART_BITS;
+        nonleaf->prefetch(node);
+      }
+    }
+    for (u32 i=0; i<nidx; i++) {
+      u32 node = (hashes[i] & NODEMASK) >> PART_BITS;
+      if (!nonleaf->test(node)) {
+        alive->reset(indices[i]/2, tp->id);
+      }
+    }
+  }
+}
+#else
 void count_node_deg(thread_ctx *tp, u32 uorv, u32 part) {
   cuckoo_ctx *ctx = tp->ctx;
   shrinkingset *alive = ctx->alive;
@@ -251,7 +332,7 @@ void count_node_deg(thread_ctx *tp, u32 uorv, u32 part) {
     for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
-      node_t u = _sipnode(&ctx->sip_ctx, nonce, uorv);
+      node_t u = _sipnode(&ctx->sip_keys, nonce, uorv);
       if ((u & PART_MASK) == part) {
         buffer[bsize++] = u >> PART_BITS;
         nonleaf->prefetch(u >> PART_BITS);
@@ -275,7 +356,7 @@ void kill_leaf_edges(thread_ctx *tp, u32 uorv, u32 part) {
     for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
-      node_t u = _sipnode(&ctx->sip_ctx, nonce, uorv);
+      node_t u = _sipnode(&ctx->sip_keys, nonce, uorv);
       if ((u & PART_MASK) == part) {
         buffer[bsize++] = ((u64)nonce << NONCESHIFT) | (u >> PART_BITS);
         nonleaf->prefetch(u >> PART_BITS);
@@ -291,6 +372,7 @@ void kill_leaf_edges(thread_ctx *tp, u32 uorv, u32 part) {
     }
   }
 }
+#endif
 
 u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   u32 nu;
@@ -327,7 +409,7 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
     for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
-      edge e(sipnode(&ctx->sip_ctx, nonce, 0), sipnode(&ctx->sip_ctx, nonce, 1));
+      edge e(sipnode(&ctx->sip_keys, nonce, 0), sipnode(&ctx->sip_keys, nonce, 1));
       if (cycle.find(e) != cycle.end()) {
         ctx->sols[soli][n++] = nonce;
 #ifdef SHOWSOL
@@ -394,7 +476,7 @@ void *worker(void *vp) {
     for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
-      node_t u0=sipnode(&ctx->sip_ctx, nonce, 0), v0=sipnode(&ctx->sip_ctx, nonce, 1);
+      node_t u0=sipnode(&ctx->sip_keys, nonce, 0), v0=sipnode(&ctx->sip_keys, nonce, 1);
       if (u0) {// ignore vertex 0 so it can be used as nil for cuckoo[]
         u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
         if (us[nu] == vs[nv]) {

@@ -101,16 +101,17 @@ $1000 for an open source implementation for a consumer GPU combo
 that finds 42-cycles twice as fast as cuda_miner.cu on comparable hardware.
 Again with N ranging over {2^28,2^30,2^32}.
 
+The Makefile defines corresponding targets cpubounty, tmtobounty, and gpubounty.
 These bounties are admittedly modest in size,
 but then claiming them might only require one or two insightful tweaks to
 my existing implementations.
 
-I invite anyone who'd like to see my claims tested to extend any of these bounties.
-The Cuckoo Cycle Bounty Fund is accepting donations in BTC at
+I invite anyone who'd like to see my claims tested to donate to
+the Cuckoo Cycle Bounty Fund at
 
-<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a>
+<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a> (wallet balance as of Nov 1, 2016: 6.11 BTC)
 
-Happy bounty hunting!
+I intend for the total bounty value to stay ahead of funding levels. Happy bounty hunting!
 
 Cryptocurrencies using Cuckoo Cycle
 --------------

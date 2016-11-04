@@ -1,7 +1,7 @@
 # -Wno-deprecated-declarations shuts up Apple OSX clang
 OPT = -O3
 DOPT = -DPREFETCH
-FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) $(DOPT) -pthread 
+FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) $(DOPT) -I. -pthread 
 GPP = g++ -march=native -m64 -std=c++11 $(FLAGS)
 LIBS = -lssl -lcrypto
 # leave out -l crypto if using sha256.c instead of openssl
@@ -12,7 +12,7 @@ all : test example cuckoo28st cuckoo30st cuckoo32st cuckoo28 cuckoo30 cuckoo32 v
 test:	cuckoo20 verify20 Makefile
 	./cuckoo20 -n 13 | grep ^Sol | ./verify20 -n 13
 
-cuckoo4:	cuckoo.h cuckoo_miner.h simple_miner.cpp Makefile
+cuckoo4:	siphash.h cuckoo.h cuckoo_miner.h simple_miner.cpp Makefile
 	$(GPP) -o cuckoo4 -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DSIZESHIFT=4 simple_miner.cpp $(LIBS)
 
 cuckoo6:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
@@ -44,6 +44,9 @@ momentomatum:	cuckoo.h momentomatum.h momentomatum.cpp Makefile
 
 cuckoo28:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+
+cuckoo28avx2:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo28avx2 -DUSE_AVX2 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
 cuckoo28.1:	cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28.1 -DATOMIC -DPART_BITS=1 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)

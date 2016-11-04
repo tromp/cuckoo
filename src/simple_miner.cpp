@@ -16,12 +16,12 @@ typedef u32 node_t;
 
 class cuckoo_ctx {
 public:
-  siphash_ctx sip_ctx;
+  siphash_keys sip_keys;
   nonce_t easiness;
   node_t *cuckoo;
 
   cuckoo_ctx(const char* header, nonce_t easy_ness) {
-    setheader(&sip_ctx, header);
+    setheader(&sip_keys, header);
     easiness = easy_ness;
     cuckoo = (node_t *)calloc(1+SIZE, sizeof(node_t));
     assert(cuckoo != 0);
@@ -58,7 +58,7 @@ void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   printf("Solution");
   for (nonce_t nonce = n = 0; nonce < ctx->easiness; nonce++) {
-    edge e(sipnode(&ctx->sip_ctx, nonce, 0), sipnode(&ctx->sip_ctx, nonce, 1));
+    edge e(sipnode(&ctx->sip_keys, nonce, 0), sipnode(&ctx->sip_keys, nonce, 1));
     if (cycle.find(e) != cycle.end()) {
       printf(" %x", nonce);
       cycle.erase(e);
@@ -71,9 +71,9 @@ void worker(cuckoo_ctx *ctx) {
   node_t *cuckoo = ctx->cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   for (node_t nonce = 0; nonce < ctx->easiness; nonce++) {
-    node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0);
+    node_t u0 = sipnode(&ctx->sip_keys, nonce, 0);
     if (u0 == 0) continue; // reserve 0 as nil; v0 guaranteed non-zero
-    node_t v0 = sipnode(&ctx->sip_ctx, nonce, 1);
+    node_t v0 = sipnode(&ctx->sip_keys, nonce, 1);
     node_t u = cuckoo[u0], v = cuckoo[v0];
     us[0] = u0;
     vs[0] = v0;
