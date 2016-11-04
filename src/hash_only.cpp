@@ -10,7 +10,7 @@ int main() {
   alignas(64) u64 hashes[4];
   u32 nidx = 0;
 #endif
-  siphash_keys keys;
+  siphash_keys keys = {34, 53};
   u32 sum = 0;
 
   for (u64 nonce = 0; nonce < HALFSIZE; nonce++) {
