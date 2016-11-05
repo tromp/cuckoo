@@ -7,13 +7,18 @@
 // but avoids losing cycles to race conditions (not worth it in my testing)
 
 #include "cuckoo.h"
-#ifdef __APPLE__
-#include "osx_barrier.h"
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <assert.h>
+#ifdef __APPLE__
+#include "osx_barrier.h"
+#include <machine/endian.h>
+#include <libkern/OSByteOrder.h>
+#define htole32(x) OSSwapHostToLittleInt32(x)
+#else
+#include <endian.h>
+#endif
 #ifdef ATOMIC
 #include <atomic>
 typedef std::atomic<u32> au32;
