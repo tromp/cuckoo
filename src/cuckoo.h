@@ -3,7 +3,6 @@
 
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset
-#include <openssl/sha.h> // if openssl absent, use #include "sha256.c"
 #include "siphash.h"
 
 // proof-of-work parameters
@@ -35,7 +34,7 @@ typedef uint32_t u32;
 typedef uint64_t u64;
 
 // generate edge endpoint in cuckoo graph without partition bit
-u64  __attribute__ ((noinline)) _sipnode(siphash_keys *keys, u64 nonce, u32 uorv) {
+u64 _sipnode(siphash_keys *keys, u64 nonce, u32 uorv) {
   return siphash24(keys, 2*nonce + uorv) & NODEMASK;
 }
 
