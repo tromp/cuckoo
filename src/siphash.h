@@ -148,4 +148,24 @@ void siphash24x8(const siphash_keys *keys, const u64 *indices, u64 * hashes) {
   _mm256_store_si256((__m256i *)hashes, XOR(XOR(v0,v1),XOR(v2,v3)));
   _mm256_store_si256((__m256i *)(hashes+4), XOR(XOR(v4,v5),XOR(v6,v7)));
 }
+
+#ifndef NSIPHASH
+// how many siphash24 to compute in parallel
+// currently 1, 4, 8 are supported, but
+// more than 1 requires the use of avx2
+#define NSIPHASH 1
+#endif
+
+void siphash24xN(const siphash_keys *keys, const u64 *indices, u64 * hashes) {
+#if NSIPHASH == 1
+        *hashes = siphash24(keys, *indices);
+#elif NSIPHASH == 4
+        siphash24x4(keys, indices, hashes);
+#elif NSIPHASH == 8
+        siphash24x8(keys, indices, hashes);
+#else
+#error not implemented
+#endif
+}
+
 #endif // ifdef INCLUDE_SIPHASH_H

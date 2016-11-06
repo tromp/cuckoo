@@ -7,7 +7,7 @@ LIBS = -lssl -lcrypto
 # leave out -l crypto if using sha256.c instead of openssl
 # leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
 
-all : test example cuckoo28st cuckoo30st cuckoo32st cuckoo28 cuckoo30 cuckoo32 verify28 verify30 verify32
+all : test example cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28 cuckoo30 cuckoo32 verify28 verify30 verify32
 
 test:	cuckoo20 verify20 Makefile
 	./cuckoo20 -n 13 | grep ^Sol | ./verify20 -n 13
@@ -45,14 +45,14 @@ momentomatum:	siphash.h cuckoo.h momentomatum.h momentomatum.cpp Makefile
 cuckoo28:	cuckoo.h siphash.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
-cuckoo28avx2:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo28avx2 -DUSE_AVX2 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+cuckoo28x8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo28avx2 -mavx2 -DNSIPHASH=8 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
 cuckoo28.1:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28.1 -DATOMIC -DPART_BITS=1 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
-cuckoo28st:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo28st -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+cuckoo28stx8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo28stx8 -DNSIPHASH=8 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
 cuckoo28sc:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28sc -DATOMIC -DSINGLECYCLING -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
@@ -72,8 +72,8 @@ cuckoo30:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo30.1:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo30.1 -DATOMIC -DPART_BITS=1 -DSIZESHIFT=30 cuckoo_miner.cpp $(LIBS)
 
-cuckoo30st:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo30 -DSIZESHIFT=30 cuckoo_miner.cpp $(LIBS)
+cuckoo30stx8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo30stx8 -mavx2 -DNSIPHASH=8 -DSIZESHIFT=30 cuckoo_miner.cpp $(LIBS)
 
 cuckoo30.2:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo30.2 -DATOMIC -DPART_BITS=2 -DSIZESHIFT=30 cuckoo_miner.cpp $(LIBS)
@@ -120,8 +120,8 @@ cuckoo32:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo32.1:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32.1 -DATOMIC -DPART_BITS=1 -DSIZESHIFT=32 cuckoo_miner.cpp $(LIBS)
 
-cuckoo32st:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo32 -DSIZESHIFT=32 cuckoo_miner.cpp $(LIBS)
+cuckoo32stx8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo32stx8 -mavx2 -DNSIPHASH=8 -DSIZESHIFT=32 cuckoo_miner.cpp $(LIBS)
 
 cuckoo32.2:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32.2 -DATOMIC -DPART_BITS=2 -DSIZESHIFT=32 cuckoo_miner.cpp $(LIBS)
@@ -129,8 +129,8 @@ cuckoo32.2:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo35:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo35 -DATOMIC -DSIZESHIFT=35 cuckoo_miner.cpp $(LIBS)
 
-cpubounty:	cuckoo28 cuckoo30 cuckoo32
-	for s in 28 30 32; do for t in 8 4 2 1; do time ./cuckoo$$s -t $$t -r 10; done; done
+cpubounty:	cuckoo28stx8 cuckoo30stx8 cuckoo32stx8
+	for s in 28 30 32; do for t in 8 4 2 1; do time ./cuckoo$${s}stx8 -t $$t -r 10; done; done
 
 tmtobounty:	tomato28 tomato30 tomato32
 	for s in 28 30 32; do for t in 8 4 2 1; do time ./tomato$$s -t $$t -r 10; done; done
@@ -138,17 +138,20 @@ tmtobounty:	tomato28 tomato30 tomato32
 gpubounty:	cuda28 cuda30 cuda32
 	for s in 28 30 32; do time ./cuda$$s -r 10; done
 
-hash_only: hash_only.cpp Makefile
-	$(GPP) -o hash_only -DSIZESHIFT=32 hash_only.cpp $(LIBS)
+hashonly: hash_only.cpp Makefile
+	$(GPP) -o hashonly -DNSIPHASH=1 hash_only.cpp $(LIBS)
 
-hash_only_avx2: hash_only.cpp Makefile
-	$(GPP) -o hash_only_avx2 -DUSE_AVX2 -DSIZESHIFT=32 hash_only.cpp $(LIBS)
+hashonlyx4: hash_only.cpp Makefile
+	$(GPP) -o hashonlyx4 -mavx2 -DNSIPHASH=4 hash_only.cpp $(LIBS)
+
+hashonlyx8: hash_only.cpp Makefile
+	$(GPP) -o hashonlyx8 -mavx2 -DNSIPHASH=8 hash_only.cpp $(LIBS)
 
 hash28:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o hash28 -DHASHONLY -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
 hash28avx2:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o hash28avx2 -DHASHONLY -DUSE_AVX2 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+	$(GPP) -o hash28avx2 -DHASHONLY -mavx2 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
 verify28:	siphash.h cuckoo.h cuckoo.c Makefile
 	$(GPP) -o verify28 -DSIZESHIFT=28 cuckoo.c $(LIBS)
