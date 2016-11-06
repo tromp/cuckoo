@@ -4,6 +4,15 @@
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset
 #include "siphash.h"
+// both cuckoo.c and cuckoo_miner.h need htole32
+#ifdef __APPLE__
+#include "osx_barrier.h"
+#include <machine/endian.h>
+#include <libkern/OSByteOrder.h>
+#define htole32(x) OSSwapHostToLittleInt32(x)
+#else
+#include <endian.h>
+#endif
 
 // proof-of-work parameters
 #ifndef SIZESHIFT 
@@ -18,20 +27,11 @@
 #endif
 
 // the graph size / number of nodes
-#define SIZE (1ULL<<SIZESHIFT)
+static const u64 SIZE = 1ULL<<SIZESHIFT;
 // number of nodes in one partition (eg. all even nodes)
-#define HALFSIZE (SIZE/2)
+static const u64 HALFSIZE = SIZE/2;
 // used to mask siphash output
-#define NODEMASK (HALFSIZE-1)
-
-// length of header (including nonce) hashed into siphash key
-#ifndef HEADERLEN
-#define HEADERLEN 80
-#endif
-
-// save some keystrokes since i'm a lazy typer
-typedef uint32_t u32;
-typedef uint64_t u64;
+static const u64 NODEMASK = HALFSIZE-1;
 
 // generate edge endpoint in cuckoo graph without partition bit
 u64 _sipnode(siphash_keys *keys, u64 nonce, u32 uorv) {

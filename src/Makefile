@@ -51,8 +51,14 @@ cuckoo28x8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo28.1:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28.1 -DATOMIC -DPART_BITS=1 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
+cuckoo28stx4:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo28stx4 -mavx2 -DNSIPHASH=4 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+
 cuckoo28stx8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo28stx8 -DNSIPHASH=8 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+	$(GPP) -o cuckoo28stx8 -mavx2 -DNSIPHASH=8 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+
+cuckoo28stx16:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo28stx16 -mavx2 -DNSIPHASH=16 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
 cuckoo28sc:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28sc -DATOMIC -DSINGLECYCLING -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
@@ -139,13 +145,16 @@ gpubounty:	cuda28 cuda30 cuda32
 	for s in 28 30 32; do time ./cuda$$s -r 10; done
 
 hashonly: hash_only.cpp Makefile
-	$(GPP) -o hashonly -DNSIPHASH=1 hash_only.cpp $(LIBS)
+	$(GPP) -o hashonly hash_only.cpp $(LIBS)
 
 hashonlyx4: hash_only.cpp Makefile
 	$(GPP) -o hashonlyx4 -mavx2 -DNSIPHASH=4 hash_only.cpp $(LIBS)
 
 hashonlyx8: hash_only.cpp Makefile
 	$(GPP) -o hashonlyx8 -mavx2 -DNSIPHASH=8 hash_only.cpp $(LIBS)
+
+hashonlyx16: hash_only.cpp Makefile
+	$(GPP) -o hashonlyx16 -mavx2 -DNSIPHASH=16 hash_only.cpp $(LIBS)
 
 hash28:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o hash28 -DHASHONLY -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)

@@ -11,14 +11,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <assert.h>
-#ifdef __APPLE__
-#include "osx_barrier.h"
-#include <machine/endian.h>
-#include <libkern/OSByteOrder.h>
-#define htole32(x) OSSwapHostToLittleInt32(x)
-#else
-#include <endian.h>
-#endif
+
 #ifdef ATOMIC
 #include <atomic>
 typedef std::atomic<u32> au32;
@@ -35,10 +28,6 @@ typedef u64 nonce_t;
 typedef u64 node_t;
 #endif
 #include <set>
-#ifdef USE_AVX2
-#include "highwayhash/siphashx4.h"
-typedef highwayhash::uint64 ull64;
-#endif
 
 // algorithm/performance parameters
 #ifndef PART_BITS
@@ -67,7 +56,51 @@ typedef highwayhash::uint64 ull64;
 #define IDXSHIFT (PART_BITS + 6)
 #endif
 // grow with cube root of size, hardly affected by trimming
-#define MAXPATHLEN (8 << (SIZESHIFT/3))
+const static u32 MAXPATHLEN = 8 << (SIZESHIFT/3);
+
+const static u32 PART_MASK = (1 << PART_BITS) - 1;
+const static u64 ONCE_BITS = HALFSIZE >> PART_BITS;
+const static u64 TWICE_WORDS = (2 * ONCE_BITS) / 32;
+
+class twice_set {
+public:
+  au32 *bits;
+
+  twice_set() {
+    bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32));
+    assert(bits != 0);
+  }
+  void clear() {
+    assert(bits);
+    memset(bits, 0, TWICE_WORDS*sizeof(au32));
+  }
+ void prefetch(node_t u) const {
+#ifdef PREFETCH
+    __builtin_prefetch((const void *)(&bits[u/16]), /*READ=*/0, /*TEMPORAL=*/0);
+#endif
+  }
+  void set(node_t u) {
+    node_t idx = u/16;
+    u32 bit = 1 << (2 * (u%16));
+#ifdef ATOMIC
+    u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
+    if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
+#else
+    u32 old = bits[idx];
+    bits[idx] = old | (bit + (old & bit));
+#endif
+  }
+  bool test(node_t u) const {
+#ifdef ATOMIC
+    return ((bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2) != 0;
+#else
+    return (bits[u/16] >> (2 * (u%16)) & 2) != 0;
+#endif
+  }
+  ~twice_set() {
+    free(bits);
+  }
+};
 
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
@@ -104,56 +137,12 @@ public:
   }
 };
 
-#define PART_MASK ((1 << PART_BITS) - 1)
-#define ONCE_BITS (HALFSIZE >> PART_BITS)
-#define TWICE_WORDS ((2 * ONCE_BITS) / 32)
-
-class twice_set {
-public:
-  au32 *bits;
-
-  twice_set() {
-    bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32));
-    assert(bits != 0);
-  }
-  void clear() {
-    assert(bits);
-    memset(bits, 0, TWICE_WORDS*sizeof(au32));
-  }
-  void prefetch(node_t u) const {
-#ifdef PREFETCH
-    __builtin_prefetch((const void *)(&bits[u/16]), /*READ=*/0, /*TEMPORAL=*/0);
-#endif
-  }
-  void set(node_t u) {
-    node_t idx = u/16;
-    u32 bit = 1 << (2 * (u%16));
-#ifdef ATOMIC
-    u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
-    if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
-#else
-    u32 old = bits[idx];
-    bits[idx] = old | (bit + (old & bit));
-#endif
-  }
-  bool test(node_t u) const {
-#ifdef ATOMIC
-    return ((bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2) != 0;
-#else
-    return (bits[u/16] >> (2 * (u%16)) & 2) != 0;
-#endif
-  }
-  ~twice_set() {
-    free(bits);
-  }
-};
-
-#define CUCKOO_SIZE (SIZE >> IDXSHIFT)
-#define CUCKOO_MASK (CUCKOO_SIZE - 1)
+const static u64 CUCKOO_SIZE = SIZE >> IDXSHIFT;
+const static u64 CUCKOO_MASK = CUCKOO_SIZE - 1;
 // number of (least significant) key bits that survives leftshift by SIZESHIFT
-#define KEYBITS (64-SIZESHIFT)
-#define KEYMASK ((1LL << KEYBITS) - 1)
-#define MAXDRIFT (1LL << (KEYBITS - IDXSHIFT))
+const static u32 KEYBITS = 64-SIZESHIFT;
+const static u64 KEYMASK = (1LL << KEYBITS) - 1;
+const static u64 MAXDRIFT = 1LL << (KEYBITS - IDXSHIFT);
 
 class cuckoo_hash {
 public:
@@ -171,13 +160,15 @@ public:
         return;
       if ((old >> SIZESHIFT) == (u & KEYMASK)) {
         cuckoo[ui].store(niew, std::memory_order_relaxed);
+        return;
+      }
 #else
       u64 old = cuckoo[ui];
       if (old == 0 || (old >> SIZESHIFT) == (u & KEYMASK)) {
         cuckoo[ui] = niew;
-#endif
         return;
       }
+#endif
     }
   }
   node_t operator[](node_t u) const {
@@ -235,6 +226,117 @@ public:
     delete nonleaf;
     delete cuckoo;
   }
+  void prefetch(const u64 *hashes, const u32 part) const {
+    for (u32 i=0; i < NSIPHASH; i++) {
+      u32 u = hashes[i] & NODEMASK;
+      if ((u & PART_MASK) == part) {
+        nonleaf->prefetch(u >> PART_MASK);
+      }
+    }
+  }
+  void node_deg(const u64 *hashes, const u32 nsiphash, const u32 part) const {
+    for (u32 i=0; i < nsiphash; i++) {
+      u32 u = hashes[i] & NODEMASK;
+      if ((u & PART_MASK) == part) {
+        nonleaf->set(u >>= PART_BITS);
+      }
+    }
+  }
+  void count_node_deg(const u32 id, const u32 uorv, const u32 part) {
+    alignas(64) u64 indices[NSIPHASH];
+    alignas(64) u64 hashes[NPREFETCH];
+  
+    memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->set(0) to reduce branching
+    u32 nidx = 0;
+    for (nonce_t block = id*64; block < HALFSIZE; block += nthreads*64) {
+      u64 alive64 = alive->block(block);
+      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+        u32 ffs = __builtin_ffsll(alive64);
+        nonce += ffs; alive64 >>= ffs;
+        indices[nidx++ % NSIPHASH] = 2*nonce + uorv;
+        if (nidx % NSIPHASH == 0) {
+          node_deg(hashes+nidx-NSIPHASH, NSIPHASH, part);
+          siphash24xN(&sip_keys, indices, hashes+nidx-NSIPHASH);
+          prefetch(hashes+nidx-NSIPHASH, part);
+          nidx %= NPREFETCH;
+        }
+        if (ffs & 64) break; // can't shift by 64
+      }
+    }
+    node_deg(hashes, NPREFETCH, part);
+    if (nidx % NSIPHASH != 0) {
+      siphash24xN(&sip_keys, indices, hashes+(nidx&-NSIPHASH));
+      node_deg(hashes+(nidx&-NSIPHASH), nidx%NSIPHASH, part);
+    }
+  }
+  void kill(const u64 *hashes, const u64 *indices, const u32 nsiphash,
+             const u32 part, const u32 id) const {
+    for (u32 i=0; i < nsiphash; i++) {
+      u32 u = hashes[i] & NODEMASK;
+      if ((u & PART_MASK) == part && !nonleaf->test(u >> PART_BITS)) {
+        alive->reset(indices[i]/2, id);
+      }
+    }
+  }
+  void kill_leaf_edges(const u32 id, const u32 uorv, const u32 part) {
+    alignas(64) u64 indices[NPREFETCH];
+    alignas(64) u64 hashes[NPREFETCH];
+  
+    memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->test(0) to reduce branching
+    u32 nidx = 0;
+    for (nonce_t block = id*64; block < HALFSIZE; block += nthreads*64) {
+      u64 alive64 = alive->block(block);
+      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+        u32 ffs = __builtin_ffsll(alive64);
+        nonce += ffs; alive64 >>= ffs;
+        indices[nidx++] = 2*nonce + uorv;
+        if (nidx % NSIPHASH == 0) {
+          siphash24xN(&sip_keys, indices+nidx-NSIPHASH, hashes+nidx-NSIPHASH);
+          prefetch(hashes+nidx-NSIPHASH, part);
+          nidx %= NPREFETCH;
+          kill(hashes+nidx, indices+nidx, NSIPHASH, part, id);
+        }
+        if (ffs & 64) break; // can't shift by 64
+      }
+    }
+    if (nidx % NSIPHASH != 0) {
+      siphash24xN(&sip_keys, indices+(nidx&-NSIPHASH), hashes+(nidx&-NSIPHASH));
+    }
+    kill(hashes, indices, NPREFETCH, part, id);
+  }
+  void solution(node_t *us, u32 nu, node_t *vs, u32 nv) {
+    typedef std::pair<node_t,node_t> edge;
+    std::set<edge> cycle;
+    u32 n = 0;
+    cycle.insert(edge(*us, *vs));
+    while (nu--)
+      cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
+    while (nv--)
+      cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
+  #ifdef ATOMIC
+    u32 soli = std::atomic_fetch_add_explicit(&nsols, 1U, std::memory_order_relaxed);
+  #else
+    u32 soli = nsols++;
+  #endif
+    for (nonce_t block = 0; block < HALFSIZE; block += 64) {
+      u64 alive64 = alive->block(block);
+      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+        u32 ffs = __builtin_ffsll(alive64);
+        nonce += ffs; alive64 >>= ffs;
+        edge e(sipnode(&sip_keys, nonce, 0), sipnode(&sip_keys, nonce, 1));
+        if (cycle.find(e) != cycle.end()) {
+          sols[soli][n++] = nonce;
+  #ifdef SHOWSOL
+          printf("e(%x)=(%x,%x)%c", nonce, e.first, e.second, n==PROOFSIZE?'\n':' ');
+  #endif
+          if (PROOFSIZE > 2)
+            cycle.erase(e);
+        }
+        if (ffs & 64) break; // can't shift by 64
+      }
+    }
+    assert(n==PROOFSIZE);
+  }
 };
 
 typedef struct {
@@ -251,97 +353,6 @@ void barrier(pthread_barrier_t *barry) {
   }
 }
 
-void count_node_deg(thread_ctx *tp, u32 uorv, u32 part) {
-  cuckoo_ctx *ctx = tp->ctx;
-  shrinkingset *alive = ctx->alive;
-  twice_set *nonleaf = ctx->nonleaf;
-  alignas(64) u64 indices[NSIPHASH];
-  alignas(64) u64 hashes[NPREFETCH];
-
-  u32 nidx = 0;
-  for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
-    u64 alive64 = alive->block(block);
-    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
-      u32 ffs = __builtin_ffsll(alive64);
-      nonce += ffs; alive64 >>= ffs;
-      indices[nidx++ % NSIPHASH] = 2*nonce + uorv;
-      if (nidx % NSIPHASH == 0) {
-        siphash24xN(&ctx->sip_keys, indices, hashes+nidx-NSIPHASH);
-        for (u32 i=0; i < NSIPHASH; i++) {
-          u32 u = hashes[nidx-NSIPHASH+i] & NODEMASK;
-          if ((u & PART_MASK) == part) {
-            nonleaf->prefetch(u >> PART_BITS);
-          }
-        }
-        if (nidx == NPREFETCH) {
-          for (u32 i=0; i < NPREFETCH; i++) {
-            u32 u = hashes[i] & NODEMASK;
-            if ((u & PART_MASK) == part) {
-              nonleaf->set(u >> PART_BITS);
-            }
-          }
-          nidx = 0;
-        }
-      }
-      if (ffs & 64) break; // can't shift by 64
-    }
-  }
-  if (nidx % NSIPHASH != 0) {
-    siphash24xN(&ctx->sip_keys, indices, hashes+(nidx&-NSIPHASH));
-  }
-  for (u32 i=0; i < nidx; i++) {
-    u32 u = hashes[i] & NODEMASK;
-    if ((u & PART_MASK) == part) {
-      nonleaf->set(u >> PART_BITS);
-    }
-  }
-}
-
-void kill_leaf_edges(thread_ctx *tp, u32 uorv, u32 part) {
-  cuckoo_ctx *ctx = tp->ctx;
-  shrinkingset *alive = ctx->alive;
-  twice_set *nonleaf = ctx->nonleaf;
-  alignas(64) u64 indices[NPREFETCH];
-  alignas(64) u64 hashes[NPREFETCH];
-
-  u32 nidx = 0;
-  for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
-    u64 alive64 = alive->block(block);
-    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
-      u32 ffs = __builtin_ffsll(alive64);
-      nonce += ffs; alive64 >>= ffs;
-      indices[nidx++] = 2*nonce + uorv;
-      if (nidx % NSIPHASH == 0) {
-        siphash24xN(&ctx->sip_keys, indices+nidx-NSIPHASH, hashes+nidx-NSIPHASH);
-        for (u32 i=0; i < NSIPHASH; i++) {
-          u32 u = hashes[nidx-NSIPHASH+i] & NODEMASK;
-          if ((u & PART_MASK) == part) {
-            nonleaf->prefetch(u >> PART_BITS);
-          }
-        }
-        if (nidx == NPREFETCH) {
-          for (u32 i=0; i < NPREFETCH; i++) {
-            u32 u = hashes[i] & NODEMASK;
-            if ((u & PART_MASK) == part && !nonleaf->test(u >> PART_BITS)) {
-              alive->reset(indices[i]/2, tp->id);
-            }
-          }
-          nidx = 0;
-        }
-      }
-      if (ffs & 64) break; // can't shift by 64
-    }
-  }
-  if (nidx % NSIPHASH != 0) {
-    siphash24xN(&ctx->sip_keys, indices+(nidx&-NSIPHASH), hashes+(nidx&-NSIPHASH));
-  }
-  for (u32 i=0; i < nidx; i++) {
-    u32 u = hashes[i] & NODEMASK;
-    if ((u & PART_MASK) == part && !nonleaf->test(u >> PART_BITS)) {
-      alive->reset(indices[i]/2, tp->id);
-    }
-  }
-}
 
 u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   u32 nu;
@@ -356,41 +367,6 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
     us[nu++] = u;
   }
   return nu-1;
-}
-
-typedef std::pair<node_t,node_t> edge;
-
-void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
-  std::set<edge> cycle;
-  u32 n = 0;
-  cycle.insert(edge(*us, *vs));
-  while (nu--)
-    cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
-  while (nv--)
-    cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-#ifdef ATOMIC
-  u32 soli = std::atomic_fetch_add_explicit(&ctx->nsols, 1U, std::memory_order_relaxed);
-#else
-  u32 soli = ctx->nsols++;
-#endif
-  for (nonce_t block = 0; block < HALFSIZE; block += 64) {
-    u64 alive64 = ctx->alive->block(block);
-    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
-      u32 ffs = __builtin_ffsll(alive64);
-      nonce += ffs; alive64 >>= ffs;
-      edge e(sipnode(&ctx->sip_keys, nonce, 0), sipnode(&ctx->sip_keys, nonce, 1));
-      if (cycle.find(e) != cycle.end()) {
-        ctx->sols[soli][n++] = nonce;
-#ifdef SHOWSOL
-        printf("e(%x)=(%x,%x)%c", nonce, e.first, e.second, n==PROOFSIZE?'\n':' ');
-#endif
-        if (PROOFSIZE > 2)
-          cycle.erase(e);
-      }
-      if (ffs & 64) break; // can't shift by 64
-    }
-  }
-  assert(n==PROOFSIZE);
 }
 
 void *worker(void *vp) {
@@ -408,9 +384,9 @@ void *worker(void *vp) {
         if (tp->id == 0)
           ctx->nonleaf->clear(); // clear all counts
         barrier(&ctx->barry);
-        count_node_deg(tp,uorv,part);
+        ctx->count_node_deg(tp->id,uorv,part);
         barrier(&ctx->barry);
-        kill_leaf_edges(tp,uorv,part);
+        ctx->kill_leaf_edges(tp->id,uorv,part);
         barrier(&ctx->barry);
         if (tp->id == 0) {
           u32 load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
@@ -454,7 +430,7 @@ void *worker(void *vp) {
           u32 len = nu + nv + 1;
           printf("%4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
           if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
-            solution(ctx, us, nu, vs, nv);
+            ctx->solution(us, nu, vs, nv);
         } else if (nu < nv) {
           while (nu--)
             cuckoo.set(us[nu+1], us[nu]);

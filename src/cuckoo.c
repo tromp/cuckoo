@@ -6,14 +6,6 @@
 #include <stdio.h>    // printf/scanf
 #include <stdlib.h>   // exit
 #include <unistd.h>   // getopt
-#ifdef __APPLE__
-#include "osx_barrier.h"
-#include <machine/endian.h>
-#include <libkern/OSByteOrder.h>
-#define htole32(x) OSSwapHostToLittleInt32(x)
-#else
-#include <endian.h>
-#endif
 #include <assert.h>   // d'uh
 
 int main(int argc, char **argv) {
