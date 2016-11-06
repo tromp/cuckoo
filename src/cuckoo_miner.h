@@ -353,7 +353,6 @@ void barrier(pthread_barrier_t *barry) {
   }
 }
 
-
 u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   u32 nu;
   for (nu = 0; u; u = cuckoo[u]) {
