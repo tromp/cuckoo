@@ -69,15 +69,15 @@ This is the phase that takes the vast majority of (latency dominated) runtime.
 Once the subset is small enough, an algorithm inspired by Cuckoo Hashing
 is used to recognise all cycles, and recover those of the right length.
 
-The runtime of a single proof attempt on a high end x86 is 5.5min/GB
-single-threaded, or 1.5min/GB for 8 threads.
+The runtime of a single proof attempt on a 4GHz i7-4790K is 3.5 min/GB
+single-threaded, or 1.5 min/GB for 8 threads.
 
 I claim that this implementation is a reasonably optimal Cuckoo miner,
 secondly, that trading off memory for running time,
 as implemented in tomato_miner.h,
 incurs at least one order of magnitude extra slowdown,
 and finally, that cuda_miner.cu is a reasonably optimal GPU miner.
-The latter runs about 4x-5x faster on an NVIDA GTX 980
+The latter runs about 4x faster on an NVIDA GTX 980
 than on an Intel Core-i7 CPU. 
 To that end, I offer the following bounties:
 
