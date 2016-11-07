@@ -78,6 +78,9 @@ cuckoo30:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo30.1:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo30.1 -DATOMIC -DPART_BITS=1 -DSIZESHIFT=30 cuckoo_miner.cpp $(LIBS)
 
+cuckoo30x8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo30x8 -mavx2 -DNSIPHASH=8 -DATOMIC -DSIZESHIFT=30 cuckoo_miner.cpp $(LIBS)
+
 cuckoo30stx8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo30stx8 -mavx2 -DNSIPHASH=8 -DSIZESHIFT=30 cuckoo_miner.cpp $(LIBS)
 
@@ -126,6 +129,9 @@ cuckoo32:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo32.1:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32.1 -DATOMIC -DPART_BITS=1 -DSIZESHIFT=32 cuckoo_miner.cpp $(LIBS)
 
+cuckoo32x8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo32x8 -mavx2 -DNSIPHASH=8 -DATOMIC -DSIZESHIFT=32 cuckoo_miner.cpp $(LIBS)
+
 cuckoo32stx8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32stx8 -mavx2 -DNSIPHASH=8 -DSIZESHIFT=32 cuckoo_miner.cpp $(LIBS)
 
@@ -135,8 +141,8 @@ cuckoo32.2:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo35:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo35 -DATOMIC -DSIZESHIFT=35 cuckoo_miner.cpp $(LIBS)
 
-cpubounty:	cuckoo28stx8 cuckoo30stx8 cuckoo32stx8
-	for s in 28 30 32; do for t in 8 4 2 1; do time ./cuckoo$${s}stx8 -t $$t -r 10; done; done
+cpubounty:	cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28x8 cuckoo30x8 cuckoo32x8
+	for s in 28 30 32; do for t in 8 4 2; do time ./cuckoo$${s}x8 -t $$t -r 10; done; time ./cuckoo$${s}stx8 -r 10; done
 
 tmtobounty:	tomato28 tomato30 tomato32
 	for s in 28 30 32; do for t in 8 4 2 1; do time ./tomato$$s -t $$t -r 10; done; done
