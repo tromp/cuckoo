@@ -32,7 +32,7 @@ requiring hardly any code, time, or memory to verify.
 
 Finding a 42-cycle, on the other hand, is far from trivial,
 requiring considerable resources, and some luck
-(for a given header, the odds of its graph having a 42-cycle are about 1 in 42).
+(for a given header, the odds of its graph having a L-cycle are about 1 in L).
 
 An indirectly useful Proof of Work
 --------------
