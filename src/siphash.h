@@ -63,6 +63,8 @@ u64 siphash24(const siphash_keys *keys, const u64 nonce) {
   return (v0 ^ v1) ^ (v2  ^ v3);
 }
 
+#ifdef __AVX2__
+
 #define ADD(a, b) _mm256_add_epi64(a, b)
 #define XOR(a, b) _mm256_xor_si256(a, b)
 #define ROTATE16 _mm256_set_epi64x(0x0D0C0B0A09080F0EULL,0x0504030201000706ULL, \
@@ -208,6 +210,8 @@ void siphash24x16(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
   _mm256_store_si256((__m256i *)(hashes+8),   XOR(XOR(v8,v9),XOR(vA,vB)));
   _mm256_store_si256((__m256i *)(hashes+12),XOR(XOR(vC,vD),XOR(vE,vF)));
 }
+
+#endif
 
 #ifndef NSIPHASH
 // how many siphash24 to compute in parallel
