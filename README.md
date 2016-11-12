@@ -58,14 +58,14 @@ ASICs
 --------------
 Solving sufficiently large Cuckoo Cycle instances requires the cooperation of
 computing cores and memory chips.
-The latter need to be optimized for price and energy per randomly accessed bit.
+The latter need to be optimized for price and energy use per randomly accessed bit.
 While currently suboptimal from an energy-efficiency viewpoint, commodity mass production
-makes DRAM chips the only cost effective ASIC for random bit access.
+makes DRAM chips the only cost effective ASICs for random bit access.
 Since computing cores only need to be able to saturate the DRAM memory bandwidth,
-they need to be optimized to a much lesser degree avoiding an ASICs arm race.
+they need to be optimized to a much lesser degree, thereby avoiding an ASICs arm race.
 The most cost effective Cuckoo Cycle mining hardware should consist of a relatively
-cheap and tiny many core memory controller that needs to be paired with commodity DRAM chips
-where the latter dominate both the hardware and energy cost.
+cheap and tiny many core memory controller that needs to be paired with commodity DRAM chips,
+where the latter dominate both the hardware and energy cost (about 1 Watt per DRAM chip).
 
 Cycle finding
 --------------
