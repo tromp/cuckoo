@@ -51,6 +51,9 @@ cuckoo28x8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 cuckoo28.1:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28.1 -DATOMIC -DPART_BITS=1 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
+cuckoo28st:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
+	$(GPP) -o cuckoo28st -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+
 cuckoo28stx4:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28stx4 -mavx2 -DNSIPHASH=4 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
