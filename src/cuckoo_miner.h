@@ -15,17 +15,25 @@
 #ifdef ATOMIC
 #include <atomic>
 typedef std::atomic<u32> au32;
-typedef au32 atwice;
 typedef std::atomic<u64> au64;
 #else
-#ifdef TWICEBYTES
-typedef unsigned char atwice;
-#else
-typedef u32 atwice;
-#endif
 typedef u32 au32;
 typedef u64 au64;
 #endif
+
+#ifndef SIZEOF_TWICE_ATOM
+#define SIZEOF_TWICE_ATOM 4
+#endif
+#if SIZEOF_TWICE_ATOM == 8
+typedef au64 atwice;
+#elif SIZEOF_TWICE_ATOM == 4
+typedef u32 atwice;
+#elif SIZEOF_TWICE_ATOM == 1
+typedef unsigned char atwice;
+#else
+#error not implemented
+#endif
+
 #if SIZESHIFT <= 32
 typedef u32 nonce_t;
 typedef u32 node_t;
@@ -89,12 +97,12 @@ public:
   }
   void set(node_t u) {
     node_t idx = u/TWICE_PER_ATOM;
-    u32 bit = 1 << (2 * (u%TWICE_PER_ATOM));
+    atwice bit = (atwice)1 << (2 * (u%TWICE_PER_ATOM));
 #ifdef ATOMIC
-    u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
+    atwice old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
     if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
 #else
-    u32 old = bits[idx];
+    atwice old = bits[idx];
     bits[idx] = old | (bit + (old & bit));
 #endif
   }
