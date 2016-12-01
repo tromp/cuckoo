@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges, %d trims, %d threads\n", ntrims, nthreads);
 
-  u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
+  u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_ATOMS*sizeof(atwice);
   int edgeUnit, nodeUnit;
   for (edgeUnit=0; edgeBytes >= 1024; edgeBytes>>=10,edgeUnit++) ;
   for (nodeUnit=0; nodeBytes >= 1024; nodeBytes>>=10,nodeUnit++) ;

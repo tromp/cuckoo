@@ -15,8 +15,14 @@
 #ifdef ATOMIC
 #include <atomic>
 typedef std::atomic<u32> au32;
+typedef au32 atwice;
 typedef std::atomic<u64> au64;
 #else
+#ifdef TWICEBYTES
+typedef unsigned char atwice;
+#else
+typedef u32 atwice;
+#endif
 typedef u32 au32;
 typedef u64 au64;
 #endif
@@ -48,11 +54,11 @@ typedef u64 node_t;
 
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) == sizeof(twice_set), so
-// CUCKOO_SIZE * sizeof(u64) == TWICE_WORDS * sizeof(u32)
-// CUCKOO_SIZE * 2 == TWICE_WORDS
-// (SIZE >> IDXSHIFT) * 2 == 2 * ONCE_BITS / 32
-// SIZE >> IDXSHIFT == HALFSIZE >> PART_BITS >> 5
-// IDXSHIFT == 1 + PART_BITS + 5
+// CUCKOO_SIZE * sizeof(u64)   == 2 * ONCE_BITS / 32
+// CUCKOO_SIZE * 2             == 2 * ONCE_BITS / 32
+// (SIZE >> IDXSHIFT) * 2      == 2 * ONCE_BITS / 32
+// SIZE >> IDXSHIFT            == HALFSIZE >> PART_BITS >> 5
+// IDXSHIFT                    == 1 + PART_BITS + 5
 #define IDXSHIFT (PART_BITS + 6)
 #endif
 // grow with cube root of size, hardly affected by trimming
@@ -60,28 +66,30 @@ const static u32 MAXPATHLEN = 8 << (SIZESHIFT/3);
 
 const static u32 PART_MASK = (1 << PART_BITS) - 1;
 const static u64 ONCE_BITS = HALFSIZE >> PART_BITS;
-const static u64 TWICE_WORDS = (2 * ONCE_BITS) / 32;
+const static u64 TWICE_BYTES = (2 * ONCE_BITS) / 8;
+const static u64 TWICE_ATOMS = TWICE_BYTES / sizeof(atwice);
+const static u32 TWICE_PER_ATOM = sizeof(atwice) * 4;
 
 class twice_set {
 public:
-  au32 *bits;
+  atwice *bits;
 
   twice_set() {
-    bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32));
+    bits = (atwice *)calloc(TWICE_ATOMS, sizeof(atwice));
     assert(bits != 0);
   }
   void clear() {
     assert(bits);
-    memset(bits, 0, TWICE_WORDS*sizeof(au32));
+    memset(bits, 0, TWICE_ATOMS*sizeof(atwice));
   }
  void prefetch(node_t u) const {
 #ifdef PREFETCH
-    __builtin_prefetch((const void *)(&bits[u/16]), /*READ=*/0, /*TEMPORAL=*/0);
+    __builtin_prefetch((const void *)(&bits[u/TWICE_PER_ATOM]), /*READ=*/0, /*TEMPORAL=*/0);
 #endif
   }
   void set(node_t u) {
-    node_t idx = u/16;
-    u32 bit = 1 << (2 * (u%16));
+    node_t idx = u/TWICE_PER_ATOM;
+    u32 bit = 1 << (2 * (u%TWICE_PER_ATOM));
 #ifdef ATOMIC
     u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
     if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
@@ -92,9 +100,10 @@ public:
   }
   bool test(node_t u) const {
 #ifdef ATOMIC
-    return ((bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2) != 0;
+    return ((bits[u/TWICE_PER_ATOM].load(std::memory_order_relaxed)
+            >> (2 * (u%TWICE_PER_ATOM))) & 2) != 0;
 #else
-    return (bits[u/16] >> (2 * (u%16)) & 2) != 0;
+    return (bits[u/TWICE_PER_ATOM] >> (2 * (u%TWICE_PER_ATOM)) & 2) != 0;
 #endif
   }
   ~twice_set() {

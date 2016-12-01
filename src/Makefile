@@ -7,7 +7,7 @@ LIBS = -lssl -lcrypto
 # leave out -l crypto if using sha256.c instead of openssl
 # leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
 
-all : test example cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28 cuckoo30 cuckoo32 verify28 verify30 verify32
+all : test example cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28 cuckoo30 cuckoo32 verify28 verify30 verify32 demo28
 
 test:	cuckoo20 verify20 Makefile
 	./cuckoo20 -n 13 | grep ^Sol | ./verify20 -n 13
@@ -59,6 +59,9 @@ cuckoo28stx4:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 
 cuckoo28stx8:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28stx8 -mavx2 -DNSIPHASH=8 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
+
+demo28:	cuckoo28stx8
+	time ./cuckoo28stx8 -n 95
 
 cuckoo28stx16:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28stx16 -mavx2 -DNSIPHASH=16 -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)

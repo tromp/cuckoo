@@ -6,9 +6,9 @@
 #include <string>
 #include <iterator>
 
-#define __NO_STD_VECTOR // Use cl::vector instead of STL version
-#define CL_USE_DEPRECATED_OPENCL_1_1_APIS
-#include <CL/cl.hpp>
+// #define __NO_STD_VECTOR // Use cl::vector instead of STL version
+// #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
+#include <CL/cl2.hpp>
 
 const std::string hw("Hello World\n");
 

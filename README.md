@@ -82,9 +82,11 @@ This is the phase that takes the vast majority of (latency dominated) runtime.
 Once the subset is small enough, an algorithm inspired by Cuckoo Hashing
 is used to recognise all cycles, and recover those of the right length.
 
+Performance
+--------------
 The runtime of a single proof attempt on a 4GHz i7-4790K is 2.3 minutes
-for a single-threaded cuckoo32 using 768MB, or 1.1 minutes for 8 threads.
-The 16x smaller cuckoo28 takes only 7.4 seconds single-threaded.
+for a single-threaded cuckoo32stx8 using 768MB, or 1.1 minutes for 8 threads.
+The 16x smaller cuckoo28stx8 takes only 7.4 seconds single-threaded.
 
 I claim that this implementation is a reasonably optimal Cuckoo miner,
 secondly, that trading off memory for running time,
