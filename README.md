@@ -122,15 +122,16 @@ These bounties are admittedly modest in size,
 but then claiming them might only require one or two insightful tweaks to
 my existing implementations.
 
-Half bounties
---------------
+Double and Half bounties
+------------------------
+Improvements by a factor of 4 will be rewarded with double the regular bounty.
+
 In order to minimize the risk of missing out on less drastic improvements,
-I offer half of the above bounties for improvements within sqrt(2) of the target.
+I further offer half the regular bounty for improvements by a factor of sqrt(2).
 
-I invite anyone who'd like to see my claims tested to donate to
-the Cuckoo Cycle Bounty Fund at
+Anyone who'd like to see my claims tested is invited to donate to the Cuckoo Cycle Bounty Fund at
 
-<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a> (wallet balance as of Nov 1, 2016: 6.11 BTC)
+<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a> (wallet balance as of Dec 7, 2016: 12.76 BTC)
 
 I intend for the total bounty value to stay ahead of funding levels. Happy bounty hunting!
 
