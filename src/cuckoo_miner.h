@@ -170,6 +170,7 @@ public:
 
   cuckoo_hash(void *recycle) {
     cuckoo = (au64 *)recycle;
+    memset(cuckoo, 0, CUCKOO_SIZE*sizeof(au64));
   }
   void set(node_t u, node_t v) {
     u64 niew = (u64)u << SIZESHIFT | v;
@@ -319,10 +320,13 @@ public:
         if (ffs & 64) break; // can't shift by 64
       }
     }
-    if (nidx % NSIPHASH != 0) {
-      siphash24xN(&sip_keys, indices+(nidx&-NSIPHASH), hashes+(nidx&-NSIPHASH));
+    const u32 pnsip = nidx & -NSIPHASH;
+    if (pnsip != nidx) {
+      siphash24xN(&sip_keys, indices+pnsip, hashes+pnsip);
     }
-    kill(hashes, indices, NPREFETCH, part, id);
+    kill(hashes, indices, nidx, part, id);
+    const u32 nnsip = pnsip + NSIPHASH;
+    kill(hashes+nnsip, indices+nnsip, NPREFETCH-nnsip, part, id);
   }
   void solution(node_t *us, u32 nu, node_t *vs, u32 nv) {
     typedef std::pair<node_t,node_t> edge;

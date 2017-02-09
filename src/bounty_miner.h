@@ -1,205 +1,17 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2016 John Tromp
 // The edge-trimming memory optimization is due to Dave Andersen
-// The use of prefetching was suggested by Alexander Peslyak (aka Solar Designer)
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
+// The use of prefetching was suggested by Alexander Peslyak (aka Solar Designer)
+// define SINGLECYCLING to run cycle finding single threaded which runs slower
+// but avoids losing cycles to race conditions (not worth it in my testing)
 
 #include "cuckoo.h"
-
-#ifdef SIMD
-// Scalar and AVX2 implementations of siphash24 for 8B nonces
-// gcc -march=native -std=gnu99 -O3 -g -Wall -Wextra siphash.c -o siphash -lcrypto
-
-#include <x86intrin.h>
-
-typedef __m256i ymm_t;
-typedef __m128i xmm_t;
-
-typedef struct {
-  ymm_t v[4];
-} ymm_siphash_ctx;
-
-#define YMM_ROTATE_LEFT(vec, bits) \
-  _mm256_or_si256(_mm256_slli_epi64(vec, bits), _mm256_srli_epi64(vec, (64 - bits)))
-
-// swapping high and low is equivalent to rotating bits 32
-#define YMM_SWAP_HIGH_LOW_32(vec) \
-  _mm256_shuffle_epi32(vec, _MM_SHUFFLE(2, 3, 0, 1))
-
-// Starting Byte Order: {0x0706050403020100, 0x0F0E0D0C0B0A0908}
-static ymm_t ymmRotateLeft16 = {0x0504030201000706, 0x0D0C0B0A09080F0E,
-                                0x0504030201000706, 0x0D0C0B0A09080F0E};
-#define YMM_ROTATE_LEFT_16(vec) \
-  _mm256_shuffle_epi8(vec, ymmRotateLeft16)
-
-// commented out calculations for first round are done in advance
-#define YMM_SIP_FIRST_ROUND(VEC)                     \
-  VEC.v[2] = _mm256_add_epi64(VEC.v[2], VEC.v[3]); \
-  VEC.v[3] = YMM_ROTATE_LEFT_16(VEC.v[3]);         \
-  VEC.v[3] = _mm256_xor_si256(VEC.v[2], VEC.v[3]); \
-  VEC.v[2] = _mm256_add_epi64(VEC.v[2], VEC.v[1]); \
-  VEC.v[1] = YMM_ROTATE_LEFT(VEC.v[1], 17);        \
-  VEC.v[0] = _mm256_add_epi64(VEC.v[0], VEC.v[3]); \
-  VEC.v[3] = YMM_ROTATE_LEFT(VEC.v[3], 21);        \
-  VEC.v[1] = _mm256_xor_si256(VEC.v[2], VEC.v[1]); \
-  VEC.v[2] = YMM_SWAP_HIGH_LOW_32(VEC.v[2]);       \
-  VEC.v[3] = _mm256_xor_si256(VEC.v[0], VEC.v[3])
-
-// full round on 4x64-bit values in a 256-bit ymm_t vector
-#define YMM_SIP_FULL_ROUND(VEC)      \
-  VEC.v[0] = _mm256_add_epi64(VEC.v[0], VEC.v[1]); \
-  VEC.v[1] = YMM_ROTATE_LEFT(VEC.v[1], 13);        \
-  VEC.v[2] = _mm256_add_epi64(VEC.v[2], VEC.v[3]); \
-  VEC.v[3] = YMM_ROTATE_LEFT_16(VEC.v[3]);         \
-  VEC.v[1] = _mm256_xor_si256(VEC.v[0], VEC.v[1]); \
-  VEC.v[0] = YMM_SWAP_HIGH_LOW_32(VEC.v[0]);       \
-  VEC.v[3] = _mm256_xor_si256(VEC.v[2], VEC.v[3]); \
-  VEC.v[2] = _mm256_add_epi64(VEC.v[2], VEC.v[1]); \
-  VEC.v[1] = YMM_ROTATE_LEFT(VEC.v[1], 17);        \
-  VEC.v[0] = _mm256_add_epi64(VEC.v[0], VEC.v[3]); \
-  VEC.v[3] = YMM_ROTATE_LEFT(VEC.v[3], 21);        \
-  VEC.v[1] = _mm256_xor_si256(VEC.v[2], VEC.v[1]); \
-  VEC.v[2] = YMM_SWAP_HIGH_LOW_32(VEC.v[2]);       \
-  VEC.v[3] = _mm256_xor_si256(VEC.v[0], VEC.v[3])
-
-ymm_t ymm_siphash24(ymm_siphash_ctx VEC, ymm_t vecNonces) {
-  ymm_t vec0xFF = {0xFF, 0xFF, 0xFF, 0xFF};
-
-  VEC.v[3] = _mm256_xor_si256(VEC.v[3], vecNonces);
-  YMM_SIP_FIRST_ROUND(VEC);
-  YMM_SIP_FULL_ROUND(VEC);
-  VEC.v[2] = _mm256_xor_si256(VEC.v[2], vec0xFF);
-  VEC.v[0] = _mm256_xor_si256(VEC.v[0], vecNonces);
-  YMM_SIP_FULL_ROUND(VEC);
-  YMM_SIP_FULL_ROUND(VEC);
-  YMM_SIP_FULL_ROUND(VEC);
-  YMM_SIP_FULL_ROUND(VEC);
-
-  VEC.v[0] = _mm256_xor_si256(VEC.v[0], VEC.v[1]);
-  VEC.v[2] = _mm256_xor_si256(VEC.v[2], VEC.v[3]);
-  VEC.v[0] = _mm256_xor_si256(VEC.v[0], VEC.v[2]);
-
-  return VEC.v[0];
-}
-
-// Y2X routines work on 2 4x64-bit vectors simultaneously
-#define Y2X_SIP_FIRST_ROUND(VEC0, VEC1) \
-  VEC0.v[2] = _mm256_add_epi64(VEC0.v[2], VEC0.v[3]); \
-  VEC1.v[2] = _mm256_add_epi64(VEC1.v[2], VEC1.v[3]); \
-  VEC0.v[3] = YMM_ROTATE_LEFT_16(VEC0.v[3]);          \
-  VEC1.v[3] = YMM_ROTATE_LEFT_16(VEC1.v[3]);          \
-  VEC0.v[3] = _mm256_xor_si256(VEC0.v[2], VEC0.v[3]); \
-  VEC1.v[3] = _mm256_xor_si256(VEC1.v[2], VEC1.v[3]); \
-  VEC0.v[2] = _mm256_add_epi64(VEC0.v[2], VEC0.v[1]); \
-  VEC1.v[2] = _mm256_add_epi64(VEC1.v[2], VEC1.v[1]); \
-  VEC0.v[1] = YMM_ROTATE_LEFT(VEC0.v[1], 17);         \
-  VEC1.v[1] = YMM_ROTATE_LEFT(VEC1.v[1], 17);         \
-  VEC0.v[0] = _mm256_add_epi64(VEC0.v[0], VEC0.v[3]); \
-  VEC1.v[0] = _mm256_add_epi64(VEC1.v[0], VEC1.v[3]); \
-  VEC0.v[3] = YMM_ROTATE_LEFT(VEC0.v[3], 21);         \
-  VEC1.v[3] = YMM_ROTATE_LEFT(VEC1.v[3], 21);         \
-  VEC0.v[1] = _mm256_xor_si256(VEC0.v[2], VEC0.v[1]); \
-  VEC1.v[1] = _mm256_xor_si256(VEC1.v[2], VEC1.v[1]); \
-  VEC0.v[2] = YMM_SWAP_HIGH_LOW_32(VEC0.v[2]);        \
-  VEC1.v[2] = YMM_SWAP_HIGH_LOW_32(VEC1.v[2]);        \
-  VEC0.v[3] = _mm256_xor_si256(VEC0.v[0], VEC0.v[3]); \
-  VEC1.v[3] = _mm256_xor_si256(VEC1.v[0], VEC1.v[3])
-
-#define Y2X_SIP_FULL_ROUND(VEC0, VEC1)  \
-  VEC0.v[0] = _mm256_add_epi64(VEC0.v[0], VEC0.v[1]); \
-  VEC1.v[0] = _mm256_add_epi64(VEC1.v[0], VEC1.v[1]); \
-  VEC0.v[1] = YMM_ROTATE_LEFT(VEC0.v[1], 13);         \
-  VEC1.v[1] = YMM_ROTATE_LEFT(VEC1.v[1], 13);         \
-  VEC0.v[2] = _mm256_add_epi64(VEC0.v[2], VEC0.v[3]); \
-  VEC1.v[2] = _mm256_add_epi64(VEC1.v[2], VEC1.v[3]); \
-  VEC0.v[3] = YMM_ROTATE_LEFT_16(VEC0.v[3]);          \
-  VEC1.v[3] = YMM_ROTATE_LEFT_16(VEC1.v[3]);          \
-  VEC0.v[1] = _mm256_xor_si256(VEC0.v[0], VEC0.v[1]); \
-  VEC1.v[1] = _mm256_xor_si256(VEC1.v[0], VEC1.v[1]); \
-  VEC0.v[0] = YMM_SWAP_HIGH_LOW_32(VEC0.v[0]);        \
-  VEC1.v[0] = YMM_SWAP_HIGH_LOW_32(VEC1.v[0]);        \
-  VEC0.v[3] = _mm256_xor_si256(VEC0.v[2], VEC0.v[3]); \
-  VEC1.v[3] = _mm256_xor_si256(VEC1.v[2], VEC1.v[3]); \
-  VEC0.v[2] = _mm256_add_epi64(VEC0.v[2], VEC0.v[1]); \
-  VEC1.v[2] = _mm256_add_epi64(VEC1.v[2], VEC1.v[1]); \
-  VEC0.v[1] = YMM_ROTATE_LEFT(VEC0.v[1], 17);         \
-  VEC1.v[1] = YMM_ROTATE_LEFT(VEC1.v[1], 17);         \
-  VEC0.v[0] = _mm256_add_epi64(VEC0.v[0], VEC0.v[3]); \
-  VEC1.v[0] = _mm256_add_epi64(VEC1.v[0], VEC1.v[3]); \
-  VEC0.v[3] = YMM_ROTATE_LEFT(VEC0.v[3], 21);         \
-  VEC1.v[3] = YMM_ROTATE_LEFT(VEC1.v[3], 21);         \
-  VEC0.v[1] = _mm256_xor_si256(VEC0.v[2], VEC0.v[1]); \
-  VEC1.v[1] = _mm256_xor_si256(VEC1.v[2], VEC1.v[1]); \
-  VEC0.v[2] = YMM_SWAP_HIGH_LOW_32(VEC0.v[2]);        \
-  VEC1.v[2] = YMM_SWAP_HIGH_LOW_32(VEC1.v[2]);        \
-  VEC0.v[3] = _mm256_xor_si256(VEC0.v[0], VEC0.v[3]); \
-  VEC1.v[3] = _mm256_xor_si256(VEC1.v[0], VEC1.v[3])
-
-void ymm_siphash24_2x(ymm_siphash_ctx *vec, u64 *sinput, u64 *soutput) {
-  ymm_t vecNonce0 = _mm256_loadu_si256((ymm_t *)&sinput[0]);
-  ymm_t vecNonce1 = _mm256_loadu_si256((ymm_t *)&sinput[4]);
-
-  ymm_t vec0xFF = {0xFF, 0xFF, 0xFF, 0xFF};
-
-  ymm_siphash_ctx vec0, vec1;
-  vec0.v[0] = vec1.v[0] = vec->v[0];
-  vec0.v[1] = vec1.v[1] = vec->v[1];
-  vec0.v[2] = vec1.v[2] = vec->v[2];
-  vec0.v[3] = _mm256_xor_si256(vec->v[3], vecNonce0);
-  vec1.v[3] = _mm256_xor_si256(vec->v[3], vecNonce1);
-
-  Y2X_SIP_FIRST_ROUND(vec0, vec1); Y2X_SIP_FULL_ROUND(vec0, vec1);
-
-  vec0.v[2] = _mm256_xor_si256(vec0.v[2], vec0xFF);
-  vec1.v[2] = _mm256_xor_si256(vec1.v[2], vec0xFF);
-
-  vec0.v[0] = _mm256_xor_si256(vec0.v[0], vecNonce0);
-  vec1.v[0] = _mm256_xor_si256(vec1.v[0], vecNonce1);
-
-  Y2X_SIP_FULL_ROUND(vec0, vec1); Y2X_SIP_FULL_ROUND(vec0, vec1);
-  Y2X_SIP_FULL_ROUND(vec0, vec1); Y2X_SIP_FULL_ROUND(vec0, vec1);
-
-  vec0.v[0] = _mm256_xor_si256(vec0.v[0], vec0.v[1]);
-  vec1.v[0] = _mm256_xor_si256(vec1.v[0], vec1.v[1]);
-
-  vec0.v[2] = _mm256_xor_si256(vec0.v[2], vec0.v[3]);
-  vec1.v[2] = _mm256_xor_si256(vec1.v[2], vec1.v[3]);
-
-  vec0.v[0] = _mm256_xor_si256(vec0.v[0], vec0.v[2]);
-  vec1.v[0] = _mm256_xor_si256(vec1.v[0], vec1.v[2]);
-
-  _mm256_storeu_si256((ymm_t *)&soutput[0], vec0.v[0]);
-  _mm256_storeu_si256((ymm_t *)&soutput[4], vec1.v[0]);
-}
-
-#define YMM_SET_ALL(x) _mm256_broadcastq_epi64(_mm_cvtsi64_si128(x))
-
-// FUTURE: add alternative to calculate same nonce with 4 different headers (transpose vecs)
-void ymm_sip_header(ymm_siphash_ctx *VEC, const char *header) {
-  uint64_t generated[4];
-  SHA256(header, strlen(header), &generated);
-
-  // set all elements within a vector to same value
-  VEC->v[0] = YMM_SET_ALL(generated[0] ^ 0x736f6d6570736575ULL);
-  VEC->v[1] = YMM_SET_ALL(generated[1] ^ 0x646f72616e646f6dULL);
-  VEC->v[2] = YMM_SET_ALL(generated[0] ^ 0x6c7967656e657261ULL);
-  VEC->v[3] = YMM_SET_ALL(generated[1] ^ 0x7465646279746573ULL);
-
-  // do the invariant start of the first sip round 
-  VEC->v[0] = _mm256_add_epi64(VEC->v[0], VEC->v[1]);
-  VEC->v[1] = _mm256_xor_si256(VEC->v[0], YMM_ROTATE_LEFT(VEC->v[1], 13));
-  VEC->v[0] = YMM_SWAP_HIGH_LOW_32(VEC->v[0]);
-}
-#endif
-
-#ifdef __APPLE__
-#include "osx_barrier.h"
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <assert.h>
-#include <vector>
+
 #ifdef ATOMIC
 #include <atomic>
 typedef std::atomic<u32> au32;
@@ -208,6 +20,23 @@ typedef std::atomic<u64> au64;
 typedef u32 au32;
 typedef u64 au64;
 #endif
+
+#ifndef SIZEOF_TWICE_ATOM
+#define SIZEOF_TWICE_ATOM 4
+#endif
+#if SIZEOF_TWICE_ATOM == 8
+typedef au64 atwice;
+typedef u64 uatwice;
+#elif SIZEOF_TWICE_ATOM == 4
+typedef au32 atwice;
+typedef u32 uatwice;
+#elif SIZEOF_TWICE_ATOM == 1
+typedef unsigned char atwice;
+typedef unsigned char uatwice;
+#else
+#error not implemented
+#endif
+
 #if SIZESHIFT <= 32
 typedef u32 nonce_t;
 typedef u32 node_t;
@@ -217,7 +46,7 @@ typedef u64 node_t;
 #endif
 #include <set>
 
-// algorithm parameters
+// algorithm/performance parameters
 #ifndef PART_BITS
 // #bits used to partition edge set processing to save memory
 // a value of 0 does no partitioning and is fastest
@@ -227,33 +56,92 @@ typedef u64 node_t;
 #define PART_BITS 0
 #endif
 
+#ifndef NPREFETCH
+// how many prefetches to queue up
+// before accessing the memory
+// must be a multiple of NSIPHASH
+#define NPREFETCH 32
+#endif
+
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) == sizeof(twice_set), so
-// CUCKOO_SIZE * sizeof(u64) == TWICE_WORDS * sizeof(u32)
-// CUCKOO_SIZE * 2 == TWICE_WORDS
-// (SIZE >> IDXSHIFT) * 2 == 2 * ONCE_BITS / 32
-// SIZE >> IDXSHIFT == HALFSIZE >> PART_BITS >> 5
-// IDXSHIFT == 1 + PART_BITS + 5
+// CUCKOO_SIZE * sizeof(u64)   == 2 * ONCE_BITS / 32
+// CUCKOO_SIZE * 2             == 2 * ONCE_BITS / 32
+// (SIZE >> IDXSHIFT) * 2      == 2 * ONCE_BITS / 32
+// SIZE >> IDXSHIFT            == HALFSIZE >> PART_BITS >> 5
+// IDXSHIFT                    == 1 + PART_BITS + 5
 #define IDXSHIFT (PART_BITS + 6)
 #endif
 // grow with cube root of size, hardly affected by trimming
-#define MAXPATHLEN (8 << (SIZESHIFT/3))
+const static u32 MAXPATHLEN = 8 << (SIZESHIFT/3);
+
+const static u32 PART_MASK = (1 << PART_BITS) - 1;
+const static u64 ONCE_BITS = HALFSIZE >> PART_BITS;
+const static u64 TWICE_BYTES = (2 * ONCE_BITS) / 8;
+const static u64 TWICE_ATOMS = TWICE_BYTES / sizeof(atwice);
+const static u32 TWICE_PER_ATOM = sizeof(atwice) * 4;
+
+class twice_set {
+public:
+  atwice *bits;
+
+  twice_set() {
+    bits = (atwice *)calloc(TWICE_ATOMS, sizeof(atwice));
+    assert(bits != 0);
+  }
+  void clear() {
+    assert(bits);
+    memset(bits, 0, TWICE_ATOMS*sizeof(atwice));
+  }
+ void prefetch(node_t u) const {
+#ifdef PREFETCH
+    __builtin_prefetch((const void *)(&bits[u/TWICE_PER_ATOM]), /*READ=*/0, /*TEMPORAL=*/0);
+#endif
+  }
+  void set(node_t u) {
+    node_t idx = u/TWICE_PER_ATOM;
+    uatwice bit = (uatwice)1 << (2 * (u%TWICE_PER_ATOM));
+#ifdef ATOMIC
+    uatwice old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
+    if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
+#else
+    uatwice old = bits[idx];
+    bits[idx] = old | (bit + (old & bit));
+#endif
+  }
+  bool test(node_t u) const {
+#ifdef ATOMIC
+    return ((bits[u/TWICE_PER_ATOM].load(std::memory_order_relaxed)
+            >> (2 * (u%TWICE_PER_ATOM))) & 2) != 0;
+#else
+    return (bits[u/TWICE_PER_ATOM] >> (2 * (u%TWICE_PER_ATOM)) & 2) != 0;
+#endif
+  }
+  ~twice_set() {
+    free(bits);
+  }
+};
 
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
 public:
-  std::vector<u64> bits;
-  std::vector<u64> cnt;
+  u64 *bits;
+  u64 *cnt;
+  u32 nthreads;
 
-  shrinkingset(u32 nthreads) {
-    nonce_t nwords = HALFSIZE/64;
-    bits.resize(nwords);
-    cnt.resize(nthreads);
+  shrinkingset(const u32 nt) {
+    bits = (u64 *)malloc(HALFSIZE/8);
+    cnt  = (u64 *)malloc(nt * sizeof(u64));
+    nthreads = nt;
+  }
+  void clear() {
+    memset(bits, 0, HALFSIZE/8);
+    memset(cnt, 0, nthreads * sizeof(u64));
     cnt[0] = HALFSIZE;
   }
   u64 count() const {
     u64 sum = 0LL;
-    for (u32 i=0; i<cnt.size(); i++)
+    for (u32 i=0; i<nthreads; i++)
       sum += cnt[i];
     return sum;
   }
@@ -269,88 +157,44 @@ public:
   }
 };
 
-#define PART_MASK ((1 << PART_BITS) - 1)
-#define ONCE_BITS (HALFSIZE >> PART_BITS)
-#define TWICE_WORDS ((2 * ONCE_BITS) / 32)
-
-class twice_set {
-public:
-  au32 *bits;
-
-  twice_set() {
-    bits = (au32 *)calloc(TWICE_WORDS, sizeof(au32));
-    assert(bits != 0);
-  }
-  void reset() {
-    memset(bits, 0, TWICE_WORDS*sizeof(au32));
-  }
-  void prefetch(node_t u) const {
-#ifdef PREFETCH
-    __builtin_prefetch((const void *)(&bits[u/16]), /*READ=*/0, /*TEMPORAL=*/0);
-#endif
-  }
-  void set(node_t u) {
-    node_t idx = u/16;
-    u32 bit = 1 << (2 * (u%16));
-#ifdef ATOMIC
-    u32 old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
-    if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
-  }
-  u32 test(node_t u) const {
-    return (bits[u/16].load(std::memory_order_relaxed) >> (2 * (u%16))) & 2;
-  }
-#else
-    u32 old = bits[idx];
-    bits[idx] = old | (bit + (old & bit));
-  }
-  u32 test(node_t u) const {
-    return bits[u/16] >> (2 * (u%16)) & 2;
-  }
-#endif
-  ~twice_set() {
-    free(bits);
-  }
-};
-
-#define CUCKOO_SIZE (SIZE >> IDXSHIFT)
-#define CUCKOO_MASK (CUCKOO_SIZE - 1)
+const static u64 CUCKOO_SIZE = SIZE >> IDXSHIFT;
+const static u64 CUCKOO_MASK = CUCKOO_SIZE - 1;
 // number of (least significant) key bits that survives leftshift by SIZESHIFT
-#define KEYBITS (64-SIZESHIFT)
-#define KEYMASK ((1LL << KEYBITS) - 1)
-#define MAXDRIFT (1LL << (KEYBITS - IDXSHIFT))
+const static u32 KEYBITS = 64-SIZESHIFT;
+const static u64 KEYMASK = (1LL << KEYBITS) - 1;
+const static u64 MAXDRIFT = 1LL << (KEYBITS - IDXSHIFT);
 
 class cuckoo_hash {
 public:
   au64 *cuckoo;
 
-  cuckoo_hash() {
-    cuckoo = (au64 *)calloc(CUCKOO_SIZE, sizeof(au64));
-    assert(cuckoo != 0);
-  }
-  ~cuckoo_hash() {
-    free(cuckoo);
+  cuckoo_hash(void *recycle) {
+    cuckoo = (au64 *)recycle;
+    memset(cuckoo, 0, CUCKOO_SIZE*sizeof(au64));
   }
   void set(node_t u, node_t v) {
     u64 niew = (u64)u << SIZESHIFT | v;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-#ifdef ATOMIC
+#if !defined(SINGLECYCLING) && defined(ATOMIC)
       u64 old = 0;
       if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
         return;
       if ((old >> SIZESHIFT) == (u & KEYMASK)) {
         cuckoo[ui].store(niew, std::memory_order_relaxed);
+        return;
+      }
 #else
       u64 old = cuckoo[ui];
       if (old == 0 || (old >> SIZESHIFT) == (u & KEYMASK)) {
         cuckoo[ui] = niew;
-#endif
         return;
       }
+#endif
     }
   }
   node_t operator[](node_t u) const {
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-#ifdef ATOMIC
+#if !defined(SINGLECYCLING) && defined(ATOMIC)
       u64 cu = cuckoo[ui].load(std::memory_order_relaxed);
 #else
       u64 cu = cuckoo[ui];
@@ -367,25 +211,19 @@ public:
 
 class cuckoo_ctx {
 public:
-  siphash_ctx sip_ctx;
-#ifdef SIMD
-  ymm_siphash_ctx ymm_sip_ctx;
-#endif
+  siphash_keys sip_keys;
   shrinkingset *alive;
   twice_set *nonleaf;
   cuckoo_hash *cuckoo;
   nonce_t (*sols)[PROOFSIZE];
+  u32 nonce;
   u32 maxsols;
   au32 nsols;
   u32 nthreads;
   u32 ntrims;
   pthread_barrier_t barry;
 
-  cuckoo_ctx(const char* header, u32 n_threads, u32 n_trims, u32 max_sols) {
-    setheader(&sip_ctx, header);
-#ifdef SIMD
-    ymm_sip_header(&ymm_sip_ctx, header);
-#endif
+  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) {
     nthreads = n_threads;
     alive = new shrinkingset(nthreads);
     cuckoo = 0;
@@ -397,12 +235,131 @@ public:
     assert(sols != 0);
     nsols = 0;
   }
+  void setheadernonce(char* headernonce, const u32 len, const u32 nce) {
+    nonce = nce;
+    ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+    setheader(&sip_keys, headernonce);
+    alive->clear(); // set all edges to be alive
+    nsols = 0;
+  }
   ~cuckoo_ctx() {
     delete alive;
-    if (nonleaf)
-      delete nonleaf;
-    if (cuckoo)
-      delete cuckoo;
+    delete nonleaf;
+    delete cuckoo;
+  }
+  void prefetch(const u64 *hashes, const u32 part) const {
+    for (u32 i=0; i < NSIPHASH; i++) {
+      u32 u = hashes[i] & NODEMASK;
+      if ((u & PART_MASK) == part) {
+        nonleaf->prefetch(u >> PART_MASK);
+      }
+    }
+  }
+  void node_deg(const u64 *hashes, const u32 nsiphash, const u32 part) const {
+    for (u32 i=0; i < nsiphash; i++) {
+      u32 u = hashes[i] & NODEMASK;
+      if ((u & PART_MASK) == part) {
+        nonleaf->set(u >>= PART_BITS);
+      }
+    }
+  }
+  void count_node_deg(const u32 id, const u32 uorv, const u32 part) {
+    alignas(64) u64 indices[NSIPHASH];
+    alignas(64) u64 hashes[NPREFETCH];
+  
+    memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->set(0) to reduce branching
+    u32 nidx = 0;
+    for (nonce_t block = id*64; block < HALFSIZE; block += nthreads*64) {
+      u64 alive64 = alive->block(block);
+      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+        u32 ffs = __builtin_ffsll(alive64);
+        nonce += ffs; alive64 >>= ffs;
+        indices[nidx++ % NSIPHASH] = 2*nonce + uorv;
+        if (nidx % NSIPHASH == 0) {
+          node_deg(hashes+nidx-NSIPHASH, NSIPHASH, part);
+          siphash24xN(&sip_keys, indices, hashes+nidx-NSIPHASH);
+          prefetch(hashes+nidx-NSIPHASH, part);
+          nidx %= NPREFETCH;
+        }
+        if (ffs & 64) break; // can't shift by 64
+      }
+    }
+    node_deg(hashes, NPREFETCH, part);
+    if (nidx % NSIPHASH != 0) {
+      siphash24xN(&sip_keys, indices, hashes+(nidx&-NSIPHASH));
+      node_deg(hashes+(nidx&-NSIPHASH), nidx%NSIPHASH, part);
+    }
+  }
+  void kill(const u64 *hashes, const u64 *indices, const u32 nsiphash,
+             const u32 part, const u32 id) const {
+    for (u32 i=0; i < nsiphash; i++) {
+      u32 u = hashes[i] & NODEMASK;
+      if ((u & PART_MASK) == part && !nonleaf->test(u >> PART_BITS)) {
+        alive->reset(indices[i]/2, id);
+      }
+    }
+  }
+  void kill_leaf_edges(const u32 id, const u32 uorv, const u32 part) {
+    alignas(64) u64 indices[NPREFETCH];
+    alignas(64) u64 hashes[NPREFETCH];
+  
+    memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->test(0) to reduce branching
+    u32 nidx = 0;
+    for (nonce_t block = id*64; block < HALFSIZE; block += nthreads*64) {
+      u64 alive64 = alive->block(block);
+      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+        u32 ffs = __builtin_ffsll(alive64);
+        nonce += ffs; alive64 >>= ffs;
+        indices[nidx++] = 2*nonce + uorv;
+        if (nidx % NSIPHASH == 0) {
+          siphash24xN(&sip_keys, indices+nidx-NSIPHASH, hashes+nidx-NSIPHASH);
+          prefetch(hashes+nidx-NSIPHASH, part);
+          nidx %= NPREFETCH;
+          kill(hashes+nidx, indices+nidx, NSIPHASH, part, id);
+        }
+        if (ffs & 64) break; // can't shift by 64
+      }
+    }
+    const u32 pnsip = nidx & -NSIPHASH;
+    if (pnsip != nidx) {
+      siphash24xN(&sip_keys, indices+pnsip, hashes+pnsip);
+    }
+    kill(hashes, indices, nidx, part, id);
+    const u32 nnsip = pnsip + NSIPHASH;
+    kill(hashes+nnsip, indices+nnsip, NPREFETCH-nnsip, part, id);
+  }
+  void solution(node_t *us, u32 nu, node_t *vs, u32 nv) {
+    typedef std::pair<node_t,node_t> edge;
+    std::set<edge> cycle;
+    u32 n = 0;
+    cycle.insert(edge(*us, *vs));
+    while (nu--)
+      cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
+    while (nv--)
+      cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
+  #ifdef ATOMIC
+    u32 soli = std::atomic_fetch_add_explicit(&nsols, 1U, std::memory_order_relaxed);
+  #else
+    u32 soli = nsols++;
+  #endif
+    for (nonce_t block = 0; block < HALFSIZE; block += 64) {
+      u64 alive64 = alive->block(block);
+      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+        u32 ffs = __builtin_ffsll(alive64);
+        nonce += ffs; alive64 >>= ffs;
+        edge e(sipnode(&sip_keys, nonce, 0), sipnode(&sip_keys, nonce, 1));
+        if (cycle.find(e) != cycle.end()) {
+          sols[soli][n++] = nonce;
+  #ifdef SHOWSOL
+          printf("e(%x)=(%x,%x)%c", nonce, e.first, e.second, n==PROOFSIZE?'\n':' ');
+  #endif
+          if (PROOFSIZE > 2)
+            cycle.erase(e);
+        }
+        if (ffs & 64) break; // can't shift by 64
+      }
+    }
+    assert(n==PROOFSIZE);
   }
 };
 
@@ -420,161 +377,19 @@ void barrier(pthread_barrier_t *barry) {
   }
 }
 
-#define NONCESHIFT	(SIZESHIFT-1 - PART_BITS)
-#define NODEPARTMASK	(NODEMASK >> PART_BITS)
-#define NONCETRUNC	(1LL << (64 - NONCESHIFT))
-
-void count_node_deg(thread_ctx *tp, u32 uorv, u32 part) {
-  cuckoo_ctx *ctx = tp->ctx;
-  shrinkingset *alive = ctx->alive;
-  twice_set *nonleaf = ctx->nonleaf;
-  u64 buffer[64];
-#ifdef SIMD
-  u64 sinput[8], soutput[8];
-#endif
-
-  for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
-    u32 bsize = 0;
-#ifdef SIMD
-    u32 nsin = 0;
-#endif
-    u64 alive64 = alive->block(block);
-    for (nonce_t nonce = block; alive64; alive64>>=1, nonce++) if (alive64 & 1LL) {
-#ifdef SIMD
-      sinput[nsin++] = 2*nonce + uorv;
-      if (nsin == 8) {
-        ymm_siphash24_2x(&ctx->ymm_sip_ctx, sinput, soutput); // SINPUT AND SOUTPUT CLD BE SHARED?!
-        for (u32 i=0; i<8; i++) {
-          node_t u = soutput[i] & NODEMASK;
-          if ((u & PART_MASK) == part) {
-            buffer[bsize++] = u >> PART_BITS;
-            nonleaf->prefetch(u >> PART_BITS);
-          }
-        }
-        nsin = 0;
-      }
-    }
-    if (nsin) {
-      ymm_siphash24_2x(&ctx->ymm_sip_ctx, sinput, soutput);
-      for (u32 i=0; i<nsin; i++) {
-        node_t u = soutput[i] & NODEMASK;
-        if ((u & PART_MASK) == part) {
-          buffer[bsize++] = u >> PART_BITS;
-          nonleaf->prefetch(u >> PART_BITS);
-        }
-#else
-      node_t u = _sipnode(&ctx->sip_ctx, nonce, uorv);
-      if ((u & PART_MASK) == part) {
-        buffer[bsize++] = u >> PART_BITS;
-        nonleaf->prefetch(u >> PART_BITS);
-#endif
-      }
-    }
-    for (u32 i=0; i<bsize; i++)
-      nonleaf->set(buffer[i]);
-  }
-}
-
-void kill_leaf_edges(thread_ctx *tp, u32 uorv, u32 part) {
-  cuckoo_ctx *ctx = tp->ctx;
-  shrinkingset *alive = ctx->alive;
-  twice_set *nonleaf = ctx->nonleaf;
-  u64 buffer[64];
-#ifdef SIMD
-  u64 nce[8], sinput[8], soutput[8];
-#endif
-
-  for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
-    u32 bsize = 0;
-#ifdef SIMD
-    u32 nsin = 0;
-#endif
-    u64 alive64 = alive->block(block);
-    for (nonce_t nonce = block; alive64; alive64>>=1, nonce++) if (alive64 & 1LL) {
-#ifdef SIMD
-      nce[nsin] = nonce;
-      sinput[nsin++] = 2*nonce + uorv;
-      if (nsin == 8) {
-        ymm_siphash24_2x(&ctx->ymm_sip_ctx, sinput, soutput); // SINPUT AND SOUTPUT CLD BE SHARED?!
-        for (u32 i=0; i<8; i++) {
-          node_t u = soutput[i] & NODEMASK;
-          if ((u & PART_MASK) == part) {
-            buffer[bsize++] = ((u64)nce[i] << NONCESHIFT) | (u >> PART_BITS);
-            nonleaf->prefetch(u >> PART_BITS);
-          }
-        }
-        nsin = 0;
-      }
-    }
-    if (nsin) {
-      ymm_siphash24_2x(&ctx->ymm_sip_ctx, sinput, soutput);
-      for (u32 i=0; i<nsin; i++) {
-        node_t u = soutput[i] & NODEMASK;
-        if ((u & PART_MASK) == part) {
-          buffer[bsize++] = ((u64)nce[i] << NONCESHIFT) | (u >> PART_BITS);
-          nonleaf->prefetch(u >> PART_BITS);
-        }
-#else
-      node_t u = _sipnode(&ctx->sip_ctx, nonce, uorv);
-      if ((u & PART_MASK) == part) {
-        buffer[bsize++] = ((u64)nonce << NONCESHIFT) | (u >> PART_BITS);
-        nonleaf->prefetch(u >> PART_BITS);
-#endif
-      }
-    }
-    for (u32 i=0; i<bsize; i++) {
-      u64 bi = buffer[i];
-      if (!nonleaf->test(bi & NODEPARTMASK)) {
-        nonce_t n = block | (bi >> NONCESHIFT);
-        alive->reset(n, tp->id);
-      }
-    }
-  }
-}
-
 u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   u32 nu;
   for (nu = 0; u; u = cuckoo[u]) {
-    if (++nu >= MAXPATHLEN) {
+    if (nu >= MAXPATHLEN) {
       while (nu-- && us[nu] != u) ;
       if (!~nu)
         printf("maximum path length exceeded\n");
-      else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
+      else printf("illegal %4d-cycle\n", MAXPATHLEN-nu);
       pthread_exit(NULL);
     }
-    us[nu] = u;
+    us[nu++] = u;
   }
-  return nu;
-}
-
-typedef std::pair<node_t,node_t> edge;
-
-void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
-  std::set<edge> cycle;
-  u32 n;
-  cycle.insert(edge(*us, *vs));
-  while (nu--)
-    cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
-  while (nv--)
-    cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-#ifdef ATOMIC
-  u32 soli = std::atomic_fetch_add_explicit(&ctx->nsols, 1U, std::memory_order_relaxed);
-#else
-  u32 soli = ctx->nsols++;
-#endif
-  for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++)
-    if (ctx->alive->test(nonce)) {
-      edge e(sipnode(&ctx->sip_ctx, nonce, 0), sipnode(&ctx->sip_ctx, nonce, 1));
-      if (cycle.find(e) != cycle.end()) {
-        ctx->sols[soli][n++] = nonce;
-#ifdef SHOWSOL
-        printf("e(%x)=(%x,%x)%c", nonce, e.first, e.second, n==PROOFSIZE?'\n':' ');
-#endif
-        if (PROOFSIZE > 2)
-          cycle.erase(e);
-      }
-    }
-  assert(n==PROOFSIZE);
+  return nu-1;
 }
 
 void *worker(void *vp) {
@@ -586,53 +401,60 @@ void *worker(void *vp) {
   if (tp->id == 0)
     printf("initial load %d%%\n", load);
   for (u32 round=1; round <= ctx->ntrims; round++) {
+    if (tp->id == 0) printf("round %2d partition loads", round);
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         if (tp->id == 0)
-          ctx->nonleaf->reset();
+          ctx->nonleaf->clear(); // clear all counts
         barrier(&ctx->barry);
-        count_node_deg(tp,uorv,part);
+        ctx->count_node_deg(tp->id,uorv,part);
         barrier(&ctx->barry);
-        kill_leaf_edges(tp,uorv,part);
+        ctx->kill_leaf_edges(tp->id,uorv,part);
         barrier(&ctx->barry);
         if (tp->id == 0) {
           u32 load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
-          printf("round %d part %c%d load %d%%\n", round, "UV"[uorv], part, load);
+          printf(" %c%d %4d%%", "UV"[uorv], part, load);
         }
       }
     }
+    if (tp->id == 0) printf("\n");
   }
   if (tp->id == 0) {
     load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
+    printf("nonce %d: %d trims completed  final load %d%%\n", ctx->nonce, ctx->ntrims, load);
     if (load >= 90) {
       printf("overloaded! exiting...");
-      exit(0);
+      pthread_exit(NULL);
     }
-    delete ctx->nonleaf;
-    ctx->nonleaf = 0;
-    ctx->cuckoo = new cuckoo_hash();
+    ctx->cuckoo = new cuckoo_hash(ctx->nonleaf->bits);
   }
+#ifdef SINGLECYCLING
+  else pthread_exit(NULL);
+#else
   barrier(&ctx->barry);
+#endif
   cuckoo_hash &cuckoo = *ctx->cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
+#ifdef SINGLECYCLING
+  for (nonce_t block = 0; block < HALFSIZE; block += 64) {
+#else
   for (nonce_t block = tp->id*64; block < HALFSIZE; block += ctx->nthreads*64) {
-    for (nonce_t nonce = block; nonce < block+64 && nonce < HALFSIZE; nonce++) {
-      if (alive->test(nonce)) {
-        node_t u0=sipnode(&ctx->sip_ctx, nonce, 0), v0=sipnode(&ctx->sip_ctx, nonce, 1);
-        if (u0 == 0) // ignore vertex 0 so it can be used as nil for cuckoo[]
-          continue;
-        node_t u = cuckoo[us[0] = u0], v = cuckoo[vs[0] = v0];
-        u32 nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
+#endif
+    u64 alive64 = alive->block(block);
+    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      u32 ffs = __builtin_ffsll(alive64);
+      nonce += ffs; alive64 >>= ffs;
+      node_t u0=sipnode(&ctx->sip_keys, nonce, 0), v0=sipnode(&ctx->sip_keys, nonce, 1);
+      if (u0) {// ignore vertex 0 so it can be used as nil for cuckoo[]
+        u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
         if (us[nu] == vs[nv]) {
           u32 min = nu < nv ? nu : nv;
           for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
           u32 len = nu + nv + 1;
-          printf("% 4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
+          printf("%4d-cycle found at %d:%d%%\n", len, tp->id, (u32)(nonce*100LL/HALFSIZE));
           if (len == PROOFSIZE && ctx->nsols < ctx->maxsols)
-            solution(ctx, us, nu, vs, nv);
-          continue;
-        }
-        if (nu < nv) {
+            ctx->solution(us, nu, vs, nv);
+        } else if (nu < nv) {
           while (nu--)
             cuckoo.set(us[nu+1], us[nu]);
           cuckoo.set(u0, v0);
@@ -642,6 +464,7 @@ void *worker(void *vp) {
           cuckoo.set(v0, u0);
         }
       }
+      if (ffs & 64) break; // can't shift by 64
     }
   }
   pthread_exit(NULL);
