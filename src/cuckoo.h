@@ -64,18 +64,17 @@ int verify(u64 nonces[PROOFSIZE], const char *headernonce, const u32 headerlen) 
   }
   if (xor0|xor1)                        // matching endpoints imply zero xors
     return POW_NON_MATCHING;
-  u32 n = 0, i = 0;
-  do { // follow cycle
-    u32 j = i;                          // indicate matching endpoint not yet found
-    for (u32 k = i&1; k < 2*PROOFSIZE; k += 2) {
-      if (uvs[k] == uvs[i] && k != i) { // find unique other edge endpoint j identical to i
-        if (j != i)
-          return POW_BRANCH;            // not so unique
+  u32 n = 0, i = 0, j;
+  do {                        // follow cycle
+    for (u32 k = j = i; (k = (k+2) % (2*PROOFSIZE)) != i; ) {
+      if (uvs[k] == uvs[i]) { // find other edge endpoint identical to one at i
+        if (j != i)           // already found one before
+          return POW_BRANCH;
         j = k;
       }
-    } if (j == i) return POW_DEAD_END;              // no matching endpoint
+    } if (j == i) return POW_DEAD_END;  // no matching endpoint
     i = j^1;
     n++;
-  } while (i != 0);
+  } while (i != 0);           // must cycle back to start or we would have found branch
   return n == PROOFSIZE ? POW_OK : POW_SHORT_CYCLE;
 }
