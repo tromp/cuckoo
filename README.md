@@ -135,6 +135,7 @@ Anyone who'd like to see my claims tested is invited to donate to the Cuckoo Cyc
 
 I intend for the total bounty value to stay ahead of funding levels. Happy bounty hunting!
 
-Cryptocurrencies using Cuckoo Cycle
+Cryptocurrencies using, or planning to use, Cuckoo Cycle
 --------------
 <a href="https://github.com/ignopeverell/grin">Minimal implementation of the MimbleWimble protocol</a>
+<a href="http://www.aeternity.com/">æternity - the oracle machine</a>
