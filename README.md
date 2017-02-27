@@ -137,5 +137,7 @@ I intend for the total bounty value to stay ahead of funding levels. Happy bount
 
 Cryptocurrencies using, or planning to use, Cuckoo Cycle
 --------------
-<a href="https://github.com/ignopeverell/grin">Minimal implementation of the MimbleWimble protocol</a>
-<a href="http://www.aeternity.com/">æternity - the oracle machine</a>
+<UL>
+<LI> <a href="https://github.com/ignopeverell/grin">Minimal implementation of the MimbleWimble protocol</a>
+<LI> <a href="http://www.aeternity.com/">æternity - the oracle machine</a>
+</UL>
