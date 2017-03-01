@@ -99,12 +99,12 @@ To that end, I offer the following bounties:
 
 CPU Speedup Bounty
 --------------
-$2000 for an open source implementation that finds 42-cycles twice as fast,
+$3000 for an open source implementation that finds 42-cycles twice as fast,
 possibly using more memory.
 
 Linear Time-Memory Trade-Off Bounty
 --------------
-$2000 for an open source implementation that uses at most N/k bits while finding
+$3000 for an open source implementation that uses at most N/k bits while finding
 42-cycles up to 10 k times slower, for any k>=2.
 
 Both of these bounties require N ranging over {2^28,2^30,2^32} and #threads
@@ -113,7 +113,7 @@ recent gcc compiler with regular flags as in my Makefile.
 
 GPU Speedup Bounty
 --------------
-$1000 for an open source implementation for a consumer GPU combo
+$1500 for an open source implementation for a consumer GPU combo
 that finds 42-cycles twice as fast as cuda_miner.cu on comparable hardware.
 Again with N ranging over {2^28,2^30,2^32}.
 
@@ -131,7 +131,7 @@ I further offer half the regular bounty for improvements by a factor of sqrt(2).
 
 Anyone who'd like to see my claims tested is invited to donate to the Cuckoo Cycle Bounty Fund at
 
-<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a> (wallet balance as of Dec 7, 2016: 12.76 BTC)
+<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a> (wallet balance as of Mar 1, 2017: 12.36 BTC)
 
 I intend for the total bounty value to stay ahead of funding levels. Happy bounty hunting!
 
