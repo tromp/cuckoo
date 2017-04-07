@@ -7,9 +7,13 @@
 // but avoids losing cycles to race conditions (not worth it in my testing)
 
 #include "cuckoo.h"
+#include "siphashxN.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#ifdef __APPLE__
+#include "osx_barrier.h"
+#endif
 #include <assert.h>
 
 #ifdef ATOMIC
@@ -238,7 +242,7 @@ public:
   void setheadernonce(char* headernonce, const u32 len, const u32 nce) {
     nonce = nce;
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
-    setheader(&sip_keys, headernonce);
+    setheader(headernonce, len, &sip_keys);
     alive->clear(); // set all edges to be alive
     nsols = 0;
   }
