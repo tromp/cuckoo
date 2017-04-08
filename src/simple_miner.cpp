@@ -21,7 +21,7 @@ public:
   node_t *cuckoo;
 
   cuckoo_ctx(const char* header, nonce_t easy_ness) {
-    setheader(&sip_keys, header);
+    setheader(header, strlen(header), &sip_keys);
     easiness = easy_ness;
     cuckoo = (node_t *)calloc(1+SIZE, sizeof(node_t));
     assert(cuckoo != 0);
