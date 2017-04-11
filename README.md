@@ -1,5 +1,15 @@
 Cuckoo Cycle
 ============
+Newsflash: On April 8 2017, xenoncat claimed my previous CPU speedup bounty to the tune of $5000.
+Congratulations to xenoncat!
+
+His solvers, available at https://github.com/xenoncat/cuckoo_pow,
+achieve speedups ranging from 2.8x to over 4x by using 20x more memory to avoid
+the high latency of completely random bit accesses.
+I plan to eventually rewrite my solver to incorporate those speedups as an additional option.
+In light of this claimed bounty, the bounties below are amended with an additional requirement
+of limited memory use.
+
 Whitepaper at
 https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
@@ -80,16 +90,6 @@ is used to recognise all cycles, and recover those of the right length.
 
 Performance
 --------------
-On April 8 2017, xenoncat claimed my previous CPU speedup bounty to the tune of $5000.
-Congratulations to xenoncat!
-
-His solvers, available at https://github.com/xenoncat/cuckoo_pow,
-achieve speedups ranging from 2.8x to over 4x by using 20x more memory to avoid
-the high latency of completely random bit accesses.
-I plan to eventually rewrite my solver to incorporate those speedups as an additional option.
-
-In light of this claimed bounty, I am amending the bounties below with an additional requirement
-of limited memory use.
 
 The runtime of a single proof attempt on a 4GHz i7-4790K is 2.3 minutes
 for a single-threaded cuckoo32stx8 using 768MB, or 1.1 minutes for 8 threads.
