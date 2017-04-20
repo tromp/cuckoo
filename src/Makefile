@@ -42,6 +42,12 @@ momentum:	siphash.h cuckoo.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 momentomatum:	siphash.h cuckoo.h momentomatum.h momentomatum.cpp Makefile
 	$(GPP) -o momentomatum -DATOMIC -DSIZESHIFT=25 momentomatum.cpp $(LIBS)
 
+mean28:	cuckoo.h siphash.h mean_miner.h mean_miner.cpp Makefile
+	$(GPP) -o mean28 -DATOMIC -DSIZESHIFT=28 mean_miner.cpp $(LIBS)
+
+mean28x8:	cuckoo.h siphash.h mean_miner.h mean_miner.cpp Makefile
+	$(GPP) -o mean28x8 -mavx2 -DNSIPHASH=8 -DATOMIC -DSIZESHIFT=28 mean_miner.cpp $(LIBS)
+
 cuckoo28:	cuckoo.h siphash.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
 
