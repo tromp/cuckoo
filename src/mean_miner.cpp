@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
   int unit;
   for (unit=0; bytes >= 1024; bytes>>=10,unit++) ;
   printf("Using %d%cB memory, %d-way siphash, and %d-byte edgehash\n",
-     (int)bytes, " KMGT"[unit], NSIPHASH, EDGEHASH_SIZE);
+     (int)bytes, " KMGT"[unit], NSIPHASH, EDGEHASH_BYTES);
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
