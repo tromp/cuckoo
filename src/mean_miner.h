@@ -1,8 +1,8 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2016 John Tromp
+// Copyright (c) 2013-2017 John Tromp
 // The edge-trimming memory optimization is due to Dave Andersen
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
-// The use of prefetching was suggested by Alexander Peslyak (aka Solar Designer)
+// xenoncat demonstrated how bucket sorting avoids random memory access latency
 // define SINGLECYCLING to run cycle finding single threaded which runs slower
 // but avoids losing cycles to race conditions (not worth it in my testing)
 
@@ -81,6 +81,7 @@ const static edge_t NNODES   = 2 << EDGEBITS;
 const static u32 MAXPATHLEN = 8 << (NODEBITS/3);
 
 const static u32 NBUCKETS = 1 << BUCKETBITS;
+const static u32 BUCKETMASK = NBUCKETS - 1;
 const static u32 BUCKETSIZE0 = (1 << (EDGEBITS-BUCKETBITS));
 #ifndef OVERHEAD_FACTOR
 #define OVERHEAD_FACTOR 64
@@ -111,7 +112,10 @@ public:
   }
 };
 
-typedef histogram histgroup[NEDGESHI];
+class histgroup {
+public:
+  histogram groups[NEDGESHI];
+};
 
 // maintains set of trimmable edges
 class edgetrimmer {
@@ -122,8 +126,12 @@ public:
 
   edgetrimmer(const u32 nt) {
     nthreads = nt;
-    hists = (histgroup *)malloc(nthreads * sizeof(histgroup));
-    buckets = (bucket *)malloc(NBUCKETS * sizeof(bucket));
+    hists = new histgroup[nthreads]; // hists = (histgroup *)malloc(nthreads * sizeof(histgroup));
+    buckets = new bucket[NBUCKETS]; //     buckets = (bucket *)malloc(NBUCKETS * sizeof(bucket));
+  }
+  ~edgetrimmer() {
+    // delete hists;
+    // delete buckets;
   }
   void clear() {
   }
@@ -131,7 +139,7 @@ public:
     u32 sum = 0;
     for (u32 t=0; t < nthreads; t++)
       for (u32 ehi=0; ehi < NEDGESHI; ehi++)
-        sum += hists[t][ehi].total();
+        sum += hists[t].groups[ehi].total();
     return sum;
   }
 };
@@ -216,7 +224,6 @@ public:
     nonce = nce;
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
     setheader(headernonce, len, &sip_keys);
-    alive->clear(); // set all edges to be alive
     nsols = 0;
   }
   ~cuckoo_ctx() {
@@ -224,33 +231,32 @@ public:
     delete cuckoo;
   }
 
-#if 0
-  void count_node_deg(const u32 id, const u32 uorv, const u32 part) {
+  void trim0(const u32 id) {
     alignas(64) u64 indices[NSIPHASH];
-    alignas(64) u64 hashes[NPREFETCH];
+    alignas(64) u64 hashes[NSIPHASH];
+    alignas(64) u32 *oldbktptr[NBUCKETS];
+    alignas(64) u32 *bktptr[NBUCKETS];
   
     memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->set(0) to reduce branching
-    u32 nidx = 0;
-    for (edge_t block = id*64; block < NEDGES; block += nthreads*64) {
-      u64 alive64 = alive->block(block);
-      for (edge_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
-        u32 ffs = __builtin_ffsll(alive64);
-        nonce += ffs; alive64 >>= ffs;
-        indices[nidx++ % NSIPHASH] = 2*nonce + uorv;
-        if (nidx % NSIPHASH == 0) {
-          node_deg(hashes+nidx-NSIPHASH, NSIPHASH, part);
-          siphash24xN(&sip_keys, indices, hashes+nidx-NSIPHASH);
-          nidx %= NPREFETCH;
+    // alive->
+    edge_t hi = id * NEDGESHI / nthreads, endhi = (id+1) * NEDGESHI / nthreads; 
+    for (; hi < endhi; hi++) {
+      for (edge_t block = 0; block < NEDGESLO; block += NSIPHASH) {
+        for (edge_t ei = 0; ei < NSIPHASH; ei++) {
+          indices[ei] = 2 * (hi * NEDGESLO + block + ei) + 0; // 0-endpoint
         }
-        if (ffs & 64) break; // can't shift by 64
+        siphash24xN(&sip_keys, indices, hashes);
+        for (edge_t ei = 0; ei < NSIPHASH; ei++) {
+          *bktptr[hashes[ei] & BUCKETMASK]++ = hashes[ei] >> BUCKETBITS | block | ei;
+        }
       }
-    }
-    node_deg(hashes, NPREFETCH, part);
-    if (nidx % NSIPHASH != 0) {
-      siphash24xN(&sip_keys, indices, hashes+(nidx&-NSIPHASH));
-      node_deg(hashes+(nidx&-NSIPHASH), nidx%NSIPHASH, part);
+      // alive->
+      printf("yo\n");
+      memcpy(oldbktptr, bktptr, NBUCKETS * sizeof(u32 *));
     }
   }
+
+#if 0
   void kill_leaf_edges(const u32 id, const u32 uorv, const u32 part) {
     alignas(64) u64 indices[NPREFETCH];
     alignas(64) u64 hashes[NPREFETCH];
@@ -353,6 +359,7 @@ void *worker(void *vp) {
   u32 load = 100LL * NEDGES / CUCKOO_SIZE;
   if (tp->id == 0)
     printf("initial load %d%%\n", load);
+  ctx->trim0(tp->id);
   for (u32 round=1; round <= ctx->ntrims; round++) {
     if (tp->id == 0) printf("round %2d partition loads", round);
     for (u32 uorv = 0; uorv < 2; uorv++) {
