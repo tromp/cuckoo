@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <x86intrin.h>
+
 #ifdef __APPLE__
 #include "osx_barrier.h"
 #endif
@@ -104,6 +106,10 @@ public:
   void clear() {
     memset(cnt, 0, NBUCKETS*sizeof(bucketcnt));
   }
+  void diff(u32 **old, u32 **niew) {
+    for (u32 i=0; i < NBUCKETS; i++)
+      cnt[i] = niew[i] - old[i];
+  }
   u32 total() {
     u32 sum = 0;
     for (u32 i=0; i < NBUCKETS; i++)
@@ -115,6 +121,14 @@ public:
 class histgroup {
 public:
   histogram groups[NEDGESHI];
+  u32 *oldbktptr[NBUCKETS];
+  void record(u32 **bktptr) {
+    memcpy(oldbktptr, bktptr, NBUCKETS * sizeof(u32 *));
+  }
+  void update(u32 grp, u32 **bktptr) {
+    groups[grp].diff(oldbktptr, bktptr);
+    record(bktptr);
+  }
 };
 
 // maintains set of trimmable edges
@@ -127,13 +141,16 @@ public:
   edgetrimmer(const u32 nt) {
     nthreads = nt;
     hists = new histgroup[nthreads]; // hists = (histgroup *)malloc(nthreads * sizeof(histgroup));
-    buckets = new bucket[NBUCKETS]; //     buckets = (bucket *)malloc(NBUCKETS * sizeof(bucket));
+    buckets = new bucket[NBUCKETS];  // buckets = (bucket *)malloc(NBUCKETS * sizeof(bucket));
   }
   ~edgetrimmer() {
-    // delete hists;
-    // delete buckets;
+    delete[] hists;
+    delete[] buckets;
   }
-  void clear() {
+  void init(u32 id, u32 **bktptr) {
+    for (u32 i=0; i < NBUCKETS; i++)
+      bktptr[i] = (u32 *)(buckets[i] + id * BUCKETBYTES / nthreads);
+    hists[0].record(bktptr);
   }
   u32 total() const {
     u32 sum = 0;
@@ -234,26 +251,41 @@ public:
   void trim0(const u32 id) {
     alignas(64) u64 indices[NSIPHASH];
     alignas(64) u64 hashes[NSIPHASH];
-    alignas(64) u32 *oldbktptr[NBUCKETS];
     alignas(64) u32 *bktptr[NBUCKETS];
+    uint64_t rdtsc0, rdtsc1;
   
+    rdtsc0 = __rdtsc();
     memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->set(0) to reduce branching
-    // alive->
-    edge_t hi = id * NEDGESHI / nthreads, endhi = (id+1) * NEDGESHI / nthreads; 
-    for (; hi < endhi; hi++) {
+    alive->init(id, bktptr);
+    edge_t hi0 = id * NEDGESHI / nthreads, endhi = (id+1) * NEDGESHI / nthreads; 
+    for (edge_t hi = hi0 ; hi < endhi; hi++) {
       for (edge_t block = 0; block < NEDGESLO; block += NSIPHASH) {
+#if NSIPHASH==4
+        indices[0] = 2 * (hi * NEDGESLO + block + 0);
+        indices[1] = 2 * (hi * NEDGESLO + block + 1);
+        indices[2] = 2 * (hi * NEDGESLO + block + 2);
+        indices[3] = 2 * (hi * NEDGESLO + block + 3);
+#else
         for (edge_t ei = 0; ei < NSIPHASH; ei++) {
           indices[ei] = 2 * (hi * NEDGESLO + block + ei) + 0; // 0-endpoint
         }
+#endif
         siphash24xN(&sip_keys, indices, hashes);
+#if NSIPHASH==4
+        *bktptr[hashes[0] & BUCKETMASK]++ = hashes[0] >> BUCKETBITS | block;
+        *bktptr[hashes[1] & BUCKETMASK]++ = hashes[1] >> BUCKETBITS | block | 1;
+        *bktptr[hashes[2] & BUCKETMASK]++ = hashes[2] >> BUCKETBITS | block | 2;
+        *bktptr[hashes[3] & BUCKETMASK]++ = hashes[3] >> BUCKETBITS | block | 3;
+#else
         for (edge_t ei = 0; ei < NSIPHASH; ei++) {
           *bktptr[hashes[ei] & BUCKETMASK]++ = hashes[ei] >> BUCKETBITS | block | ei;
         }
+#endif
       }
-      // alive->
-      printf("yo\n");
-      memcpy(oldbktptr, bktptr, NBUCKETS * sizeof(u32 *));
+      alive->hists[id].update(hi-hi0, bktptr);
     }
+    rdtsc1 = __rdtsc();
+    printf("trim0 rdtsc: %ld\n", rdtsc1-rdtsc0);
   }
 
 #if 0
