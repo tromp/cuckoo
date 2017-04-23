@@ -256,7 +256,6 @@ public:
     rdtsc0 = __rdtsc();
     alive->init(id, big);
     edge_t hi0 = id * NEDGESHI / nthreads, endhi = (id+1) * NEDGESHI / nthreads; 
-  u64 dummy = 0;
     static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
     static const __m256i vbucketmask = {BUCKETMASK, BUCKETMASK, BUCKETMASK, BUCKETMASK};
     const __m256i vinit = _mm256_set_epi64x(
@@ -272,6 +271,7 @@ public:
     static const __m256i vhiinc = {4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS};
     u32 d0;
     uint8_t *buck = (uint8_t *)alive->buckets;
+  u64 dummy = 0;
     for (edge_t hi = hi0 ; hi < endhi; hi++) {
       for (edge_t block = 0; block < NEDGESLO; block += NSIPHASH) {
         v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
@@ -291,7 +291,10 @@ public:
         v0 = _mm256_srli_epi64(v0 & vnodemask, BUCKETBITS) | vhi;
         vhi = _mm256_add_epi64(vhi, vhiinc);
 #ifdef DUMMY
-       dummy += _mm256_extract_epi32(v0, 6);
+       dummy += _mm256_extract_epi32(v1, 0);
+       dummy += _mm256_extract_epi32(v1, 2);
+       dummy += _mm256_extract_epi32(v1, 4);
+       dummy += _mm256_extract_epi32(v1, 6);
 #else
         d0 = _mm256_extract_epi32(v1, 0);
         *(u32 *)(buck+big[d0]) = _mm256_extract_epi32(v0, 0); big[d0]+=4;

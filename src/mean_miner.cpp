@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
   cuckoo_ctx ctx(nthreads, ntrims, MAXSOLS);
+  printf("k0 k1 %ld %ld\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
 
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
