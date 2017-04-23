@@ -107,7 +107,7 @@ public:
   void clear() {
     memset(cnt, 0, NBUCKETS*sizeof(bucketcnt));
   }
-  void diff(u32 *old, u32 *niew) {
+  void diff(u32 **old, u32 **niew) {
     for (u32 i=0; i < NBUCKETS; i++)
       cnt[i] = niew[i] - old[i];
   }
@@ -122,13 +122,13 @@ public:
 class histgroup {
 public:
   histogram groups[NEDGESHI];
-  u32 oldbig[NBUCKETS];
-  void record(u32 *big) {
-    memcpy(oldbig, big, NBUCKETS * sizeof(u32));
+  u32 *oldbktptr[NBUCKETS];
+  void record(u32 **bktptr) {
+    memcpy(oldbktptr, bktptr, NBUCKETS * sizeof(u32 *));
   }
-  void update(u32 grp, u32 *big) {
-    groups[grp].diff(oldbig, big);
-    record(big);
+  void update(u32 grp, u32 **bktptr) {
+    groups[grp].diff(oldbktptr, bktptr);
+    record(bktptr);
   }
 };
 
@@ -148,10 +148,10 @@ public:
     delete[] hists;
     delete[] buckets;
   }
-  void init(u32 id, u32 *big) {
+  void init(u32 id, u32 **bktptr) {
     for (u32 i=0; i < NBUCKETS; i++)
-      big[i] = 4 * i * BUCKETSIZE + id * BUCKETSIZE / nthreads;
-    hists[0].record(big);
+      bktptr[i] = (u32 *)(buckets[i] + id * BUCKETBYTES / nthreads);
+    hists[0].record(bktptr);
   }
   u32 total() const {
     u32 sum = 0;
@@ -250,11 +250,11 @@ public:
   }
 
   void trim0(const u32 id) {
-    u32 big[NBUCKETS];
+    u32 *bktptr[NBUCKETS];
     uint64_t rdtsc0, rdtsc1;
   
     rdtsc0 = __rdtsc();
-    alive->init(id, big);
+    alive->init(id, bktptr);
     edge_t hi0 = id * NEDGESHI / nthreads, endhi = (id+1) * NEDGESHI / nthreads; 
   u64 dummy = 0;
     static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
@@ -270,8 +270,6 @@ public:
     static const __m256i vpacketinc = {8, 8, 8, 8};
     __m256i vhi = _mm256_set_epi64x(3<<BIGHASHBITS, 2<<BIGHASHBITS, 1<<BIGHASHBITS, 0);
     static const __m256i vhiinc = {4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS};
-    u32 d0;
-    uint8_t *buck = (uint8_t *)alive->buckets;
     for (edge_t hi = hi0 ; hi < endhi; hi++) {
       for (edge_t block = 0; block < NEDGESLO; block += NSIPHASH) {
         v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
@@ -293,17 +291,13 @@ public:
 #ifdef DUMMY
        dummy += _mm256_extract_epi32(v0, 6);
 #else
-        d0 = _mm256_extract_epi32(v1, 0);
-        *(u32 *)(buck+big[d0]) = _mm256_extract_epi32(v0, 0); big[d0]+=4;
-        d0 = _mm256_extract_epi32(v1, 2);
-        *(u32 *)(buck+big[d0]) = _mm256_extract_epi32(v0, 2); big[d0]+=4;
-        d0 = _mm256_extract_epi32(v1, 4);
-        *(u32 *)(buck+big[d0]) = _mm256_extract_epi32(v0, 4); big[d0]+=4;
-        d0 = _mm256_extract_epi32(v1, 6);
-        *(u32 *)(buck+big[d0]) = _mm256_extract_epi32(v0, 6); big[d0]+=4;
+        *bktptr[_mm256_extract_epi32(v1, 0)]++ = _mm256_extract_epi32(v0, 0);
+        *bktptr[_mm256_extract_epi32(v1, 2)]++ = _mm256_extract_epi32(v0, 2);
+        *bktptr[_mm256_extract_epi32(v1, 4)]++ = _mm256_extract_epi32(v0, 4);
+        *bktptr[_mm256_extract_epi32(v1, 6)]++ = _mm256_extract_epi32(v0, 6);
 #endif
       }
-      alive->hists[id].update(hi-hi0, big);
+      alive->hists[id].update(hi-hi0, bktptr);
     }
     rdtsc1 = __rdtsc();
     printf("trim0 rdtsc: %llu dummy %llu\n", rdtsc1-rdtsc0, dummy);
