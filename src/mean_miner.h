@@ -269,8 +269,10 @@ public:
     static const __m256i vpacketinc = {8, 8, 8, 8};
     __m256i vhi = _mm256_set_epi64x(3<<BIGHASHBITS, 2<<BIGHASHBITS, 1<<BIGHASHBITS, 0);
     static const __m256i vhiinc = {4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS};
-    u32 d0;
-    uint8_t *buck = (uint8_t *)alive->buckets;
+#ifndef DUMMY
+    uint8_t *big0 = (uint8_t *)alive->buckets;
+#endif
+  u32 d0;
   u64 dummy = 0;
     for (edge_t hi = hi0 ; hi < endhi; hi++) {
       for (edge_t block = 0; block < NEDGESLO; block += NSIPHASH) {
@@ -297,13 +299,13 @@ public:
        dummy += _mm256_extract_epi32(v1, 6);
 #else
         d0 = _mm256_extract_epi32(v1, 0);
-        *(u32 *)(buck+big[d0]) = _mm256_extract_epi32(v0, 0); big[d0]+=4;
+        *(u32 *)(big0+big[d0]) = _mm256_extract_epi32(v0, 0); big[d0]+=4;
         d0 = _mm256_extract_epi32(v1, 2);
-        *(u32 *)(buck+big[d0]) = _mm256_extract_epi32(v0, 2); big[d0]+=4;
+        *(u32 *)(big0+big[d0]) = _mm256_extract_epi32(v0, 2); big[d0]+=4;
         d0 = _mm256_extract_epi32(v1, 4);
-        *(u32 *)(buck+big[d0]) = _mm256_extract_epi32(v0, 4); big[d0]+=4;
+        *(u32 *)(big0+big[d0]) = _mm256_extract_epi32(v0, 4); big[d0]+=4;
         d0 = _mm256_extract_epi32(v1, 6);
-        *(u32 *)(buck+big[d0]) = _mm256_extract_epi32(v0, 6); big[d0]+=4;
+        *(u32 *)(big0+big[d0]) = _mm256_extract_epi32(v0, 6); big[d0]+=4;
 #endif
       }
       alive->hists[id].update(hi-hi0, big);

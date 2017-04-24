@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, SIZESHIFT, header, nonce);
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS+1, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges, %d trims, %d threads\n", ntrims, nthreads);
@@ -51,11 +51,11 @@ int main(int argc, char **argv) {
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
   cuckoo_ctx ctx(nthreads, ntrims, MAXSOLS);
-  printf("k0 k1 %ld %ld\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
 
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
     ctx.setheadernonce(header, sizeof(header), nonce + r);
+    printf("k0 k1 %lx %lx\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
     for (int t = 0; t < nthreads; t++) {
       threads[t].id = t;
       threads[t].ctx = &ctx;
