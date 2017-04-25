@@ -1,7 +1,7 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2016 John Tromp
 
-#include "mean_miner.hpp"
+#include "mean_miner.h"
 #include <unistd.h>
 #include <time.h>
 
@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv) {
   int nthreads = 1;
-  int ntrims   = 0;
+  int ntrims   = 1;
   int nonce = 0;
   int range = 1;
   struct timespec time0, time1;
@@ -46,8 +46,8 @@ int main(int argc, char **argv) {
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges, %d trims, %d threads\n", ntrims, nthreads);
 
-  u64 bbytes = NBUCKETS * BUCKETBYTES;
-  u64 tbytes = nthreads * (sizeof(histgroup) + BUCKETBYTES);
+  u64 bbytes = NBUCKETS * sizeof(bucket);
+  u64 tbytes = nthreads * sizeof(histgroup);
   int bunit,tunit;
   for (bunit=0; bbytes >= 1024; bbytes>>=10,bunit++) ;
   for (tunit=0; tbytes >= 1024; tbytes>>=10,tunit++) ;
@@ -55,17 +55,17 @@ int main(int argc, char **argv) {
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
-  cuckoo_ctx ctx(nthreads, ntrims, MAXSOLS);
+  cuckoo_ctx *ctx = new_cuckoo_ctx(nthreads, ntrims, MAXSOLS);
 
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
     clock_gettime(CLOCK_MONOTONIC, &time0);
     rdtsc0 = __rdtsc();
-    ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("k0 k1 %lx %lx\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
+    setheadernonce(ctx, header, sizeof(header), nonce + r);
+    printf("k0 k1 %lx %lx\n", ctx->sip_keys.k0, ctx->sip_keys.k1);
     for (int t = 0; t < nthreads; t++) {
       threads[t].id = t;
-      threads[t].ctx = &ctx;
+      threads[t].ctx = ctx;
       int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
       assert(err == 0);
     }
@@ -80,13 +80,13 @@ int main(int argc, char **argv) {
     timens = (time1.tv_sec-time0.tv_sec)*1000000000 + (time1.tv_nsec-time0.tv_nsec);
     printf("rdtsc frequency: %.3f MHz\n", (double) (rdtsc1 - rdtsc0)*1000/timens);
 
-    for (unsigned s = 0; s < ctx.nsols; s++) {
+    for (unsigned s = 0; s < ctx->nsols; s++) {
       printf("Solution");
       for (int i = 0; i < PROOFSIZE; i++)
-        printf(" %jx", (uintmax_t)ctx.sols[s][i]);
+        printf(" %jx", (uintmax_t)ctx->sols[s][i]);
       printf("\n");
     }
-    sumnsols += ctx.nsols;
+    sumnsols += ctx->nsols;
   }
   free(threads);
   printf("%d total solutions\n", sumnsols);

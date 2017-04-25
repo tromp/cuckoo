@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     }
   }
   printf("Verifying size %d proof for cuckoo%d(\"%s\",%d)\n",
-               PROOFSIZE, SIZESHIFT, header, nonce);
+               PROOFSIZE, EDGEBITS+1, header, nonce);
   char headernonce[HEADERLEN];
   u32 hdrlen = strlen(header);
   memcpy(headernonce, header, hdrlen);

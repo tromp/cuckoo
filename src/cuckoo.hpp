@@ -7,10 +7,10 @@
 #include "siphash.h"
 
 // proof-of-work parameters
-#ifndef EDGEBITS
+#ifndef SIZESHIFT 
 // the main parameter is the 2-log of the graph size,
 // which is the size in bits of the node identifiers
-#define EDGEBITS 27
+#define SIZESHIFT 28
 #endif
 #ifndef PROOFSIZE
 // the next most important parameter is the (even) length
@@ -18,17 +18,12 @@
 #define PROOFSIZE 42
 #endif
 
-// number of edges
-#define NEDGES (1ULL<<EDGEBITS)
-// static const u64 NEDGES = 1ULL<<EDGEBITS;
-// used to mask siphash output
-#define EDGEMASK (NEDGES-1)
-// static const u64 EDGEMASK = (1ULL<<EDGEBITS)-1; // NEDGES-1;
 // the graph size / number of nodes
-#define NNODES (2ULL<<EDGEBITS)
-// static const u64 NNODES = 2ULL<<EDGEBITS;
-// used to mask nodes
-static const u64 NODEMASK = NNODES-1;
+static const u64 SIZE = 1ULL<<SIZESHIFT;
+// number of nodes in one partition (eg. all even nodes)
+static const u64 HALFSIZE = SIZE/2;
+// used to mask siphash output
+static const u64 NODEMASK = HALFSIZE-1;
 
 // generate edge endpoint in cuckoo graph without partition bit
 u64 _sipnode(siphash_keys *keys, u64 nonce, u32 uorv) {
@@ -63,7 +58,7 @@ int verify(u64 nonces[PROOFSIZE], const char *header, const u32 headerlen) {
   u64 uvs[2*PROOFSIZE];
   u64 xor0=0,xor1=0;
   for (u32 n = 0; n < PROOFSIZE; n++) {
-    if (nonces[n] >= NEDGES)
+    if (nonces[n] >= HALFSIZE)
       return POW_TOO_BIG;
     if (n && nonces[n] <= nonces[n-1])
       return POW_TOO_SMALL;

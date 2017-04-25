@@ -3,6 +3,8 @@ OPT = -O3
 DOPT = -DPREFETCH
 FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) $(DOPT) -I. -pthread 
 GPP = g++ -march=native -m64 -std=c++11 $(FLAGS)
+CFLAGS = -fomit-frame-pointer -mno-vzeroupper $(OPT) -pthread 
+GCC = gcc -m64 -std=gnu11 $(CFLAGS)
 LIBS = -lssl -lcrypto
 # leave out -l crypto if using sha256.c instead of openssl
 # leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
@@ -46,10 +48,16 @@ mean28:	cuckoo.h siphash.h mean_miner.h mean_miner.cpp Makefile
 	$(GPP) -o mean28 -DATOMIC -DSIZESHIFT=28 mean_miner.cpp $(LIBS)
 
 mean28x4:	cuckoo.h siphash.h mean_miner.h mean_miner.cpp Makefile
-	$(GPP) -o mean28x4 -mavx2 -DNSIPHASH=4 -DATOMIC -DSIZESHIFT=28 mean_miner.cpp $(LIBS)
+	$(GPP) -o mean28x4 -mavx2 -DNSIPHASH=4 -DATOMIC -DEDGEBITS=27 mean_miner.cpp $(LIBS)
 
-mean28x8:	cuckoo.h siphash.h mean_miner.h mean_miner.cpp Makefile
-	$(GPP) -o mean28x8 -mavx2 -DNSIPHASH=8 -DATOMIC -DSIZESHIFT=28 mean_miner.cpp $(LIBS)
+mean30x4:	cuckoo.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
+	$(GPP) -o mean30x4 -mavx2 -DNSIPHASH=4 -DATOMIC -DEDGEBITS=29 mean_miner.cpp $(LIBS)
+
+mean28x8:	cuckoo.h siphash.h mean_miner.h mean_miner.c Makefile
+	$(GCC) -o mean28x8 -DEDGEBITS=27 -DNSIPHASH=8 -mavx2 mean_miner.c $(LIBS)
+
+mean30x8:	cuckoo.h siphash.h mean_miner.h mean_miner.c Makefile
+	$(GCC) -o mean30x8 -DEDGEBITS=29 -DNSIPHASH=8 -mavx2 mean_miner.c $(LIBS)
 
 cuckoo28:	cuckoo.h siphash.h cuckoo_miner.h cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28 -DATOMIC -DSIZESHIFT=28 cuckoo_miner.cpp $(LIBS)
