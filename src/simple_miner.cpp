@@ -1,7 +1,7 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2016 John Tromp
 
-#include "cuckoo.h"
+#include "cuckoo.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>

@@ -50,6 +50,7 @@ typedef u64 au64;
 #define BIGHASHBITS (EDGEBITS - BUCKETBITS)
 #define EDGEBITSLO (EDGEHASH_BITS - BIGHASHBITS)
 #define EDGEBITSHI (EDGEBITS - EDGEBITSLO)
+#define SMALLBITSHI (EDGEHASH_BITS - BUCKETBITS)
 
 #if EDGEBITS < 32
 typedef u32 edge_t;
@@ -79,11 +80,17 @@ const static u32 MAXPATHLEN = 8 << (NODEBITS/3);
 const static u32 NBUCKETS = 1 << BUCKETBITS;
 const static u32 BUCKETMASK = NBUCKETS - 1;
 const static u32 BUCKETSIZE0 = (1 << (EDGEBITS-BUCKETBITS));
-#ifndef OVERHEAD_FACTOR
-#define OVERHEAD_FACTOR 64
+#ifndef BIGXFACTOR
+#define BIGXFACTOR 64
 #endif
-const static u32 BUCKETSIZE = BUCKETSIZE0 + BUCKETSIZE0 / OVERHEAD_FACTOR;
+const static u32 BUCKETSIZE = BUCKETSIZE0 + BUCKETSIZE0 / BIGXFACTOR;
 const static u32 BUCKETBYTES = BUCKETSIZE * EDGEHASH_BYTES; // beware overflow
+
+#ifndef SMALLXFACTOR
+#define SMALLXFACTOR 8
+#endif
+const static u32 SMALLBUCKETSIZE0 = (1 << (EDGEBITS-2*BUCKETBITS));
+const static u32 SMALLBUCKETSIZE = SMALLBUCKETSIZE0 + SMALLBUCKETSIZE0 / SMALLXFACTOR;
 
 #if EDGEBITS >= 25
 typedef uint8_t bucketcnt;
@@ -136,7 +143,7 @@ public:
     hists    = new histgroup[nthreads];
 #if EDGEHASH_BYTES == 4
     buckets  = new u32[NBUCKETS*BUCKETSIZE];
-    tbuckets = new u32[nthreads*BUCKETSIZE];
+    tbuckets = new u32[nthreads*NBUCKETS*SMALLBUCKETSIZE];
 #else
 #error change buckets type
 #endif
@@ -376,13 +383,13 @@ public:
     u32 small[NBUCKETS];
   
     rdtsc0 = __rdtsc();
-    u32 *small0 = alive->tbuckets + bigbkt * BUCKETSIZE;
+    u32 *small0 = alive->tbuckets + id * NBUCKETS*SMALLBUCKETSIZE;
     u32 nedges = 0;
     u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
     for (; bigbkt < endbkt; bigbkt++) {
-      u32 *big0 = alive->tbuckets + bigbkt * BUCKETSIZE;
+      u32 *big0 = alive->buckets + bigbkt * BUCKETSIZE;
       for (u32 i=0; i < NBUCKETS; i++)
-        small[i] = i * (BUCKETSIZE >> BUCKETBITS);
+        small[i] = i * SMALLBUCKETSIZE;
       for (u32 from = 0 ; from < nthreads; from++) {
         edge_t hi0 = from * NEDGESHI / nthreads,
              endhi = (from+1) * NEDGESHI / nthreads; 
@@ -391,8 +398,8 @@ public:
         for (edge_t hi = hi0 ; hi < endhi; hi++) {
           for (u32 cnt = groups[hi-hi0].cnt[bigbkt]; cnt--; readbig++) {
             edge_t e = *readbig;
-            z = e & BUCKETMASK;
-            small0[small[z]] =  | e >> BUCKETBITS;
+            u32 z = e & BUCKETMASK;
+            small0[small[z]] = hi << SMALLBITSHI | e >> BUCKETBITS;
             small[z]++;
             nedges++;
           }

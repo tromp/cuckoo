@@ -6,7 +6,7 @@
 // define SINGLECYCLING to run cycle finding single threaded which runs slower
 // but avoids losing cycles to race conditions (not worth it in my testing)
 
-#include "cuckoo.h"
+#include "cuckoo.hpp"
 #include "siphashxN.h"
 #include <stdio.h>
 #include <stdlib.h>
