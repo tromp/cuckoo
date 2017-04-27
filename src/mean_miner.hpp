@@ -66,26 +66,21 @@ const static edge_t NEDGESLO = 1 << EDGEBITSLO;
 const static edge_t NEDGESHI = 1 << EDGEBITSHI;
 const static edge_t NNODES   = 2 << EDGEBITS;
 
-#ifndef IDXSHIFT
-// we want sizeof(cuckoo_hash) < sizeof(alive), so
-// CUCKOO_SIZE * sizeof(u64)   < NEDGES * EDGEHASH_BYTES
-// CUCKOO_SIZE * 8             < NEDGES * 4
-// (NNODES >> IDXSHIFT) * 2    < NEDGES
-// IDXSHIFT                    > 2
-#define IDXSHIFT 8
-#endif
-// grow with cube root of size, hardly affected by trimming
-const static u32 MAXPATHLEN = 8 << (NODEBITS/3);
-
 const static u32 NBUCKETS = 1 << BUCKETBITS;
 const static u32 BUCKETMASK = NBUCKETS - 1;
 const static u32 BUCKETSIZE0 = (1 << (EDGEBITS-BUCKETBITS));
+// for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
+// see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
+// XFACTOR is 1/eps, and should be at most sqrt(n*p/64)
+// to give negligible bad odds of e^-64.
+// 128 is good for EDGEBITS-log(nthreads) >= 28 and BUCKETBIS == 8
 #ifndef BIGXFACTOR
-#define BIGXFACTOR 64
+#define BIGXFACTOR 128
 #endif
 const static u32 BUCKETSIZE = BUCKETSIZE0 + BUCKETSIZE0 / BIGXFACTOR;
 const static u32 BUCKETBYTES = BUCKETSIZE * EDGEHASH_BYTES; // beware overflow
 
+// 8 is good for EDGEBITS >= 28
 #ifndef SMALLXFACTOR
 #define SMALLXFACTOR 8
 #endif
@@ -166,6 +161,17 @@ public:
     return sum;
   }
 };
+
+#ifndef IDXSHIFT
+// we want sizeof(cuckoo_hash) < sizeof(alive), so
+// CUCKOO_SIZE * sizeof(u64)   < NEDGES * EDGEHASH_BYTES
+// CUCKOO_SIZE * 8             < NEDGES * 4
+// (NNODES >> IDXSHIFT) * 2    < NEDGES
+// IDXSHIFT                    > 2
+#define IDXSHIFT 8
+#endif
+// grow with cube root of size, hardly affected by trimming
+const static u32 MAXPATHLEN = 8 << (NODEBITS/3);
 
 const static u64 CUCKOO_SIZE = NNODES >> IDXSHIFT;
 const static u64 CUCKOO_MASK = CUCKOO_SIZE - 1;
@@ -254,8 +260,20 @@ public:
     delete cuckoo;
   }
 
+#ifdef DUMMY
+#define STORE(i,v,x,w) dummy += _mm256_extract_epi32(v,x)
+#else
+#define STORE(i,v,x,w) \
+  z = _mm256_extract_epi32(v,x);\
+  if (block+i > last[z] + NEDGESLO) { big0[big[z]] = 0; big[z]++; dummy++; }\
+  last[z] = block+i;\
+  big0[big[z]] = _mm256_extract_epi32(w,x);\
+  big[z]++;
+#endif
+
   void trimbig0(const u32 id) {
     uint64_t rdtsc0, rdtsc1;
+    u32 last[NBUCKETS];
     u32 big[NBUCKETS];
   
     rdtsc0 = __rdtsc();
@@ -269,48 +287,48 @@ public:
       sip_keys.k1^0x646f72616e646f6dULL,
       sip_keys.k0^0x736f6d6570736575ULL);
     edge_t hi0x = hi0 * NEDGESLO;
-    __m256i v0, v1, v2, v3;
-    __m256i vpacket = _mm256_set_epi64x(hi0x+7, hi0x+5, hi0x+3, hi0x+1);
-    static const __m256i vpacketinc = {8, 8, 8, 8};
-    __m256i vhi = _mm256_set_epi64x(3<<BIGHASHBITS, 2<<BIGHASHBITS, 1<<BIGHASHBITS, 0);
-    static const __m256i vhiinc = {4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS};
+    __m256i v0, v1, v2, v3, v4, v5, v6, v7;
+    __m256i vpacket0 = _mm256_set_epi64x(hi0x+7, hi0x+5, hi0x+3, hi0x+1);
+    __m256i vpacket1 = _mm256_set_epi64x(hi0x+15, hi0x+13, hi0x+11, hi0x+9);
+    static const __m256i vpacketinc = {16, 16, 16, 16};
+    __m256i vhi0 = _mm256_set_epi64x(3<<BIGHASHBITS, 2<<BIGHASHBITS, 1<<BIGHASHBITS, 0);
+    __m256i vhi1 = _mm256_set_epi64x(7<<BIGHASHBITS, 6<<BIGHASHBITS, 5<<BIGHASHBITS, 4<<BIGHASHBITS);
+    static const __m256i vhiinc = {8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS};
     u32 z, *big0 = alive->buckets;
     u64 dummy = 0;
-    for (edge_t hi = hi0 ; hi < endhi; hi++) {
-      for (edge_t block = 0; block < NEDGESLO; block += NSIPHASH) {
-        v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-        v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-        v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-        v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
+    for (u32 i=0; i < NBUCKETS; i++)
+      last[i] = 0;
+    edge_t block = hi0 * NEDGESLO, endblock = endhi * NEDGESLO;
+    for (; block < endblock; block += NSIPHASH) {
+      v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
+      v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+      v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+      v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
+      v7 = _mm256_permute4x64_epi64(vinit, 0xFF);
+      v4 = _mm256_permute4x64_epi64(vinit, 0x00);
+      v5 = _mm256_permute4x64_epi64(vinit, 0x55);
+      v6 = _mm256_permute4x64_epi64(vinit, 0xAA);
 
-        v3 = XOR(v3,vpacket);
-        SIPROUNDX4; SIPROUNDX4;
-        v0 = XOR(v0,vpacket);
-        v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-        SIPROUNDX4; SIPROUNDX4; SIPROUNDX4; SIPROUNDX4;
-        v0 = XOR(XOR(v0,v1),XOR(v2,v3));
+      v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
+      SIPROUNDX8; SIPROUNDX8;
+      v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
+      v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+      v6 = XOR(v6,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+      SIPROUNDX8; SIPROUNDX8; SIPROUNDX8; SIPROUNDX8;
+      v0 = XOR(XOR(v0,v1),XOR(v2,v3));
+      v4 = XOR(XOR(v4,v5),XOR(v6,v7));
 
-        vpacket = _mm256_add_epi64(vpacket, vpacketinc);
-        v1 = v0 & vbucketmask;
-        v0 = _mm256_srli_epi64(v0 & vnodemask, BUCKETBITS) | vhi;
-        vhi = _mm256_add_epi64(vhi, vhiinc);
-#ifdef DUMMY
-       dummy += _mm256_extract_epi32(v1, 0);
-       dummy += _mm256_extract_epi32(v1, 2);
-       dummy += _mm256_extract_epi32(v1, 4);
-       dummy += _mm256_extract_epi32(v1, 6);
-#else
-        z = _mm256_extract_epi32(v1,0);
-        big0[big[z]] = _mm256_extract_epi32(v0,0); big[z]++;
-        z = _mm256_extract_epi32(v1,2);
-        big0[big[z]] = _mm256_extract_epi32(v0,2); big[z]++;
-        z = _mm256_extract_epi32(v1,4);
-        big0[big[z]] = _mm256_extract_epi32(v0,4); big[z]++;
-        z = _mm256_extract_epi32(v1,6);
-        big0[big[z]] = _mm256_extract_epi32(v0,6); big[z]++;
-#endif
-      }
-      alive->hists[id].update(hi-hi0, big);
+      vpacket0 = _mm256_add_epi64(vpacket0, vpacketinc);
+      vpacket1 = _mm256_add_epi64(vpacket1, vpacketinc);
+      v1 = v0 & vbucketmask;
+      v5 = v4 & vbucketmask;
+      v0 = _mm256_srli_epi64(v0 & vnodemask, BUCKETBITS) | vhi0;
+      v4 = _mm256_srli_epi64(v4 & vnodemask, BUCKETBITS) | vhi1;
+      vhi0 = _mm256_add_epi64(vhi0, vhiinc);
+      vhi1 = _mm256_add_epi64(vhi1, vhiinc);
+
+      STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
+      STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
     }
     rdtsc1 = __rdtsc();
     printf("trimbig0 rdtsc: %lu dummy %lu\n", rdtsc1-rdtsc0, dummy);
@@ -476,6 +494,7 @@ void *worker(void *vp) {
   edgetrimmer *alive = ctx->alive;
 
   ctx->trimbig0(tp->id);
+  pthread_exit(NULL);
   barrier(&ctx->barry);
   ctx->trimsmall(tp->id);
   for (u32 round=1; round <= ctx->ntrims; round++) {

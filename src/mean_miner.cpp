@@ -13,7 +13,6 @@ int main(int argc, char **argv) {
   int nonce = 0;
   int range = 1;
   struct timeval time0, time1;
-  u64 rdtsc0, rdtsc1;
   u32 timems;
   char header[HEADERLEN];
   unsigned len;
@@ -60,7 +59,6 @@ int main(int argc, char **argv) {
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
     gettimeofday(&time0, 0);
-    rdtsc0 = __rdtsc();
     ctx.setheadernonce(header, sizeof(header), nonce + r);
     printf("k0 k1 %lx %lx\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
     for (int t = 0; t < nthreads; t++) {
@@ -74,7 +72,6 @@ int main(int argc, char **argv) {
       assert(err == 0);
     }
     gettimeofday(&time1, 0);
-    rdtsc1 = __rdtsc();
     timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
     printf("Time: %d ms\n", timems);
 

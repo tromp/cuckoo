@@ -79,7 +79,11 @@ typedef u64 node_t;
 #define BUCKETMASK (NBUCKETS - 1)
 #define BUCKETSIZE0 (1 << (EDGEBITS-BUCKETBITS))
 #ifndef OVERHEAD_FACTOR
-#define OVERHEAD_FACTOR 64
+// for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
+// see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
+// OVERHEAD_FACTOR is 1/eps, and should be at most sqrt(n*p/64)
+// to give negligible bad odds of e^-64
+#define OVERHEAD_FACTOR 128
 #endif
 #define BUCKETSIZE (BUCKETSIZE0 + BUCKETSIZE0 / OVERHEAD_FACTOR)
 #define BUCKETBYTES (BUCKETSIZE * EDGEHASH_BYTES)
@@ -257,10 +261,20 @@ void destroy_cuckoo_ctx(cuckoo_ctx *ctx) {
   free(ctx);
 }
 
-#define EXT32(v,i) _mm256_extract_epi32(v, i)
+#ifdef DUMMY
+#define STORE(i,v,x,w) dummy += _mm256_extract_epi32(v,x)
+#else
+#define STORE(i,v,x,w) \
+  z = _mm256_extract_epi32(v,x);\
+  if (block+i > last[z] + NEDGESLO) { big0[big[z]] = 0; big[z]++; dummy++; }\
+  last[z] = block+i;\
+  big0[big[z]] = _mm256_extract_epi32(w,x);\
+  big[z]++;
+#endif
 
 void trim0(cuckoo_ctx *ctx, const u32 id) {
   u32 big[NBUCKETS];
+  u32 last[NBUCKETS];
   uint64_t rdtsc0, rdtsc1;
   
   rdtsc0 = __rdtsc();
@@ -283,8 +297,11 @@ void trim0(cuckoo_ctx *ctx, const u32 id) {
   static const __m256i vhiinc = {8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS};
   u32 z, *big0 = (u32 *)ctx->alive->buckets;
   u64 dummy = 0;
-  for (edge_t hi = hi0 ; hi < endhi; hi++) {
-    for (edge_t block = 0; block < NEDGESLO; block += NSIPHASH) {
+  for (u32 i=0; i < NBUCKETS; i++)
+    last[i] = 0;
+  // for (edge_t hi = hi0 ; hi < endhi; hi++) {
+  edge_t block = hi0 * NEDGESLO, endblock = endhi * NEDGESLO;
+  for (; block < endblock; block += NSIPHASH) {
       v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
       v0 = _mm256_permute4x64_epi64(vinit, 0x00);
       v1 = _mm256_permute4x64_epi64(vinit, 0x55);
@@ -312,25 +329,13 @@ void trim0(cuckoo_ctx *ctx, const u32 id) {
       vhi0 = _mm256_add_epi64(vhi0, vhiinc);
       vhi1 = _mm256_add_epi64(vhi1, vhiinc);
 
-#ifdef DUMMY
-      dummy += EXT32(v1,0) + EXT32(v1,2) + EXT32(v1,4) + EXT32(v1,6)
-            +  EXT32(v5,0) + EXT32(v5,2) + EXT32(v5,4) + EXT32(v5,6);
-#else
-      z = EXT32(v1,0); *(u32 *)(big0+big[z]) = EXT32(v0,0); big[z]++;
-      z = EXT32(v1,2); *(u32 *)(big0+big[z]) = EXT32(v0,2); big[z]++;
-      z = EXT32(v1,4); *(u32 *)(big0+big[z]) = EXT32(v0,4); big[z]++;
-      z = EXT32(v1,6); *(u32 *)(big0+big[z]) = EXT32(v0,6); big[z]++;
-      z = EXT32(v5,0); *(u32 *)(big0+big[z]) = EXT32(v4,0); big[z]++;
-      z = EXT32(v5,2); *(u32 *)(big0+big[z]) = EXT32(v4,2); big[z]++;
-      z = EXT32(v5,4); *(u32 *)(big0+big[z]) = EXT32(v4,4); big[z]++;
-      z = EXT32(v5,6); *(u32 *)(big0+big[z]) = EXT32(v4,6); big[z]++;
-      if (hi==42 && block==40) printf("big0 %lx big[%02x]=%08x\n",big0, z,big[z]);
-#endif
+      STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
+      STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
     }
-    update_histgroup(&ctx->alive->hists[id], hi-hi0, big);
-  }
+    // update_histgroup(&ctx->alive->hists[id], hi-hi0, big);
+  // }
   rdtsc1 = __rdtsc();
-  printf("trim0 rdtsc: %u dummy %lu\n", (rdtsc1-rdtsc0)>>20, dummy);
+  printf("big0 %lx rdtsc: %u dummy %lu\n", (u64)big0, (rdtsc1-rdtsc0)>>20, dummy);
 }
 
 #if 0
