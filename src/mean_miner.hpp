@@ -29,6 +29,8 @@ typedef u32 au32;
 typedef u64 au64;
 #endif
 
+typedef uint8_t u8;
+
 // algorithm/performance parameters
 
 #ifndef EDGEBITS
@@ -79,8 +81,10 @@ typedef u32 bigbucket[BIGBUCKETSIZE];
 #ifndef SMALLEPS
 #define SMALLEPS 1/4
 #endif
-const static u32 SMALLBUCKETSIZE0 = (1 << (EDGEBITS-2*BUCKETBITS));
-const static u32 SMALLBUCKETSIZE = SMALLBUCKETSIZE0 + SMALLBUCKETSIZE0 * SMALLEPS;
+const static u32 DEGREEBITS = EDGEBITS - 2 * BUCKETBITS;
+const static u32 NDEGREES = 1 << DEGREEBITS;
+const static u32 DEGREEMASK = NDEGREES - 1;
+const static u32 SMALLBUCKETSIZE = NDEGREES + NDEGREES * SMALLEPS;
 typedef u32 smallbucket[SMALLBUCKETSIZE];
 
 typedef u32 histogram[NBUCKETS];
@@ -93,6 +97,9 @@ typedef struct {
   edgetrimmer *et;
 } thread_ctx;
 
+const static u32 SHAREDSIZE = NBUCKETS * sizeof(bigbucket);
+const static u32 THREADSIZE = NBUCKETS * sizeof(smallbucket) + sizeof(histogram) + sizeof(thread_ctx);
+
 // maintains set of trimmable edges
 class edgetrimmer {
 public:
@@ -104,22 +111,40 @@ public:
   u32 nthreads;
   thread_ctx *threads;
   pthread_barrier_t barry;
+#ifdef MALLOC
+  void *memory;
+#endif
 
   edgetrimmer(const u32 n_threads, u32 n_trims) {
     nthreads = n_threads;
     ntrims = n_trims;
-    hists    = new histogram[n_threads];
+#ifdef MALLOC
+    memory = malloc(0xfff + SHAREDSIZE + nthreads * THREADSIZE);
+    assert(memory);
+    char *alignmem = (char *)(((u64)memory + 0xfff) & ~0xfff);
+    memset(alignmem, 0, SHAREDSIZE + nthreads * THREADSIZE);
+    buckets  = (bigbucket *)alignmem;
+    tbuckets = (smallbucket *)((char *)buckets+SHAREDSIZE);
+    hists    = (histogram *)((char *)tbuckets+nthreads*sizeof(smallbucket));
+    threads  = (thread_ctx *)((char *)hists+nthreads*sizeof(histogram));
+#else
     buckets  = new bigbucket[NBUCKETS];
     tbuckets = new smallbucket[n_threads*NBUCKETS];
+    hists    = new histogram[n_threads];
     threads  = new thread_ctx[nthreads];
+#endif
     int err = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
   }
   ~edgetrimmer() {
+#ifdef MALLOC
+    free(memory);
+#else
     delete[] hists;
     delete[] buckets;
     delete[] tbuckets;
     delete[] threads;
+#endif
   }
   u32 start(u32 id, u32 bkt) {
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
@@ -130,6 +155,9 @@ public:
       hist[bkt] = start(id,bkt);
     return hist;
   }
+  u32 index(u32 id, u32 bkt) {
+    return hists[id][bkt];
+  }
   u32 size(u32 id, u32 bkt) {
     return hists[id][bkt] - start(id,bkt);
   }
@@ -138,12 +166,6 @@ public:
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
       sum += hists[id][bkt] - start(id,bkt);
     return sum;
-  }
-  u32 sharedbytes() {
-    return NBUCKETS * sizeof(bigbucket);
-  }
-  u32 threadbytes() {
-    return nthreads * NBUCKETS * sizeof(smallbucket);
   }
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define STORE(i,v,x,w) \
@@ -233,17 +255,28 @@ public:
       for (u32 i=0; i < NBUCKETS; i++)
         small[i] = i * SMALLBUCKETSIZE;
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32 *readbig = big0 + from * BIGBUCKETSIZE / nthreads;
         u32 last = from * NEDGES / nthreads;
-        u32 cnt = size(id,bigbkt);
-        for (; cnt--; readbig++) {
-          u32 e = *readbig;
+        u32 readbig = from * BIGBUCKETSIZE / nthreads;
+        u32 endreadbig = readbig + size(id, bigbkt);
+        for (; readbig < endreadbig; readbig++) {
+          u32 e = big0[readbig];
           if (!e) { last += NEDGESLO; continue; }
           last += ((e>>BIGHASHBITS) - last) & (NEDGESLO-1); // magic!
           u32 z = e & BUCKETMASK;
           small0[small[z]] = last << BIGHASHBITS | e >> BUCKETBITS;
           small[z]++;
-          nedges++;
+        }
+      }
+      u8 *degs = (u8 *)big0; // recycle!
+      for (u32 smallbkt = 0; smallbkt < NBUCKETS; smallbkt++) {
+        memset(degs, 0, NDEGREES);
+        u32 readsmall = + smallbkt * SMALLBUCKETSIZE;
+        u32 endreadsmall = small[smallbkt];
+        for (u32 rdsmall = readsmall; rdsmall < endreadsmall; rdsmall++)
+          degs[small0[rdsmall] & DEGREEMASK]++;
+        for (; readsmall < endreadsmall; readsmall++) {
+          if (degs[small0[readsmall] & DEGREEMASK] > 1)
+            nedges++;
         }
       }
     }
@@ -391,11 +424,11 @@ public:
   }
 
   u32 sharedbytes() {
-    return alive->sharedbytes();
+    return SHAREDSIZE;
   }
 
   u32 threadbytes() {
-    return alive->threadbytes();
+    return THREADSIZE;
   }
 
   void solution(u32 *us, u32 nu, u32 *vs, u32 nv) {

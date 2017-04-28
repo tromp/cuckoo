@@ -52,12 +52,12 @@ int main(int argc, char **argv) {
 
   solver_ctx ctx(nthreads, ntrims);
 
-  u64 sbytes = ctx.sharedbytes();
-  u64 tbytes = ctx.threadbytes();
+  u32 sbytes = ctx.sharedbytes();
+  u32 tbytes = ctx.threadbytes();
   int sunit,tunit;
   for (sunit=0; sbytes >= 1024; sbytes>>=10,sunit++) ;
   for (tunit=0; tbytes >= 1024; tbytes>>=10,tunit++) ;
-  printf("Using %d%cB bucket memory, %d%cB thread memory, and %d-way siphash\n", (int)sbytes, " KMGT"[sunit], (int)tbytes, " KMGT"[tunit], NSIPHASH);
+  printf("Using %d%cB bucket memory, %dx%d%cB thread memory, and %d-way siphash\n", sbytes, " KMGT"[sunit], nthreads, tbytes, " KMGT"[tunit], NSIPHASH);
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
