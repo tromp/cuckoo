@@ -121,22 +121,31 @@ public:
     delete[] tbuckets;
     delete[] threads;
   }
+  u32 start(u32 id, u32 bkt) {
+    return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
+  }
   u32 *init(u32 id) {
    u32 *hist = hists[id];
-    for (u32 i=0; i < NBUCKETS; i++)
-      hist[i] = i * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
+    for (u32 bkt=0; bkt < NBUCKETS; bkt++)
+      hist[bkt] = start(id,bkt);
     return hist;
   }
+  u32 size(u32 id, u32 bkt) {
+    return hists[id][bkt] - start(id,bkt);
+  }
+  u32 sumsize(u32 id) {
+    u32 sum = 0;
+    for (u32 bkt=0; bkt < NBUCKETS; bkt++)
+      sum += hists[id][bkt] - start(id,bkt);
+    return sum;
+  }
   u32 sharedbytes() {
-    return sizeof(buckets);
+    return NBUCKETS * sizeof(bigbucket);
   }
   u32 threadbytes() {
-    return nthreads * sizeof(smallbucket);
+    return nthreads * NBUCKETS * sizeof(smallbucket);
   }
 #define likely(x)   __builtin_expect(!!(x), 1)
-#ifdef DUMMY
-#define STORE(i,v,x,w) dummy += _mm256_extract_epi32(v,x)
-#else
 #define STORE(i,v,x,w) \
   zz = _mm256_extract_epi32(w,x);\
   if (x || likely(zz)) {\
@@ -147,11 +156,11 @@ public:
     big0[big[z]] = _mm256_extract_epi32(w,x);\
     big[z]++;\
   }
-#endif
   void trimbig0(const u32 id) {
     uint64_t rdtsc0, rdtsc1;
     u32 last[NBUCKETS];
   
+    u64 dummy = 0;
     rdtsc0 = __rdtsc();
     u32 *big = init(id);
     u32 hi0 = id * NEDGESHI / nthreads, endhi = (id+1) * NEDGESHI / nthreads; 
@@ -170,10 +179,10 @@ public:
     __m256i vhi0 = _mm256_set_epi64x(3<<BIGHASHBITS, 2<<BIGHASHBITS, 1<<BIGHASHBITS, 0);
     __m256i vhi1 = _mm256_set_epi64x(7<<BIGHASHBITS, 6<<BIGHASHBITS, 5<<BIGHASHBITS, 4<<BIGHASHBITS);
     static const __m256i vhiinc = {8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS};
-    u32 z, zz, *big0 = buckets[0];
-    u64 dummy = 0;
-    memset(last, 0, NBUCKETS * sizeof(u32));
     u32 block = hi0 * NEDGESLO, endblock = endhi * NEDGESLO;
+    u32 z, zz, *big0 = buckets[0];
+    for (u32 bkt=0; bkt < NBUCKETS; bkt++)
+      last[bkt] = block;
     for (; block < endblock; block += NSIPHASH) {
       v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
       v0 = _mm256_permute4x64_epi64(vinit, 0x00);
@@ -206,7 +215,7 @@ public:
       STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
     }
     rdtsc1 = __rdtsc();
-    printf("trimbig0 rdtsc: %lu dummy %lu\n", rdtsc1-rdtsc0, dummy);
+    printf("trimbig0 rdtsc: %lu sumsize %x dummy %lx\n", rdtsc1-rdtsc0, sumsize(id), dummy);
   }
   void trimbig(const u32 id, u32 uorv) {
     uorv += id;
@@ -226,11 +235,11 @@ public:
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 *readbig = big0 + from * BIGBUCKETSIZE / nthreads;
         u32 last = from * NEDGES / nthreads;
-        u32 cnt = hists[id][bigbkt];
+        u32 cnt = size(id,bigbkt);
         for (; cnt--; readbig++) {
           u32 e = *readbig;
           if (!e) { last += NEDGESLO; continue; }
-          last += ((e>>BIGHASHBITS) - last) & (2*NEDGESLO-1); // magic!
+          last += ((e>>BIGHASHBITS) - last) & (NEDGESLO-1); // magic!
           u32 z = e & BUCKETMASK;
           small0[small[z]] = last << BIGHASHBITS | e >> BUCKETBITS;
           small[z]++;
@@ -242,14 +251,14 @@ public:
     printf("trimsmall rdtsc: %lu edges %d\n", rdtsc1-rdtsc0, nedges);
   }
   void trim() {
-    void *worker(void *vp);
-    for (int t = 0; t < nthreads; t++) {
+    void *etworker(void *vp);
+    for (u32 t = 0; t < nthreads; t++) {
       threads[t].id = t;
       threads[t].et = this;
-      int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
+      int err = pthread_create(&threads[t].thread, NULL, etworker, (void *)&threads[t]);
       assert(err == 0);
     }
-    for (int t = 0; t < nthreads; t++) {
+    for (u32 t = 0; t < nthreads; t++) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
     }
@@ -257,7 +266,45 @@ public:
   u32 nedges() {
     return 0;
   }
+  void barrier(pthread_barrier_t *barry) {
+    int rc = pthread_barrier_wait(barry);
+    if (rc != 0 && rc != PTHREAD_BARRIER_SERIAL_THREAD) {
+      printf("Could not wait on barrier\n");
+      pthread_exit(NULL);
+    }
+  }
+  void timmer(u32 id) {
+    trimbig0(id);
+    barrier(&barry);
+    trimsmall(id);
+    for (u32 round=1; round <= ntrims; round++) {
+      if (id == 0) printf("round %2d loads", round);
+      for (u32 uorv = 0; uorv < 2; uorv++) {
+        barrier(&barry);
+        trimbig(id, uorv);
+        barrier(&barry);
+        trimsmall(id);
+        barrier(&barry);
+        if (id == 0) {
+          u32 load = (u32)(100LL * nedges() / NEDGES);
+          printf(" %c%d %4d%%", "UV"[uorv], 0, load);
+        }
+      }
+      if (id == 0) printf("\n");
+    }
+    if (id == 0) {
+      u32 load = (u32)(100LL * nedges() / NEDGES);
+      printf("%d trims completed  final load %d%%\n", ntrims, load);
+    }
+  }
 };
+
+void *etworker(void *vp) {
+  thread_ctx *tp = (thread_ctx *)vp;
+  tp->et->timmer(tp->id);
+  pthread_exit(NULL);
+  return 0;
+}
 
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) < sizeof(alive), so
@@ -430,42 +477,3 @@ public:
     return nsols;
   }
 };
-
-void barrier(pthread_barrier_t *barry) {
-  int rc = pthread_barrier_wait(barry);
-  if (rc != 0 && rc != PTHREAD_BARRIER_SERIAL_THREAD) {
-    printf("Could not wait on barrier\n");
-    pthread_exit(NULL);
-  }
-}
-
-void *worker(void *vp) {
-  thread_ctx *tp = (thread_ctx *)vp;
-  edgetrimmer *et = tp->et;
-
-  et->trimbig0(tp->id);
-  barrier(&et->barry);
-  et->trimsmall(tp->id);
-  pthread_exit(NULL);
-  for (u32 round=1; round <= et->ntrims; round++) {
-    if (tp->id == 0) printf("round %2d loads", round);
-    for (u32 uorv = 0; uorv < 2; uorv++) {
-      barrier(&et->barry);
-      et->trimbig(tp->id, uorv);
-      barrier(&et->barry);
-      et->trimsmall(tp->id);
-      barrier(&et->barry);
-      if (tp->id == 0) {
-        u32 load = (u32)(100LL * et->nedges() / NEDGES);
-        printf(" %c%d %4d%%", "UV"[uorv], 0, load);
-      }
-    }
-    if (tp->id == 0) printf("\n");
-  }
-  if (tp->id == 0) {
-    u32 load = (u32)(100LL * et->nedges() / NEDGES);
-    printf("%d trims completed  final load %d%%\n", et->ntrims, load);
-  }
-  pthread_exit(NULL);
-  return 0;
-}
