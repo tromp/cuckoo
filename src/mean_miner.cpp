@@ -1,11 +1,9 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2016 John Tromp
+// Copyright (c) 2013-2017 John Tromp
 
 #include "mean_miner.hpp"
 #include <unistd.h>
 #include <sys/time.h>
-
-#define MAXSOLS 8
 
 int main(int argc, char **argv) {
   int nthreads = 1;
@@ -19,12 +17,18 @@ int main(int argc, char **argv) {
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:m:n:r:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:r:t:x:")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
         assert(len <= sizeof(header));
         memcpy(header, optarg, len);
+        break;
+      case 'x':
+        len = strlen(optarg)/2;
+        assert(len == sizeof(header));
+        for (int i=0; i<len; i++)
+          sscanf(optarg+2*i, "%2hhx", header+i);
         break;
       case 'n':
         nonce = atoi(optarg);
@@ -45,32 +49,24 @@ int main(int argc, char **argv) {
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges, %d trims, %d threads\n", ntrims, nthreads);
 
-  u64 bbytes = NBUCKETS * BUCKETBYTES;
-  u64 tbytes = nthreads * (sizeof(histgroup) + BUCKETBYTES);
-  int bunit,tunit;
-  for (bunit=0; bbytes >= 1024; bbytes>>=10,bunit++) ;
+  solver_ctx ctx(nthreads, ntrims);
+
+  u64 sbytes = ctx.sharedbytes();
+  u64 tbytes = ctx.threadbytes();
+  int sunit,tunit;
+  for (sunit=0; sbytes >= 1024; sbytes>>=10,sunit++) ;
   for (tunit=0; tbytes >= 1024; tbytes>>=10,tunit++) ;
-  printf("Using %d%cB bucket memory, %d%cB thread memory, %d-way siphash, and %d-byte edgehash\n", (int)bbytes, " KMGT"[bunit], (int)tbytes, " KMGT"[tunit], NSIPHASH, EDGEHASH_BYTES);
+  printf("Using %d%cB bucket memory, %d%cB thread memory, %d-way siphash, and %d-byte edgehash\n", (int)sbytes, " KMGT"[sunit], (int)tbytes, " KMGT"[tunit], NSIPHASH, EDGEHASH_BYTES);
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
-  cuckoo_ctx ctx(nthreads, ntrims, MAXSOLS);
 
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
     gettimeofday(&time0, 0);
     ctx.setheadernonce(header, sizeof(header), nonce + r);
     printf("k0 k1 %lx %lx\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
-    for (int t = 0; t < nthreads; t++) {
-      threads[t].id = t;
-      threads[t].ctx = &ctx;
-      int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
-      assert(err == 0);
-    }
-    for (int t = 0; t < nthreads; t++) {
-      int err = pthread_join(threads[t].thread, NULL);
-      assert(err == 0);
-    }
+    u32 nsols = ctx.solve();
     gettimeofday(&time1, 0);
     timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
     printf("Time: %d ms\n", timems);
@@ -81,9 +77,8 @@ int main(int argc, char **argv) {
         printf(" %jx", (uintmax_t)ctx.sols[s][i]);
       printf("\n");
     }
-    sumnsols += ctx.nsols;
+    sumnsols += nsols;
   }
-  free(threads);
   printf("%d total solutions\n", sumnsols);
   return 0;
 }

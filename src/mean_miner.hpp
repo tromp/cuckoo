@@ -31,12 +31,6 @@ typedef u64 au64;
 
 // algorithm/performance parameters
 
-#ifndef EDGEHASH_BYTES
-#define EDGEHASH_BYTES 4
-#endif
-
-#define EDGEHASH_BITS (8 * EDGEHASH_BYTES)
-
 #ifndef EDGEBITS
 #define EDGEBITS 27
 #endif
@@ -47,111 +41,92 @@ typedef u64 au64;
 #define BUCKETBITS 8
 #endif
 
-#define BIGHASHBITS (EDGEBITS - BUCKETBITS)
-#define EDGEBITSLO (EDGEHASH_BITS - BIGHASHBITS)
-#define EDGEBITSHI (EDGEBITS - EDGEBITSLO)
-#define SMALLBITSHI (EDGEHASH_BITS - BUCKETBITS)
-
-#if EDGEBITS < 32
-typedef u32 edge_t;
-typedef u32 node_t;
-#else
-typedef u64 edge_t;
-typedef u64 node_t;
+// more than one 42-cycle is already exceedingly rare
+#ifndef MAXSOLS
+#define MAXSOLS 4
 #endif
 
-const static edge_t NEDGES   = 1 << EDGEBITS;
-const static edge_t EDGEMASK = NEDGES-1;
-const static edge_t NEDGESLO = 1 << EDGEBITSLO;
-const static edge_t NEDGESHI = 1 << EDGEBITSHI;
-const static edge_t NNODES   = 2 << EDGEBITS;
+#define BIGHASHBITS (EDGEBITS - BUCKETBITS)
+#define EDGEBITSLO (32 - BIGHASHBITS)
+#define EDGEBITSHI (EDGEBITS - EDGEBITSLO)
+#define SMALLBITSHI (32 - BUCKETBITS)
+
+#if EDGEBITS >= 32
+#error not implemented
+#endif
+
+const static u32 NEDGES   = 1 << EDGEBITS;
+const static u32 EDGEMASK = NEDGES-1;
+const static u32 NEDGESLO = 1 << EDGEBITSLO;
+const static u32 NEDGESHI = 1 << EDGEBITSHI;
+const static u32 NNODES   = 2 << EDGEBITS;
 
 const static u32 NBUCKETS = 1 << BUCKETBITS;
 const static u32 BUCKETMASK = NBUCKETS - 1;
-const static u32 BUCKETSIZE0 = (1 << (EDGEBITS-BUCKETBITS));
+const static u32 BIGBUCKETSIZE0 = (1 << (EDGEBITS-BUCKETBITS));
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
-// XFACTOR is 1/eps, and should be at most sqrt(n*p/64)
+// eps and should be at least 1/sqrt(n*p/64)
 // to give negligible bad odds of e^-64.
-// 128 is good for EDGEBITS-log(nthreads) >= 28 and BUCKETBIS == 8
-#ifndef BIGXFACTOR
-#define BIGXFACTOR 128
+// 1/64 is good for EDGEBITS-log(nthreads) >= 26 and BUCKETBIS == 8
+#ifndef BIGEPS
+#define BIGEPS 1/64
 #endif
-const static u32 BUCKETSIZE = BUCKETSIZE0 + BUCKETSIZE0 / BIGXFACTOR;
-const static u32 BUCKETBYTES = BUCKETSIZE * EDGEHASH_BYTES; // beware overflow
+const static u32 BIGBUCKETSIZE = BIGBUCKETSIZE0 + BIGBUCKETSIZE0 * BIGEPS;
+typedef u32[BUCKETSIZE] bigbucket;
 
-// 8 is good for EDGEBITS >= 28
-#ifndef SMALLXFACTOR
-#define SMALLXFACTOR 8
+// 1/4 is good for EDGEBITS-log(nthreads) >= 26 and BUCKETBIS == 8
+#ifndef SMALLEPS]
+#define SMALLEPS 1/4
 #endif
 const static u32 SMALLBUCKETSIZE0 = (1 << (EDGEBITS-2*BUCKETBITS));
+typedef u32[SMALLBUCKETSIZE] smallbucket;
 const static u32 SMALLBUCKETSIZE = SMALLBUCKETSIZE0 + SMALLBUCKETSIZE0 / SMALLXFACTOR;
 
-#if EDGEBITS >= 25
-typedef uint8_t bucketcnt;
-#else
-#error make typedef uint16_t bucketcnt;
-#endif
+typedef u32[NBUCKETS] histogram;
 
-class histogram {
-public:
-  bucketcnt cnt[NBUCKETS];
+class edgetrimmer;
 
-  void clear() {
-    memset(cnt, 0, NBUCKETS*sizeof(bucketcnt));
-  }
-  void diff(u32 *old, u32 *niew) {
-    for (u32 i=0; i < NBUCKETS; i++)
-      cnt[i] = niew[i] - old[i];
-  }
-  u32 total() {
-    u32 sum = 0;
-    for (u32 i=0; i < NBUCKETS; i++)
-      sum += (u32)cnt[i];
-    return sum;
-  }
-};
-
-class histgroup {
-public:
-  histogram groups[NEDGESHI];
-  u32 oldbig[NBUCKETS];
-  void record(u32 *big) {
-    memcpy(oldbig, big, NBUCKETS * sizeof(u32));
-  }
-  void update(u32 grp, u32 *big) {
-    groups[grp].diff(oldbig, big);
-    record(big);
-  }
-};
+typedef struct {
+  u32 id;
+  pthread_t thread;
+  edgetrimmer *et;
+} thread_ctx;
 
 // maintains set of trimmable edges
 class edgetrimmer {
 public:
-  u32 nthreads;
-  histgroup *hists;
+  histogram *hists;
   u32 *buckets;
   u32 *tbuckets;
+  u32 ntrims;
+  u32 nthreads;
+  thread_ctx *threads;
+  pthread_barrier_t barry;
 
-  edgetrimmer(const u32 nt) {
-    nthreads = nt;
-    hists    = new histgroup[nthreads];
-#if EDGEHASH_BYTES == 4
-    buckets  = new u32[NBUCKETS*BUCKETSIZE];
-    tbuckets = new u32[nthreads*NBUCKETS*SMALLBUCKETSIZE];
-#else
-#error change buckets type
-#endif
+  edgetrimmer(const u32 nthr, u32 ntrims) {
+    nthreads = nthr;
+    hists    = new histgroup[nthr];
+    buckets  = new bigbucket[NBUCKETS];
+    tbuckets = new smallbucket[nthr*NBUCKETS];
+    threads  = new thread_ctx[nthreads];
   }
   ~edgetrimmer() {
     delete[] hists;
     delete[] buckets;
     delete[] tbuckets;
+    delete[] threads;
   }
   void init(u32 id, u32 *big) {
     for (u32 i=0; i < NBUCKETS; i++)
       big[i] = i * BUCKETSIZE + id * BUCKETSIZE / nthreads;
     hists[0].record(big);
+  }
+  u32 sharedbytes() {
+    return sizeof(buckets) * sizeof(u32);
+  }
+  u32 threadbytes() {
+    return nthreads * sizeof(buckets) * sizeof(u32);
   }
   u32 total() const {
     u32 sum = 0;
@@ -164,7 +139,7 @@ public:
 
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) < sizeof(alive), so
-// CUCKOO_SIZE * sizeof(u64)   < NEDGES * EDGEHASH_BYTES
+// CUCKOO_SIZE * sizeof(u64)   < NEDGES * sizeof(u32)
 // CUCKOO_SIZE * 8             < NEDGES * 4
 // (NNODES >> IDXSHIFT) * 2    < NEDGES
 // IDXSHIFT                    > 2
@@ -225,28 +200,20 @@ public:
   }
 };
 
-class cuckoo_ctx {
+class solver_ctx {
 public:
   siphash_keys sip_keys;
   edgetrimmer *alive;
   cuckoo_hash *cuckoo;
-  edge_t (*sols)[PROOFSIZE];
-  u32 nonce;
-  u32 maxsols;
-  au32 nsols;
-  u32 nthreads;
-  u32 ntrims;
-  pthread_barrier_t barry;
+  u32 sols[MAXSOLS][PROOFSIZE];
 
-  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) {
+  solver_ctx(u32 n_threads, u32 n_trims) {
     nthreads = n_threads;
-    alive = new edgetrimmer(nthreads);
+    alive = new edgetrimmer(nthreads, ntrims);
     cuckoo = 0;
     ntrims = n_trims;
     int err = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
-    sols = (edge_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(edge_t));
-    assert(sols != 0);
     nsols = 0;
   }
   void setheadernonce(char* headernonce, const u32 len, const u32 nce) {
@@ -255,20 +222,33 @@ public:
     setheader(headernonce, len, &sip_keys);
     nsols = 0;
   }
-  ~cuckoo_ctx() {
-    delete alive;
+  ~solver_ctx() {
     delete cuckoo;
+    delete alive;
   }
 
+  u32 sharedbytes() {
+    return alive->sharedbytes();
+  }
+
+  u32 threadbytes() {
+    return alive->sthreadbytes();
+  }
+
+#define likely(x)   __builtin_expect(!!(x), 1)
 #ifdef DUMMY
 #define STORE(i,v,x,w) dummy += _mm256_extract_epi32(v,x)
 #else
 #define STORE(i,v,x,w) \
-  z = _mm256_extract_epi32(v,x);\
-  if (block+i > last[z] + NEDGESLO) { big0[big[z]] = 0; big[z]++; dummy++; }\
-  last[z] = block+i;\
-  big0[big[z]] = _mm256_extract_epi32(w,x);\
-  big[z]++;
+  zz = _mm256_extract_epi32(w,x);\
+  if (x || likely(zz)) {\
+    z = _mm256_extract_epi32(v,x);\
+    for (; last[z] + NEDGESLO <= block+i; last[z] += NEDGESLO)\
+      big0[big[z]++] = 0;\
+    last[z] = block+i;\
+    big0[big[z]] = _mm256_extract_epi32(w,x);\
+    big[z]++;\
+  }
 #endif
 
   void trimbig0(const u32 id) {
@@ -278,7 +258,7 @@ public:
   
     rdtsc0 = __rdtsc();
     alive->init(id, big);
-    edge_t hi0 = id * NEDGESHI / nthreads, endhi = (id+1) * NEDGESHI / nthreads; 
+    u32 hi0 = id * NEDGESHI / nthreads, endhi = (id+1) * NEDGESHI / nthreads; 
     static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
     static const __m256i vbucketmask = {BUCKETMASK, BUCKETMASK, BUCKETMASK, BUCKETMASK};
     const __m256i vinit = _mm256_set_epi64x(
@@ -286,7 +266,7 @@ public:
       sip_keys.k0^0x6c7967656e657261ULL,
       sip_keys.k1^0x646f72616e646f6dULL,
       sip_keys.k0^0x736f6d6570736575ULL);
-    edge_t hi0x = hi0 * NEDGESLO;
+    u32 hi0x = hi0 * NEDGESLO;
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     __m256i vpacket0 = _mm256_set_epi64x(hi0x+7, hi0x+5, hi0x+3, hi0x+1);
     __m256i vpacket1 = _mm256_set_epi64x(hi0x+15, hi0x+13, hi0x+11, hi0x+9);
@@ -294,11 +274,10 @@ public:
     __m256i vhi0 = _mm256_set_epi64x(3<<BIGHASHBITS, 2<<BIGHASHBITS, 1<<BIGHASHBITS, 0);
     __m256i vhi1 = _mm256_set_epi64x(7<<BIGHASHBITS, 6<<BIGHASHBITS, 5<<BIGHASHBITS, 4<<BIGHASHBITS);
     static const __m256i vhiinc = {8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS};
-    u32 z, *big0 = alive->buckets;
+    u32 z, zz, *big0 = alive->buckets;
     u64 dummy = 0;
-    for (u32 i=0; i < NBUCKETS; i++)
-      last[i] = 0;
-    edge_t block = hi0 * NEDGESLO, endblock = endhi * NEDGESLO;
+    memset(last, 0, NBUCKETS * sizeof(u32));
+    u32 block = hi0 * NEDGESLO, endblock = endhi * NEDGESLO;
     for (; block < endblock; block += NSIPHASH) {
       v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
       v0 = _mm256_permute4x64_epi64(vinit, 0x00);
@@ -332,68 +311,11 @@ public:
     }
     rdtsc1 = __rdtsc();
     printf("trimbig0 rdtsc: %lu dummy %lu\n", rdtsc1-rdtsc0, dummy);
+    alive->hists[id].update(0, big);
   }
 
-  void trimbig(const u32 id, int uorv) {
-    uint64_t rdtsc0, rdtsc1;
-    u32 big[NBUCKETS];
-  
-    rdtsc0 = __rdtsc();
-    alive->init(id, big);
-    edge_t hi0 = id * NEDGESHI / nthreads, endhi = (id+1) * NEDGESHI / nthreads; 
-    static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
-    static const __m256i vbucketmask = {BUCKETMASK, BUCKETMASK, BUCKETMASK, BUCKETMASK};
-    const __m256i vinit = _mm256_set_epi64x(
-      sip_keys.k1^0x7465646279746573ULL,
-      sip_keys.k0^0x6c7967656e657261ULL,
-      sip_keys.k1^0x646f72616e646f6dULL,
-      sip_keys.k0^0x736f6d6570736575ULL);
-    edge_t hi0x = hi0 * NEDGESLO;
-    __m256i v0, v1, v2, v3;
-    __m256i vpacket = _mm256_set_epi64x(hi0x+7, hi0x+5, hi0x+3, hi0x+1);
-    static const __m256i vpacketinc = {8, 8, 8, 8};
-    __m256i vhi = _mm256_set_epi64x(3<<BIGHASHBITS, 2<<BIGHASHBITS, 1<<BIGHASHBITS, 0);
-    static const __m256i vhiinc = {4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS, 4<<BIGHASHBITS};
-    u32 z, *big0 = alive->buckets;
-    u64 dummy = 0;
-    for (edge_t hi = hi0 ; hi < endhi; hi++) {
-      for (edge_t block = 0; block < NEDGESLO; block += NSIPHASH) {
-        v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-        v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-        v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-        v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
-
-        v3 = XOR(v3,vpacket);
-        SIPROUNDX4; SIPROUNDX4;
-        v0 = XOR(v0,vpacket);
-        v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-        SIPROUNDX4; SIPROUNDX4; SIPROUNDX4; SIPROUNDX4;
-        v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-
-        vpacket = _mm256_add_epi64(vpacket, vpacketinc);
-        v1 = v0 & vbucketmask;
-        v0 = _mm256_srli_epi64(v0 & vnodemask, BUCKETBITS) | vhi;
-        vhi = _mm256_add_epi64(vhi, vhiinc);
-#ifdef DUMMY
-       dummy += _mm256_extract_epi32(v1, 0);
-       dummy += _mm256_extract_epi32(v1, 2);
-       dummy += _mm256_extract_epi32(v1, 4);
-       dummy += _mm256_extract_epi32(v1, 6);
-#else
-        z = _mm256_extract_epi32(v1,0);
-        big0[big[z]] = _mm256_extract_epi32(v0,0); big[z]++;
-        z = _mm256_extract_epi32(v1,2);
-        big0[big[z]] = _mm256_extract_epi32(v0,2); big[z]++;
-        z = _mm256_extract_epi32(v1,4);
-        big0[big[z]] = _mm256_extract_epi32(v0,4); big[z]++;
-        z = _mm256_extract_epi32(v1,6);
-        big0[big[z]] = _mm256_extract_epi32(v0,6); big[z]++;
-#endif
-      }
-      alive->hists[id].update(hi-hi0, big);
-    }
-    rdtsc1 = __rdtsc();
-    printf("trimbig0 rdtsc: %lu dummy %lu\n", rdtsc1-rdtsc0, dummy);
+  void trimbig(const u32 id, u32 uorv) {
+    uorv += id;
   }
 
   void trimsmall(const u32 id) {
@@ -409,18 +331,17 @@ public:
       for (u32 i=0; i < NBUCKETS; i++)
         small[i] = i * SMALLBUCKETSIZE;
       for (u32 from = 0 ; from < nthreads; from++) {
-        edge_t hi0 = from * NEDGESHI / nthreads,
-             endhi = (from+1) * NEDGESHI / nthreads; 
-        histogram *groups = alive->hists[id].groups;
         u32 *readbig = big0 + from * BUCKETSIZE / nthreads;
-        for (edge_t hi = hi0 ; hi < endhi; hi++) {
-          for (u32 cnt = groups[hi-hi0].cnt[bigbkt]; cnt--; readbig++) {
-            edge_t e = *readbig;
-            u32 z = e & BUCKETMASK;
-            small0[small[z]] = hi << SMALLBITSHI | e >> BUCKETBITS;
-            small[z]++;
-            nedges++;
-          }
+        u32 last = from * NEDGES / nthreads;
+        u32 cnt = alive->hists[id].groups->cnt[bigbkt];
+        for (; cnt--; readbig++) {
+          u32 e = *readbig;
+          if (!e) { last += NEDGESLO; continue; }
+          last += ((e>>BIGHASHBITS) - last) & (2*NEDGESLO-1); // magic!
+          u32 z = e & BUCKETMASK;
+          small0[small[z]] = last << BIGHASHBITS | e >> BUCKETBITS;
+          small[z]++;
+          nedges++;
         }
       }
     }
@@ -438,9 +359,9 @@ public:
     while (nv--)
       cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
     u32 soli = nsols++;
-    for (edge_t block = 0; block < NEDGES; block += 64) {
+    for (u32 block = 0; block < NEDGES; block += 64) {
       u64 alive64 = 0; // alive->block(block);
-      for (edge_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      for (u32 nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
         edge e(sipnode(&sip_keys, nonce, 0), sipnode(&sip_keys, nonce, 1));
@@ -457,13 +378,21 @@ public:
     }
     assert(n==PROOFSIZE);
   }
-};
 
-typedef struct {
-  u32 id;
-  pthread_t thread;
-  cuckoo_ctx *ctx;
-} thread_ctx;
+  int solve() {
+    for (int t = 0; t < nthreads; t++) {
+      threads[t].id = t;
+      threads[t].ctx = &ctx;
+      int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
+      assert(err == 0);
+    }
+    for (int t = 0; t < nthreads; t++) {
+      int err = pthread_join(threads[t].thread, NULL);
+      assert(err == 0);
+    }
+    return nsols;
+  }
+};
 
 void barrier(pthread_barrier_t *barry) {
   int rc = pthread_barrier_wait(barry);
@@ -490,13 +419,13 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
 
 void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
-  cuckoo_ctx *ctx = tp->ctx;
+  solver_ctx *ctx = tp->ctx;
   edgetrimmer *alive = ctx->alive;
 
   ctx->trimbig0(tp->id);
-  pthread_exit(NULL);
   barrier(&ctx->barry);
   ctx->trimsmall(tp->id);
+  pthread_exit(NULL);
   for (u32 round=1; round <= ctx->ntrims; round++) {
     if (tp->id == 0) printf("round %2d loads", round);
     for (u32 uorv = 0; uorv < 2; uorv++) {
@@ -520,9 +449,9 @@ void *worker(void *vp) {
   /* else */ pthread_exit(NULL);
   cuckoo_hash &cuckoo = *ctx->cuckoo;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-  for (edge_t block = 0; block < NEDGES; block += 64) {
+  for (u32 block = 0; block < NEDGES; block += 64) {
     u64 alive64 = 0; // alive->block(block);
-    for (edge_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+    for (u32 nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
       node_t u0=sipnode(&ctx->sip_keys, nonce, 0), v0=sipnode(&ctx->sip_keys, nonce, 1);
