@@ -100,6 +100,9 @@ typedef struct {
 const static u32 SHAREDSIZE = NBUCKETS * sizeof(bigbucket);
 const static u32 THREADSIZE = NBUCKETS * sizeof(smallbucket) + sizeof(histogram) + sizeof(thread_ctx);
 
+// reduce performance gap uncertainty
+#define MALLOC
+
 // maintains set of trimmable edges
 class edgetrimmer {
 public:
@@ -119,14 +122,17 @@ public:
     nthreads = n_threads;
     ntrims = n_trims;
 #ifdef MALLOC
-    memory = malloc(0xfff + SHAREDSIZE + nthreads * THREADSIZE);
+    u32 memorysize = SHAREDSIZE + nthreads * THREADSIZE;
+    memory = malloc(0xfff + memorysize);
     assert(memory);
-    char *alignmem = (char *)(((u64)memory + 0xfff) & ~0xfff);
-    memset(alignmem, 0, SHAREDSIZE + nthreads * THREADSIZE);
+    u32 *alignmem = (u32 *)(((u64)memory + 0xfff) & ~0xfff);
+    memset(alignmem, 0, memorysize);
     buckets  = (bigbucket *)alignmem;
     tbuckets = (smallbucket *)((char *)buckets+SHAREDSIZE);
-    hists    = (histogram *)((char *)tbuckets+nthreads*sizeof(smallbucket));
+    hists    = (histogram *)((char *)tbuckets+nthreads*NBUCKETS*sizeof(smallbucket));
     threads  = (thread_ctx *)((char *)hists+nthreads*sizeof(histogram));
+    for (u32 i = 0; i < memorysize/sizeof(u32); i += 1024)
+      alignmem[i] = 0;
 #else
     buckets  = new bigbucket[NBUCKETS];
     tbuckets = new smallbucket[n_threads*NBUCKETS];
@@ -168,16 +174,20 @@ public:
     return sum;
   }
 #define likely(x)   __builtin_expect(!!(x), 1)
+#ifdef DUMMY
+#define STORE(i,v,x,w) dummy += _mm256_extract_epi32(v,x);
+#else
 #define STORE(i,v,x,w) \
   zz = _mm256_extract_epi32(w,x);\
-  if (x || likely(zz)) {\
+  if (i || likely(zz)) {\
     z = _mm256_extract_epi32(v,x);\
     for (; last[z] + NEDGESLO <= block+i; last[z] += NEDGESLO)\
       big0[big[z]++] = 0;\
     last[z] = block+i;\
-    big0[big[z]] = _mm256_extract_epi32(w,x);\
+    big0[big[z]] = zz;\
     big[z]++;\
   }
+#endif
   void trimbig0(const u32 id) {
     uint64_t rdtsc0, rdtsc1;
     u32 last[NBUCKETS];
@@ -251,33 +261,42 @@ public:
     u32 nedges = 0;
     u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
     for (; bigbkt < endbkt; bigbkt++) {
-      u32 *big0 = buckets[bigbkt];
+      u32 *big0 = buckets[0];
       for (u32 i=0; i < NBUCKETS; i++)
         small[i] = i * SMALLBUCKETSIZE;
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32 last = from * NEDGES / nthreads;
-        u32 readbig = from * BIGBUCKETSIZE / nthreads;
-        u32 endreadbig = readbig + size(id, bigbkt);
+        u32 lastread = from * NEDGES / nthreads;
+        u32    readbig = start(from, bigbkt);
+        u32 endreadbig = index(from, bigbkt);
         for (; readbig < endreadbig; readbig++) {
           u32 e = big0[readbig];
-          if (!e) { last += NEDGESLO; continue; }
-          last += ((e>>BIGHASHBITS) - last) & (NEDGESLO-1); // magic!
+          if (!e) { lastread += NEDGESLO; continue; }
+          lastread += ((e>>BIGHASHBITS) - lastread) & (NEDGESLO-1); // magic!
           u32 z = e & BUCKETMASK;
-          small0[small[z]] = last << BIGHASHBITS | e >> BUCKETBITS;
+          small0[small[z]] = lastread << BIGHASHBITS | e >> BUCKETBITS;
           small[z]++;
         }
       }
       u8 *degs = (u8 *)big0; // recycle!
-      for (u32 smallbkt = 0; smallbkt < NBUCKETS; smallbkt++) {
-        memset(degs, 0, NDEGREES);
-        u32 readsmall = + smallbkt * SMALLBUCKETSIZE;
-        u32 endreadsmall = small[smallbkt];
-        for (u32 rdsmall = readsmall; rdsmall < endreadsmall; rdsmall++)
-          degs[small0[rdsmall] & DEGREEMASK]++;
-        for (; readsmall < endreadsmall; readsmall++) {
-          if (degs[small0[readsmall] & DEGREEMASK] > 1)
-            nedges++;
+      for (u32 from = 0 ; from < nthreads; from++) {
+        u32 last = from * NEDGES / nthreads;
+        u32 writebig0 = start(from, bigbkt) + BIGBUCKETSIZE / 4; // 3/4 bucket enough for (1-1/e) fraction of edges
+        u32 writebig = writebig0;
+        u32 smallbkt = from * NBUCKETS / nthreads;
+        u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
+        for (; smallbkt < endsmallbkt; smallbkt++) {
+          memset(degs, 0, NDEGREES);
+          u32 readsmall = + smallbkt * SMALLBUCKETSIZE;
+          u32 endreadsmall = small[smallbkt];
+          for (u32 rdsmall = readsmall; rdsmall < endreadsmall; rdsmall++)
+            degs[small0[rdsmall] & DEGREEMASK]++;
+          for (; readsmall < endreadsmall; readsmall++) {
+            u32 z = small0[readsmall];
+            if (degs[z & DEGREEMASK] > 1)
+              big0[writebig++] = z;
+          }
         }
+        nedges += writebig - writebig0;
       }
     }
     rdtsc1 = __rdtsc();

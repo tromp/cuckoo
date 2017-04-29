@@ -3,7 +3,7 @@
 
 #include "mean_miner.h"
 #include <unistd.h>
-#include <time.h>
+#include <sys/time.h>
 
 #define MAXSOLS 8
 
@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
   int ntrims   = 1;
   int nonce = 0;
   int range = 1;
-  struct timespec time0, time1;
+  struct timeval time0, time1;
   u64 rdtsc0, rdtsc1, timens;
   u32 timems;
   char header[HEADERLEN];
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
 
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
-    clock_gettime(CLOCK_MONOTONIC, &time0);
+    gettimeofday(&time0, 0);
     rdtsc0 = __rdtsc();
     setheadernonce(ctx, header, sizeof(header), nonce + r);
     printf("k0 k1 %lx %lx\n", ctx->sip_keys.k0, ctx->sip_keys.k1);
@@ -73,12 +73,10 @@ int main(int argc, char **argv) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
     }
-    clock_gettime(CLOCK_MONOTONIC, &time1);
+    gettimeofday(&time1, 0);
     rdtsc1 = __rdtsc();
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_nsec-time0.tv_nsec)/1000000;
+    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
     printf("Time: %d ms\n", timems);
-    timens = (time1.tv_sec-time0.tv_sec)*1000000000 + (time1.tv_nsec-time0.tv_nsec);
-    printf("rdtsc frequency: %.3f MHz\n", (double) (rdtsc1 - rdtsc0)*1000/timens);
 
     for (unsigned s = 0; s < ctx->nsols; s++) {
       printf("Solution");
