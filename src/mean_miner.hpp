@@ -173,7 +173,8 @@ public:
       sum += hists[id][bkt] - start(id,bkt);
     return sum;
   }
-#define likely(x)   __builtin_expect(!!(x), 1)
+#define likely(x)   __builtin_expect((x)!=0, 1)
+#define unlikely(x)   __builtin_expect((x), 0)
 #ifdef DUMMY
 #define STORE(i,v,x,w) dummy += _mm256_extract_epi32(v,x);
 #else
@@ -181,11 +182,11 @@ public:
   zz = _mm256_extract_epi32(w,x);\
   if (i || likely(zz)) {\
     z = _mm256_extract_epi32(v,x);\
-    for (; last[z] + NEDGESLO <= block+i; last[z] += NEDGESLO)\
+    for (; unlikely(last[z] + NEDGESLO <= block+i); last[z] += NEDGESLO)\
       big0[big[z]++] = 0;\
-    last[z] = block+i;\
     big0[big[z]] = zz;\
     big[z]++;\
+    last[z] = block+i;\
   }
 #endif
   void trimbig0(const u32 id) {
@@ -325,7 +326,7 @@ public:
       pthread_exit(NULL);
     }
   }
-  void timmer(u32 id) {
+  void trimmer(u32 id) {
     trimbig0(id);
     barrier(&barry);
     trimsmall(id);
@@ -353,7 +354,7 @@ public:
 
 void *etworker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
-  tp->et->timmer(tp->id);
+  tp->et->trimmer(tp->id);
   pthread_exit(NULL);
   return 0;
 }
