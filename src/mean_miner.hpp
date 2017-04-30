@@ -84,6 +84,8 @@ typedef u32 bigbucket[BIGBUCKETSIZE];
 const static u32 DEGREEBITS = EDGEBITS - 2 * BUCKETBITS;
 const static u32 NDEGREES = 1 << DEGREEBITS;
 const static u32 DEGREEMASK = NDEGREES - 1;
+const static u32 NONDEGREEBITS = 32-DEGREEBITS;
+const static u32 NONDEGREEMASK = (1 << NONDEGREEBITS) - 1;
 const static u32 SMALLBUCKETSIZE = NDEGREES + NDEGREES * SMALLEPS;
 typedef u32 smallbucket[SMALLBUCKETSIZE];
 
@@ -277,11 +279,13 @@ public:
           small0[small[z]] = lastread << BIGHASHBITS | e >> BUCKETBITS;
           small[z]++;
         }
+        if (unlikely(lastread>>BIGHASHBITS != EDGEMASK>>BIGHASHBITS)
+          printf("OOPS: lastread %lx\n", lastread);
       }
       u8 *degs = (u8 *)big0; // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32 last = from * NEDGES / nthreads;
-        u32 writebig0 = start(from, bigbkt) + BIGBUCKETSIZE / 4; // 3/4 bucket enough for (1-1/e) fraction of edges
+        u32 lastread = from * NEDGES / nthreads;
+        u32 writebig0 = start(from, bigbkt) + BIGBUCKETSIZE / 3; // 2/3 bucket enough for (1-1/e) fraction of edges
         u32 writebig = writebig0;
         u32 smallbkt = from * NBUCKETS / nthreads;
         u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
@@ -293,10 +297,13 @@ public:
             degs[small0[rdsmall] & DEGREEMASK]++;
           for (; readsmall < endreadsmall; readsmall++) {
             u32 z = small0[readsmall];
+            lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK; // magic!
             if (degs[z & DEGREEMASK] > 1)
-              big0[writebig++] = z;
+              big0[writebig++] = lastread << NONDEGREEBITS | z >> DEGREEBITS;
           }
         }
+        if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS)
+          printf("OOPS: lastread %lx\n", lastread);
         nedges += writebig - writebig0;
       }
     }
@@ -328,6 +335,7 @@ public:
   }
   void trimmer(u32 id) {
     trimbig0(id);
+return;
     barrier(&barry);
     trimsmall(id);
     for (u32 round=1; round <= ntrims; round++) {
