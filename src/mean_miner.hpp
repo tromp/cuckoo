@@ -65,7 +65,7 @@ const static u32 NNODES   = 2 << EDGEBITS;
 
 const static u32 NBUCKETS = 1 << BUCKETBITS;
 const static u32 BUCKETMASK = NBUCKETS - 1;
-const static u32 BIGBUCKETSIZE0 = (1 << (EDGEBITS-BUCKETBITS));
+const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << (EDGEBITS-BUCKETBITS));
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
 // eps and should be at least 1/sqrt(n*p/64)
@@ -74,8 +74,9 @@ const static u32 BIGBUCKETSIZE0 = (1 << (EDGEBITS-BUCKETBITS));
 #ifndef BIGEPS
 #define BIGEPS 1/64
 #endif
+#define BIG0SIZE 4
 const static u32 BIGBUCKETSIZE = BIGBUCKETSIZE0 + BIGBUCKETSIZE0 * BIGEPS;
-typedef u32 bigbucket[BIGBUCKETSIZE];
+typedef u8 bigbucket[BIGBUCKETSIZE];
 
 // 1/4 is good for EDGEBITS-log(nthreads) >= 26 and BUCKETBIS == 8
 #ifndef SMALLEPS
@@ -86,8 +87,10 @@ const static u32 NDEGREES = 1 << DEGREEBITS;
 const static u32 DEGREEMASK = NDEGREES - 1;
 const static u32 NONDEGREEBITS = 32-DEGREEBITS;
 const static u32 NONDEGREEMASK = (1 << NONDEGREEBITS) - 1;
-const static u32 SMALLBUCKETSIZE = NDEGREES + NDEGREES * SMALLEPS;
-typedef u32 smallbucket[SMALLBUCKETSIZE];
+#define SMALL0SIZE 5
+const static u32 SMALLBUCKETSIZE0 = NDEGREES * SMALL0SIZE;
+const static u32 SMALLBUCKETSIZE = SMALLBUCKETSIZE0 + SMALLBUCKETSIZE0 * SMALLEPS ;
+typedef u8 smallbucket[SMALLBUCKETSIZE];
 
 typedef u32 histogram[NBUCKETS];
 
@@ -184,10 +187,10 @@ public:
   zz = _mm256_extract_epi32(w,x);\
   if (i || likely(zz)) {\
     z = _mm256_extract_epi32(v,x);\
-    for (; unlikely(last[z] + NEDGESLO <= block+i); last[z] += NEDGESLO)\
-      big0[big[z]++] = 0;\
-    big0[big[z]] = zz;\
-    big[z]++;\
+    for (; unlikely(last[z] + NEDGESLO <= block+i); last[z] += NEDGESLO, big[z] += BIG0SIZE)\
+      *(u32 *)(big0+big[z]) = 0;\
+    *(u32 *)(big0+big[z]) = zz;\
+    big[z] += BIG0SIZE;\
     last[z] = block+i;\
   }
 #endif
@@ -215,7 +218,8 @@ public:
     __m256i vhi1 = _mm256_set_epi64x(7<<BIGHASHBITS, 6<<BIGHASHBITS, 5<<BIGHASHBITS, 4<<BIGHASHBITS);
     static const __m256i vhiinc = {8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS};
     u32 block = hi0 * NEDGESLO, endblock = endhi * NEDGESLO;
-    u32 z, zz, *big0 = buckets[0];
+    u32 z, zz;
+    u8 *big0 = buckets[0];
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
       last[bkt] = block;
     for (; block < endblock; block += NSIPHASH) {
@@ -260,27 +264,27 @@ public:
     u32 small[NBUCKETS];
   
     rdtsc0 = __rdtsc();
-    u32 *small0 = tbuckets[id];
+    u8 *small0 = tbuckets[id];
     u32 nedges = 0;
     u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
     for (; bigbkt < endbkt; bigbkt++) {
-      u32 *big0 = buckets[0];
+      u8 *big0 = buckets[0];
       for (u32 i=0; i < NBUCKETS; i++)
         small[i] = i * SMALLBUCKETSIZE;
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 lastread = from * NEDGES / nthreads;
         u32    readbig = start(from, bigbkt);
         u32 endreadbig = index(from, bigbkt);
-        for (; readbig < endreadbig; readbig++) {
-          u32 e = big0[readbig];
+        for (; readbig < endreadbig; readbig += SMALL0SZIE) {
+          u32 e = *(u32 *)(big0+readbig);
           if (!e) { lastread += NEDGESLO; continue; }
           lastread += ((e>>BIGHASHBITS) - lastread) & (NEDGESLO-1); // magic!
           u32 z = e & BUCKETMASK;
-          small0[small[z]] = lastread << BIGHASHBITS | e >> BUCKETBITS;
+          small0[small[z]] = lastread << DEGREEBITS | e >> BUCKETBITS;
           small[z]++;
         }
-        if (unlikely(lastread>>BIGHASHBITS != EDGEMASK>>BIGHASHBITS)
-          printf("OOPS: lastread %lx\n", lastread);
+        if (unlikely(lastread>>EDGEBITSLO != EDGEMASK>>EDGEBITSLO))
+          printf("OOPS1: lastread %lx\n", lastread);
       }
       u8 *degs = (u8 *)big0; // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
@@ -302,8 +306,8 @@ public:
               big0[writebig++] = lastread << NONDEGREEBITS | z >> DEGREEBITS;
           }
         }
-        if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS)
-          printf("OOPS: lastread %lx\n", lastread);
+        if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
+          printf("OOPS2: %x lastread %lx\n", bigbkt, lastread);
         nedges += writebig - writebig0;
       }
     }
@@ -335,7 +339,6 @@ public:
   }
   void trimmer(u32 id) {
     trimbig0(id);
-return;
     barrier(&barry);
     trimsmall(id);
     for (u32 round=1; round <= ntrims; round++) {
