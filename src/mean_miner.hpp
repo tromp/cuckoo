@@ -65,6 +65,10 @@ const static u32 NNODES   = 2 << EDGEBITS;
 
 const static u32 NBUCKETS = 1 << BUCKETBITS;
 const static u32 BUCKETMASK = NBUCKETS - 1;
+
+#define BIG0SIZE 4
+
+const static u32 BIG0SIZEMASK = (1LL << (BIG0SIZE * 8)) - 1;
 const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << (EDGEBITS-BUCKETBITS));
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
@@ -74,7 +78,6 @@ const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << (EDGEBITS-BUCKETBITS));
 #ifndef BIGEPS
 #define BIGEPS 1/64
 #endif
-#define BIG0SIZE 4
 const static u32 BIGBUCKETSIZE = BIGBUCKETSIZE0 + BIGBUCKETSIZE0 * BIGEPS;
 typedef u8 bigbucket[BIGBUCKETSIZE];
 
@@ -275,13 +278,13 @@ public:
         u32 lastread = from * NEDGES / nthreads;
         u32    readbig = start(from, bigbkt);
         u32 endreadbig = index(from, bigbkt);
-        for (; readbig < endreadbig; readbig += SMALL0SZIE) {
+        for (; readbig < endreadbig; readbig += SMALL0SIZE) {
           u32 e = *(u32 *)(big0+readbig);
           if (!e) { lastread += NEDGESLO; continue; }
           lastread += ((e>>BIGHASHBITS) - lastread) & (NEDGESLO-1); // magic!
           u32 z = e & BUCKETMASK;
-          small0[small[z]] = lastread << DEGREEBITS | e >> BUCKETBITS;
-          small[z]++;
+          *(u64 *)(small0+small[z]) = (u64)lastread << DEGREEBITS | e >> BUCKETBITS;
+          small[z] += SMALL0SIZE;
         }
         if (unlikely(lastread>>EDGEBITSLO != EDGEMASK>>EDGEBITSLO))
           printf("OOPS1: lastread %lx\n", lastread);
@@ -289,21 +292,21 @@ public:
       u8 *degs = (u8 *)big0; // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 lastread = from * NEDGES / nthreads;
-        u32 writebig0 = start(from, bigbkt) + BIGBUCKETSIZE / 3; // 2/3 bucket enough for (1-1/e) fraction of edges
-        u32 writebig = writebig0;
+        u32 *writebig0 = (u32 *)(big0 + start(from, bigbkt) + BIGBUCKETSIZE / 3); // 2/3 bucket enough for (1-1/e) fraction of edges
+        u32 *writebig = writebig0;
         u32 smallbkt = from * NBUCKETS / nthreads;
         u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
         for (; smallbkt < endsmallbkt; smallbkt++) {
           memset(degs, 0, NDEGREES);
           u32 readsmall = + smallbkt * SMALLBUCKETSIZE;
           u32 endreadsmall = small[smallbkt];
-          for (u32 rdsmall = readsmall; rdsmall < endreadsmall; rdsmall++)
-            degs[small0[rdsmall] & DEGREEMASK]++;
-          for (; readsmall < endreadsmall; readsmall++) {
-            u32 z = small0[readsmall];
+          for (u32 rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALL0SIZE)
+            degs[*(u32 *)(small0+rdsmall) & DEGREEMASK]++;
+          for (; readsmall < endreadsmall; readsmall+=SMALL0SIZE) {
+            u32 z = *(u64 *)(small0+readsmall) & BIG0SIZEMASK;
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK; // magic!
             if (degs[z & DEGREEMASK] > 1)
-              big0[writebig++] = lastread << NONDEGREEBITS | z >> DEGREEBITS;
+              *writebig++ = lastread << NONDEGREEBITS | z >> DEGREEBITS;
           }
         }
         if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
