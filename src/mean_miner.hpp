@@ -294,7 +294,6 @@ public:
       }
       u8 *degs = (u8 *)big0; // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32 lastread = from * NEDGES / nthreads;
         u32 *writebig0 = (u32 *)(big0 + start(from, bigbkt) + BIGBUCKETSIZE / 3); // 2/3 bucket enough for (1-1/e) fraction of edges
         u32 *writebig = writebig0;
         u32 smallbkt = from * NBUCKETS / nthreads;
@@ -305,15 +304,16 @@ public:
           u32 endreadsmall = small[smallbkt];
           for (u32 rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALL0SIZE)
             degs[*(u32 *)(small0+rdsmall) & DEGREEMASK]++;
+          u32 lastread = from * NEDGES / nthreads;
           for (; readsmall < endreadsmall; readsmall+=SMALL0SIZE) {
             u64 z = *(u64 *)(small0+readsmall) & SMALL0SIZEMASK;
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK; // magic!
             if (degs[z & DEGREEMASK] > 1)
               *writebig++ = lastread << NONDEGREEBITS | z >> DEGREEBITS;
           }
+          if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
+            { printf("OOPS2: %x %x lastread %x\n", bigbkt, smallbkt, lastread); exit(0); }
         }
-        if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
-          { printf("OOPS2: %x lastread %x\n", bigbkt, lastread); exit(0); }
         nedges += writebig - writebig0;
       }
     }
