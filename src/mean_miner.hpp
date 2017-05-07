@@ -48,10 +48,15 @@ typedef uint8_t u8;
 #define MAXSOLS 4
 #endif
 
+#ifndef BIG0SIZE
+#define BIG0SIZE 5
+#endif
+
+#define BIG0BITS (BIG0SIZE * 8)
+
 #define BIGHASHBITS (EDGEBITS - BUCKETBITS)
-#define EDGEBITSLO (32 - BIGHASHBITS)
+#define EDGEBITSLO (BIG0BITS - BIGHASHBITS)
 #define EDGEBITSHI (EDGEBITS - EDGEBITSLO)
-#define SMALLBITSHI (32 - BUCKETBITS)
 
 #if EDGEBITS >= 32
 #error not implemented
@@ -66,9 +71,7 @@ const static u32 NNODES   = 2 << EDGEBITS;
 const static u32 NBUCKETS = 1 << BUCKETBITS;
 const static u32 BUCKETMASK = NBUCKETS - 1;
 
-#define BIG0SIZE 4
-
-const static u64 BIG0SIZEMASK = (1LL << (BIG0SIZE * 8)) - 1LL;
+const static u64 BIG0SIZEMASK = (1LL << BIG0BITS) - 1LL;
 const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << (EDGEBITS-BUCKETBITS));
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
@@ -188,12 +191,17 @@ public:
 #define unlikely(x)   __builtin_expect((x), 0)
 #ifdef DUMMY
 #define STORE(i,v,x,w) dummy += _mm256_extract_epi32(v,x);
+#elif BIG0SIZE > 4
+#define STORE(i,v,x,w) \
+  z = _mm256_extract_epi32(v,x);\
+  *(u64 *)(big0+big[z]) = _mm256_extract_epi64(w,i);\
+  big[z] += BIG0SIZE;
 #else
 #define STORE(i,v,x,w) \
   zz = _mm256_extract_epi32(w,x);\
   if (i || likely(zz)) {\
     z = _mm256_extract_epi32(v,x);\
-    for (; unlikely(last[z] + NEDGESLO <= block+i); last[z] += NEDGESLO, big[z] += BIG0SIZE)\
+    for (; unlikely(last[z] + NEDGESLO <= block+i); last[z] += NEDGESLO, big[z] += BIG0SIZE) /* +4% for test*/\
       *(u32 *)(big0+big[z]) = 0;\
     *(u32 *)(big0+big[z]) = zz;\
     big[z] += BIG0SIZE;\
@@ -257,7 +265,11 @@ public:
       vhi1 = _mm256_add_epi64(vhi1, vhiinc);
 
       STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
+#if BIG0SIZE > 4
+      STORE(0,v5,0,v4); STORE(1,v5,2,v4); STORE(2,v5,4,v4); STORE(3,v5,6,v4);
+#else
       STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
+#endif
     }
     rdtsc1 = __rdtsc();
     printf("trimbig0 rdtsc: %lu sumsize %x dummy %lx\n", rdtsc1-rdtsc0, sumsize(id), dummy);
@@ -282,9 +294,13 @@ public:
         u32    readbig = start(from, bigbkt);
         u32 endreadbig = index(from, bigbkt);
         for (; readbig < endreadbig; readbig += BIG0SIZE) {
-          u32 e = *(u32 *)(big0+readbig);
-          if (!e) { lastread += NEDGESLO; continue; }
-          lastread += ((e>>BIGHASHBITS) - lastread) & (NEDGESLO-1); // magic!
+#if BIG0SIZE > 4
+          u64 e = *(u64 *)(big0+readbig) & BIG0SIZEMASK; // +1% for addition
+#else
+          u32 e = *(u32 *)(big0+readbig); // +1% for addition
+          if (!e) { lastread += NEDGESLO; continue; } // +1% for test
+#endif
+          lastread += ((u32)(e>>BIGHASHBITS) - lastread) & (NEDGESLO-1); // magic!
           u32 z = e & BUCKETMASK;
           *(u64 *)(small0+small[z]) = (u64)lastread << DEGREEBITS | e >> BUCKETBITS;
           small[z] += SMALL0SIZE;
@@ -303,12 +319,12 @@ public:
           u32 readsmall = + smallbkt * SMALLBUCKETSIZE;
           u32 endreadsmall = small[smallbkt];
           for (u32 rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALL0SIZE)
-            degs[*(u32 *)(small0+rdsmall) & DEGREEMASK]++;
+            degs[*(u32 *)(small0+rdsmall) & DEGREEMASK]++; // +1% for addition
           u32 lastread = from * NEDGES / nthreads;
           for (; readsmall < endreadsmall; readsmall+=SMALL0SIZE) {
-            u64 z = *(u64 *)(small0+readsmall) & SMALL0SIZEMASK;
+            u64 z = *(u64 *)(small0+readsmall) & SMALL0SIZEMASK; // +1% for addition
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK; // magic!
-            if (degs[z & DEGREEMASK] > 1)
+            if (degs[z & DEGREEMASK] > 1) // -5% throughout loop
               *writebig++ = lastread << NONDEGREEBITS | z >> DEGREEBITS;
           }
           if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
