@@ -291,13 +291,13 @@ public:
         small[i] = i * SMALLBUCKETSIZE;
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 lastread = from * NEDGES / nthreads;
-        u32    readbig = start(from, bigbkt);
-        u32 endreadbig = index(from, bigbkt);
+        u8    *readbig = big0 + start(from, bigbkt);
+        u8 *endreadbig = big0 + index(from, bigbkt);
         for (; readbig < endreadbig; readbig += BIG0SIZE) {
 #if BIG0SIZE > 4
-          u64 e = *(u64 *)(big0+readbig) & BIG0SIZEMASK; // +1% for addition
+          u64 e = *(u64 *)readbig & BIG0SIZEMASK;
 #else
-          u32 e = *(u32 *)(big0+readbig); // +1% for addition
+          u32 e = *(u32 *)readbig;
           if (!e) { lastread += NEDGESLO; continue; } // +1% for test
 #endif
           lastread += ((u32)(e>>BIGHASHBITS) - lastread) & (NEDGESLO-1); // magic!
@@ -316,13 +316,13 @@ public:
         u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
         for (; smallbkt < endsmallbkt; smallbkt++) {
           memset(degs, 0, NDEGREES);
-          u32 readsmall = + smallbkt * SMALLBUCKETSIZE;
-          u32 endreadsmall = small[smallbkt];
-          for (u32 rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALL0SIZE)
-            degs[*(u32 *)(small0+rdsmall) & DEGREEMASK]++; // +1% for addition
+          u8    *readsmall = small0 + smallbkt * SMALLBUCKETSIZE;
+          u8 *endreadsmall = small0 + small[smallbkt];
+          for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALL0SIZE)
+            degs[*(u32 *)rdsmall & DEGREEMASK]++;
           u32 lastread = from * NEDGES / nthreads;
           for (; readsmall < endreadsmall; readsmall+=SMALL0SIZE) {
-            u64 z = *(u64 *)(small0+readsmall) & SMALL0SIZEMASK; // +1% for addition
+            u64 z = *(u64 *)readsmall & SMALL0SIZEMASK;
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK; // magic!
             if (degs[z & DEGREEMASK] > 1) // -5% throughout loop
               *writebig++ = lastread << NONDEGREEBITS | z >> DEGREEBITS;
