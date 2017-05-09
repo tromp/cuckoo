@@ -201,7 +201,7 @@ public:
   zz = _mm256_extract_epi32(w,x);\
   if (i || likely(zz)) {\
     z = _mm256_extract_epi32(v,x);\
-    for (; unlikely(last[z] + NEDGESLO <= block+i); last[z] += NEDGESLO, big[z] += BIG0SIZE) /* +4% for test*/\
+    for (; unlikely(last[z] + NEDGESLO <= block+i); last[z] += NEDGESLO, big[z] += BIG0SIZE)\
       *(u32 *)(big0+big[z]) = 0;\
     *(u32 *)(big0+big[z]) = zz;\
     big[z] += BIG0SIZE;\
@@ -298,9 +298,9 @@ public:
           u64 e = *(u64 *)readbig & BIG0SIZEMASK;
 #else
           u32 e = *(u32 *)readbig;
-          if (!e) { lastread += NEDGESLO; continue; } // +1% for test
+          if (unlikely(!e)) { lastread += NEDGESLO; continue; }
 #endif
-          lastread += ((u32)(e>>BIGHASHBITS) - lastread) & (NEDGESLO-1); // magic!
+          lastread += ((u32)(e>>BIGHASHBITS) - lastread) & (NEDGESLO-1);
           u32 z = e & BUCKETMASK;
           *(u64 *)(small0+small[z]) = (u64)lastread << DEGREEBITS | e >> BUCKETBITS;
           small[z] += SMALL0SIZE;
@@ -315,17 +315,17 @@ public:
         u32 smallbkt = from * NBUCKETS / nthreads;
         u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
         for (; smallbkt < endsmallbkt; smallbkt++) {
-          memset(degs, 0, NDEGREES);
+          memset(degs, 1, NDEGREES);
           u8    *readsmall = small0 + smallbkt * SMALLBUCKETSIZE;
           u8 *endreadsmall = small0 + small[smallbkt];
           for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALL0SIZE)
-            degs[*(u32 *)rdsmall & DEGREEMASK]++;
+            degs[*(u32 *)rdsmall & DEGREEMASK]--;
           u32 lastread = from * NEDGES / nthreads;
           for (; readsmall < endreadsmall; readsmall+=SMALL0SIZE) {
             u64 z = *(u64 *)readsmall & SMALL0SIZEMASK;
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK; // magic!
-            if (degs[z & DEGREEMASK] > 1) // -5% throughout loop
-              *writebig++ = lastread << NONDEGREEBITS | z >> DEGREEBITS;
+            *writebig = lastread << NONDEGREEBITS | z >> DEGREEBITS;
+            writebig += degs[z & DEGREEMASK] >> 7;
           }
           if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
             { printf("OOPS2: %x %x lastread %x\n", bigbkt, smallbkt, lastread); exit(0); }
