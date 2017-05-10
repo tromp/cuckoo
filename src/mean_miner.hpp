@@ -127,6 +127,7 @@ public:
   u32 nthreads;
   thread_ctx *threads;
   pthread_barrier_t barry;
+  u32 spare;
 
   edgetrimmer(const u32 n_threads, u32 n_trims) {
     nthreads = n_threads;
@@ -269,7 +270,10 @@ public:
     u32 small[NBUCKETS];
   
     rdtsc0 = __rdtsc();
+    spare = -1;
     u8 *big0 = buckets[0];
+    // 47/128 is barely enough for (1-1/e) fraction of edges
+    u8 *bigi0 = big0 + (BIGBUCKETSIZE / nthreads) * 47/128;
     u8 *small0 = tbuckets[id*NBUCKETS];
     u32 nedges = 0;
     u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
@@ -298,7 +302,7 @@ public:
       }
       u8 *degs = (u8 *)big0 + start(0, bigbkt); // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32 *writebig0 = (u32 *)(big0 + start(from, bigbkt) + (BIGBUCKETSIZE / nthreads) / 3); // 2/3 bucket enough for (1-1/e) fraction of edges
+        u32 *writebig0 = (u32 *)(bigi0 + start(from, bigbkt));
         u32 *writebig = writebig0;
         u32 smallbkt = from * NBUCKETS / nthreads;
         u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
@@ -312,19 +316,22 @@ public:
           for (; readsmall < endreadsmall; readsmall+=SMALL0SIZE) {
             u64 z = *(u64 *)readsmall & SMALL0SIZEMASK;
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK; // magic!
-            // *writebig = lastread << 1;
+            *writebig = lastread << 1;
             writebig += degs[z & DEGREEMASK] >> 7;
-// if (degs[z & DEGREEMASK]) printf("add %d %x\n", id, lastread<<1);
           }
           if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
             { printf("OOPS2: id %d big %d from %d small %d lastread %x\n", id, bigbkt, from, smallbkt, lastread); exit(0); }
         }
-        assert(writebig - writebig0 < (BIGBUCKETSIZE / nthreads) / BIG0SIZE);
+        u32 *writelim = (u32 *)(big0 + start(from+1, bigbkt));
+        if (writelim-writebig < spare)
+          spare = writelim - writebig;
         nedges += writebig - writebig0;
       }
     }
     rdtsc1 = __rdtsc();
     printf("trimsmall rdtsc: %lu edges %d\n", rdtsc1-rdtsc0, nedges);
+    printf("%u to spare\n", spare);
+    assert(spare >= 8192);
   }
   void trimsmall(const u32 id) {
   }
