@@ -12,24 +12,11 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <x86intrin.h>
-
+#include <assert.h>
+#include <set>
 #ifdef __APPLE__
 #include "osx_barrier.h"
 #endif
-#include <set>
-
-#include <assert.h>
-
-#ifdef ATOMIC
-#include <atomic>
-typedef std::atomic<u32> au32;
-typedef std::atomic<u64> au64;
-#else
-typedef u32 au32;
-typedef u64 au64;
-#endif
-
-typedef uint8_t u8;
 
 // algorithm/performance parameters
 
@@ -37,10 +24,8 @@ typedef uint8_t u8;
 #define EDGEBITS 29
 #endif
 
-#define NODEBITS (EDGEBITS + 1)
-
 #ifndef BUCKETBITS
-#define BUCKETBITS 8
+#define BUCKETBITS 7
 #endif
 
 // more than one 42-cycle is already exceedingly rare
@@ -49,12 +34,11 @@ typedef uint8_t u8;
 #endif
 
 #ifndef BIG0SIZE
-#define BIG0SIZE 5
+#define BIG0SIZE 4
 #endif
 
-#define BIG0BITS (BIG0SIZE * 8)
-
 #define BIGHASHBITS (EDGEBITS - BUCKETBITS)
+#define BIG0BITS (BIG0SIZE * 8)
 #define EDGEBITSLO (BIG0BITS - BIGHASHBITS)
 #define EDGEBITSHI (EDGEBITS - EDGEBITSLO)
 
@@ -82,6 +66,7 @@ const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << BIGHASHBITS);
 #define BIGEPS 1/64
 #endif
 const static u32 BIGBUCKETSIZE = BIGBUCKETSIZE0 + BIGBUCKETSIZE0 * BIGEPS;
+typedef uint8_t u8;
 typedef u8 bigbucket[BIGBUCKETSIZE];
 
 const static u32 DEGREEBITS = EDGEBITS - 2 * BUCKETBITS;
@@ -224,7 +209,7 @@ public:
 #if BIG0SIZE > 4
 #define STORE(i,v,x,w) \
   z = _mm256_extract_epi32(v,x);\
-  *(u64 *)(big0+big[z]) = _mm256_extract_epi64(w,i);\
+  *(u64 *)(big0+big[z]) = _mm256_extract_epi64(w,i%4);\
   big[z] += BIG0SIZE;
 #else
 #define STORE(i,v,x,w) \
@@ -239,11 +224,7 @@ public:
   }
 #endif
       STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
-#if BIG0SIZE > 4
-      STORE(0,v5,0,v4); STORE(1,v5,2,v4); STORE(2,v5,4,v4); STORE(3,v5,6,v4);
-#else
       STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
-#endif
     }
     for (u32 z=0; z < NBUCKETS; z++) {
       assert(big[z] < start(id+1, z));
@@ -274,7 +255,7 @@ public:
     rdtsc0 = __rdtsc();
     spare = -1;
     u8 *big0 = buckets[0];
-    // 47/128 is barely enough for (1-1/e) fraction of edges
+    // 81/128 is barely enough for (1-1/e) fraction of edges
     u8 *bigi0 = big0 + (BIGBUCKETSIZE / nthreads) * 47/128;
     u8 *small0 = tbuckets[id*NBUCKETS];
     u32 nedges = 0;
@@ -334,7 +315,6 @@ public:
     rdtsc1 = __rdtsc();
     printf("trimsmall rdtsc: %lu edges %d\n", rdtsc1-rdtsc0, nedges);
     printf("%u to spare\n", spare);
-    assert(spare >= 8192);
   }
 
   void trim() {
@@ -363,14 +343,18 @@ public:
   void trimmer(u32 id) {
     trimbig0(id, 1);
     barrier(&barry);
-    trimsmall<u32, 4, 5>(id);
+#if BIG0SIZE > 4
+    trimsmall<u64,BIG0SIZE,SMALL0SIZE>(id);
+#else
+    trimsmall<u32,BIG0SIZE,SMALL0SIZE>(id);
+#endif
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) printf("round %2d loads", round);
       for (u32 uorv = 0; uorv < 2; uorv++) {
         barrier(&barry);
         trimbig(id, uorv);
         barrier(&barry);
-        trimsmall<u64, 6, 6>(id);
+        trimsmall<u64,6,6>(id);
         barrier(&barry);
         if (id == 0) {
           u32 load = (u32)(100LL * nedges() / NEDGES);
@@ -401,6 +385,9 @@ void *etworker(void *vp) {
 // IDXSHIFT                    > 2
 #define IDXSHIFT 8
 #endif
+
+#define NODEBITS (EDGEBITS + 1)
+
 // grow with cube root of size, hardly affected by trimming
 const static u32 MAXPATHLEN = 8 << (NODEBITS/3);
 
@@ -410,6 +397,15 @@ const static u64 CUCKOO_MASK = CUCKOO_SIZE - 1;
 const static u32 KEYBITS = 64-NODEBITS;
 const static u64 KEYMASK = (1LL << KEYBITS) - 1;
 const static u64 MAXDRIFT = 1LL << (KEYBITS - IDXSHIFT);
+
+#ifdef ATOMIC
+#include <atomic>
+typedef std::atomic<u32> au32;
+typedef std::atomic<u64> au64;
+#else
+typedef u32 au32;
+typedef u64 au64;
+#endif
 
 class cuckoo_hash {
 public:
