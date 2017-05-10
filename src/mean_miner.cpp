@@ -55,8 +55,8 @@ int main(int argc, char **argv) {
   u32 sbytes = ctx.sharedbytes();
   u32 tbytes = ctx.threadbytes();
   int sunit,tunit;
-  for (sunit=0; sbytes >= 1024; sbytes>>=10,sunit++) ;
-  for (tunit=0; tbytes >= 1024; tbytes>>=10,tunit++) ;
+  for (sunit=0; sbytes >= 10240; sbytes>>=10,sunit++) ;
+  for (tunit=0; tbytes >= 10240; tbytes>>=10,tunit++) ;
   printf("Using %d%cB bucket memory, %dx%d%cB thread memory, and %d-way siphash\n", sbytes, " KMGT"[sunit], nthreads, tbytes, " KMGT"[tunit], NSIPHASH);
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
