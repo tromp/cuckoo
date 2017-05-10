@@ -71,7 +71,6 @@ const static u32 NNODES   = 2 << EDGEBITS;
 const static u32 NBUCKETS = 1 << BUCKETBITS;
 const static u32 BUCKETMASK = NBUCKETS - 1;
 
-const static u64 BIG0SIZEMASK = (1LL << BIG0BITS) - 1LL;
 const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << BIGHASHBITS);
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
@@ -90,10 +89,6 @@ const static u32 NDEGREES = 1 << DEGREEBITS;
 const static u32 DEGREEMASK = NDEGREES - 1;
 
 #define SMALL0SIZE 5
-const static u32 SMALL0BITS = SMALL0SIZE * 8;
-const static u32 NONDEGREEBITS = SMALL0BITS - DEGREEBITS;
-const static u64 NONDEGREEMASK = (1 << NONDEGREEBITS) - 1;
-const static u64 SMALL0SIZEMASK = (1LL << SMALL0BITS) - 1LL;
 
 // 1/4 is good for EDGEBITS-log(nthreads) >= 26 and BUCKETBIS == 8
 #ifndef SMALLEPS
@@ -265,9 +260,16 @@ public:
   void trimbig(const u32 id, u32 uorv) {
     uorv += id;
   }
-  void trimsmall0(const u32 id) {
+  template<typename BIGTYPE, u32 BIGSIZE, u32 SMALLSIZE>
+  void trimsmall(const u32 id) {
     uint64_t rdtsc0, rdtsc1;
     u32 small[NBUCKETS];
+    const u32 BIGBITS = BIGSIZE * 8;
+    const u64 BIGSIZEMASK = (1LL << BIGBITS) - 1LL;
+    const u32 SMALLBITS = SMALLSIZE * 8;
+    const u32 NONDEGREEBITS = SMALLBITS - DEGREEBITS;
+    const u64 NONDEGREEMASK = (1 << NONDEGREEBITS) - 1;
+    const u64 SMALLSIZEMASK = (1LL << SMALLBITS) - 1LL;
   
     rdtsc0 = __rdtsc();
     spare = -1;
@@ -284,17 +286,18 @@ public:
         u32 lastread = from * NEDGES / nthreads;
         u8    *readbig = big0 + start(from, bigbkt);
         u8 *endreadbig = big0 + index(from, bigbkt);
-        for (; readbig < endreadbig; readbig += BIG0SIZE) {
-#if BIG0SIZE > 4
-          u64 e = *(u64 *)readbig & BIG0SIZEMASK;
-#else
-          u32 e = *(u32 *)readbig;
-          if (unlikely(!e)) { lastread += NEDGESLO; continue; }
-#endif
+        for (; readbig < endreadbig; readbig += BIGSIZE) {
+          BIGTYPE e = *(BIGTYPE *)readbig;
+          if (BIGSIZE > 4) {
+            e &= BIGSIZEMASK;
+          } else {
+            if (unlikely(!e)) { lastread += NEDGESLO; continue; }
+          }
           lastread += ((u32)(e>>BIGHASHBITS) - lastread) & (NEDGESLO-1);
           u32 z = e & BUCKETMASK;
-          *(u64 *)(small0+small[z]) = (u64)lastread << DEGREEBITS | e >> BUCKETBITS;
-          small[z] += SMALL0SIZE;
+          *(u64 *)(small0+small[z]) = ((u64)lastread << DEGREEBITS)
+                                    | (e >> BUCKETBITS);
+          small[z] += SMALLSIZE;
         }
         if (unlikely(lastread >> EDGEBITSLO !=
           ((from+1)*NEDGES/nthreads - 1) >> EDGEBITSLO))
@@ -313,10 +316,10 @@ public:
           for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALL0SIZE)
             degs[*(u32 *)rdsmall & DEGREEMASK]--;
           u32 lastread = 0;
-          for (; readsmall < endreadsmall; readsmall+=SMALL0SIZE) {
-            u64 z = *(u64 *)readsmall & SMALL0SIZEMASK;
-            lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK; // magic!
-            *writebig = lastread << 1;
+          for (; readsmall < endreadsmall; readsmall+=SMALLSIZE) {
+            u64 z = *(u64 *)readsmall & SMALLSIZEMASK;
+            lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK;
+            *writebig = lastread;
             writebig += degs[z & DEGREEMASK] >> 7;
           }
           if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
@@ -332,8 +335,6 @@ public:
     printf("trimsmall rdtsc: %lu edges %d\n", rdtsc1-rdtsc0, nedges);
     printf("%u to spare\n", spare);
     assert(spare >= 8192);
-  }
-  void trimsmall(const u32 id) {
   }
 
   void trim() {
@@ -362,14 +363,14 @@ public:
   void trimmer(u32 id) {
     trimbig0(id, 1);
     barrier(&barry);
-    trimsmall0(id);
+    trimsmall<u32, 4, 5>(id);
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) printf("round %2d loads", round);
       for (u32 uorv = 0; uorv < 2; uorv++) {
         barrier(&barry);
         trimbig(id, uorv);
         barrier(&barry);
-        trimsmall(id);
+        trimsmall<u64, 6, 6>(id);
         barrier(&barry);
         if (id == 0) {
           u32 load = (u32)(100LL * nedges() / NEDGES);
