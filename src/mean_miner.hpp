@@ -28,8 +28,8 @@
 #define BUCKETBITS 7
 #endif
 
-// more than one 42-cycle is already exceedingly rare
 #ifndef MAXSOLS
+// more than one 42-cycle is already exceedingly rare
 #define MAXSOLS 4
 #endif
 
@@ -37,25 +37,31 @@
 #define BIG0SIZE 4
 #endif
 
-#define BIGHASHBITS (EDGEBITS - BUCKETBITS)
-#define BIG0BITS (BIG0SIZE * 8)
-#define EDGEBITSLO (BIG0BITS - BIGHASHBITS)
-#define EDGEBITSHI (EDGEBITS - EDGEBITSLO)
-
-#if EDGEBITS >= 32
-#error not implemented
+#if BIG0SIZE == 4 && EDGEBITS > 27
+#define NEEDSYNC
 #endif
 
-const static u32 NEDGES   = 1 << EDGEBITS;
-const static u32 EDGEMASK = NEDGES-1;
-const static u32 NEDGESLO = 1 << EDGEBITSLO;
-const static u32 NEDGESHI = 1 << EDGEBITSHI;
-const static u32 NNODES   = 2 << EDGEBITS;
+#ifndef SMALL0SIZE
+#define SMALL0SIZE 5
+#endif
 
-const static u32 NBUCKETS = 1 << BUCKETBITS;
-const static u32 BUCKETMASK = NBUCKETS - 1;
+#if EDGEBITS >= 32
+#error promote u32 to u64 where necessary
+#endif
 
+const static u32 NEDGES         = 1 << EDGEBITS;
+const static u32 EDGEMASK       = NEDGES-1;
+const static u32 BIG0BITS       = BIG0SIZE * 8;
+const static u32 BIGHASHBITS    = EDGEBITS - BUCKETBITS;
+const static u32 EDGEBITSLO     = BIG0BITS - BIGHASHBITS;
+const static u32 NEDGESLO       = 1 << EDGEBITSLO;
+const static u32 NNODES         = 2 << EDGEBITS;
+const static u32 NBUCKETS       = 1 << BUCKETBITS;
+const static u32 BUCKETMASK     = NBUCKETS - 1;
 const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << BIGHASHBITS);
+const static u32 DEGREEBITS = EDGEBITS - 2 * BUCKETBITS;
+const static u32 NDEGREES = 1 << DEGREEBITS;
+
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
 // eps and should be at least 1/sqrt(n*p/64)
@@ -69,12 +75,6 @@ const static u32 BIGBUCKETSIZE = BIGBUCKETSIZE0 + BIGBUCKETSIZE0 * BIGEPS;
 typedef uint8_t u8;
 typedef u8 bigbucket[BIGBUCKETSIZE];
 
-const static u32 DEGREEBITS = EDGEBITS - 2 * BUCKETBITS;
-const static u32 NDEGREES = 1 << DEGREEBITS;
-const static u32 DEGREEMASK = NDEGREES - 1;
-
-#define SMALL0SIZE 5
-
 // 1/4 is good for EDGEBITS-log(nthreads) >= 26 and BUCKETBIS == 8
 #ifndef SMALLEPS
 #define SMALLEPS 1/4
@@ -83,8 +83,9 @@ const static u32 SMALLBUCKETSIZE0 = NDEGREES * SMALL0SIZE;
 const static u32 SMALLBUCKETSIZE = SMALLBUCKETSIZE0 + SMALLBUCKETSIZE0 * SMALLEPS ;
 typedef u8 smallbucket[SMALLBUCKETSIZE];
 
-typedef u32 histogram[NBUCKETS];
+typedef u32 indices[NBUCKETS];
 
+// break circular reference with forward declaration
 class edgetrimmer;
 
 typedef struct {
@@ -93,14 +94,12 @@ typedef struct {
   edgetrimmer *et;
 } thread_ctx;
 
-const static u32 SHAREDSIZE = NBUCKETS * sizeof(bigbucket);
-const static u32 THREADSIZE = NBUCKETS * sizeof(smallbucket) + sizeof(histogram) + sizeof(thread_ctx);
-
 // maintains set of trimmable edges
 class edgetrimmer {
 public:
   siphash_keys sip_keys;
-  histogram *hists;
+  indices *nodes;
+  indices *edges;
   bigbucket *buckets;
   smallbucket *tbuckets;
   u32 ntrims;
@@ -111,34 +110,36 @@ public:
 
   edgetrimmer(const u32 n_threads, u32 n_trims) {
     nthreads = n_threads;
-    ntrims = n_trims;
+    ntrims   = n_trims;
     buckets  = new bigbucket[NBUCKETS];
     tbuckets = new smallbucket[n_threads*NBUCKETS];
-    hists    = new histogram[n_threads];
+    nodes    = new indices[n_threads];
+    edges    = new indices[n_threads];
     threads  = new thread_ctx[nthreads];
-    int err = pthread_barrier_init(&barry, NULL, nthreads);
+    int err  = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
   }
   ~edgetrimmer() {
-    delete[] hists;
     delete[] buckets;
     delete[] tbuckets;
+    delete[] nodes;
+    delete[] edges;
     delete[] threads;
   }
   u32 start(u32 id, u32 bkt) {
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
   }
   u32 *init(u32 id) {
-   u32 *hist = hists[id];
+   u32 *hist = nodes[id];
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
       hist[bkt] = start(id,bkt);
     return hist;
   }
   u32 index(u32 id, u32 bkt) {
-    return hists[id][bkt];
+    return nodes[id][bkt];
   }
   u32 size(u32 id, u32 bkt) {
-    return hists[id][bkt] - start(id,bkt);
+    return nodes[id][bkt] - start(id,bkt);
   }
   u32 sumsize(u32 id) {
     u32 sum = 0;
@@ -146,9 +147,9 @@ public:
       sum += size(id, bkt);
     return sum;
   }
-  void trimbig0(const u32 id, u32 uorv) {
+  void sortbig0(const u32 id, u32 uorv) {
     uint64_t rdtsc0, rdtsc1;
-#if BIG0SIZE == 4
+#ifdef NEEDSYNC
     u32 last[NBUCKETS];
 #endif
   
@@ -171,7 +172,7 @@ public:
     __m256i vhi1 = _mm256_set_epi64x(7<<BIGHASHBITS, 6<<BIGHASHBITS, 5<<BIGHASHBITS, 4<<BIGHASHBITS);
     static const __m256i vhiinc = {8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS};
     u8 *big0 = buckets[0];
-#if BIG0SIZE == 4
+#ifdef NEEDSYNC
     u32 zz;
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
       last[bkt] = block;
@@ -206,7 +207,7 @@ public:
 
 #define likely(x)   __builtin_expect((x)!=0, 1)
 #define unlikely(x)   __builtin_expect((x), 0)
-#if BIG0SIZE > 4
+#ifndef NEEDSYNC
 #define STORE(i,v,x,w) \
   z = _mm256_extract_epi32(v,x);\
   *(u64 *)(big0+big[z]) = _mm256_extract_epi64(w,i%4);\
@@ -228,7 +229,7 @@ public:
     }
     for (u32 z=0; z < NBUCKETS; z++) {
       assert(big[z] < start(id+1, z));
-#if BIG0SIZE == 4
+#ifdef NEEDSYNC
       for (; last[z]<endblock-NEDGESLO; last[z]+=NEDGESLO) {
         *(u32 *)(big0+big[z]) = 0;
         big[z] += BIG0SIZE;
@@ -236,7 +237,7 @@ public:
 #endif
     }
     rdtsc1 = __rdtsc();
-    printf("trimbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, sumsize(id));
+    printf("sortbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, sumsize(id));
   }
   void trimbig(const u32 id, u32 uorv) {
     uorv += id;
@@ -251,6 +252,7 @@ public:
     const u32 NONDEGREEBITS = SMALLBITS - DEGREEBITS;
     const u64 NONDEGREEMASK = (1 << NONDEGREEBITS) - 1;
     const u64 SMALLSIZEMASK = (1LL << SMALLBITS) - 1LL;
+    const u32 DEGREEMASK = NDEGREES - 1;
   
     rdtsc0 = __rdtsc();
     spare = -1;
@@ -294,7 +296,7 @@ public:
           memset(degs, 1, NDEGREES);
           u8    *readsmall = small0 + smallbkt * SMALLBUCKETSIZE;
           u8 *endreadsmall = small0 + small[smallbkt];
-          for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALL0SIZE)
+          for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALLSIZE)
             degs[*(u32 *)rdsmall & DEGREEMASK]--;
           u32 lastread = 0;
           for (; readsmall < endreadsmall; readsmall+=SMALLSIZE) {
@@ -341,7 +343,7 @@ public:
     }
   }
   void trimmer(u32 id) {
-    trimbig0(id, 1);
+    sortbig0(id, 1);
     barrier(&barry);
 #if BIG0SIZE > 4
     trimsmall<u64,BIG0SIZE,SMALL0SIZE>(id);
@@ -472,15 +474,12 @@ public:
     delete cuckoo;
     delete alive;
   }
-
   u32 sharedbytes() {
-    return SHAREDSIZE;
+    return NBUCKETS * sizeof(bigbucket);
   }
-
   u32 threadbytes() {
-    return THREADSIZE;
+    return NBUCKETS * sizeof(smallbucket) + sizeof(indices) + sizeof(thread_ctx);
   }
-
   void solution(u32 *us, u32 nu, u32 *vs, u32 nv) {
     typedef std::pair<u32,u32> edge;
     std::set<edge> cycle;
