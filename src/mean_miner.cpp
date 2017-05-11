@@ -47,8 +47,7 @@ int main(int argc, char **argv) {
   printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS+1, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
-  printf(") with 50%% edges, %d trims, %d thread%s\n",
-               ntrims, nthreads, nthreads>1 ? "s" : "");
+  printf(") with 50%% edges\n");
 
   solver_ctx ctx(nthreads, ntrims);
 
@@ -57,7 +56,9 @@ int main(int argc, char **argv) {
   int sunit,tunit;
   for (sunit=0; sbytes >= 10240; sbytes>>=10,sunit++) ;
   for (tunit=0; tbytes >= 10240; tbytes>>=10,tunit++) ;
-  printf("Using %d%cB bucket memory, %dx%d%cB thread memory, and %d-way siphash\n", sbytes, " KMGT"[sunit], nthreads, tbytes, " KMGT"[tunit], NSIPHASH);
+  printf("Using %d%cB bucket memory at %lx,\n", sbytes, " KMGT"[sunit], (u64)ctx.alive->buckets);
+  printf("%dx%d%cB thread memory at %lx,\n", nthreads, tbytes, " KMGT"[tunit], (u64)ctx.alive->tbuckets);
+  printf("%d-way siphash, and %d buckets.\n", NSIPHASH, NBUCKETS);
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);

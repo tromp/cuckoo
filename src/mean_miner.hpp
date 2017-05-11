@@ -106,7 +106,6 @@ public:
   u32 nthreads;
   thread_ctx *threads;
   pthread_barrier_t barry;
-  u32 spare;
 
   edgetrimmer(const u32 n_threads, u32 n_trims) {
     nthreads = n_threads;
@@ -126,25 +125,42 @@ public:
     delete[] edges;
     delete[] threads;
   }
-  u32 start(u32 id, u32 bkt) {
+  u32 nodestart(u32 id, u32 bkt) {
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
   }
-  u32 *init(u32 id) {
-   u32 *hist = nodes[id];
-    for (u32 bkt=0; bkt < NBUCKETS; bkt++)
-      hist[bkt] = start(id,bkt);
-    return hist;
+  u32 nodeend(u32 id, u32 bkt) {
+    return nodestart(id+1, bkt);
   }
-  u32 index(u32 id, u32 bkt) {
+  u32 *nodeinit(u32 id) {
+   u32 *nds = nodes[id];
+    for (u32 bkt=0; bkt < NBUCKETS; bkt++)
+      nds[bkt] = nodestart(id,bkt);
+    return nds;
+  }
+  u32 nodeindex(u32 id, u32 bkt) {
     return nodes[id][bkt];
   }
-  u32 size(u32 id, u32 bkt) {
-    return nodes[id][bkt] - start(id,bkt);
+  void setedgeindex(u32 id, u32 bkt,u32 idx) {
+    assert(idx >= nodestart(id, bkt));
+    edges[id][bkt] = idx;
   }
-  u32 sumsize(u32 id) {
+  u32 edgesize(u32 id, u32 bkt) {
+    return nodeend(id, bkt) - edges[id][bkt];
+  }
+  u32 edgesumsize() {
+    u32 sum = 0;
+    for (u32 id=0; id < nthreads; id++)
+      for (u32 bkt=0; bkt < NBUCKETS; bkt++)
+        sum += edgesize(id, bkt);
+    return sum;
+  }
+  u32 nodesize(u32 id, u32 bkt) {
+    return nodes[id][bkt] - nodestart(id,bkt);
+  }
+  u32 nodesumsize(u32 id) {
     u32 sum = 0;
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
-      sum += size(id, bkt);
+      sum += nodesize(id, bkt);
     return sum;
   }
   void sortbig0(const u32 id, u32 uorv) {
@@ -154,7 +170,7 @@ public:
 #endif
   
     rdtsc0 = __rdtsc();
-    u32 *big = init(id);
+    u32 *big = nodeinit(id);
     static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
     static const __m256i vbucketmask = {BUCKETMASK, BUCKETMASK, BUCKETMASK, BUCKETMASK};
     const __m256i vinit = _mm256_set_epi64x(
@@ -228,7 +244,7 @@ public:
       STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
     }
     for (u32 z=0; z < NBUCKETS; z++) {
-      assert(big[z] < start(id+1, z));
+      assert(nodesize(id, z) <= BIGBUCKETSIZE);
 #ifdef NEEDSYNC
       for (; last[z]<endblock-NEDGESLO; last[z]+=NEDGESLO) {
         *(u32 *)(big0+big[z]) = 0;
@@ -237,7 +253,7 @@ public:
 #endif
     }
     rdtsc1 = __rdtsc();
-    printf("sortbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, sumsize(id));
+    printf("sortbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, nodesumsize(id));
   }
   void trimbig(const u32 id, u32 uorv) {
     uorv += id;
@@ -255,20 +271,16 @@ public:
     const u32 DEGREEMASK = NDEGREES - 1;
   
     rdtsc0 = __rdtsc();
-    spare = -1;
     u8 *big0 = buckets[0];
-    // 81/128 is barely enough for (1-1/e) fraction of edges
-    u8 *bigi0 = big0 + (BIGBUCKETSIZE / nthreads) * 47/128;
     u8 *small0 = tbuckets[id*NBUCKETS];
-    u32 nedges = 0;
     u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
     for (; bigbkt < endbkt; bigbkt++) {
       for (u32 i=0; i < NBUCKETS; i++)
         small[i] = i * SMALLBUCKETSIZE;
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 lastread = from * NEDGES / nthreads;
-        u8    *readbig = big0 + start(from, bigbkt);
-        u8 *endreadbig = big0 + index(from, bigbkt);
+        u8    *readbig = big0 + nodestart(from, bigbkt);
+        u8 *endreadbig = big0 + nodeindex(from, bigbkt);
         for (; readbig < endreadbig; readbig += BIGSIZE) {
           BIGTYPE e = *(BIGTYPE *)readbig;
           if (BIGSIZE > 4) {
@@ -286,10 +298,9 @@ public:
           ((from+1)*NEDGES/nthreads - 1) >> EDGEBITSLO))
         { printf("OOPS1: bkt %d lastread %x\n", bigbkt, lastread); exit(0); }
       }
-      u8 *degs = (u8 *)big0 + start(0, bigbkt); // recycle!
+      u8 *degs = (u8 *)big0 + nodestart(0, bigbkt); // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32 *writebig0 = (u32 *)(bigi0 + start(from, bigbkt));
-        u32 *writebig = writebig0;
+        u32 *writebig = (u32 *)(big0 + nodeend(from, bigbkt)) - 1;
         u32 smallbkt = from * NBUCKETS / nthreads;
         u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
         for (; smallbkt < endsmallbkt; smallbkt++) {
@@ -303,20 +314,16 @@ public:
             u64 z = *(u64 *)readsmall & SMALLSIZEMASK;
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK;
             *writebig = lastread;
-            writebig += degs[z & DEGREEMASK] >> 7;
+            writebig -= degs[z & DEGREEMASK] >> 7;
           }
           if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
             { printf("OOPS2: id %d big %d from %d small %d lastread %x\n", id, bigbkt, from, smallbkt, lastread); exit(0); }
         }
-        u32 *writelim = (u32 *)(big0 + start(from+1, bigbkt));
-        if (writelim-writebig < spare)
-          spare = writelim - writebig;
-        nedges += writebig - writebig0;
+        setedgeindex(from, bigbkt, (u8 *)++writebig - big0);
       }
     }
     rdtsc1 = __rdtsc();
-    printf("trimsmall rdtsc: %lu edges %d\n", rdtsc1-rdtsc0, nedges);
-    printf("%u to spare\n", spare);
+    printf("trimsmall rdtsc: %lu edges %d\n", rdtsc1-rdtsc0, edgesumsize()/4);
   }
 
   void trim() {
@@ -335,16 +342,13 @@ public:
   u32 nedges() {
     return 0;
   }
-  void barrier(pthread_barrier_t *barry) {
-    int rc = pthread_barrier_wait(barry);
-    if (rc != 0 && rc != PTHREAD_BARRIER_SERIAL_THREAD) {
-      printf("Could not wait on barrier\n");
-      pthread_exit(NULL);
-    }
+  void barrier() {
+    int rc = pthread_barrier_wait(&barry);
+    assert(rc == 0 || rc == PTHREAD_BARRIER_SERIAL_THREAD);
   }
   void trimmer(u32 id) {
     sortbig0(id, 1);
-    barrier(&barry);
+    barrier();
 #if BIG0SIZE > 4
     trimsmall<u64,BIG0SIZE,SMALL0SIZE>(id);
 #else
@@ -353,21 +357,15 @@ public:
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) printf("round %2d loads", round);
       for (u32 uorv = 0; uorv < 2; uorv++) {
-        barrier(&barry);
+        barrier();
         trimbig(id, uorv);
-        barrier(&barry);
+        barrier();
         trimsmall<u64,6,6>(id);
-        barrier(&barry);
+        barrier();
         if (id == 0) {
-          u32 load = (u32)(100LL * nedges() / NEDGES);
-          printf(" %c%d %4d%%", "UV"[uorv], 0, load);
+          printf("%d trims completed  edges %d%%\n", ntrims, edgesumsize()/4);
         }
       }
-      if (id == 0) printf("\n");
-    }
-    if (id == 0) {
-      u32 load = (u32)(100LL * nedges() / NEDGES);
-      printf("%d trims completed  final load %d%%\n", ntrims, load);
     }
   }
 };
