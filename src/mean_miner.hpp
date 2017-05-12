@@ -128,7 +128,7 @@ public:
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
   }
   u32 nodeend(u32 id, u32 bkt) {
-    return nodestart(id+1, bkt) & -4;
+    return nodestart(id+1, bkt) & -32;
   }
   u32 *nodeinit(u32 id) {
    u32 *nds = nodes[id];
@@ -271,7 +271,7 @@ public:
   void sortbig(const u32 id, const u32 uorv, u32 pctleave) {
     uint64_t rdtsc0, rdtsc1;
   
-    return;
+    // return;
     rdtsc0 = __rdtsc();
     u32 z, zz, *big = nodes[id];
     u8 *big0 = buckets[0];
