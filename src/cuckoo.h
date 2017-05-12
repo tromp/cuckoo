@@ -32,7 +32,7 @@ static const u64 NODEMASK = NNODES-1;
 
 // generate edge endpoint in cuckoo graph without partition bit
 u64 _sipnode(siphash_keys *keys, u64 nonce, u32 uorv) {
-  return siphash24(keys, 2*nonce + uorv) & NODEMASK;
+  return siphash24(keys, 2*nonce + uorv) & EDGEMASK;
 }
 
 // generate edge endpoint in cuckoo graph

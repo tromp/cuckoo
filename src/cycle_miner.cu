@@ -67,7 +67,7 @@ __device__ node_t dipnode(siphash_ctx &ctx, nonce_t nce, u32 uorv) {
   v0 ^= nonce;
   v2 ^= vectorize(0xff);
   SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return devectorize(v0 ^ v1 ^ v2  ^ v3) & NODEMASK;
+  return devectorize(v0 ^ v1 ^ v2  ^ v3) & EDGEMASK;
 }
 
 #else
@@ -79,7 +79,7 @@ __device__ node_t dipnode(siphash_ctx &ctx, nonce_t nce, u32 uorv) {
   v0 ^= nonce;
   v2 ^= 0xff;
   SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return (v0 ^ v1 ^ v2  ^ v3) & NODEMASK;
+  return (v0 ^ v1 ^ v2  ^ v3) & EDGEMASK;
 }
 
 #endif

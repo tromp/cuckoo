@@ -1,7 +1,7 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2016 John Tromp
 
-#include "cuckoo.hpp"
+#include "cuckoo.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -23,7 +23,7 @@ public:
   cuckoo_ctx(const char* header, nonce_t easy_ness) {
     setheader(header, strlen(header), &sip_keys);
     easiness = easy_ness;
-    cuckoo = (node_t *)calloc(1+SIZE, sizeof(node_t));
+    cuckoo = (node_t *)calloc(1+NNODES, sizeof(node_t));
     assert(cuckoo != 0);
   }
   ~cuckoo_ctx() {
@@ -78,7 +78,7 @@ void worker(cuckoo_ctx *ctx) {
     us[0] = u0;
     vs[0] = v0;
 #ifdef SHOW
-    for (unsigned j=1; j<SIZE; j++)
+    for (unsigned j=1; j<NNODES; j++)
       if (!cuckoo[j]) printf("%2d:   ",j);
       else           printf("%2d:%02d ",j,cuckoo[j]);
     printf(" %x (%d,%d)\n", nonce,*us,*vs);
@@ -121,8 +121,8 @@ int main(int argc, char **argv) {
   }
   assert(easipct >= 0 && easipct <= 100);
   printf("Looking for %d-cycle on cuckoo%d(\"%s\") with %d%% edges\n",
-               PROOFSIZE, SIZESHIFT, header, easipct);
-  u64 easiness = easipct * SIZE / 100;
+               PROOFSIZE, EDGEBITS+1, header, easipct);
+  u64 easiness = easipct * NNODES / 100;
   cuckoo_ctx ctx(header, easiness);
   worker(&ctx);
 }

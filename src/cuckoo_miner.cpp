@@ -1,7 +1,7 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2016 John Tromp
 
-#include "cuckoo_miner.h"
+#include "cuckoo_miner.hpp"
 #include <unistd.h>
 
 #define MAXSOLS 8
@@ -37,12 +37,12 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, SIZESHIFT, header, nonce);
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS+1, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges, %d trims, %d threads\n", ntrims, nthreads);
 
-  u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_ATOMS*sizeof(atwice);
+  u64 edgeBytes = NEDGES/8, nodeBytes = TWICE_ATOMS*sizeof(atwice);
   int edgeUnit, nodeUnit;
   for (edgeUnit=0; edgeBytes >= 1024; edgeBytes>>=10,edgeUnit++) ;
   for (nodeUnit=0; nodeBytes >= 1024; nodeBytes>>=10,nodeUnit++) ;
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
     ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("k0 %llx k1 %llx\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
+    printf("k0 %lx k1 %lx\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
     for (int t = 0; t < nthreads; t++) {
       threads[t].id = t;
       threads[t].ctx = &ctx;

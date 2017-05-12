@@ -1,5 +1,16 @@
 Cuckoo Cycle
 ============
+Newsflash: On April 8 2017, xenoncat claimed my previous CPU speedup bounty to the tune of $5000.
+Congratulations to xenoncat!
+
+His solvers, available at https://github.com/xenoncat/cuckoo_pow,
+achieve speedups ranging from 2.8x to over 4x by using 20x more memory to
+avoid the high latency of completely random bit accesses.
+I am rewriting my solver to incorporate those speedups as an additional
+option, while trying to reduce the memory to 11x (see mean_miner...).
+In light of this claimed bounty, the bounties below are amended with an
+additional requirement of limited memory use.
+
 Whitepaper at
 https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
@@ -34,8 +45,8 @@ requiring considerable resources, and some luck
 (for a given header, the odds of its graph having a L-cycle are about 1 in L).
 
 The memory efficient miner uses 3 bits per edge and is bottlenecked by
-accessing random 2-bit counters, making it memory latency bound.
-The roughly 4x faster latency avoiding miner uses 41 bits per edge and is bottlenecked by
+accessing random 2-bit counters, making it memory latency bound.  The roughly
+4x faster latency avoiding miner uses 58 bits per edge and is bottlenecked by
 bucket sorting. making it memory bandwidth bound.
 It is not clear which method is more energy efficient.
 
@@ -80,16 +91,6 @@ is used to recognise all cycles, and recover those of the right length.
 
 Performance
 --------------
-On April 8 2017, xenoncat claimed my previous CPU speedup bounty to the tune of $5000.
-Congratulations to xenoncat!
-
-His solvers, available at https://github.com/xenoncat/cuckoo_pow,
-achieve speedups ranging from 2.8x to over 4x by using 20x more memory to avoid
-the high latency of completely random bit accesses.
-I plan to eventually rewrite my solver to incorporate those speedups as an additional option.
-
-In light of this claimed bounty, I am amending the bounties below with an additional requirement
-of limited memory use.
 
 The runtime of a single proof attempt on a 4GHz i7-4790K is 2.3 minutes
 for a single-threaded cuckoo32stx8 using 768MB, or 1.1 minutes for 8 threads.

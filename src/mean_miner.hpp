@@ -6,7 +6,7 @@
 // define SINGLECYCLING to run cycle finding single threaded which runs slower
 // but avoids losing cycles to race conditions (not worth it in my testing)
 
-#include "cuckoo.hpp"
+#include "cuckoo.h"
 #include "siphashxN.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,12 +20,12 @@
 
 // algorithm/performance parameters
 
-#ifndef EDGEBITS
-#define EDGEBITS 29
-#endif
+// EDGEBITS/NEDGES/EDGEMASK/NNODES defined in cuckoo.h
 
+// 7 is only better for single threaded
+// perhaps because 8 gives 4x less L1/L2 cache pressure
 #ifndef BUCKETBITS
-#define BUCKETBITS 7
+#define BUCKETBITS 8
 #endif
 
 #ifndef MAXSOLS
@@ -49,13 +49,10 @@
 #error promote u32 to u64 where necessary
 #endif
 
-const static u32 NEDGES         = 1 << EDGEBITS;
-const static u32 EDGEMASK       = NEDGES-1;
 const static u32 BIG0BITS       = BIG0SIZE * 8;
 const static u32 BIGHASHBITS    = EDGEBITS - BUCKETBITS;
 const static u32 EDGEBITSLO     = BIG0BITS - BIGHASHBITS;
 const static u32 NEDGESLO       = 1 << EDGEBITSLO;
-const static u32 NNODES         = 2 << EDGEBITS;
 const static u32 NBUCKETS       = 1 << BUCKETBITS;
 const static u32 BUCKETMASK     = NBUCKETS - 1;
 const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << BIGHASHBITS);
