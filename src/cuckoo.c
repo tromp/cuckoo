@@ -30,10 +30,12 @@ int main(int argc, char **argv) {
   memset(headernonce+hdrlen, 0, sizeof(headernonce)-hdrlen);
   ((u32 *)headernonce)[HEADERLEN/sizeof(u32)-1] = htole32(nonce);
   for (int nsols=0; scanf(" Solution") == 0; nsols++) {
-    u64 nonces[PROOFSIZE];
+    edge_t nonces[PROOFSIZE];
     for (int n = 0; n < PROOFSIZE; n++) {
-      int nscan = scanf(" %" SCNx64, &nonces[n]);
+      u64 nonce;
+      int nscan = scanf(" %" SCNx64, &nonce);
       assert(nscan == 1);
+      nonces[n] = nonce;
     }
     int pow_rc = verify(nonces, headernonce, sizeof(headernonce));
     if (pow_rc == POW_OK) {

@@ -8,19 +8,17 @@
 #include <unistd.h>
 #include <set>
 
-// ok for size up to 2^32
+// assume EDGEBITS < 31
+#define NNODES (2 * NEDGES)
 #define MAXPATHLEN 8192
-
-typedef u32 nonce_t;
-typedef u32 node_t;
 
 class cuckoo_ctx {
 public:
   siphash_keys sip_keys;
-  nonce_t easiness;
+  edge_t easiness;
   node_t *cuckoo;
 
-  cuckoo_ctx(const char* header, nonce_t easy_ness) {
+  cuckoo_ctx(const char* header, edge_t easy_ness) {
     setheader(header, strlen(header), &sip_keys);
     easiness = easy_ness;
     cuckoo = (node_t *)calloc(1+NNODES, sizeof(node_t));
@@ -57,7 +55,7 @@ void solution(cuckoo_ctx *ctx, node_t *us, int nu, node_t *vs, int nv) {
   while (nv--)
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   printf("Solution");
-  for (nonce_t nonce = n = 0; nonce < ctx->easiness; nonce++) {
+  for (edge_t nonce = n = 0; nonce < ctx->easiness; nonce++) {
     edge e(sipnode(&ctx->sip_keys, nonce, 0), sipnode(&ctx->sip_keys, nonce, 1));
     if (cycle.find(e) != cycle.end()) {
       printf(" %x", nonce);

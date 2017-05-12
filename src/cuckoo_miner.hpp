@@ -50,9 +50,10 @@ typedef u64 node_t;
 #endif
 #include <set>
 
-// algorithm/performance parameters
+// algorithm/performance parameters; assume EDGEBITS < 31
 
 const static u32 NODEBITS = EDGEBITS + 1;
+const static u32 NODEMASK = (EDGEMASK << 1) | 1;
 
 #ifndef PART_BITS
 // #bits used to partition edge set processing to save memory
@@ -164,7 +165,7 @@ public:
   }
 };
 
-const static u64 CUCKOO_SIZE = NNODES >> IDXSHIFT;
+const static u64 CUCKOO_SIZE = NEDGES >> (IDXSHIFT-1); // NNODES >> IDXSHIFT;
 const static u64 CUCKOO_MASK = CUCKOO_SIZE - 1;
 // number of (least significant) key bits that survives leftshift by NODEBITS
 const static u32 KEYBITS = 64-NODEBITS;

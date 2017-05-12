@@ -18,25 +18,29 @@
 #define PROOFSIZE 42
 #endif
 
+#if EDGEBITS > 32
+typedef u64 edge_t;
+#else
+typedef u32 edge_t;
+#endif
+#if EDGEBITS > 31
+typedef u64 node_t;
+#else
+typedef u32 node_t;
+#endif
+
 // number of edges
-#define NEDGES (1ULL<<EDGEBITS)
-// static const u64 NEDGES = 1ULL<<EDGEBITS;
+#define NEDGES ((node_t)1 << EDGEBITS)
 // used to mask siphash output
-#define EDGEMASK (NEDGES-1)
-// static const u64 EDGEMASK = (1ULL<<EDGEBITS)-1; // NEDGES-1;
-// the graph size / number of nodes
-#define NNODES (2ULL<<EDGEBITS)
-// static const u64 NNODES = 2ULL<<EDGEBITS;
-// used to mask nodes
-static const u64 NODEMASK = NNODES-1;
+#define EDGEMASK ((edge_t)NEDGES - 1)
 
 // generate edge endpoint in cuckoo graph without partition bit
-u64 _sipnode(siphash_keys *keys, u64 nonce, u32 uorv) {
+edge_t _sipnode(siphash_keys *keys, edge_t nonce, u32 uorv) {
   return siphash24(keys, 2*nonce + uorv) & EDGEMASK;
 }
 
 // generate edge endpoint in cuckoo graph
-u64 sipnode(siphash_keys *keys, u64 nonce, u32 uorv) {
+node_t sipnode(siphash_keys *keys, edge_t nonce, u32 uorv) {
   return _sipnode(keys, nonce, uorv) << 1 | uorv;
 }
 
@@ -55,15 +59,15 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
 }
 
 // verify that nonces are ascending and form a cycle in header-generated graph
-int verify(u64 nonces[PROOFSIZE], const char *header, const u32 headerlen) {
+int verify(edge_t nonces[PROOFSIZE], const char *header, const u32 headerlen) {
   if (headerlen != HEADERLEN)
     return POW_HEADER_LENGTH;
   siphash_keys keys;
   setheader(header, headerlen, &keys);
-  u64 uvs[2*PROOFSIZE];
-  u64 xor0=0,xor1=0;
+  node_t uvs[2*PROOFSIZE];
+  node_t xor0=0,xor1=0;
   for (u32 n = 0; n < PROOFSIZE; n++) {
-    if (nonces[n] >= NEDGES)
+    if (nonces[n] > EDGEMASK)
       return POW_TOO_BIG;
     if (n && nonces[n] <= nonces[n-1])
       return POW_TOO_SMALL;

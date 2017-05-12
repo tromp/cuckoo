@@ -22,8 +22,7 @@
 
 // EDGEBITS/NEDGES/EDGEMASK/NNODES defined in cuckoo.h
 
-// 7 is only better for single threaded
-// perhaps because 8 gives 4x less L1/L2 cache pressure
+// 8 seems optimal for 2-4 threads
 #ifndef BUCKETBITS
 #define BUCKETBITS 8
 #endif
@@ -90,6 +89,9 @@ typedef struct {
   pthread_t thread;
   edgetrimmer *et;
 } thread_ctx;
+
+#define likely(x)   __builtin_expect((x)!=0, 1)
+#define unlikely(x)   __builtin_expect((x), 0)
 
 // maintains set of trimmable edges
 class edgetrimmer {
@@ -167,7 +169,11 @@ public:
 #endif
   
     rdtsc0 = __rdtsc();
-    u32 *big = nodeinit(id);
+    u32 z, *big = nodeinit(id);
+    u8 *big0 = buckets[0];
+    u32 block = (NEDGES* id   /nthreads) & -8,
+     endblock = (NEDGES*(id+1)/nthreads) & -8; 
+#if NSIPHASH == 8
     static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
     static const __m256i vbucketmask = {BUCKETMASK, BUCKETMASK, BUCKETMASK, BUCKETMASK};
     const __m256i vinit = _mm256_set_epi64x(
@@ -175,22 +181,38 @@ public:
       sip_keys.k0^0x6c7967656e657261ULL,
       sip_keys.k1^0x646f72616e646f6dULL,
       sip_keys.k0^0x736f6d6570736575ULL);
-    u32 block = NEDGES*id/nthreads, endblock = NEDGES*(id+1)/nthreads; 
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
-    u32 z, b2 = 2 * block + uorv;
+    u32 b2 = 2 * block + uorv;
     __m256i vpacket0 = _mm256_set_epi64x(b2+6, b2+4, b2+2, b2+0);
     __m256i vpacket1 = _mm256_set_epi64x(b2+14, b2+12, b2+10, b2+8);
     static const __m256i vpacketinc = {16, 16, 16, 16};
     __m256i vhi0 = _mm256_set_epi64x(3<<BIGHASHBITS, 2<<BIGHASHBITS, 1<<BIGHASHBITS, 0);
     __m256i vhi1 = _mm256_set_epi64x(7<<BIGHASHBITS, 6<<BIGHASHBITS, 5<<BIGHASHBITS, 4<<BIGHASHBITS);
     static const __m256i vhiinc = {8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS, 8<<BIGHASHBITS};
-    u8 *big0 = buckets[0];
+#endif
 #ifdef NEEDSYNC
     u32 zz;
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
       last[bkt] = block;
 #endif
     for (; block < endblock; block += NSIPHASH) {
+#if NSIPHASH == 1
+      u32 node = _sipnode(&sip_keys, block, uorv);
+      z = node & BUCKETMASK;
+      zz = block << BIGHASHBITS | node >> BUCKETBITS;
+#ifndef NEEDSYNC
+      *(u64 *)(big0+big[z]) = zz;
+      big[z] += BIG0SIZE;
+#else
+      if (zz) {
+        for (; unlikely(last[z] + NEDGESLO <= block); last[z] += NEDGESLO, big[z] += BIG0SIZE)
+          *(u32 *)(big0+big[z]) = 0;
+        *(u32 *)(big0+big[z]) = zz;
+        big[z] += BIG0SIZE;
+        last[z] = block;
+      }
+#endif
+#elif NSIPHASH == 8
       v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
       v0 = _mm256_permute4x64_epi64(vinit, 0x00);
       v1 = _mm256_permute4x64_epi64(vinit, 0x55);
@@ -218,8 +240,6 @@ public:
       vhi0 = _mm256_add_epi64(vhi0, vhiinc);
       vhi1 = _mm256_add_epi64(vhi1, vhiinc);
 
-#define likely(x)   __builtin_expect((x)!=0, 1)
-#define unlikely(x)   __builtin_expect((x), 0)
 #ifndef NEEDSYNC
 #define STORE(i,v,x,w) \
   z = _mm256_extract_epi32(v,x);\
@@ -239,6 +259,9 @@ public:
 #endif
       STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
       STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
+#else
+#error not implemented
+#endif
     }
     for (u32 z=0; z < NBUCKETS; z++) {
       assert(nodesize(id, z) <= BIGBUCKETSIZE);
@@ -254,6 +277,9 @@ public:
   }
   void trimbig(const u32 id, u32 uorv) {
     uorv += id;
+  }
+  bool power2(u32 n) {
+    return (n & (n-1)) == 0;
   }
   template<typename BIGTYPE, u32 BIGSIZE, u32 SMALLSIZE>
   void trimsmall(const u32 id) {
@@ -291,9 +317,9 @@ public:
                                     | (e >> BUCKETBITS);
           small[z] += SMALLSIZE;
         }
-        if (unlikely(lastread >> EDGEBITSLO !=
+        if (power2(nthreads) && unlikely(lastread >> EDGEBITSLO !=
           ((from+1)*NEDGES/nthreads - 1) >> EDGEBITSLO))
-        { printf("OOPS1: bkt %d lastread %x\n", bigbkt, lastread); exit(0); }
+        { printf("OOPS1: bkt %d lastread %x vs %x\n", bigbkt, lastread, (from+1)*(u32)NEDGES/nthreads-1); exit(0); }
       }
       u8 *degs = (u8 *)big0 + nodestart(0, bigbkt); // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
@@ -313,14 +339,14 @@ public:
             *writebig = lastread;
             writebig -= degs[z & DEGREEMASK] >> 7;
           }
-          if (unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
+          if (power2(nthreads) && unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
             { printf("OOPS2: id %d big %d from %d small %d lastread %x\n", id, bigbkt, from, smallbkt, lastread); exit(0); }
         }
         setedgeindex(from, bigbkt, (u8 *)++writebig - big0);
       }
     }
     rdtsc1 = __rdtsc();
-    printf("trimsmall rdtsc: %lu edges %d\n", rdtsc1-rdtsc0, edgesumsize()/4);
+    printf("trimsmall rdtsc: %lu\n", rdtsc1-rdtsc0);
   }
 
   void trim() {
@@ -351,6 +377,9 @@ public:
 #else
     trimsmall<u32,BIG0SIZE,SMALL0SIZE>(id);
 #endif
+    barrier();
+    if (id == 0)
+      printf("%d trims completed  edges %d\n", ntrims, edgesumsize()/4);
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) printf("round %2d loads", round);
       for (u32 uorv = 0; uorv < 2; uorv++) {
@@ -359,9 +388,8 @@ public:
         barrier();
         trimsmall<u64,6,6>(id);
         barrier();
-        if (id == 0) {
+        if (id == 0)
           printf("%d trims completed  edges %d%%\n", ntrims, edgesumsize()/4);
-        }
       }
     }
   }
