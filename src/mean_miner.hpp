@@ -128,20 +128,13 @@ public:
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
   }
   u32 nodeend(u32 id, u32 bkt) {
-    return nodestart(id+1, bkt);
+    return nodestart(id+1, bkt) & -4;
   }
   u32 *nodeinit(u32 id) {
    u32 *nds = nodes[id];
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
       nds[bkt] = nodestart(id,bkt);
     return nds;
-  }
-  u32 nodeindex(u32 id, u32 bkt) {
-    return nodes[id][bkt];
-  }
-  void setedgeindex(u32 id, u32 bkt,u32 idx) {
-    assert(idx >= nodestart(id, bkt));
-    edges[id][bkt] = idx;
   }
   u32 edgesize(u32 id, u32 bkt) {
     return nodeend(id, bkt) - edges[id][bkt];
@@ -162,7 +155,7 @@ public:
       sum += nodesize(id, bkt);
     return sum;
   }
-  void sortbig0(const u32 id, u32 uorv) {
+  void sortbig0(const u32 id, const u32 uorv) {
     uint64_t rdtsc0, rdtsc1;
 #ifdef NEEDSYNC
     u32 last[NBUCKETS];
@@ -275,14 +268,41 @@ public:
     rdtsc1 = __rdtsc();
     printf("sortbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, nodesumsize(id));
   }
-  void trimbig(const u32 id, u32 uorv) {
-    uorv += id;
+  void sortbig(const u32 id, const u32 uorv, u32 pctleave) {
+    uint64_t rdtsc0, rdtsc1;
+  
+    return;
+    rdtsc0 = __rdtsc();
+    u32 z, zz, *big = nodes[id];
+    u8 *big0 = buckets[0];
+    u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
+    for (; bigbkt < endbkt; bigbkt++) {
+      for (u32 from = 0 ; from < nthreads; from++) {
+        u32    *readedge = (u32 *)(big0 + edges[from][bigbkt]);
+        edges[from][bigbkt] = nodeend(from,bigbkt) -
+          (((BIGBUCKETSIZE/nthreads) * pctleave/100) & -4);
+        u32 *endreadedge = (u32 *)(big0 + edges[from][bigbkt]);
+        for (; readedge < endreadedge; readedge++) {
+          u32 edge = *readedge;
+          u32 node = _sipnode(&sip_keys, edge, uorv);
+          z = node & BUCKETMASK;
+          zz = edge << BIGHASHBITS | node >> BUCKETBITS;
+          *(u64 *)(big0+big[z]) = zz;
+          big[z] += BIG0SIZE;
+        }
+      }
+    }
+    for (u32 z=0; z < NBUCKETS; z++) {
+      assert(nodesize(id, z) <= BIGBUCKETSIZE);
+    }
+    rdtsc1 = __rdtsc();
+    printf("sortbig rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, nodesumsize(id));
   }
   bool power2(u32 n) {
     return (n & (n-1)) == 0;
   }
   template<typename BIGTYPE, u32 BIGSIZE, u32 SMALLSIZE>
-  void trimsmall(const u32 id) {
+  void sortsmall(const u32 id) {
     uint64_t rdtsc0, rdtsc1;
     u32 small[NBUCKETS];
     const u32 BIGBITS = BIGSIZE * 8;
@@ -303,7 +323,7 @@ public:
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 lastread = from * NEDGES / nthreads;
         u8    *readbig = big0 + nodestart(from, bigbkt);
-        u8 *endreadbig = big0 + nodeindex(from, bigbkt);
+        u8 *endreadbig = big0 + nodes[from][bigbkt];
         for (; readbig < endreadbig; readbig += BIGSIZE) {
           BIGTYPE e = *(BIGTYPE *)readbig;
           if (BIGSIZE > 4) {
@@ -317,13 +337,14 @@ public:
                                     | (e >> BUCKETBITS);
           small[z] += SMALLSIZE;
         }
+        nodes[from][bigbkt] = nodestart(from, bigbkt);
         if (power2(nthreads) && unlikely(lastread >> EDGEBITSLO !=
           ((from+1)*NEDGES/nthreads - 1) >> EDGEBITSLO))
         { printf("OOPS1: bkt %d lastread %x vs %x\n", bigbkt, lastread, (from+1)*(u32)NEDGES/nthreads-1); exit(0); }
       }
       u8 *degs = (u8 *)big0 + nodestart(0, bigbkt); // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32 *writebig = (u32 *)(big0 + nodeend(from, bigbkt)) - 1;
+        u32 *writedge = (u32 *)(big0 + nodeend(from, bigbkt)) - 1;
         u32 smallbkt = from * NBUCKETS / nthreads;
         u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
         for (; smallbkt < endsmallbkt; smallbkt++) {
@@ -336,13 +357,13 @@ public:
           for (; readsmall < endreadsmall; readsmall+=SMALLSIZE) {
             u64 z = *(u64 *)readsmall & SMALLSIZEMASK;
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK;
-            *writebig = lastread;
-            writebig -= degs[z & DEGREEMASK] >> 7;
+            *writedge = lastread;
+            writedge -= degs[z & DEGREEMASK] >> 7;
           }
           if (power2(nthreads) && unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
             { printf("OOPS2: id %d big %d from %d small %d lastread %x\n", id, bigbkt, from, smallbkt, lastread); exit(0); }
         }
-        setedgeindex(from, bigbkt, (u8 *)++writebig - big0);
+        edges[from][bigbkt] = (u8 *)++writedge - big0;
       }
     }
     rdtsc1 = __rdtsc();
@@ -373,10 +394,14 @@ public:
     sortbig0(id, 1);
     barrier();
 #if BIG0SIZE > 4
-    trimsmall<u64,BIG0SIZE,SMALL0SIZE>(id);
+    sortsmall<u64,BIG0SIZE,SMALL0SIZE>(id);
 #else
-    trimsmall<u32,BIG0SIZE,SMALL0SIZE>(id);
+    sortsmall<u32,BIG0SIZE,SMALL0SIZE>(id);
 #endif
+    barrier();
+    sortbig(id, 0, 37);
+    barrier();
+    sortbig(id, 0, 16);
     barrier();
     if (id == 0)
       printf("%d trims completed  edges %d\n", ntrims, edgesumsize()/4);
@@ -384,9 +409,9 @@ public:
       if (id == 0) printf("round %2d loads", round);
       for (u32 uorv = 0; uorv < 2; uorv++) {
         barrier();
-        trimbig(id, uorv);
+        sortbig(id, uorv, 0);
         barrier();
-        trimsmall<u64,6,6>(id);
+        sortsmall<u64,6,6>(id);
         barrier();
         if (id == 0)
           printf("%d trims completed  edges %d%%\n", ntrims, edgesumsize()/4);
@@ -416,12 +441,13 @@ void *etworker(void *vp) {
 // grow with cube root of size, hardly affected by trimming
 const static u32 MAXPATHLEN = 8 << (NODEBITS/3);
 
-const static u64 CUCKOO_SIZE = NNODES >> IDXSHIFT;
-const static u64 CUCKOO_MASK = CUCKOO_SIZE - 1;
+const static u32 CUCKOO_SIZE = NEDGES >> (IDXSHIFT-1);
+const static u32 CUCKOO_MASK = CUCKOO_SIZE - 1;
 // number of (least significant) key bits that survives leftshift by NODEBITS
 const static u32 KEYBITS = 64-NODEBITS;
 const static u64 KEYMASK = (1LL << KEYBITS) - 1;
 const static u64 MAXDRIFT = 1LL << (KEYBITS - IDXSHIFT);
+const static u32 NODEMASK = 2 * NEDGES - 1;
 
 #ifdef ATOMIC
 #include <atomic>
@@ -471,7 +497,7 @@ public:
         return 0;
       if ((cu >> NODEBITS) == (u & KEYMASK)) {
         assert(((ui - (u >> IDXSHIFT)) & CUCKOO_MASK) < MAXDRIFT);
-        return (u32)(cu & (NNODES-1));
+        return (u32)(cu & NODEMASK);
       }
     }
   }
