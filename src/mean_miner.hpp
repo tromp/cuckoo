@@ -155,6 +155,12 @@ public:
       sum += nodesize(id, bkt);
     return sum;
   }
+  u32 nodesumsize() {
+    u32 sum = 0;
+    for (u32 id=0; id < nthreads; id++)
+      sum += nodesumsize(id);
+    return sum;
+  }
   void sortbig0(const u32 id, const u32 uorv) {
     uint64_t rdtsc0, rdtsc1;
 #ifdef NEEDSYNC
@@ -268,6 +274,7 @@ public:
     rdtsc1 = __rdtsc();
     printf("sortbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, nodesumsize(id));
   }
+  template<u32 BIGSIZE>
   void sortbig(const u32 id, const u32 uorv, u32 pctleave) {
     uint64_t rdtsc0, rdtsc1;
   
@@ -278,7 +285,8 @@ public:
     u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
     for (; bigbkt < endbkt; bigbkt++) {
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32    *readedge = (u32 *)(big0 + edges[from][bigbkt]);
+        u32 *readedge = (u32 *)(big0 + edges[from][bigbkt]);
+        assert((u8 *)readedge >= big0 + nodes[from][bigbkt]);
         edges[from][bigbkt] = nodeend(from,bigbkt) -
           (((BIGBUCKETSIZE/nthreads) * pctleave/100) & -4);
         u32 *endreadedge = (u32 *)(big0 + edges[from][bigbkt]);
@@ -288,7 +296,7 @@ public:
           z = node & BUCKETMASK;
           zz = edge << BIGHASHBITS | node >> BUCKETBITS;
           *(u64 *)(big0+big[z]) = zz;
-          big[z] += BIG0SIZE;
+          big[z] += BIGSIZE;
         }
       }
     }
@@ -296,7 +304,7 @@ public:
       assert(nodesize(id, z) <= BIGBUCKETSIZE);
     }
     rdtsc1 = __rdtsc();
-    printf("sortbig rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, nodesumsize(id));
+    printf("sortbig leaving %d%% rdtsc: %lu sumsize %x\n", pctleave, rdtsc1-rdtsc0, nodesumsize(id));
   }
   bool power2(u32 n) {
     return (n & (n-1)) == 0;
@@ -306,11 +314,11 @@ public:
     uint64_t rdtsc0, rdtsc1;
     u32 small[NBUCKETS];
     const u32 BIGBITS = BIGSIZE * 8;
-    const u64 BIGSIZEMASK = (1LL << BIGBITS) - 1LL;
+    const u64 BIGSIZEMASK = (1ULL << BIGBITS) - 1ULL;
     const u32 SMALLBITS = SMALLSIZE * 8;
     const u32 NONDEGREEBITS = SMALLBITS - DEGREEBITS;
-    const u64 NONDEGREEMASK = (1 << NONDEGREEBITS) - 1;
-    const u64 SMALLSIZEMASK = (1LL << SMALLBITS) - 1LL;
+    const u32 NONDEGREEMASK = (1 << NONDEGREEBITS) - 1;
+    const u64 SMALLSIZEMASK = (1ULL << SMALLBITS) - 1ULL;
     const u32 DEGREEMASK = NDEGREES - 1;
   
     rdtsc0 = __rdtsc();
@@ -367,7 +375,7 @@ public:
       }
     }
     rdtsc1 = __rdtsc();
-    printf("trimsmall rdtsc: %lu\n", rdtsc1-rdtsc0);
+    printf("sortsmall rdtsc: %lu\n", rdtsc1-rdtsc0);
   }
 
   void trim() {
@@ -399,23 +407,26 @@ public:
     sortsmall<u32,BIG0SIZE,SMALL0SIZE>(id);
 #endif
     barrier();
-    sortbig(id, 0, 37);
-    barrier();
-    sortbig(id, 0, 16);
-    barrier();
     if (id == 0)
-      printf("%d trims completed  edges %d\n", ntrims, edgesumsize()/4);
+      printf("round 0 edges %x\n", edgesumsize()/4);
+    barrier();
+    sortbig<5>(id, 0, 37);
+    barrier();
+    sortbig<5>(id, 0, 16);
+    barrier();
     for (u32 round=1; round <= ntrims; round++) {
-      if (id == 0) printf("round %2d loads", round);
-      for (u32 uorv = 0; uorv < 2; uorv++) {
-        barrier();
-        sortbig(id, uorv, 0);
-        barrier();
-        sortsmall<u64,6,6>(id);
-        barrier();
-        if (id == 0)
-          printf("%d trims completed  edges %d%%\n", ntrims, edgesumsize()/4);
-      }
+      if (id == 0) printf("round %2d\n", round);
+      u32 uorv = round & 1 ^ 1;
+      barrier();
+      sortbig<5>(id, uorv, 0);
+      barrier();
+      if (id == 0)
+        printf("round %d nodes %x\n", round, nodesumsize()/5);
+      barrier();
+      sortsmall<u64,5,5>(id);
+      barrier();
+      if (id == 0)
+        printf("round %d edges %x\n", round, edgesumsize()/4);
     }
   }
 };

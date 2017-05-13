@@ -148,4 +148,5 @@ Cryptocurrencies using, or planning to use, Cuckoo Cycle
 <UL>
 <LI> <a href="https://github.com/ignopeverell/grin">Minimal implementation of the MimbleWimble protocol</a>
 <LI> <a href="http://www.aeternity.com/">æternity - the oracle machine</a>
+<LI> <a href="https://github.com/kallewoof/bips/blob/pow-connection-slots/bip-rate-limiting-via-pow.mediawiki">Bitcoin Peer Services</a>
 </UL>
