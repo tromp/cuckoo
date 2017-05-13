@@ -93,12 +93,46 @@ typedef struct {
 #define likely(x)   __builtin_expect((x)!=0, 1)
 #define unlikely(x)   __builtin_expect((x), 0)
 
+class shrinkingset {
+public:
+  u64 *bits;
+  u64 *cnt;
+  u32 nthreads;
+
+  shrinkingset(const u32 nt) {
+    nthreads = nt;
+    bits = new u64[NEDGES/64];
+    cnt  = new u64[nt];
+  }
+  void clear() {
+    memset(bits, 0, NEDGES/8);
+    memset(cnt, 0, nthreads * sizeof(u64));
+    cnt[0] = NEDGES;
+  }
+  u64 count() const {
+    u64 sum = 0LL;
+    for (u32 i=0; i<nthreads; i++)
+      sum += cnt[i];
+    return sum;
+  }
+  void reset(nonce_t n, u32 thread) {
+    bits[n/64] |= 1LL << (n%64);
+    cnt[thread]--;
+  }
+  bool test(node_t n) const {
+    return !((bits[n/64] >> (n%64)) & 1LL);
+  }
+  u64 block(node_t n) const {
+    return ~bits[n/64];
+  }
+};
+
 // maintains set of trimmable edges
 class edgetrimmer {
 public:
   siphash_keys sip_keys;
   indices *nodes;
-  indices *edges;
+  shrinkingset edges;
   bigbucket *buckets;
   smallbucket *tbuckets;
   u32 ntrims;
@@ -106,13 +140,12 @@ public:
   thread_ctx *threads;
   pthread_barrier_t barry;
 
-  edgetrimmer(const u32 n_threads, u32 n_trims) {
+  edgetrimmer(const u32 n_threads, u32 n_trims) : edges(n_threads) {
     nthreads = n_threads;
     ntrims   = n_trims;
     buckets  = new bigbucket[NBUCKETS];
     tbuckets = new smallbucket[n_threads*NBUCKETS];
     nodes    = new indices[n_threads];
-    edges    = new indices[n_threads];
     threads  = new thread_ctx[nthreads];
     int err  = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
@@ -127,24 +160,11 @@ public:
   u32 nodestart(u32 id, u32 bkt) {
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
   }
-  u32 nodeend(u32 id, u32 bkt) {
-    return nodestart(id+1, bkt) & -32;
-  }
   u32 *nodeinit(u32 id) {
    u32 *nds = nodes[id];
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
       nds[bkt] = nodestart(id,bkt);
     return nds;
-  }
-  u32 edgesize(u32 id, u32 bkt) {
-    return nodeend(id, bkt) - edges[id][bkt];
-  }
-  u32 edgesumsize() {
-    u32 sum = 0;
-    for (u32 id=0; id < nthreads; id++)
-      for (u32 bkt=0; bkt < NBUCKETS; bkt++)
-        sum += edgesize(id, bkt);
-    return sum;
   }
   u32 nodesize(u32 id, u32 bkt) {
     return nodes[id][bkt] - nodestart(id,bkt);
@@ -276,29 +296,45 @@ public:
   }
   template<u32 BIGSIZE>
   void sortbig(const u32 id, const u32 uorv, u32 pctleave) {
+    alignas(64) u64 hashin[NSIPHASH];
+    alignas(64) u64 hashout[NSIPHASH];
+
     uint64_t rdtsc0, rdtsc1;
   
     // return;
     rdtsc0 = __rdtsc();
-    u32 z, zz, *big = nodes[id];
+    // memset(hashout, 0, NSIPHASH * sizeof(u64)); // allow many nonleaf->set(0) to reduce branching
+    u32 nidx = 0, z, zz, *big = nodes[id];
     u8 *big0 = buckets[0];
-    u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
-    for (; bigbkt < endbkt; bigbkt++) {
-      for (u32 from = 0 ; from < nthreads; from++) {
-        u32 *readedge = (u32 *)(big0 + edges[from][bigbkt]);
-        assert((u8 *)readedge >= big0 + nodes[from][bigbkt]);
-        edges[from][bigbkt] = nodeend(from,bigbkt) -
-          (((BIGBUCKETSIZE/nthreads) * pctleave/100) & -4);
-        u32 *endreadedge = (u32 *)(big0 + edges[from][bigbkt]);
-        for (; readedge < endreadedge; readedge++) {
-          u32 edge = *readedge;
-          u32 node = _sipnode(&sip_keys, edge, uorv);
-          z = node & BUCKETMASK;
-          zz = edge << BIGHASHBITS | node >> BUCKETBITS;
-          *(u64 *)(big0+big[z]) = zz;
-          big[z] += BIGSIZE;
+    u32 block = ( id   *NEDGES/nthreads) & -64,
+     endblock = ((id+1)*NEDGES/nthreads) & -64; 
+    for (; block < block; block += 64 {
+      u64 alive64 = edges->block(block);
+      for (u32 edge = block-1; alive64; ) { // -1 compensates for 1-based ffs
+        u32 ffs = __builtin_ffsll(alive64);
+        edge += ffs; alive64 >>= ffs;
+        hashin[nidx++] = 2*edge + uorv;
+        if (nidx == NSIPHASH) {
+          siphash24xN(&sip_keys, hashin, hashout);
+          for (u32 i=0; i < NSIPHASH; i++) {
+            u32 node = hashesout[i] & EDGEMASK;
+            z = node & BUCKETMASK;
+            zz = edge << BIGHASHBITS | node >> BUCKETBITS;
+            *(u64 *)(big0+big[z]) = zz;
+            big[z] += BIGSIZE;
+          }
+          nidx = 0;
         }
+        if (ffs & 64) break; // can't shift by 64
       }
+    }
+    siphash24xN(&sip_keys, hashin, hashout);
+    for (u32 i=0; i < nidx; i++) {
+      u32 node = hashesout[i] & EDGEMASK;
+      z = node & BUCKETMASK;
+      zz = edge << BIGHASHBITS | node >> BUCKETBITS;
+      *(u64 *)(big0+big[z]) = zz;
+      big[z] += BIGSIZE;
     }
     for (u32 z=0; z < NBUCKETS; z++) {
       assert(nodesize(id, z) <= BIGBUCKETSIZE);
@@ -410,17 +446,13 @@ public:
 #endif
     barrier();
     if (id == 0)
-      printf("round 0 edges %x\n", edgesumsize()/4);
-    barrier();
-    sortbig<5>(id, 0, 37);
-    barrier();
-    sortbig<5>(id, 0, 16);
+      printf("round 0 edges %x\n", edges.count());
     barrier();
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) printf("round %2d\n", round);
       u32 uorv = round & 1 ^ 1;
       barrier();
-      sortbig<5>(id, uorv, 0);
+      sortbig(id, uorv);
       barrier();
       if (id == 0)
         printf("round %d nodes %x\n", round, nodesumsize()/5);
@@ -428,7 +460,7 @@ public:
       sortsmall<u64,5,5>(id);
       barrier();
       if (id == 0)
-        printf("round %d edges %x\n", round, edgesumsize()/4);
+        printf("round %d edges %x\n", round, edges.count());
     }
   }
 };
@@ -441,7 +473,7 @@ void *etworker(void *vp) {
 }
 
 #ifndef IDXSHIFT
-// we want sizeof(cuckoo_hash) < sizeof(alive), so
+// we want sizeof(cuckoo_hash) < sizeof(trimmer), so
 // CUCKOO_SIZE * sizeof(u64)   < NEDGES * sizeof(u32)
 // CUCKOO_SIZE * 8             < NEDGES * 4
 // (NNODES >> IDXSHIFT) * 2    < NEDGES
@@ -518,26 +550,26 @@ public:
 
 class solver_ctx {
 public:
-  edgetrimmer *alive;
+  edgetrimmer *trimmer;
   cuckoo_hash *cuckoo;
   u32 sols[MAXSOLS][PROOFSIZE];
   u32 nsols;
 
   solver_ctx(u32 n_threads, u32 n_trims) {
-    alive = new edgetrimmer(n_threads, n_trims);
+    trimmer = new edgetrimmer(n_threads, n_trims);
     cuckoo = 0;
   }
   void setheadernonce(char* headernonce, const u32 len, const u32 nonce) {
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
-    setheader(headernonce, len, &alive->sip_keys);
+    setheader(headernonce, len, &trimmer->sip_keys);
     nsols = 0;
   }
   ~solver_ctx() {
     delete cuckoo;
-    delete alive;
+    delete trimmer;
   }
   u32 sharedbytes() {
-    return NBUCKETS * sizeof(bigbucket);
+    return NEDGES/8 + NBUCKETS * sizeof(bigbucket);
   }
   u32 threadbytes() {
     return NBUCKETS * sizeof(smallbucket) + sizeof(indices) + sizeof(thread_ctx);
@@ -553,11 +585,11 @@ public:
       cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
     u32 soli = nsols++;
     for (u32 block = 0; block < NEDGES; block += 64) {
-      u64 alive64 = 0; // alive->block(block);
+      u64 alive64 = 0; // trimmer->block(block);
       for (u32 nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        edge e(sipnode(&alive->sip_keys, nonce, 0), sipnode(&alive->sip_keys, nonce, 1));
+        edge e(sipnode(&trimmer->sip_keys, nonce, 0), sipnode(&trimmer->sip_keys, nonce, 1));
         if (cycle.find(e) != cycle.end()) {
           sols[soli][n++] = nonce;
   #ifdef SHOWSOL
@@ -588,14 +620,14 @@ public:
   }
   
   int solve() {
-    alive->trim();
+    trimmer->trim();
     u32 us[MAXPATHLEN], vs[MAXPATHLEN];
     for (u32 block = 0; block < NEDGES; block += 64) {
-      u64 alive64 = 0; // alive->block(block);
+      u64 alive64 = 0; // trimmer->block(block);
       for (u32 nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        u32 u0=sipnode(&alive->sip_keys, nonce, 0), v0=sipnode(&alive->sip_keys, nonce, 1);
+        u32 u0=sipnode(&trimmer->sip_keys, nonce, 0), v0=sipnode(&trimmer->sip_keys, nonce, 1);
         if (u0) {// ignore vertex 0 so it can be used as nil for cuckoo[]
           u32 nu = path(u0, us), nv = path(v0, vs);
           if (us[nu] == vs[nv]) {

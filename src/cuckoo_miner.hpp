@@ -277,7 +277,9 @@ public:
   
     memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->set(0) to reduce branching
     u32 nidx = 0;
-    for (nonce_t block = id*64; block < NEDGES; block += nthreads*64) {
+    nonce_t    block = ( id   *NEDGES/nthreads) & -64;
+    nonce_t endblock = ((id+1)*NEDGES/nthreads) & -64;
+    for (; block < endblock; block += 64) {
       u64 alive64 = alive->block(block);
       for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
