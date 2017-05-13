@@ -48,15 +48,15 @@
 #error promote u32 to u64 where necessary
 #endif
 
-const static u32 BIG0BITS       = BIG0SIZE * 8;
 const static u32 BIGHASHBITS    = EDGEBITS - BUCKETBITS;
-const static u32 EDGEBITSLO     = BIG0BITS - BIGHASHBITS;
-const static u32 NEDGESLO       = 1 << EDGEBITSLO;
+const static u32 BIG0BITS       = BIG0SIZE * 8;
+const static u32 EDGE0BITSLO    = BIG0BITS - BIGHASHBITS;
+const static u32 NEDGES0LO      = 1 << EDGE0BITSLO;
 const static u32 NBUCKETS       = 1 << BUCKETBITS;
 const static u32 BUCKETMASK     = NBUCKETS - 1;
 const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << BIGHASHBITS);
-const static u32 DEGREEBITS = EDGEBITS - 2 * BUCKETBITS;
-const static u32 NDEGREES = 1 << DEGREEBITS;
+const static u32 DEGREEBITS     = BIGHASHBITS - BUCKETBITS;
+const static u32 NDEGREES       = 1 << DEGREEBITS;
 
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
@@ -204,7 +204,7 @@ public:
       big[z] += BIG0SIZE;
 #else
       if (zz) {
-        for (; unlikely(last[z] + NEDGESLO <= block); last[z] += NEDGESLO, big[z] += BIG0SIZE)
+        for (; unlikely(last[z] + NEDGES0LO <= block); last[z] += NEDGES0LO, big[z] += BIG0SIZE)
           *(u32 *)(big0+big[z]) = 0;
         *(u32 *)(big0+big[z]) = zz;
         big[z] += BIG0SIZE;
@@ -249,7 +249,7 @@ public:
   zz = _mm256_extract_epi32(w,x);\
   if (i || likely(zz)) {\
     z = _mm256_extract_epi32(v,x);\
-    for (; unlikely(last[z] + NEDGESLO <= block+i); last[z] += NEDGESLO, big[z] += BIG0SIZE)\
+    for (; unlikely(last[z] + NEDGES0LO <= block+i); last[z] += NEDGES0LO, big[z] += BIG0SIZE)\
       *(u32 *)(big0+big[z]) = 0;\
     *(u32 *)(big0+big[z]) = zz;\
     big[z] += BIG0SIZE;\
@@ -265,7 +265,7 @@ public:
     for (u32 z=0; z < NBUCKETS; z++) {
       assert(nodesize(id, z) <= BIGBUCKETSIZE);
 #ifdef NEEDSYNC
-      for (; last[z]<endblock-NEDGESLO; last[z]+=NEDGESLO) {
+      for (; last[z]<endblock-NEDGES0LO; last[z]+=NEDGES0LO) {
         *(u32 *)(big0+big[z]) = 0;
         big[z] += BIG0SIZE;
       }
@@ -320,6 +320,8 @@ public:
     const u32 NONDEGREEMASK = (1 << NONDEGREEBITS) - 1;
     const u64 SMALLSIZEMASK = (1ULL << SMALLBITS) - 1ULL;
     const u32 DEGREEMASK = NDEGREES - 1;
+    const u32 EDGEBITSLO = BIGBITS - BIGHASHBITS;
+    const u32 NEDGESLO = 1 << EDGEBITSLO;
   
     rdtsc0 = __rdtsc();
     u8 *big0 = buckets[0];
