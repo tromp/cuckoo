@@ -441,7 +441,7 @@ void *etworker(void *vp) {
 }
 
 #ifndef IDXSHIFT
-// we want sizeof(cuckoo_hash) < sizeof(alive), so
+// we want sizeof(cuckoo_hash) < sizeof(trimmer), so
 // CUCKOO_SIZE * sizeof(u64)   < NEDGES * sizeof(u32)
 // CUCKOO_SIZE * 8             < NEDGES * 4
 // (NNODES >> IDXSHIFT) * 2    < NEDGES
@@ -518,23 +518,23 @@ public:
 
 class solver_ctx {
 public:
-  edgetrimmer *alive;
+  edgetrimmer *trimmer;
   cuckoo_hash *cuckoo;
   u32 sols[MAXSOLS][PROOFSIZE];
   u32 nsols;
 
   solver_ctx(u32 n_threads, u32 n_trims) {
-    alive = new edgetrimmer(n_threads, n_trims);
+    trimmer = new edgetrimmer(n_threads, n_trims);
     cuckoo = 0;
   }
   void setheadernonce(char* headernonce, const u32 len, const u32 nonce) {
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
-    setheader(headernonce, len, &alive->sip_keys);
+    setheader(headernonce, len, &trimmer->sip_keys);
     nsols = 0;
   }
   ~solver_ctx() {
     delete cuckoo;
-    delete alive;
+    delete trimmer;
   }
   u32 sharedbytes() {
     return NBUCKETS * sizeof(bigbucket);
@@ -553,11 +553,11 @@ public:
       cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
     u32 soli = nsols++;
     for (u32 block = 0; block < NEDGES; block += 64) {
-      u64 alive64 = 0; // alive->block(block);
+      u64 alive64 = 0; // trimmer->block(block);
       for (u32 nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        edge e(sipnode(&alive->sip_keys, nonce, 0), sipnode(&alive->sip_keys, nonce, 1));
+        edge e(sipnode(&trimmer->sip_keys, nonce, 0), sipnode(&trimmer->sip_keys, nonce, 1));
         if (cycle.find(e) != cycle.end()) {
           sols[soli][n++] = nonce;
   #ifdef SHOWSOL
@@ -588,14 +588,14 @@ public:
   }
   
   int solve() {
-    alive->trim();
+    trimmer->trim();
     u32 us[MAXPATHLEN], vs[MAXPATHLEN];
     for (u32 block = 0; block < NEDGES; block += 64) {
-      u64 alive64 = 0; // alive->block(block);
+      u64 alive64 = 0; // trimmer->block(block);
       for (u32 nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        u32 u0=sipnode(&alive->sip_keys, nonce, 0), v0=sipnode(&alive->sip_keys, nonce, 1);
+        u32 u0=sipnode(&trimmer->sip_keys, nonce, 0), v0=sipnode(&trimmer->sip_keys, nonce, 1);
         if (u0) {// ignore vertex 0 so it can be used as nil for cuckoo[]
           u32 nu = path(u0, us), nv = path(v0, vs);
           if (us[nu] == vs[nv]) {
