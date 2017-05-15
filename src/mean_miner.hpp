@@ -411,6 +411,7 @@ public:
     barrier();
     if (id == 0)
       printf("round 0 edges %x\n", edgesumsize()/4);
+    return;
     barrier();
     sortbig<5>(id, 0, 37);
     barrier();
@@ -418,7 +419,7 @@ public:
     barrier();
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) printf("round %2d\n", round);
-      u32 uorv = round & 1 ^ 1;
+      u32 uorv = (round & 1) ^ 1;
       barrier();
       sortbig<5>(id, uorv, 0);
       barrier();
