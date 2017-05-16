@@ -291,13 +291,12 @@ public:
           (((BIGBUCKETSIZE/nthreads) * pctleave/100) & -4); // OUT OF PHASE!
         u8 *endreadedge = big0 + edges[from][bigbkt];
         u32 lastread = 0;
-        for (; readedge < endreadedge; readedge++) {
+        for (; lastread < NEDGES; readedge++) {
           u64 e = *(u64 *)readedge & 0xffffffffff;
-          lastread += ((e>>DEGREEBITS) - lastread) & NONDEGREEMASK;
+          lastread += ((e>>DEGREEBITS) - lastread) & 0x7ffff;
           u32 node = _sipnode(&sip_keys, lastread, uorv);
           z = node & BUCKETMASK;
-          zz = edge << BIGHASHBITS | node >> BUCKETBITS;
-          *(u64 *)(big0+big[z]) = zz;
+          *(u64 *)(big0+big[z]) = (0 | (e & 0x1fff)) << BIGHASHBITS | node >> BUCKETBITS;
           big[z] += BIGSIZE;
         }
       }
@@ -366,7 +365,7 @@ public:
           for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALLSIZE)
             degs[*(u32 *)rdsmall & DEGREEMASK]--;
           u32 lastread = 0;
-          for (; readsmall < endreadsmall; readsmall+=SMALLSIZE) {
+          for (; readsmall < endreadsmall; readsmall+=SMALLSIZE) { // GOING DOWN NOT UP!
             u64 z = *(u64 *)readsmall & SMALLSIZEMASK;
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK;
             u32 deg = z & DEGREEMASK;
