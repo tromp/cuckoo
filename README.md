@@ -5,9 +5,11 @@ Congratulations to xenoncat!
 
 His solvers, available at https://github.com/xenoncat/cuckoo_pow,
 achieve speedups ranging from 2.8x to over 4x by using 20x more memory to
-avoid the high latency of completely random bit accesses.
-I am rewriting my solver to incorporate those speedups as an additional
-option, while trying to reduce the memory to 11x (see mean_miner...).
+avoid the high latency of completely random bit accesses
+(one third of that memory is used only for recovering the edge indices from a
+cycle and could be separated).  I am rewriting my solver to incorporate
+those speedups as an additional
+option, while trying to reduce the memory to 11x.
 In light of this claimed bounty, the bounties below are amended with an
 additional requirement of limited memory use.
 
@@ -104,17 +106,19 @@ The latter runs about 4x faster on an NVIDA GTX 980 than on an Intel Core-i7 CPU
 (and thus about as fast as xenoncat's CPU solver).
 To that end, I offer the following bounties:
 
-CPU Speedup Bounty
+CPU Speedup Bounties
 --------------
-$3000 for an open source implementation that finds 42-cycles twice as fast,
-using no more than 1 byte per edge.
+$3000 for an open source implementation that finds 42-cycles twice as fast
+as cuckoo_miner, using no more than 1 byte per edge.
+
+$3000 for an open source implementation that finds 42-cycles twice as fast
+as xenoncat's miners, regardless of memory use.
 
 Linear Time-Memory Trade-Off Bounty
 --------------
-$3000 for an open source implementation that uses at most N/k bits while finding
-42-cycles up to 10 k times slower, for any k>=2.
+$3000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
 
-Both of these bounties require N ranging over {2^28,2^30,2^32} and #threads
+All of these bounties require N ranging over {2^28,2^30,2^32} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
 recent gcc compiler with regular flags as in my Makefile.
 
@@ -126,9 +130,6 @@ using no more than 1 byte per edge.
 Again with N ranging over {2^28,2^30,2^32}.
 
 The Makefile defines corresponding targets cpubounty, tmtobounty, and gpubounty.
-These bounties are admittedly modest in size,
-but then claiming them might only require one or two insightful tweaks to
-my existing implementations.
 
 Double and Half bounties
 ------------------------
