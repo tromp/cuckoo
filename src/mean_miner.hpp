@@ -128,7 +128,7 @@ public:
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
   }
   u32 nodeend(u32 id, u32 bkt) {
-    return nodestart(id+1, bkt) & -32;
+    return nodestart(id+1, bkt) - sizeof(u64); // avoids next bucket
   }
   u32 *nodeinit(u32 id) {
    u32 *nds = nodes[id];
@@ -285,14 +285,16 @@ public:
     u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
     for (; bigbkt < endbkt; bigbkt++) {
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32 *readedge = (u32 *)(big0 + edges[from][bigbkt]);
+        u8 *readedge = big0 + edges[from][bigbkt];
         assert((u8 *)readedge >= big0 + nodes[from][bigbkt]);
         edges[from][bigbkt] = nodeend(from,bigbkt) -
-          (((BIGBUCKETSIZE/nthreads) * pctleave/100) & -4);
-        u32 *endreadedge = (u32 *)(big0 + edges[from][bigbkt]);
+          (((BIGBUCKETSIZE/nthreads) * pctleave/100) & -4); // OUT OF PHASE!
+        u8 *endreadedge = big0 + edges[from][bigbkt];
+        u32 lastread = 0;
         for (; readedge < endreadedge; readedge++) {
-          u32 edge = *readedge;
-          u32 node = _sipnode(&sip_keys, edge, uorv);
+          u64 e = *(u64 *)readedge & 0xffffffffff;
+          lastread += ((e>>DEGREEBITS) - lastread) & NONDEGREEMASK;
+          u32 node = _sipnode(&sip_keys, lastread, uorv);
           z = node & BUCKETMASK;
           zz = edge << BIGHASHBITS | node >> BUCKETBITS;
           *(u64 *)(big0+big[z]) = zz;
@@ -310,7 +312,7 @@ public:
     return (n & (n-1)) == 0;
   }
   template<typename BIGTYPE, u32 BIGSIZE, u32 SMALLSIZE>
-  void sortsmall(const u32 id) {
+  void sortsmall0(const u32 id) {
     uint64_t rdtsc0, rdtsc1;
     u32 small[NBUCKETS];
     const u32 BIGBITS = BIGSIZE * 8;
@@ -354,7 +356,7 @@ public:
       }
       u8 *degs = (u8 *)big0 + nodestart(0, bigbkt); // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
-        u32 *writedge = (u32 *)(big0 + nodeend(from, bigbkt)) - 1;
+        u8 *writedge = big0 + nodeend(from, bigbkt);
         u32 smallbkt = from * NBUCKETS / nthreads;
         u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
         for (; smallbkt < endsmallbkt; smallbkt++) {
@@ -367,8 +369,9 @@ public:
           for (; readsmall < endreadsmall; readsmall+=SMALLSIZE) {
             u64 z = *(u64 *)readsmall & SMALLSIZEMASK;
             lastread += ((z>>DEGREEBITS) - lastread) & NONDEGREEMASK;
-            *writedge = lastread;
-            writedge -= degs[z & DEGREEMASK] >> 7;
+            u32 deg = z & DEGREEMASK;
+            *writedge = lastread << DEGREEBITS | deg;
+            writedge -= degs[deg] ? 5 : 0;
           }
           if (power2(nthreads) && unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
             { printf("OOPS2: id %d big %d from %d small %d lastread %x\n", id, bigbkt, from, smallbkt, lastread); exit(0); }
@@ -377,7 +380,7 @@ public:
       }
     }
     rdtsc1 = __rdtsc();
-    printf("sortsmall rdtsc: %lu\n", rdtsc1-rdtsc0);
+    printf("sortsmall0 rdtsc: %lu\n", rdtsc1-rdtsc0);
   }
 
   void trim() {
@@ -404,9 +407,9 @@ public:
     sortbig0(id, 1);
     barrier();
 #if BIG0SIZE > 4
-    sortsmall<u64,BIG0SIZE,SMALL0SIZE>(id);
+    sortsmall0<u64,BIG0SIZE,SMALL0SIZE>(id);
 #else
-    sortsmall<u32,BIG0SIZE,SMALL0SIZE>(id);
+    sortsmall0<u32,BIG0SIZE,SMALL0SIZE>(id);
 #endif
     barrier();
     if (id == 0)
@@ -426,7 +429,7 @@ public:
       if (id == 0)
         printf("round %d nodes %x\n", round, nodesumsize()/5);
       barrier();
-      sortsmall<u64,5,5>(id);
+      // sortsmall<u64,5,5>(id);
       barrier();
       if (id == 0)
         printf("round %d edges %x\n", round, edgesumsize()/4);
