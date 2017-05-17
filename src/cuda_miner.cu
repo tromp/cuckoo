@@ -7,13 +7,6 @@
 #include <stdint.h>
 #include <string.h>
 #include "cuckoo.h"
-#if SIZESHIFT <= 32
-  typedef u32 nonce_t;
-  typedef u32 node_t;
-#else
-  typedef u64 nonce_t;
-  typedef u64 node_t;
-#endif
 #include <openssl/sha.h>
 
 // d(evice s)ipnode
@@ -47,7 +40,7 @@ __device__ __forceinline__ uint64_t devectorize(uint2 x) {
   asm("mov.b64 %0,{%1,%2}; \n\t" : "=l"(result) : "r"(x.x), "r"(x.y));
   return result;
 }
-__device__ node_t dipnode(siphash_keys &keys, nonce_t nce, u32 uorv) {
+__device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
   uint2 nonce = vectorize(2*nce + uorv);
   uint2 v0 = vectorize(keys.k0 ^ 0x736f6d6570736575ULL),
         v1 = vectorize(keys.k1 ^ 0x646f72616e646f6dULL),
@@ -62,7 +55,7 @@ __device__ node_t dipnode(siphash_keys &keys, nonce_t nce, u32 uorv) {
 
 #else
 
-__device__ node_t dipnode(siphash_keys &keys, nonce_t nce, u32 uorv) {
+__device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
   u64 nonce = 2*nce + uorv;
   u64 v0 = keys.k0 ^ 0x736f6d6570736575ULL, v1 = keys.k0 ^ 0x646f72616e646f6dULL,
       v2 = keys.k0 ^ 0x6c7967656e657261ULL, v3 = keys.k0 ^ 0x7465646279746573ULL ^ nonce;
@@ -94,13 +87,18 @@ __device__ node_t dipnode(siphash_keys &keys, nonce_t nce, u32 uorv) {
 // we want sizeof(cuckoo_hash) == sizeof(twice_set), so
 // CUCKOO_SIZE * sizeof(u64) == TWICE_WORDS * sizeof(u32)
 // CUCKOO_SIZE * 2 == TWICE_WORDS
-// (SIZE >> IDXSHIFT) * 2 == 2 * ONCE_BITS / 32
-// SIZE >> IDXSHIFT == HALFSIZE >> PART_BITS >> 5
+// (NNODES >> IDXSHIFT) * 2 == 2 * ONCE_BITS / 32
+// NNODES >> IDXSHIFT == NEDGES >> PART_BITS >> 5
 // IDXSHIFT == 1 + PART_BITS + 5
 #define IDXSHIFT (PART_BITS + 6)
 #endif
+
+#define NODEBITS (EDGEBITS + 1)
+#define NNODES (2 * NEDGES)
+#define NODEMASK (NNODES-1)
+
 // grow with cube root of size, hardly affected by trimming
-#define MAXPATHLEN (8 << (SIZESHIFT/3))
+#define MAXPATHLEN (8 << (NODEBITS/3))
 
 #define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
@@ -114,7 +112,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 class shrinkingset {
 public:
   u32 *bits;
-  __device__ void reset(nonce_t n) {
+  __device__ void reset(edge_t n) {
     bits[n/32] |= 1 << (n%32);
   }
   __device__ bool test(node_t n) const {
@@ -126,7 +124,7 @@ public:
 };
 
 #define PART_MASK ((1 << PART_BITS) - 1)
-#define ONCE_BITS (HALFSIZE >> PART_BITS)
+#define ONCE_BITS (NEDGES >> PART_BITS)
 #define TWICE_WORDS ((2 * ONCE_BITS) / 32)
 
 class twice_set {
@@ -147,10 +145,10 @@ public:
   }
 };
 
-#define CUCKOO_SIZE (SIZE >> IDXSHIFT)
+#define CUCKOO_SIZE (NNODES >> IDXSHIFT)
 #define CUCKOO_MASK (CUCKOO_SIZE - 1)
-// number of (least significant) key bits that survives leftshift by SIZESHIFT
-#define KEYBITS (64-SIZESHIFT)
+// number of (least significant) key bits that survives leftshift by NODEBITS
+#define KEYBITS (64-NODEBITS)
 #define KEYMASK ((1L << KEYBITS) - 1)
 #define MAXDRIFT (1L << (KEYBITS - IDXSHIFT))
 
@@ -166,17 +164,17 @@ public:
     free(cuckoo);
   }
   void set(node_t u, node_t v) {
-    u64 niew = (u64)u << SIZESHIFT | v;
+    u64 niew = (u64)u << NODEBITS | v;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
 #ifdef ATOMIC
       u64 old = 0;
       if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
         return;
-      if ((old >> SIZESHIFT) == (u & KEYMASK)) {
+      if ((old >> NODEBITS) == (u & KEYMASK)) {
         cuckoo[ui].store(niew, std::memory_order_relaxed);
 #else
       u64 old = cuckoo[ui];
-      if (old == 0 || (old >> SIZESHIFT) == (u & KEYMASK)) {
+      if (old == 0 || (old >> NODEBITS) == (u & KEYMASK)) {
         cuckoo[ui] = niew;
 #endif
         return;
@@ -192,9 +190,9 @@ public:
 #endif
       if (!cu)
         return 0;
-      if ((cu >> SIZESHIFT) == (u & KEYMASK)) {
+      if ((cu >> NODEBITS) == (u & KEYMASK)) {
         assert(((ui - (u >> IDXSHIFT)) & CUCKOO_MASK) < MAXDRIFT);
-        return (node_t)(cu & (SIZE-1));
+        return (node_t)(cu & NODEMASK);
       }
     }
   }
@@ -212,7 +210,7 @@ public:
   }
   void setheadernonce(char* headernonce, const u32 nonce) {
     ((u32 *)headernonce)[HEADERLEN/sizeof(u32)-1] = htole32(nonce); // place nonce at end
-    setheader(&sip_keys, headernonce);
+    setheader(headernonce, HEADERLEN, &sip_keys);
   }
 };
 
@@ -221,9 +219,9 @@ __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   twice_set &nonleaf = ctx->nonleaf;
   siphash_keys sip_keys = ctx->sip_keys; // local copy sip context; 2.5% speed gain
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+  for (edge_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
-    for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+    for (edge_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
       node_t u = dipnode(sip_keys, nonce, uorv);
@@ -239,9 +237,9 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   twice_set &nonleaf = ctx->nonleaf;
   siphash_keys sip_keys = ctx->sip_keys;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  for (nonce_t block = id*32; block < HALFSIZE; block += ctx->nthreads*32) {
+  for (edge_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
-    for (nonce_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+    for (edge_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
       node_t u = dipnode(sip_keys, nonce, uorv);
@@ -306,7 +304,7 @@ int main(int argc, char **argv) {
   if (!tpb) // if not set, then default threads per block to roughly square root of threads
     for (tpb = 1; tpb*tpb < nthreads; tpb *= 2) ;
 
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, SIZESHIFT, header, nonce);
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges, %d trims, %d threads %d per block\n", trims, nthreads, tpb);
@@ -318,7 +316,7 @@ int main(int argc, char **argv) {
   memcpy(headernonce, header, hdrlen);
   memset(headernonce+hdrlen, 0, sizeof(headernonce)-hdrlen);
 
-  u64 edgeBytes = HALFSIZE/8, nodeBytes = TWICE_WORDS*sizeof(u32);
+  u64 edgeBytes = NEDGES/8, nodeBytes = TWICE_WORDS*sizeof(u32);
   checkCudaErrors(cudaMalloc((void**)&ctx.alive.bits, edgeBytes));
   checkCudaErrors(cudaMalloc((void**)&ctx.nonleaf.bits, nodeBytes));
 
@@ -351,16 +349,16 @@ int main(int argc, char **argv) {
     }
   
     u64 *bits;
-    bits = (u64 *)calloc(HALFSIZE/64, sizeof(u64));
+    bits = (u64 *)calloc(NEDGES/64, sizeof(u64));
     assert(bits != 0);
-    cudaMemcpy(bits, ctx.alive.bits, (HALFSIZE/64) * sizeof(u64), cudaMemcpyDeviceToHost);
+    cudaMemcpy(bits, ctx.alive.bits, (NEDGES/64) * sizeof(u64), cudaMemcpyDeviceToHost);
 
     cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop);
     float duration;
     cudaEventElapsedTime(&duration, start, stop);
     u32 cnt = 0;
-    for (int i = 0; i < HALFSIZE/64; i++)
+    for (int i = 0; i < NEDGES/64; i++)
       cnt += __builtin_popcountll(~bits[i]);
     u32 load = (u32)(100L * cnt / CUCKOO_SIZE);
     printf("nonce %d: %d trims completed in %.3f seconds final load %d%%\n",
@@ -373,9 +371,9 @@ int main(int argc, char **argv) {
   
     cuckoo_hash &cuckoo = *(new cuckoo_hash());
     node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-    for (nonce_t block = 0; block < HALFSIZE; block += 64) {
+    for (edge_t block = 0; block < NEDGES; block += 64) {
       u64 alive64 = ~bits[block/64];
-      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      for (edge_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
         node_t u0=sipnode(&ctx.sip_keys, nonce, 0), v0=sipnode(&ctx.sip_keys, nonce, 1);
@@ -385,7 +383,7 @@ int main(int argc, char **argv) {
             u32 min = nu < nv ? nu : nv;
             for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
             u32 len = nu + nv + 1;
-            printf("%4d-cycle found at %d:%d%%\n", len, 0, (u32)(nonce*100L/HALFSIZE));
+            printf("%4d-cycle found at %d:%d%%\n", len, 0, (u32)(nonce*100L/NEDGES));
             if (len == PROOFSIZE) {
               printf("Solution");
               std::set<edge> cycle;
@@ -395,9 +393,9 @@ int main(int argc, char **argv) {
                 cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
               while (nv--)
                 cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-              for (nonce_t blk = 0; blk < HALFSIZE; blk += 64) {
+              for (edge_t blk = 0; blk < NEDGES; blk += 64) {
                 u64 alv64 = ~bits[blk/64];
-                for (nonce_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
+                for (edge_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
                   u32 ffs = __builtin_ffsll(alv64);
                   nce += ffs; alv64 >>= ffs;
                   edge e(sipnode(&ctx.sip_keys, nce, 0), sipnode(&ctx.sip_keys, nce, 1));
