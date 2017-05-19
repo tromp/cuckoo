@@ -129,7 +129,7 @@ public:
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
   }
   u32 nodeend(u32 id, u32 bkt) {
-    return nodestart(id+1, bkt) - sizeof(u64); // avoids next bucket
+    return nodestart(id+1, bkt);
   }
   u32 *nodeinit(u32 id) {
    u32 *nds = nodes[id];
@@ -364,7 +364,7 @@ public:
       }
       u8 *degs = (u8 *)big0 + nodestart(0, bigbkt); // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
-        u8 *writedge = big0 + nodeend(from, bigbkt);
+        u8 *writedge = big0 + nodeend(from, bigbkt) - 8;
         u32 smallbkt = from * NBUCKETS / nthreads;
         u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
         for (; smallbkt < endsmallbkt; smallbkt++) {
@@ -373,15 +373,14 @@ public:
           u8 *endreadsmall = small0 + small[smallbkt];
           for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALLSIZE)
             degs[*(u32 *)rdsmall & DEGREEMASK]--;
-          for (; readsmall < endreadsmall; readsmall+=SMALLSIZE) {
+          for (; rdsmall >= readsmall; rdsmall-=SMALLSIZE) { // backwards
 // bit         39..13     12..0
 // read          edge    degree
-            u64 z = *(u64 *)readsmall & SMALLSIZEMASK;
-            u32 deg = z & DEGREEMASK;
+            u64 z = *(u64 *)rdsmall & SMALLSIZEMASK;
 // bit         63..37    36..24    23..0
 // write         edge    degree   fodder
             *writedge = z << 24;
-            writedge -= degs[deg] ? 5 : 0;
+            writedge -= degs[z & DEGREEMASK] ? 5 : 0; // backwards
           }
         }
         edges[from][bigbkt] = (u8 *)writedge + 8 - big0;
