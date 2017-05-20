@@ -33,7 +33,7 @@
 #endif
 
 #ifndef BIG0SIZE
-#define BIG0SIZE 4
+#define BIG0SIZE 5
 #endif
 
 #if BIG0SIZE == 4 && EDGEBITS > 27
@@ -58,6 +58,7 @@ const static u32 BUCKETMASK     = NBUCKETS - 1;
 const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << BIGHASHBITS);
 const static u32 DEGREEBITS     = BIGHASHBITS - BUCKETBITS;
 const static u32 NDEGREES       = 1 << DEGREEBITS;
+const static u32 DEGREEMASK     = NDEGREES - 1;
 
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
@@ -279,40 +280,48 @@ public:
     rdtsc1 = __rdtsc();
     printf("sortbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, nodesumsize(id));
   }
-  template<u32 BIGSIZE>
-  void sortbig(const u32 id, const u32 uorv, u32 pctleave) {
+  void sortbig1(const u32 id, const u32 uorv, u32 small) {
     uint64_t rdtsc0, rdtsc1;
   
+    u64 small1 = small << 34;
     rdtsc0 = __rdtsc();
     u32 z, zz, *big = nodes[id];
     u8 *big0 = buckets[0];
     u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
+  printf("small %d readedge %d\n",small,edges[0][bigbkt]);
     for (; bigbkt < endbkt; bigbkt++) {
       for (u32 from = 0 ; from < nthreads; from++) {
+  // printf("small %d edges[0][%d] %d nodes[0][%d] %d\n",small,bigbkt,edgesize(0,bigbkt),bigbkt,nodesize(0,bigbkt));
+        assert(edges[from][bigbkt] > nodes[from][bigbkt]);
         u8 *readedge = big0 + edges[from][bigbkt];
-        assert((u8 *)readedge >= big0 + nodes[from][bigbkt]);
-        edges[from][bigbkt] = nodeend(from,bigbkt) -
-          (((BIGBUCKETSIZE/nthreads) * pctleave/100) & -4); // OUT OF PHASE!
-        u8 *endreadedge = big0 + edges[from][bigbkt];
-        u32 lastread = 0;
-        for (; lastread < NEDGES; readedge++) {
+        for (u32 edge = 0; ; readedge+=5) {
+// bit         39..13     12..0
+// read          edge   degree1
           u64 e = *(u64 *)readedge & 0xffffffffff;
-          lastread += ((e>>DEGREEBITS) - lastread) & 0x7ffff;
-          u32 node = _sipnode(&sip_keys, lastread, uorv);
+          edge += ((e>>DEGREEBITS) - edge) & 0x7ffff;
+          if (edge >= NEDGES) break; // reached end of small1 section
+          u32 node = _sipnode(&sip_keys, edge, uorv);
           z = node & BUCKETMASK;
-          *(u64 *)(big0+big[z]) = (0 | (e & 0x1fff)) << BIGHASHBITS | node >> BUCKETBITS;
-          big[z] += BIGSIZE;
+// bit        39..34    33..21     25..13     12..0
+// store      small1    small0    degree0   degree1   within big0
+          *(u64 *)(big0+big[z]) = small1 | ((u64)(node >> BUCKETBITS) << (2*DEGREEBITS)) | (e & DEGREEMASK);
+          big[z] += 5;
         }
-        // if (power2(nthreads) && unlikely(lastread>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
-        // { printf("OOPS2: id %d big %d from %d small %d lastread %x\n", id, bigbkt, from, smallbkt, lastread); exit(0); }
+        edges[from][bigbkt] = readedge - big0;
+if (bigbkt==0)
+  printf("small %d readedge %d\n",small,readedge-big0);
+        // if (power2(nthreads) && unlikely(edge>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
+        // { printf("OOPS2: id %d big %d from %d small %d edge %x\n", id, bigbkt, from, smallbkt, edge); exit(0); }
       }
     }
     for (u32 z=0; z < NBUCKETS; z++) {
       assert(nodesize(id, z) <= BIGBUCKETSIZE);
     }
     rdtsc1 = __rdtsc();
-    printf("sortbig leaving %d%% rdtsc: %lu sumsize %x\n", pctleave, rdtsc1-rdtsc0, nodesumsize(id));
+    printf("sortbig small %d%% rdtsc: %lu sumsize %x\n", small, rdtsc1-rdtsc0, nodesumsize(id));
   }
+// bit        39..34    33..26     25..13     12..0
+// store        big1    small1    degree0   degree1   within big0 small0
   bool power2(u32 n) {
     return (n & (n-1)) == 0;
   }
@@ -326,7 +335,6 @@ public:
     const u32 NONDEGREEBITS = SMALLBITS - DEGREEBITS;
     const u32 NONDEGREEMASK = (1 << NONDEGREEBITS) - 1;
     const u64 SMALLSIZEMASK = (1ULL << SMALLBITS) - 1ULL;
-    const u32 DEGREEMASK = NDEGREES - 1;
     const u32 EDGEBITSLO = BIGBITS - BIGHASHBITS;
     const u32 NEDGESLO = 1 << EDGEBITSLO;
   
@@ -365,25 +373,29 @@ public:
       u8 *degs = (u8 *)big0 + nodestart(0, bigbkt); // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
         u8 *writedge = big0 + nodeend(from, bigbkt) - 8;
-        u32 smallbkt = from * NBUCKETS / nthreads;
-        u32 endsmallbkt = (from+1) * NBUCKETS / nthreads;
-        for (; smallbkt < endsmallbkt; smallbkt++) {
+        int smallbkt0 = from * NBUCKETS / nthreads;
+        int smallbkt = (from+1) * NBUCKETS / nthreads;
+        for (; --smallbkt >= smallbkt0; ) { // backwards
+  // printf("big %d small %d end-write %d\n",bigbkt, smallbkt, big0 + nodeend(from, bigbkt) - 8 - writedge);
           memset(degs, 1, NDEGREES);
-          u8    *readsmall = small0 + smallbkt * SMALLBUCKETSIZE;
-          u8 *endreadsmall = small0 + small[smallbkt];
-          for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALLSIZE)
+          u8    *readsmall = small0 + smallbkt * SMALLBUCKETSIZE,
+             *endreadsmall = small0 + small[smallbkt], *rdsmall;
+          for (rdsmall = endreadsmall; (rdsmall-=SMALLSIZE) >= readsmall; ) // backwards
             degs[*(u32 *)rdsmall & DEGREEMASK]--;
-          for (; rdsmall >= readsmall; rdsmall-=SMALLSIZE) { // backwards
+          for (rdsmall = endreadsmall; (rdsmall-=SMALLSIZE) >= readsmall; ) { // backwards
 // bit         39..13     12..0
 // read          edge    degree
-            u64 z = *(u64 *)rdsmall & SMALLSIZEMASK;
+            u64 z = *(u64 *)rdsmall; // & SMALLSIZEMASK;
 // bit         63..37    36..24    23..0
 // write         edge    degree   fodder
-            *writedge = z << 24;
+            *(u64 *)writedge = z << 24;
             writedge -= degs[z & DEGREEMASK] ? 5 : 0; // backwards
           }
+if (bigbkt==0)
+  printf("small %d writedge %d nodeend %d BBS %d\n",smallbkt,writedge+8-big0, nodeend(from, bigbkt), BIGBUCKETSIZE);
         }
         edges[from][bigbkt] = (u8 *)writedge + 8 - big0;
+  // printf("small %d edges[0][%d] %d nodes[0][%d] %d\n",small,bigbkt,edgesize(0,bigbkt),bigbkt,nodesize(0,bigbkt));
       }
     }
     rdtsc1 = __rdtsc();
@@ -420,18 +432,20 @@ public:
 #endif
     barrier();
     if (id == 0)
-      printf("round 0 edges %x\n", edgesumsize()/4);
-    return;
-    barrier();
-    sortbig<5>(id, 0, 37);
-    barrier();
-    sortbig<5>(id, 0, 16);
+      printf("round 0 edges %x\n", edgesumsize()/5);
+    // return;
+    for (u32 small=0; small<NBUCKETS; small++) {
+      barrier();
+      sortbig1(id, 0, small);
+    }
+for (u32 i=0; i<NBUCKETS; i++)
+  printf("edges[0][%d] %x nodes[0][%d] %x\n",i,edgesize(0,i),i,nodesize(0,i));
     barrier();
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) printf("round %2d\n", round);
       u32 uorv = (round & 1) ^ 1;
       barrier();
-      sortbig<5>(id, uorv, 0);
+      // sortbig<5>(id, uorv, 0);
       barrier();
       if (id == 0)
         printf("round %d nodes %x\n", round, nodesumsize()/5);
@@ -439,7 +453,7 @@ public:
       // sortsmall<u64,5,5>(id);
       barrier();
       if (id == 0)
-        printf("round %d edges %x\n", round, edgesumsize()/4);
+        printf("round %d edges %x\n", round, edgesumsize()/5);
     }
   }
 };
