@@ -95,6 +95,8 @@ typedef struct {
 #define likely(x)   __builtin_expect((x)!=0, 1)
 #define unlikely(x)   __builtin_expect((x), 0)
 
+static const u32 SENTINELSIZE = NSIPHASH * 5; // sentinel for bigsort1;
+
 // maintains set of trimmable edges
 class edgetrimmer {
 public:
@@ -118,6 +120,9 @@ public:
     threads  = new thread_ctx[nthreads];
     int err  = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
+    for (u32 id=0; id < nthreads; id++)
+      for (u32 bkt=0; bkt < NBUCKETS; bkt++)
+        memset(buckets[0] + nodeend(id,bkt), 0, SENTINELSIZE);
   }
   ~edgetrimmer() {
     delete[] buckets;
@@ -130,7 +135,7 @@ public:
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
   }
   u32 nodeend(u32 id, u32 bkt) {
-    return nodestart(id+1, bkt);
+    return nodestart(id+1, bkt) - SENTINELSIZE;
   }
   u32 *nodeinit(u32 id) {
    u32 *nds = nodes[id];
@@ -164,7 +169,7 @@ public:
     return sum;
   }
   void sortbig0(const u32 id, const u32 uorv) {
-    uint64_t rdtsc0, rdtsc1;
+    u64 rdtsc0, rdtsc1;
 #ifdef NEEDSYNC
     u32 last[NBUCKETS];
 #endif
@@ -203,8 +208,8 @@ public:
 // store        edge    degree  smallbkt
 #if NSIPHASH == 1
       u32 node = _sipnode(&sip_keys, block, uorv);
-      z = node >>  & BUCKETMASK;
-      zz = block << BIGHASHBITS | node >> BUCKETBITS;
+      z = node & BUCKETMASK;
+      u64 zz = (u64)block << BIGHASHBITS | (node & EDGEMASK) >> BUCKETBITS;
 #ifndef NEEDSYNC
       *(u64 *)(big0+big[z]) = zz;
       big[z] += BIG0SIZE;
@@ -281,22 +286,87 @@ public:
     printf("sortbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, nodesumsize(id));
   }
   void sortbig1(const u32 id, const u32 uorv) {
-    uint64_t rdtsc0, rdtsc1;
-    u32 nsips=0;
+    u64 e, rdtsc0, rdtsc1;
   
+#if NSIPHASH == 8
+    static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
+    static const __m256i vdegmask = {DEGREEMASK, DEGREEMASK, DEGREEMASK, DEGREEMASK};
+    static const __m256i vbucketmask = {BUCKETMASK, BUCKETMASK, BUCKETMASK, BUCKETMASK};
+    const __m256i vinit = _mm256_set_epi64x(
+      sip_keys.k1^0x7465646279746573ULL,
+      sip_keys.k0^0x6c7967656e657261ULL,
+      sip_keys.k1^0x646f72616e646f6dULL,
+      sip_keys.k0^0x736f6d6570736575ULL);
+    __m256i vsmall, vpacket0, vpacket1, vhi0, vhi1;
+    __m256i v0, v1, v2, v3, v4, v5, v6, v7;
+    u32 e0, e1, e2, e3;
+    u64 re0, re1, re2, re3;
+#endif
+
     rdtsc0 = __rdtsc();
     u32 z, *big = nodeinit(id);
     u8 *big0 = buckets[0];
     u32 endbkt = (id+1)*NBUCKETS/nthreads; 
     for (u32 small=0; small<NBUCKETS; small++) {
-      u64 small1 = (u64)small << 34;
+      int64_t small1 = (int64_t)small << 34;
+#if NSIPHASH == 8
+      __m256i vsmall  = {small1, small1, small1, small1};
+#endif
       barrier();
-  // printf("small %d readedge %d\n",small,edges[0][bigbkt]);
       for (u32 bigbkt = id*NBUCKETS/nthreads; bigbkt < endbkt; bigbkt++) {
         for (u32 from = 0 ; from < nthreads; from++) {
-    // printf("small %d edges[0][%d] %d nodes[0][%d] %d\n",small,bigbkt,edgesize(0,bigbkt),bigbkt,nodesize(0,bigbkt));
           assert(edges[from][bigbkt] > nodes[from][bigbkt]);
           u8 *readedge = big0 + edges[from][bigbkt];
+#if NSIPHASH == 8
+          for (u32 edge = 0; ; readedge+=NSIPHASH*5) {
+            re0 = *(u64 *)readedge & 0xffffffffff;
+            e0 = edge += ((re0>>DEGREEBITS) - edge) & 0x7ffffff;
+            re1 = *(u64 *)(readedge+5) & 0xffffffffff;
+            e1 = edge += ((re1>>DEGREEBITS) - edge) & 0x7ffffff;
+            re2 = *(u64 *)(readedge+10) & 0xffffffffff;
+            e2 = edge += ((re2>>DEGREEBITS) - edge) & 0x7ffffff;
+            re3 = *(u64 *)(readedge+15) & 0xffffffffff;
+            e3 = edge += ((re3>>DEGREEBITS) - edge) & 0x7ffffff;
+            vpacket0 = _mm256_set_epi64x(2*e3, 2*e2, 2*e1, 2*e0);
+            vhi0     = _mm256_set_epi64x(re3, re2, re1, re0);
+            re0 = *(u64 *)(readedge+20) & 0xffffffffff;
+            e0 = edge += ((re0>>DEGREEBITS) - edge) & 0x7ffffff;
+            re1 = *(u64 *)(readedge+25) & 0xffffffffff;
+            e1 = edge += ((re1>>DEGREEBITS) - edge) & 0x7ffffff;
+            re2 = *(u64 *)(readedge+30) & 0xffffffffff;
+            e2 = edge += ((re2>>DEGREEBITS) - edge) & 0x7ffffff;
+            re3 = *(u64 *)(readedge+35) & 0xffffffffff;
+            e3 = edge += ((re3>>DEGREEBITS) - edge) & 0x7ffffff;
+            if (edge >= NEDGES) break;
+            vpacket1 = _mm256_set_epi64x(2*e3, 2*e2, 2*e1, 2*e0);
+            vhi1     = _mm256_set_epi64x(re3, re2, re1, re0);
+            v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
+            v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+            v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+            v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
+            v7 = _mm256_permute4x64_epi64(vinit, 0xFF);
+            v4 = _mm256_permute4x64_epi64(vinit, 0x00);
+            v5 = _mm256_permute4x64_epi64(vinit, 0x55);
+            v6 = _mm256_permute4x64_epi64(vinit, 0xAA);
+      
+            v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
+            SIPROUNDX8; SIPROUNDX8;
+            v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
+            v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+            v6 = XOR(v6,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+            SIPROUNDX8; SIPROUNDX8; SIPROUNDX8; SIPROUNDX8;
+            v0 = XOR(XOR(v0,v1),XOR(v2,v3));
+            v4 = XOR(XOR(v4,v5),XOR(v6,v7));
+      
+            v1 = v0 & vbucketmask;
+            v5 = v4 & vbucketmask;
+            v0 = vsmall | _mm256_slli_epi64(_mm256_srli_epi64(v0 & vnodemask, BUCKETBITS), 2*DEGREEBITS) | (vhi0 & vdegmask);
+            v4 = vsmall | _mm256_slli_epi64(_mm256_srli_epi64(v4 & vnodemask, BUCKETBITS), 2*DEGREEBITS) | (vhi1 & vdegmask);
+
+            STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
+            STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
+          }
+#endif
           for (u32 edge = 0; ; readedge+=5) {
   // bit         39..13     12..0
   // read          edge   degree1
@@ -304,27 +374,18 @@ public:
             edge += ((e>>DEGREEBITS) - edge) & 0x7ffffff;
             if (edge >= NEDGES) break; // reached end of small1 section
             u32 node = _sipnode(&sip_keys, edge, uorv);
-if(edge==536775184){
-    printf("OOPS small %d edges[0][%d] %d nodes[0][%d] %d\n",small,bigbkt,edgesize(0,bigbkt),bigbkt,nodesize(0,bigbkt));
-}
-nsips^=edge;
             z = node & BUCKETMASK;
   // bit        39..34    33..21     25..13     12..0
   // store      small1    small0    degree0   degree1   within big0
-            *(u64 *)(big0+big[z]) = small1 | ((u64)(node >> BUCKETBITS) << (2*DEGREEBITS)) | (e & DEGREEMASK);
+            *(u64 *)(big0+big[z]) = small1 | ((u64)((node & EDGEMASK) >> BUCKETBITS) << (2*DEGREEBITS)) | (e & DEGREEMASK);
             big[z] += 5;
           }
           edges[from][bigbkt] = readedge - big0;
-  // if (bigbkt==0)
-    // printf("small %d readedge %d\n",small,readedge-big0);
-          // if (power2(nthreads) && unlikely(edge>>NONDEGREEBITS != EDGEMASK>>NONDEGREEBITS))
-          // { printf("OOPS2: id %d big %d from %d small %d edge %x\n", id, bigbkt, from, smallbkt, edge); exit(0); }
         }
       }
-    printf("nsips %d nodesumsize %d\n", nsips, nodesumsize(id));
     }
     rdtsc1 = __rdtsc();
-    printf("sortbig1 rdtsc: %lu sumsize %d nsips %d\n", rdtsc1-rdtsc0, nodesumsize(id), nsips);
+    printf("sortbig1 rdtsc: %lu sumsize %d\n", rdtsc1-rdtsc0, nodesumsize(id));
   }
 // bit        39..34    33..26     25..13     12..0
 // store        big1    small1    degree0   degree1   within big0 small0
@@ -333,7 +394,7 @@ nsips^=edge;
   }
   template<typename BIGTYPE, u32 BIGSIZE, u32 SMALLSIZE>
   void sortsmall0(const u32 id) {
-    uint64_t rdtsc0, rdtsc1;
+    u64 rdtsc0, rdtsc1;
     u32 small[NBUCKETS];
     const u32 BIGBITS = BIGSIZE * 8;
     const u64 BIGSIZEMASK = (1ULL << BIGBITS) - 1ULL;
@@ -381,7 +442,6 @@ nsips^=edge;
         int smallbkt0 = from * NBUCKETS / nthreads;
         int smallbkt = (from+1) * NBUCKETS / nthreads;
         for (; --smallbkt >= smallbkt0; ) { // backwards
-  // printf("big %d small %d end-write %d\n",bigbkt, smallbkt, big0 + nodeend(from, bigbkt) - 8 - writedge);
           memset(degs, 1, NDEGREES);
           u8    *readsmall = small0 + smallbkt * SMALLBUCKETSIZE,
              *endreadsmall = small0 + small[smallbkt], *rdsmall;
@@ -396,11 +456,8 @@ nsips^=edge;
             *(u64 *)writedge = z << 24;
             writedge -= degs[z & DEGREEMASK] ? 5 : 0; // backwards
           }
-// if (bigbkt==0)
-  // printf("small %d writedge %d nodeend %d BBS %d\n",smallbkt,writedge+8-big0, nodeend(from, bigbkt), BIGBUCKETSIZE);
         }
         edges[from][bigbkt] = (u8 *)writedge + 8 - big0;
-  // printf("small %d edges[0][%d] %d nodes[0][%d] %d\n",small,bigbkt,edgesize(0,bigbkt),bigbkt,nodesize(0,bigbkt));
       }
     }
     rdtsc1 = __rdtsc();
@@ -441,9 +498,12 @@ nsips^=edge;
     // return;
     barrier();
     sortbig1(id, 0);
-// for (u32 i=0; i<NBUCKETS; i++)
-  // printf("edges[0][%d] %x nodes[0][%d] %x\n",i,edgesize(0,i),i,nodesize(0,i));
     barrier();
+    if (id == 0) {
+      for (u32 id=0; id < nthreads; id++)
+        for (u32 bkt=0; bkt < NBUCKETS; bkt++)
+          printf("%d %3d %d%c", id, bkt, nodesize(id, bkt)/5, (bkt&7)==7 ? '\n' : ' ');
+    }
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) printf("round %2d\n", round);
       // u32 uorv = (round & 1) ^ 1;
