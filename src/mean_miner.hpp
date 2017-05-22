@@ -57,6 +57,7 @@ const static u32 NBUCKETS       = 1 << BUCKETBITS;
 const static u32 BUCKETMASK     = NBUCKETS - 1;
 const static u32 BIGBUCKETSIZE0 = (BIG0SIZE << BIGHASHBITS);
 const static u32 DEGREEBITS     = BIGHASHBITS - BUCKETBITS;
+const static u32 DEGREEBITS1    = DEGREEBITS - 1;
 const static u32 NDEGREES       = 1 << DEGREEBITS;
 const static u32 DEGREEMASK     = NDEGREES - 1;
 
@@ -251,12 +252,12 @@ public:
       vhi1 = _mm256_add_epi64(vhi1, vhiinc);
 
 #ifndef NEEDSYNC
-#define STORE(i,v,x,w) \
+#define STORE0(i,v,x,w) \
   z = _mm256_extract_epi32(v,x);\
   *(u64 *)(big0+big[z]) = _mm256_extract_epi64(w,i%4);\
   big[z] += BIG0SIZE;
 #else
-#define STORE(i,v,x,w) \
+#define STORE0(i,v,x,w) \
   zz = _mm256_extract_epi32(w,x);\
   if (i || likely(zz)) {\
     z = _mm256_extract_epi32(v,x);\
@@ -267,8 +268,8 @@ public:
     last[z] = block+i;\
   }
 #endif
-      STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
-      STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
+      STORE0(0,v1,0,v0); STORE0(1,v1,2,v0); STORE0(2,v1,4,v0); STORE0(3,v1,6,v0);
+      STORE0(4,v5,0,v4); STORE0(5,v5,2,v4); STORE0(6,v5,4,v4); STORE0(7,v5,6,v4);
 #else
 #error not implemented
 #endif
@@ -317,37 +318,40 @@ public:
         for (u32 from = 0 ; from < nthreads; from++) {
           assert(edges[from][bigbkt] > nodes[from][bigbkt]);
           u8 *readedge = big0 + edges[from][bigbkt];
+          u32 edge = 0;
 #if NSIPHASH == 8
-          for (u32 edge = 0; ; readedge+=NSIPHASH*5) {
+          u32 edge2 = 0, prevedge2;
+          for (; ; readedge+=NSIPHASH*5) {
+            prevedge2 = edge2;
             re0 = *(u64 *)readedge & 0xffffffffff;
-            e0 = edge += ((re0>>DEGREEBITS) - edge) & 0x7ffffff;
+            v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
+            e0 = edge2 += ((re0>>DEGREEBITS1) - edge2) & 0x7fffffe;
             re1 = *(u64 *)(readedge+5) & 0xffffffffff;
-            e1 = edge += ((re1>>DEGREEBITS) - edge) & 0x7ffffff;
+            v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+            e1 = edge2 += ((re1>>DEGREEBITS1) - edge2) & 0x7fffffe;
             re2 = *(u64 *)(readedge+10) & 0xffffffffff;
-            e2 = edge += ((re2>>DEGREEBITS) - edge) & 0x7ffffff;
+            v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+            e2 = edge2 += ((re2>>DEGREEBITS1) - edge2) & 0x7fffffe;
             re3 = *(u64 *)(readedge+15) & 0xffffffffff;
-            e3 = edge += ((re3>>DEGREEBITS) - edge) & 0x7ffffff;
-            vpacket0 = _mm256_set_epi64x(2*e3, 2*e2, 2*e1, 2*e0);
+            v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
+            e3 = edge2 += ((re3>>DEGREEBITS1) - edge2) & 0x7fffffe;
+            vpacket0 = _mm256_set_epi64x(e3, e2, e1, e0);
             vhi0     = _mm256_set_epi64x(re3, re2, re1, re0);
             re0 = *(u64 *)(readedge+20) & 0xffffffffff;
-            e0 = edge += ((re0>>DEGREEBITS) - edge) & 0x7ffffff;
-            re1 = *(u64 *)(readedge+25) & 0xffffffffff;
-            e1 = edge += ((re1>>DEGREEBITS) - edge) & 0x7ffffff;
-            re2 = *(u64 *)(readedge+30) & 0xffffffffff;
-            e2 = edge += ((re2>>DEGREEBITS) - edge) & 0x7ffffff;
-            re3 = *(u64 *)(readedge+35) & 0xffffffffff;
-            e3 = edge += ((re3>>DEGREEBITS) - edge) & 0x7ffffff;
-            if (edge >= NEDGES) break;
-            vpacket1 = _mm256_set_epi64x(2*e3, 2*e2, 2*e1, 2*e0);
-            vhi1     = _mm256_set_epi64x(re3, re2, re1, re0);
-            v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-            v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-            v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-            v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
             v7 = _mm256_permute4x64_epi64(vinit, 0xFF);
+            e0 = edge2 += ((re0>>DEGREEBITS1) - edge2) & 0x7fffffe;
+            re1 = *(u64 *)(readedge+25) & 0xffffffffff;
             v4 = _mm256_permute4x64_epi64(vinit, 0x00);
+            e1 = edge2 += ((re1>>DEGREEBITS1) - edge2) & 0x7fffffe;
+            re2 = *(u64 *)(readedge+30) & 0xffffffffff;
             v5 = _mm256_permute4x64_epi64(vinit, 0x55);
+            e2 = edge2 += ((re2>>DEGREEBITS1) - edge2) & 0x7fffffe;
+            re3 = *(u64 *)(readedge+35) & 0xffffffffff;
             v6 = _mm256_permute4x64_epi64(vinit, 0xAA);
+            e3 = edge2 += ((re3>>DEGREEBITS1) - edge2) & 0x7fffffe;
+            if (edge2 >= 2*NEDGES) { edge = prevedge2/2; break; }
+            vpacket1 = _mm256_set_epi64x(e3, e2, e1, e0);
+            vhi1     = _mm256_set_epi64x(re3, re2, re1, re0);
       
             v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
             SIPROUNDX8; SIPROUNDX8;
@@ -363,11 +367,16 @@ public:
             v0 = vsmall | _mm256_slli_epi64(_mm256_srli_epi64(v0 & vnodemask, BUCKETBITS), 2*DEGREEBITS) | (vhi0 & vdegmask);
             v4 = vsmall | _mm256_slli_epi64(_mm256_srli_epi64(v4 & vnodemask, BUCKETBITS), 2*DEGREEBITS) | (vhi1 & vdegmask);
 
+#define STORE(i,v,x,w) \
+  z = _mm256_extract_epi32(v,x);\
+  *(u64 *)(big0+big[z]) = _mm256_extract_epi64(w,i%4);\
+  big[z] += 5;
+
             STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
             STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
           }
 #endif
-          for (u32 edge = 0; ; readedge+=5) {
+          for (; ; readedge+=5) {
   // bit         39..13     12..0
   // read          edge   degree1
             u64 e = *(u64 *)readedge & 0xffffffffff;
@@ -501,8 +510,8 @@ public:
     barrier();
     if (id == 0) {
       for (u32 id=0; id < nthreads; id++)
-        for (u32 bkt=0; bkt < NBUCKETS; bkt++)
-          printf("%d %3d %d%c", id, bkt, nodesize(id, bkt)/5, (bkt&7)==7 ? '\n' : ' ');
+        for (u32 bkt=0; bkt < NBUCKETS/8; bkt++)
+          printf("%d %3d %d%c", id, bkt, nodesize(id, bkt)/5, (bkt&3)==3 ? '\n' : ' ');
     }
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) printf("round %2d\n", round);
