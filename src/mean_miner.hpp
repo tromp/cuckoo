@@ -116,8 +116,8 @@ static const u32 SENTINELSIZE = NSIPHASH * BIGSIZE; // sentinel for bigsort1;
 class edgetrimmer {
 public:
   siphash_keys sip_keys;
-  indices *nodes;
-  indices *edges;
+  indices *up;
+  indices *down;
   bigbucket *buckets;
   smallbucket *tbuckets;
   u32 ntrims;
@@ -125,13 +125,19 @@ public:
   thread_ctx *threads;
   pthread_barrier_t barry;
 
+  void touch(u8 *p, u32 n) {
+    for (u32 i=0; i<n; i+=4096)
+      *(u32 *)(p+i) = 0;
+  }
   edgetrimmer(const u32 n_threads, u32 n_trims) {
     nthreads = n_threads;
     ntrims   = n_trims;
     buckets  = new bigbucket[NBUCKETS];
+    touch((u8 *)buckets,NBUCKETS*sizeof(bigbucket));
     tbuckets = new smallbucket[n_threads*NBUCKETS];
-    nodes    = new indices[n_threads];
-    edges    = new indices[n_threads];
+    touch((u8 *)tbuckets,n_threads*NBUCKETS*sizeof(smallbucket));
+    up       = new indices[n_threads];
+    down    = new indices[n_threads];
     threads  = new thread_ctx[nthreads];
     int err  = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
@@ -142,8 +148,8 @@ public:
   ~edgetrimmer() {
     delete[] buckets;
     delete[] tbuckets;
-    delete[] nodes;
-    delete[] edges;
+    delete[] up;
+    delete[] down;
     delete[] threads;
   }
   u32 nodestart(u32 id, u32 bkt) {
@@ -153,19 +159,19 @@ public:
     return nodestart(id+1, bkt) - SENTINELSIZE;
   }
   u32 *nodeinit(u32 id) {
-   u32 *nds = nodes[id];
+   u32 *nds = up[id];
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
       nds[bkt] = nodestart(id,bkt);
     return nds;
   }
   u32 *edgeinit(u32 id) {
-   u32 *eds = edges[id];
+   u32 *eds = down[id];
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
       eds[bkt] = nodeend(id,bkt);
     return eds;
   }
   u32 edgesize(u32 id, u32 bkt) {
-    return nodeend(id, bkt) - edges[id][bkt];
+    return nodeend(id, bkt) - down[id][bkt];
   }
   u32 edgesumsize() {
     u32 sum = 0;
@@ -175,7 +181,7 @@ public:
     return sum;
   }
   u32 nodesize(u32 id, u32 bkt) {
-    return nodes[id][bkt] - nodestart(id,bkt);
+    return up[id][bkt] - nodestart(id,bkt);
   }
   u32 nodesumsize(u32 id) {
     u32 sum = 0;
@@ -337,8 +343,8 @@ public:
       barrier();
       for (u32 bigbkt = id*NBUCKETS/nthreads; bigbkt < endbkt; bigbkt++) {
         for (u32 from = 0 ; from < nthreads; from++) {
-          assert(edges[from][bigbkt] > nodes[from][bigbkt]);
-          u8 *readedge = big0 + edges[from][bigbkt];
+          assert(down[from][bigbkt] > up[from][bigbkt]);
+          u8 *readedge = big0 + down[from][bigbkt];
           u32 edge = 0;
 #if NSIPHASH == 8
           u32 edge2 = 0, prevedge2;
@@ -412,7 +418,7 @@ public:
             *(u64 *)(big0+big[z]) = small1 | ((u64)((node & EDGEMASK) >> BUCKETBITS) << (2*DEGREEBITS)) | (e & DEGREEMASK);
             big[z] += BIGSIZE;
           }
-          edges[from][bigbkt] = readedge - big0;
+          down[from][bigbkt] = readedge - big0;
         }
       }
     }
@@ -438,7 +444,7 @@ public:
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 lastread = from * NEDGES / nthreads;
         u8    *readbig = big0 + nodestart(from, bigbkt);
-        u8 *endreadbig = big0 + nodes[from][bigbkt];
+        u8 *endreadbig = big0 + up[from][bigbkt];
         for (; readbig < endreadbig; readbig += BIG0SIZE) {
 // bit     39/31..21     20..8      7..0
 // read         edge    degree  smallbkt
@@ -480,14 +486,14 @@ public:
             writedge -= degs[z & DEGREEMASK] ? BIGSIZE : 0; // backwards
           }
         }
-        edges[from][bigbkt] = (u8 *)writedge + 8 - big0;
+        down[from][bigbkt] = (u8 *)writedge + 8 - big0;
       }
     }
     rdtsc1 = __rdtsc();
     printf("sortsmall0 rdtsc: %lu\n", rdtsc1-rdtsc0);
   }
 
-  void sortright(const u32 id) {
+  void sortup(const u32 id) {
     u64 rdtsc0, rdtsc1;
     u32 small[NBUCKETS];
   
@@ -502,7 +508,7 @@ public:
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 lastread = 0;
         u8    *readbig = big0 + nodestart(from, bigbkt);
-        u8 *endreadbig = big0 + nodes[from][bigbkt];
+        u8 *endreadbig = big0 + up[from][bigbkt];
         for (; readbig < endreadbig; readbig += BIGSIZE) {
   // bit        39..34    33..21     25..13     12..0
   // read       small1    small0    degree0   degree1   within big0
@@ -536,10 +542,10 @@ public:
       }
     }
     rdtsc1 = __rdtsc();
-    printf("sortright rdtsc: %lu\n", rdtsc1-rdtsc0);
+    printf("sortup rdtsc: %lu\n", rdtsc1-rdtsc0);
   }
 
-  void sortleft(const u32 id) {
+  void sortdown(const u32 id) {
   }
 
   void trim() {
@@ -580,9 +586,9 @@ public:
             printf("%d %3d %d%c", id, bkt, nodesize(id, bkt)/BIGSIZE, (bkt&3)==3 ? '\n' : ' ');
       }
       barrier();
-      sortright(id);
+      sortup(id);
       barrier();
-      sortleft(id);
+      sortdown(id);
       barrier();
     }
   }
