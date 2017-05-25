@@ -430,7 +430,7 @@ public:
   bool power2(u32 n) {
     return (n & (n-1)) == 0;
   }
-  void sortsmall0(const u32 id) {
+  void trimup0(const u32 id) {
     u64 rdtsc0, rdtsc1;
     u32 small[NBUCKETS];
   
@@ -490,10 +490,10 @@ public:
       }
     }
     rdtsc1 = __rdtsc();
-    printf("sortsmall0 rdtsc: %lu\n", rdtsc1-rdtsc0);
+    printf("trimup0 rdtsc: %lu\n", rdtsc1-rdtsc0);
   }
 
-  void sortup(const u32 id) {
+  void trimup(const u32 id) {
     u64 rdtsc0, rdtsc1;
     u32 small[NBUCKETS];
   
@@ -542,10 +542,10 @@ public:
       }
     }
     rdtsc1 = __rdtsc();
-    printf("sortup rdtsc: %lu\n", rdtsc1-rdtsc0);
+    printf("trimup rdtsc: %lu\n", rdtsc1-rdtsc0);
   }
 
-  void sortdown(const u32 id) {
+  void trimdown(const u32 id) {
   }
 
   void trim() {
@@ -571,7 +571,7 @@ public:
   void trimmer(u32 id) {
     sortbig0(id, 1);
     barrier();
-    sortsmall0(id);
+    trimup0(id);
     barrier();
     if (id == 0)
       printf("round 0 edges %d\n", edgesumsize()/BIGSIZE);
@@ -586,9 +586,9 @@ public:
             printf("%d %3d %d%c", id, bkt, nodesize(id, bkt)/BIGSIZE, (bkt&3)==3 ? '\n' : ' ');
       }
       barrier();
-      sortup(id);
+      trimup(id);
       barrier();
-      sortdown(id);
+      trimdown(id);
       barrier();
     }
   }
