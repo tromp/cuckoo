@@ -143,7 +143,7 @@ public:
     assert(err == 0);
     for (u32 id=0; id < nthreads; id++)
       for (u32 bkt=0; bkt < NBUCKETS; bkt++)
-        memset(buckets[0] + nodeend(id,bkt), 0, SENTINELSIZE);
+        memset(buckets[0] + bucketend(id,bkt), 0, SENTINELSIZE);
   }
   ~edgetrimmer() {
     delete[] buckets;
@@ -152,47 +152,47 @@ public:
     delete[] down;
     delete[] threads;
   }
-  u32 nodestart(u32 id, u32 bkt) {
+  u32 bucketstart(u32 id, u32 bkt) {
     return bkt * BIGBUCKETSIZE + id * BIGBUCKETSIZE / nthreads;
   }
-  u32 nodeend(u32 id, u32 bkt) {
-    return nodestart(id+1, bkt) - SENTINELSIZE;
+  u32 bucketend(u32 id, u32 bkt) {
+    return bucketstart(id+1, bkt) - SENTINELSIZE;
   }
-  u32 *nodeinit(u32 id) {
-   u32 *nds = up[id];
+  u32 *upinit(u32 id) {
+   u32 *ups = up[id];
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
-      nds[bkt] = nodestart(id,bkt);
-    return nds;
+      ups[bkt] = bucketstart(id,bkt);
+    return ups;
   }
-  u32 *edgeinit(u32 id) {
-   u32 *eds = down[id];
+  u32 *downinit(u32 id) {
+   u32 *dwn = down[id];
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
-      eds[bkt] = nodeend(id,bkt);
-    return eds;
+      dwn[bkt] = bucketend(id,bkt);
+    return dwn;
   }
-  u32 edgesize(u32 id, u32 bkt) {
-    return nodeend(id, bkt) - down[id][bkt];
+  u32 downsize(u32 id, u32 bkt) {
+    return bucketend(id, bkt) - down[id][bkt];
   }
-  u32 edgesumsize() {
+  u32 downsumsize() {
     u32 sum = 0;
     for (u32 id=0; id < nthreads; id++)
       for (u32 bkt=0; bkt < NBUCKETS; bkt++)
-        sum += edgesize(id, bkt);
+        sum += downsize(id, bkt);
     return sum;
   }
-  u32 nodesize(u32 id, u32 bkt) {
-    return up[id][bkt] - nodestart(id,bkt);
+  u32 upsize(u32 id, u32 bkt) {
+    return up[id][bkt] - bucketstart(id,bkt);
   }
-  u32 nodesumsize(u32 id) {
+  u32 upsumsize(u32 id) {
     u32 sum = 0;
     for (u32 bkt=0; bkt < NBUCKETS; bkt++)
-      sum += nodesize(id, bkt);
+      sum += upsize(id, bkt);
     return sum;
   }
-  u32 nodesumsize() {
+  u32 upsumsize() {
     u32 sum = 0;
     for (u32 id=0; id < nthreads; id++)
-      sum += nodesumsize(id);
+      sum += upsumsize(id);
     return sum;
   }
   void sortbig0(const u32 id, const u32 uorv) {
@@ -202,7 +202,7 @@ public:
 #endif
   
     rdtsc0 = __rdtsc();
-    u32 z, *big = nodeinit(id);
+    u32 z, *big = upinit(id);
     u8 *big0 = buckets[0];
     u32 block = (NEDGES* id   /nthreads) & -8,
      endblock = (NEDGES*(id+1)/nthreads) & -8; 
@@ -301,7 +301,7 @@ public:
 #endif
     }
     for (u32 z=0; z < NBUCKETS; z++) {
-      assert(nodesize(id, z) <= BIGBUCKETSIZE);
+      assert(upsize(id, z) <= BIGBUCKETSIZE);
 #ifdef NEEDSYNC
       for (; last[z]<endblock-NEDGES0LO; last[z]+=NEDGES0LO) {
         *(u32 *)(big0+big[z]) = 0;
@@ -310,7 +310,7 @@ public:
 #endif
     }
     rdtsc1 = __rdtsc();
-    printf("sortbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, nodesumsize(id));
+    printf("sortbig0 rdtsc: %lu sumsize %x\n", rdtsc1-rdtsc0, upsumsize(id));
   }
   void sortbig1(const u32 id, const u32 uorv) {
     u64 e, rdtsc0, rdtsc1;
@@ -332,7 +332,7 @@ public:
 #endif
 
     rdtsc0 = __rdtsc();
-    u32 z, *big = nodeinit(id);
+    u32 z, *big = upinit(id);
     u8 *big0 = buckets[0];
     u32 endbkt = (id+1)*NBUCKETS/nthreads; 
     for (u32 small=0; small<NBUCKETS; small++) {
@@ -423,7 +423,7 @@ public:
       }
     }
     rdtsc1 = __rdtsc();
-    printf("sortbig1 rdtsc: %lu sumsize %d\n", rdtsc1-rdtsc0, nodesumsize(id));
+    printf("sortbig1 rdtsc: %lu sumsize %d\n", rdtsc1-rdtsc0, upsumsize(id));
   }
 // bit        39..34    33..26     25..13     12..0
 // store        big1    small1    degree0   degree1   within big0 small0
@@ -443,7 +443,7 @@ public:
         small[i] = i * SMALLBUCKETSIZE;
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 lastread = from * NEDGES / nthreads;
-        u8    *readbig = big0 + nodestart(from, bigbkt);
+        u8    *readbig = big0 + bucketstart(from, bigbkt);
         u8 *endreadbig = big0 + up[from][bigbkt];
         for (; readbig < endreadbig; readbig += BIG0SIZE) {
 // bit     39/31..21     20..8      7..0
@@ -465,9 +465,9 @@ public:
           ((from+1)*NEDGES/nthreads - 1) >> EDGE0BITSLO))
         { printf("OOPS1: bkt %d lastread %x vs %x\n", bigbkt, lastread, (from+1)*(u32)NEDGES/nthreads-1); exit(0); }
       }
-      u8 *degs = (u8 *)big0 + nodestart(0, bigbkt); // recycle!
+      u8 *degs = (u8 *)big0 + bucketstart(0, bigbkt); // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
-        u8 *writedge = big0 + nodeend(from, bigbkt) - 8;
+        u8 *writedge = big0 + bucketend(from, bigbkt) - 8;
         int smallbkt0 = from * NBUCKETS / nthreads;
         int smallbkt = (from+1) * NBUCKETS / nthreads;
         for (; --smallbkt >= smallbkt0; ) { // backwards
@@ -501,13 +501,13 @@ public:
     u8 *big0 = buckets[0];
     u8 *small0 = tbuckets[id*NBUCKETS];
     u32 bigbkt = id*NBUCKETS/nthreads, endbkt = (id+1)*NBUCKETS/nthreads; 
-    u32 *big = edgeinit(id);
+    u32 *big = downinit(id);
     for (; bigbkt < endbkt; bigbkt++) {
       for (u32 i=0; i < NBUCKETS; i++)
         small[i] = i * SMALLBUCKETSIZE;
       for (u32 from = 0 ; from < nthreads; from++) {
         u32 lastread = 0;
-        u8    *readbig = big0 + nodestart(from, bigbkt);
+        u8    *readbig = big0 + bucketstart(from, bigbkt);
         u8 *endreadbig = big0 + up[from][bigbkt];
         for (; readbig < endreadbig; readbig += BIGSIZE) {
   // bit        39..34    33..21     25..13     12..0
@@ -522,9 +522,9 @@ public:
           ((from+1)*NEDGES/nthreads - 1) >> EDGE0BITSLO))
         { printf("OOPS1: bkt %d lastread %x vs %x\n", bigbkt, lastread, (from+1)*(u32)NEDGES/nthreads-1); exit(0); }
       }
-      u8 *degs = (u8 *)big0 + nodestart(0, bigbkt); // recycle!
+      u8 *degs = (u8 *)big0 + bucketstart(0, bigbkt); // recycle!
       for (u32 from = 0 ; from < nthreads; from++) {
-        u8 *writedge = big0 + nodeend(from, bigbkt) - 8;
+        u8 *writedge = big0 + bucketend(from, bigbkt) - 8;
         int smallbkt0 = from * NBUCKETS / nthreads;
         int smallbkt = (from+1) * NBUCKETS / nthreads;
         for (; --smallbkt >= smallbkt0; ) { // backwards
@@ -574,16 +574,16 @@ public:
     trimup0(id);
     barrier();
     if (id == 0)
-      printf("round 0 edges %d\n", edgesumsize()/BIGSIZE);
+      printf("round 0 edges %d\n", downsumsize()/BIGSIZE);
     barrier();
     sortbig1(id, 0);
     barrier();
     for (u32 round=1; round <= ntrims; round++) {
       if (id == 0) {
-        printf("round %2d nodes %d\n", round, nodesumsize()/BIGSIZE);
+        printf("round %2d nodes %d\n", round, upsumsize()/BIGSIZE);
         for (u32 id=0; id < nthreads; id++)
           for (u32 bkt=0; bkt < NBUCKETS/8; bkt++)
-            printf("%d %3d %d%c", id, bkt, nodesize(id, bkt)/BIGSIZE, (bkt&3)==3 ? '\n' : ' ');
+            printf("%d %3d %d%c", id, bkt, upsize(id, bkt)/BIGSIZE, (bkt&3)==3 ? '\n' : ' ');
       }
       barrier();
       trimup(id);
