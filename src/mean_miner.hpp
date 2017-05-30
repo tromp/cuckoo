@@ -69,6 +69,7 @@ const static u32 DEGREEBITS1    = DEGREEBITS - 1;
 const static u32 BIGBITS        = BIGSIZE * 8;
 const static u64 BIGSIZEMASK    = (1ULL << BIGBITS) - 1ULL;
 const static u32 DEG2SMALLBITS  = DEGSMALLBITS + DEGREEBITS;
+const static u64 DEG2SMALLMASK  = (1ULL << DEG2SMALLBITS) - 1;
 const static u32 SMALLPREFMASK  = (1 << (BIGBITS - DEG2SMALLBITS)) - 1;
 const static u32 DEG2BITS       = 2 * DEGREEBITS;
 const static u32 DEG2MASK       = (1 << DEG2BITS) - 1;
@@ -484,7 +485,7 @@ public:
             u64 z = *(u64 *)rdsmall; // & SMALLSIZEMASK;
 // bit         63..37    36..24    23..0
 // write         edge    degree   fodder
-            *(u64 *)writedge = z << (8 * (sizeof(u64)-BIGSIZE));
+            *(u64 *)writedge = z << (64 - BIGBITS);
             writedge -= degs[z & DEGREEMASK] ? BIGSIZE : 0; // backwards
           }
         }
@@ -538,11 +539,9 @@ public:
           lastread += ((u32)(e>>DEG2BITS) - lastread) & SMALLPREFMASK;
           u32 z = (lastread >> BUCKETBITS) & BUCKETMASK;
 // bit        39..34    33..26     25..13     12..0
-// read       small0    small1    degree0   degree1   within big1
-          *(u64 *)(big0+big[z]) = 
-          big[z] -= degs[(z >> DEGREEBITS) & DEGREEMASK] ? BIGSIZE : 0; // backwards
-         // *(u64 *)writedge = z << (8 * (sizeof(u64)-BIGSIZE));
-         // writedge -= degs[z & DEGREEMASK] ? BIGSIZE : 0; // backwards
+// write      small0    small1    degree0   degree1   within big1
+          *(u64 *)(big0+big[z]) = (((u64)smallbkt << DEG2SMALLBITS) | (e & DEG2SMALLMASK)) << (64 - BIGBITS);
+          big[z] -= degs[(e >> DEGREEBITS) & DEGREEMASK] ? BIGSIZE : 0; // backwards
         }
       }
     }
@@ -592,6 +591,13 @@ public:
       }
       barrier();
       trimup(id);
+      barrier();
+      if (id == 0) {
+        printf("round %2d nodes %d\n", round, upsumsize()/BIGSIZE);
+        for (u32 id=0; id < nthreads; id++)
+          for (u32 bkt=0; bkt < NBUCKETS/8; bkt++)
+            printf("%d %3d %d%c", id, bkt, downsize(id, bkt)/BIGSIZE, (bkt&3)==3 ? '\n' : ' ');
+      }
       barrier();
       trimdown(id);
       barrier();
