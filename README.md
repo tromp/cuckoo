@@ -9,7 +9,7 @@ avoid the high latency of completely random bit accesses
 (one third of that memory is used only for recovering the edge indices from a
 cycle and could be separated).  I am rewriting my solver to incorporate
 those speedups as an additional
-option, while trying to reduce the memory to 11x.
+option, while trying to reduce the memory overhead to 11x.
 In light of this claimed bounty, the bounties below are amended with an
 additional requirement of limited memory use.
 
@@ -149,5 +149,5 @@ Cryptocurrencies using, or planning to use, Cuckoo Cycle
 <UL>
 <LI> <a href="https://github.com/ignopeverell/grin">Minimal implementation of the MimbleWimble protocol</a>
 <LI> <a href="http://www.aeternity.com/">æternity - the oracle machine</a>
-<LI> <a href="https://github.com/kallewoof/bips/blob/pow-connection-slots/bip-rate-limiting-via-pow.mediawiki">Bitcoin Peer Services</a>
+<LI> <a href="https://github.com/kallewoof/bips/blob/master/bip-0154.mediawiki">Bitcoin Peer Services</a>
 </UL>
