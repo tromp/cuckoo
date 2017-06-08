@@ -4,6 +4,9 @@
 // The edge-trimming memory optimization is due to Dave Andersen
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
 #include <stdint.h>
 #include <string.h>
 #include "cuckoo.h"
@@ -269,7 +272,11 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
 
 typedef std::pair<node_t,node_t> edge;
 
+#ifndef WIN32
 #include <unistd.h>
+#else
+#include "getopt/getopt.h"
+#endif
 
 int main(int argc, char **argv) {
   int nthreads = 16384;
