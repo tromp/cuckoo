@@ -22,13 +22,15 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  printf("Verifying size %d proof for cuckoo%d(\"%s\",%d)\n",
-               PROOFSIZE, EDGEBITS+1, header, nonce);
   char headernonce[HEADERLEN];
   u32 hdrlen = strlen(header);
   memcpy(headernonce, header, hdrlen);
   memset(headernonce+hdrlen, 0, sizeof(headernonce)-hdrlen);
   ((u32 *)headernonce)[HEADERLEN/sizeof(u32)-1] = htole32(nonce);
+  siphash_keys keys;
+  setheader(headernonce, sizeof(headernonce), &keys);
+  printf("Verifying size %d proof for cuckoo%d(\"%s\",%d) k0 %lu k1 %lu\n",
+               PROOFSIZE, EDGEBITS+1, header, nonce, keys.k0, keys.k1);
   for (int nsols=0; scanf(" Solution") == 0; nsols++) {
     edge_t nonces[PROOFSIZE];
     for (int n = 0; n < PROOFSIZE; n++) {
@@ -37,7 +39,7 @@ int main(int argc, char **argv) {
       assert(nscan == 1);
       nonces[n] = nonce;
     }
-    int pow_rc = verify(nonces, headernonce, sizeof(headernonce));
+    int pow_rc = verify(nonces, &keys);
     if (pow_rc == POW_OK) {
       printf("Verified with cyclehash ");
       unsigned char cyclehash[32];

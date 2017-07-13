@@ -52,18 +52,8 @@ const char *errstr[] = { "OK", "wrong header length", "nonce too big", "nonces n
 #define HEADERLEN 80
 #endif
 
-void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
-  char hdrkey[32];
-  SHA256((unsigned char *)header, HEADERLEN, (unsigned char *)hdrkey);
-  setkeys(keys, hdrkey);
-}
-
 // verify that nonces are ascending and form a cycle in header-generated graph
-int verify(edge_t nonces[PROOFSIZE], const char *header, const u32 headerlen) {
-  if (headerlen != HEADERLEN)
-    return POW_HEADER_LENGTH;
-  siphash_keys keys;
-  setheader(header, headerlen, &keys);
+int verify(edge_t nonces[PROOFSIZE], siphash_keys *keys) {
   node_t uvs[2*PROOFSIZE];
   node_t xor0=0,xor1=0;
   for (u32 n = 0; n < PROOFSIZE; n++) {
@@ -71,8 +61,8 @@ int verify(edge_t nonces[PROOFSIZE], const char *header, const u32 headerlen) {
       return POW_TOO_BIG;
     if (n && nonces[n] <= nonces[n-1])
       return POW_TOO_SMALL;
-    xor0 ^= uvs[2*n  ] = sipnode(&keys, nonces[n], 0);
-    xor1 ^= uvs[2*n+1] = sipnode(&keys, nonces[n], 1);
+    xor0 ^= uvs[2*n  ] = sipnode(keys, nonces[n], 0);
+    xor1 ^= uvs[2*n+1] = sipnode(keys, nonces[n], 1);
   }
   if (xor0|xor1)              // matching endpoints imply zero xors
     return POW_NON_MATCHING;
@@ -90,4 +80,11 @@ int verify(edge_t nonces[PROOFSIZE], const char *header, const u32 headerlen) {
     n++;
   } while (i != 0);           // must cycle back to start or we would have found branch
   return n == PROOFSIZE ? POW_OK : POW_SHORT_CYCLE;
+}
+
+// convenience function for extracting siphash keys from header
+void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
+  char hdrkey[32];
+  SHA256((unsigned char *)header, HEADERLEN, (unsigned char *)hdrkey);
+  setkeys(keys, hdrkey);
 }

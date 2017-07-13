@@ -108,15 +108,15 @@ To that end, I offer the following bounties:
 
 CPU Speedup Bounties
 --------------
-$3000 for an open source implementation that finds 42-cycles twice as fast
+$5000 for an open source implementation that finds 42-cycles twice as fast
 as cuckoo_miner, using no more than 1 byte per edge.
 
-$3000 for an open source implementation that finds 42-cycles twice as fast
+$5000 for an open source implementation that finds 42-cycles twice as fast
 as xenoncat's miners, regardless of memory use.
 
 Linear Time-Memory Trade-Off Bounty
 --------------
-$3000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
+$5000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
 
 All of these bounties require N ranging over {2^28,2^30,2^32} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
@@ -124,7 +124,7 @@ recent gcc compiler with regular flags as in my Makefile.
 
 GPU Speedup Bounty
 --------------
-$1500 for an open source implementation for a consumer GPU combo
+$2000 for an open source implementation for a consumer GPU combo
 that finds 42-cycles twice as fast as cuda_miner.cu on comparable hardware,
 using no more than 1 byte per edge.
 Again with N ranging over {2^28,2^30,2^32}.
@@ -140,7 +140,7 @@ I further offer half the regular bounty for improvements by a factor of sqrt(2).
 
 Anyone who'd like to see my claims tested is invited to donate to the Cuckoo Cycle Bounty Fund at
 
-<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a> (wallet balance as of Apr 11, 2017: 8.2 BTC)
+<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a> (wallet balance as of July 13, 2017: 16.7 BTC, following a generous $20k donation by <a href="https://www.genesis-mining.com/">Genesis Mining</a>)
 
 I intend for the total bounty value to stay ahead of funding levels. Happy bounty hunting!
 

@@ -1,13 +1,19 @@
 # -Wno-deprecated-declarations shuts up Apple OSX clang
 OPT = -O3
 DOPT = -DPREFETCH
-FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) $(DOPT) -I. -pthread 
+
+# for Mac OSX with brew install openssl
+CPPFLAGS = -I/usr/local/opt/openssl/include
+LDFLAGS = -L/usr/local/opt/openssl/lib
+
+FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) $(DOPT) -I. $(CPPFLAGS) $(LDFLAGS) -pthread 
 GPP = g++ -march=native -m64 -std=c++11 $(FLAGS)
 CFLAGS = -fomit-frame-pointer -mno-vzeroupper $(OPT) -pthread 
 GCC = gcc -m64 -std=gnu11 $(CFLAGS)
 LIBS = -lssl -lcrypto
 # leave out -l crypto if using sha256.c instead of openssl
 # leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
+
 
 all : test example cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28 cuckoo30 cuckoo32 verify28 verify30 verify32 demo28
 

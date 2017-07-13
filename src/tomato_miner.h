@@ -20,7 +20,7 @@ typedef std::atomic<u64> au64;
 typedef u32 au32;
 typedef u64 au64;
 #endif
-#if SIZESHIFT <= 32
+#if NODEBITS <= 32
 typedef u32 nonce_t;
 typedef u32 node_t;
 #else
@@ -30,6 +30,9 @@ typedef u64 node_t;
 #include <set>
 
 // algorithm parameters
+
+#define NNODES (2*NEDGES)
+#define NODEBITS (EDGEBITS+1)
 
 #ifndef SAVEMEM_BITS
 #define SAVEMEM_BITS 6
@@ -49,7 +52,7 @@ typedef u64 node_t;
 #endif
 #define NUPARTS (1<<UPART_BITS)
 
-#define ONCE_BITS (HALFSIZE >> UPART_BITS)
+#define ONCE_BITS (NEDGES >> UPART_BITS)
 #define TWICE_WORDS ((2 * ONCE_BITS) / 32)
 
 class twice_set {
@@ -88,12 +91,12 @@ public:
 
 #define UPART_MASK (NUPARTS - 1)
 // grow with cube root of size, hardly affected by trimming
-#define MAXPATHLEN (8 << (SIZESHIFT/3))
+#define MAXPATHLEN (8 << (NODEBITS/3))
 
-#define CUCKOO_SIZE (SIZE >> IDXSHIFT)
+#define CUCKOO_SIZE (NNODES >> IDXSHIFT)
 #define CUCKOO_MASK (CUCKOO_SIZE - 1)
-// number of (least significant) key bits that survives leftshift by SIZESHIFT
-#define KEYBITS (64-SIZESHIFT)
+// number of (least significant) key bits that survives leftshift by NODEBITS
+#define KEYBITS (64-NODEBITS)
 #define KEYMASK ((1L << KEYBITS) - 1)
 #define MAXDRIFT (1L << (KEYBITS - IDXSHIFT))
 
@@ -114,7 +117,7 @@ public:
     nstored = 0;
   }
   void set(node_t u, node_t v) {
-    u64 niew = (u64)u << SIZESHIFT | v;
+    u64 niew = (u64)u << NODEBITS | v;
     for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
 #ifdef ATOMIC
       u64 old = 0;
@@ -122,11 +125,11 @@ public:
         std::atomic_fetch_add(&nstored, 1U);
         return;
       }
-      if ((old >> SIZESHIFT) == (u & KEYMASK)) {
+      if ((old >> NODEBITS) == (u & KEYMASK)) {
         cuckoo[ui].store(niew, std::memory_order_relaxed);
 #else
       u64 old = cuckoo[ui];
-      if ((old == 0 && ++nstored) || (old >> SIZESHIFT) == (u & KEYMASK)) {
+      if ((old == 0 && ++nstored) || (old >> NODEBITS) == (u & KEYMASK)) {
         cuckoo[ui] = niew;
 #endif
         return;
@@ -142,9 +145,9 @@ public:
 #endif
       if (!cu)
         return 0;
-      if ((cu >> SIZESHIFT) == (u & KEYMASK)) {
+      if ((cu >> NODEBITS) == (u & KEYMASK)) {
         assert(((ui - (u >> IDXSHIFT)) & CUCKOO_MASK) < MAXDRIFT);
-        return (node_t)(cu & (SIZE-1));
+        return (node_t)(cu & (NNODES-1));
       }
     }
   }
@@ -158,7 +161,7 @@ public:
 
 class cuckoo_ctx {
 public:
-  siphash_ctx sip_ctx;
+  siphash_keys sip_keys;
   cuckoo_hash *cuckoo;
   bool minimalbfs;
   twice_set *nonleaf;
@@ -179,7 +182,7 @@ public:
   }
   void setheadernonce(char* headernonce, const u32 len, const u32 nonce) {
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
-    setheader(&sip_ctx, headernonce);
+    setheader(headernonce, len, &sip_keys);
   }
   ~cuckoo_ctx() {
     delete cuckoo;
@@ -228,8 +231,8 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
   while (nv--)
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   printf("Solution: ");
-  for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++) {
-    edge e(sipnode(&ctx->sip_ctx, nonce, 0), sipnode(&ctx->sip_ctx, nonce, 1));
+  for (nonce_t nonce = n = 0; nonce < NEDGES; nonce++) {
+    edge e(sipnode(&ctx->sip_keys, nonce, 0), sipnode(&ctx->sip_keys, nonce, 1));
     if (cycle.find(e) != cycle.end()) {
       printf("%x%c", nonce, ++n == PROOFSIZE?'\n':' ');
       if (PROOFSIZE > 2)
@@ -248,8 +251,8 @@ void *worker(void *vp) {
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   for (node_t upart=0; upart < ctx->nparts; upart++) {
     if (ctx->minimalbfs) {
-      for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
-        node_t u0 = _sipnode(&ctx->sip_ctx, nonce, 0);
+      for (nonce_t nonce = tp->id; nonce < NEDGES; nonce += ctx->nthreads) {
+        node_t u0 = _sipnode(&ctx->sip_keys, nonce, 0);
         if (u0 != 0 && (u0 & UPART_MASK) == upart)
             nonleaf->set(u0 >> UPART_BITS);
       }
@@ -257,8 +260,8 @@ void *worker(void *vp) {
     barrier(&ctx->barry);
     static int bfsdepth = ctx->minimalbfs ? PROOFSIZE/2 : PROOFSIZE;
     for (int depth=0; depth < bfsdepth; depth++) {
-      for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
-        node_t u0 = sipnode(&ctx->sip_ctx, nonce, depth&1);
+      for (nonce_t nonce = tp->id; nonce < NEDGES; nonce += ctx->nthreads) {
+        node_t u0 = sipnode(&ctx->sip_keys, nonce, depth&1);
         if (u0 == 0)
           continue;
         if (depth == 0) {
@@ -271,7 +274,7 @@ void *worker(void *vp) {
         node_t u = cuckoo[us[0] = u0];
         if (depth > 0 && u == 0)
           continue;
-        node_t v0 = sipnode(&ctx->sip_ctx, nonce, (depth&1)^1);
+        node_t v0 = sipnode(&ctx->sip_keys, nonce, (depth&1)^1);
         if (v0 == 0)
           continue;
         node_t v = cuckoo[vs[0] = v0];

@@ -340,6 +340,8 @@ public:
     u32 z, *big = upinit(id);
     u8 *big0 = buckets[0];
     u32 endbkt = (id+1)*NBUCKETS/nthreads; 
+    // contents of each big bucket is ordered by originating small bucket
+    // moving along one small bucket at a time frees up room for filling big buckets
     for (u32 small=0; small<NBUCKETS; small++) {
       int64_t small1 = (int64_t)small << 34;
 #if NSIPHASH == 8
@@ -383,7 +385,10 @@ public:
             re3 = *(u64 *)(readedge+7*BIGSIZE);
             v6 = _mm256_permute4x64_epi64(vinit, 0xAA);
             e3 = edge2 += ((re3>>DEGREEBITS1) - edge2) & EVENNONDEGMASK;
-            if (edge2 >= 2*NEDGES) { edge = prevedge2/2; break; }
+            if (edge2 >= 2*NEDGES) { // less than 8 edges from current bucket
+              edge = prevedge2 / 2;
+              break;
+            }
             vpacket1 = _mm256_set_epi64x(e3, e2, e1, e0);
             vhi1     = _mm256_set_epi64x(re3, re2, re1, re0);
       
@@ -410,7 +415,7 @@ public:
             STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
           }
 #endif
-          for (; ; readedge += BIGSIZE) {
+          for (; ; readedge += BIGSIZE) { // process up to 7 leftover edges
 // bit         39..13     12..0
 // read          edge   degree1
             u64 e = *(u64 *)readedge & BIGSIZEMASK;
