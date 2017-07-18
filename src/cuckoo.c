@@ -8,6 +8,9 @@
 #include <unistd.h>   // getopt
 #include <assert.h>   // d'uh
 
+// arbitrary length of header hashed into siphash key
+#define HEADERLEN 80
+
 int main(int argc, char **argv) {
   const char *header = "";
   int nonce = 0;

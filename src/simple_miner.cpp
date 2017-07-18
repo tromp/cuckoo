@@ -103,6 +103,9 @@ void worker(cuckoo_ctx *ctx) {
   }
 }
 
+// arbitrary length of header hashed into siphash key
+#define HEADERLEN 80
+
 int main(int argc, char **argv) {
   char header[HEADERLEN];
   memset(header, 0, HEADERLEN);
