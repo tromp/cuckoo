@@ -134,6 +134,10 @@ public:
     cnt  = (u64 *)malloc(nt * sizeof(u64));
     nthreads = nt;
   }
+  ~shrinkingset() {
+    free(bits);
+    free(cnt);
+  }
   void clear() {
     memset(bits, 0, HALFSIZE/8);
     memset(cnt, 0, nthreads * sizeof(u64));
