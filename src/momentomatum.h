@@ -21,7 +21,7 @@ typedef std::atomic<u64> au64;
 typedef u32 au32;
 typedef u64 au64;
 #endif
-#if SIZESHIFT <= 32
+#if NODEBITS <= 32
 typedef u32 nonce_t;
 typedef u32 node_t;
 #else
@@ -31,6 +31,10 @@ typedef u64 node_t;
 #include <set>
 
 // algorithm parameters
+
+#define NODEBITS (EDGEBITS+1)
+#define NNODES (2 * NEDGES)
+#define NODEMASK (NNODES-1)
 
 #ifndef SAVEMEM_BITS
 #define SAVEMEM_BITS 6
@@ -45,11 +49,16 @@ typedef u64 node_t;
 #define LOGPROOFSIZE -2
 #endif
 
+#ifndef UPART_BITS
+// #bits used to partition vertex set to save memory
+#define UPART_BITS (IDXSHIFT+LOGPROOFSIZE)
+#endif
+
 // #partitions of vertex set
 #ifndef NUPARTS
 #define NUPARTS 64
 #endif
-#define PART_SIZE ((HALFSIZE+NUPARTS-1)/NUPARTS)
+#define PART_SIZE ((NEDGES+NUPARTS-1)/NUPARTS)
 
 #define ONCE_BITS PART_SIZE
 #define TWICE_WORDS ((2 * ONCE_BITS) / 32)
@@ -93,8 +102,8 @@ public:
 #define MAXPATHLEN 2
 
 #define CUCKOO_SIZE (5<<16)
-// number of (least significant) key bits that survives leftshift by SIZESHIFT
-#define KEYBITS (64-SIZESHIFT)
+// number of (least significant) key bits that survives leftshift by NODEBITS
+#define KEYBITS (64-NODEBITS)
 #define KEYMASK ((1L << KEYBITS) - 1)
 
 class cuckoo_hash {
@@ -114,7 +123,7 @@ public:
     nstored = 0;
   }
   void set(node_t u, node_t v) {
-    u64 niew = (u64)u << SIZESHIFT | v;
+    u64 niew = (u64)u << NODEBITS | v;
     for (node_t ui = u % CUCKOO_SIZE; ; (++ui < CUCKOO_SIZE) || (ui = 0)) {
 #ifdef ATOMIC
       u64 old = 0;
@@ -122,11 +131,11 @@ public:
         std::atomic_fetch_add(&nstored, 1U);
         return;
       }
-      if ((old >> SIZESHIFT) == (u & KEYMASK)) {
+      if ((old >> NODEBITS) == (u & KEYMASK)) {
         cuckoo[ui].store(niew, std::memory_order_relaxed);
 #else
       u64 old = cuckoo[ui];
-      if ((old == 0 && ++nstored) || (old >> SIZESHIFT) == (u & KEYMASK)) {
+      if ((old == 0 && ++nstored) || (old >> NODEBITS) == (u & KEYMASK)) {
         cuckoo[ui] = niew;
 #endif
         return;
@@ -142,8 +151,8 @@ public:
 #endif
       if (!cu)
         return 0;
-      if ((cu >> SIZESHIFT) == (u & KEYMASK)) {
-        return (node_t)(cu & (SIZE-1));
+      if ((cu >> NODEBITS) == (u & KEYMASK)) {
+        return (node_t)(cu & NODEMASK);
       }
     }
   }
@@ -157,7 +166,7 @@ public:
 
 class cuckoo_ctx {
 public:
-  siphash_ctx sip_ctx;
+  siphash_keys sip_keys;
   cuckoo_hash *cuckoo;
   bool minimalbfs;
   twice_set *nonleaf;
@@ -167,7 +176,7 @@ public:
   pthread_barrier_t barry;
 
   cuckoo_ctx(const char* header, u32 n_threads, u32 n_parts, bool minimal_bfs) {
-    setheader(&sip_ctx, header);
+    setheader(header, strlen(header), &sip_keys);
     nthreads = n_threads;
     nparts = n_parts;
     cuckoo = new cuckoo_hash();
@@ -207,9 +216,9 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
   while (nv--)
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
   printf("Solution: ");
-  for (nonce_t nonce = n = 0; nonce < HALFSIZE; nonce++) {
-    node_t u,v;
-    sipedge(&ctx->sip_ctx, nonce, &u, &v);
+  for (nonce_t nonce = n = 0; nonce < NEDGES; nonce++) {
+    node_t u = sipnode(&ctx->sip_keys, nonce, 0);
+    node_t v = sipnode(&ctx->sip_keys, nonce, 1);
     edge e(u,v);
     if (cycle.find(e) != cycle.end()) {
       printf("%x%c", nonce, ++n == PROOFSIZE?'\n':' ');
@@ -228,16 +237,16 @@ void *worker(void *vp) {
   twice_set *nonleaf = ctx->nonleaf;
   node_t us[MAXPATHLEN], vs[MAXPATHLEN];
   for (node_t upart=0; upart < ctx->nparts; upart++) {
-    for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
-      node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0) >> 1;
+    for (nonce_t nonce = tp->id; nonce < NEDGES; nonce += ctx->nthreads) {
+      node_t u0 = sipnode(&ctx->sip_keys, nonce, 0) >> 1;
       if (u0 != 0 && (u0 & UPART_MASK) == upart)
           nonleaf->set(u0 >> UPART_BITS);
     }
     barrier(&ctx->barry);
     static int bfsdepth = ctx->minimalbfs ? PROOFSIZE/2 : PROOFSIZE;
     for (int depth=0; depth < bfsdepth; depth++) {
-      for (nonce_t nonce = tp->id; nonce < HALFSIZE; nonce += ctx->nthreads) {
-        node_t u0 = sipnode(&ctx->sip_ctx, nonce, 0);
+      for (nonce_t nonce = tp->id; nonce < NEDGES; nonce += ctx->nthreads) {
+        node_t u0 = sipnode(&ctx->sip_keys, nonce, 0);
         if (u0 == 0)
           continue;
         node_t u1 = u0 >> 1;
@@ -246,7 +255,7 @@ void *worker(void *vp) {
         if (!nonleaf->test(u1 >> UPART_BITS))
           continue;
         node_t u = cuckoo[us[0] = u0];
-        node_t v0 = sipnode(&ctx->sip_ctx, nonce, 1);
+        node_t v0 = sipnode(&ctx->sip_keys, nonce, 1);
         u32 nu, nv;
         if (u != 0 && (us[nu = 1] = u) == (vs[nv = 0] = v0)) {
           printf(" 2-cycle found at %d:%d\n", tp->id, depth);

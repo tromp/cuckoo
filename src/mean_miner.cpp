@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <sys/time.h>
 
+// arbitrary length of header hashed into siphash key
+#define HEADERLEN 80
+
 int main(int argc, char **argv) {
   u32 nthreads = 1;
   u32 ntrims   = 0;
