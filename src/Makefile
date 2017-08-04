@@ -2,23 +2,20 @@
 OPT = -O3
 DOPT = -DPREFETCH
 
-# for Mac OSX with brew install openssl
-CPPFLAGS = -I/usr/local/opt/openssl/include
-LDFLAGS = -L/usr/local/opt/openssl/lib
-
-FLAGS = -Wall -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) $(DOPT) -I. $(CPPFLAGS) $(LDFLAGS) -pthread 
+LDFLAGS = -L.
+FLAGS = -Wall -Wno-format -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) $(DOPT) -I. $(CPPFLAGS) $(LDFLAGS) -pthread 
 GPP = g++ -march=native -m64 -std=c++11 $(FLAGS)
-CFLAGS = -fomit-frame-pointer -mno-vzeroupper $(OPT) -pthread 
+CFLAGS = -Wall -Wno-format -fomit-frame-pointer $(OPT) $(LDFLAGS)
 GCC = gcc -m64 -std=gnu11 $(CFLAGS)
-LIBS = -lssl -lcrypto
-# leave out -l crypto if using sha256.c instead of openssl
-# leave out -std=c++11 -DATOMIC for older GCC versions lacking c++11 support
+LIBS = -lblake2b
 
+all : blake2b test example cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28 cuckoo30 cuckoo32 verify28 verify30 verify32 demo28
 
-all : test example cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28 cuckoo30 cuckoo32 verify28 verify30 verify32 demo28
+blake2b:	blake2.h blake2-impl.h blake2b-ref.c
+	$(GCC) -shared -o libblake2b.so blake2b-ref.c
 
 test:	cuckoo20 verify20 Makefile
-	./cuckoo20 -n 13 | grep ^Sol | ./verify20 -n 13
+	./cuckoo20 -n 77 | grep ^Sol | ./verify20 -n 77
 
 cuckoo4:	siphash.h cuckoo.h cuckoo_miner.hpp simple_miner.cpp Makefile
 	$(GPP) -o cuckoo4 -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DEDGEBITS=3 simple_miner.cpp $(LIBS)
@@ -27,7 +24,7 @@ cuckoo6:	cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo6 -DIDXSHIFT=0 -DPROOFSIZE=6 -DLOGNBUCKETS=0 -DSHOWSOL -DEDGEBITS=5 cuckoo_miner.cpp $(LIBS)
 
 example:	cuckoo4
-	./cuckoo4 -e 66 -h 3
+	./cuckoo4 -e 57 -h 66
 
 cuckoo10:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo10 -DATOMIC -DEDGEBITS=9 -DPROOFSIZE=8 -DSHOWSOL cuckoo_miner.cpp $(LIBS)
@@ -39,7 +36,7 @@ cuckoo20:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo20 -DATOMIC -DEDGEBITS=19 cuckoo_miner.cpp $(LIBS)
 
 verify20:	siphash.h cuckoo.h cuckoo.c Makefile
-	$(GPP) -o verify20 -DEDGEBITS=19 cuckoo.c $(LIBS)
+	$(GCC) -o verify20 -DEDGEBITS=19 cuckoo.c $(LIBS)
 
 cuckoo25:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo25 -DATOMIC -DEDGEBITS=24 cuckoo_miner.cpp $(LIBS)
@@ -78,7 +75,7 @@ cuckoo28stx8:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28stx8 -mavx2 -DNSIPHASH=8 -DEDGEBITS=27 cuckoo_miner.cpp $(LIBS)
 
 demo28:	cuckoo28stx8
-	time ./cuckoo28stx8 -n 95
+	time ./cuckoo28stx8 -n 18
 
 cuckoo28stx16:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28stx16 -mavx2 -DNSIPHASH=16 -DEDGEBITS=27 cuckoo_miner.cpp $(LIBS)
@@ -189,13 +186,13 @@ hashonlyx16: hash_only.cpp Makefile
 	$(GPP) -o hashonlyx16 -mavx2 -DNSIPHASH=16 hash_only.cpp $(LIBS)
 
 verify28:	siphash.h cuckoo.h cuckoo.c Makefile
-	$(GPP) -o verify28 -DEDGEBITS=27 cuckoo.c $(LIBS)
+	$(GCC) -o verify28 -DEDGEBITS=27 cuckoo.c $(LIBS)
 
 verify30:	siphash.h cuckoo.h cuckoo.c Makefile
-	$(GPP) -o verify30 -DEDGEBITS=29 cuckoo.c $(LIBS)
+	$(GCC) -o verify30 -DEDGEBITS=29 cuckoo.c $(LIBS)
 
 verify32:	siphash.h cuckoo.h cuckoo.c Makefile
-	$(GPP) -o verify32 -DEDGEBITS=31 cuckoo.c $(LIBS)
+	$(GCC) -o verify32 -DEDGEBITS=31 cuckoo.c $(LIBS)
 
 Cuckoo.class:	Cuckoo.java Makefile
 	javac -O Cuckoo.java

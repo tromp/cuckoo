@@ -3,7 +3,7 @@
 
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset
-#include <openssl/sha.h>
+#include "blake2.h"
 #include "siphash.h"
 
 // proof-of-work parameters
@@ -80,6 +80,7 @@ int verify(edge_t nonces[PROOFSIZE], siphash_keys *keys) {
 // convenience function for extracting siphash keys from header
 void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
   char hdrkey[32];
-  SHA256((unsigned char *)header, headerlen, (unsigned char *)hdrkey);
+  // SHA256((unsigned char *)header, headerlen, (unsigned char *)hdrkey);
+  blake2b((void *)hdrkey, sizeof(hdrkey), (const void *)header, headerlen, 0, 0);
   setkeys(keys, hdrkey);
 }
