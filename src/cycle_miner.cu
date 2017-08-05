@@ -24,7 +24,6 @@
   typedef ulong2 edge_t;
 #define make_edge make_ulong2
 #endif
-#include <openssl/sha.h>
 typedef unsigned long long ull;
 
 static __device__ __forceinline__ bool operator== (edge_t a, edge_t b) { return a.x == b.x && a.y == b.y; }
