@@ -2,17 +2,16 @@
 OPT = -O3
 DOPT = -DPREFETCH
 
-LDFLAGS = -L.
-FLAGS = -Wall -Wno-format -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) $(DOPT) -I. $(CPPFLAGS) $(LDFLAGS) -pthread 
+FLAGS = -Wall -Wno-format -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) $(DOPT) -I. $(CPPFLAGS) -pthread 
 GPP = g++ -march=native -m64 -std=c++11 $(FLAGS)
-CFLAGS = -Wall -Wno-format -fomit-frame-pointer $(OPT) $(LDFLAGS)
+CFLAGS = -Wall -Wno-format -fomit-frame-pointer $(OPT)
 GCC = gcc -m64 -std=gnu11 $(CFLAGS)
-LIBS = -lblake2b
+LIBS = -L. -lblake2b
 
 all : blake2b test example cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28 cuckoo30 cuckoo32 verify28 verify30 verify32 demo28
 
 blake2b:	blake2.h blake2-impl.h blake2b-ref.c
-	$(GCC) -shared -o libblake2b.so blake2b-ref.c
+	$(GCC) -fPIC -shared -o libblake2b.so blake2b-ref.c
 
 test:	cuckoo20 verify20 Makefile
 	./cuckoo20 -n 77 | grep ^Sol | ./verify20 -n 77
@@ -132,19 +131,19 @@ tomato32:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o tomato32 -DATOMIC -DEDGEBITS=31 tomato_miner.cpp $(LIBS)
 
 cuda28:	cuda_miner.cu Makefile
-	nvcc -o cuda28 -DEDGEBITS=27 -arch sm_35 cuda_miner.cu -lssl -lcrypto 
+	nvcc -o cuda28 -DEDGEBITS=27 -arch sm_35 cuda_miner.cu $(LIBS)
 
 cuda30:	cuda_miner.cu Makefile
-	nvcc -o cuda30 -DEDGEBITS=29 -arch sm_35 cuda_miner.cu -lssl -lcrypto
+	nvcc -o cuda30 -DEDGEBITS=29 -arch sm_35 cuda_miner.cu $(LIBS)
 
 cuda32:	cuda_miner.cu Makefile
-	nvcc -o cuda32 -DEDGEBITS=31 -arch sm_35 cuda_miner.cu -lssl -lcrypto
+	nvcc -o cuda32 -DEDGEBITS=31 -arch sm_35 cuda_miner.cu $(LIBS)
 
 cycle28:	cycle_miner.cu Makefile
-	nvcc -o cycle28 -DEDGEBITS=27 -arch sm_35 cycle_miner.cu -lssl -lcrypto 
+	nvcc -o cycle28 -DEDGEBITS=27 -arch sm_35 cycle_miner.cu $(LIBS)
 
 cycle30:	cycle_miner.cu Makefile
-	nvcc -o cycle30 -DEDGEBITS=29 -arch sm_35 cycle_miner.cu -lssl -lcrypto 
+	nvcc -o cycle30 -DEDGEBITS=29 -arch sm_35 cycle_miner.cu $(LIBS)
 
 cuckoo32:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32 -DATOMIC -DEDGEBITS=31 cuckoo_miner.cpp $(LIBS)

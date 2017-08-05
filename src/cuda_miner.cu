@@ -198,6 +198,9 @@ public:
   }
 };
 
+// arbitrary length of header hashed into siphash key
+#define HEADERLEN 80
+
 class cuckoo_ctx {
 public:
   siphash_keys sip_keys;
