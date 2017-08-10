@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
   for (tunit=0; tbytes >= 10240; tbytes>>=10,tunit++) ;
   printf("Using %d%cB bucket memory at %lx,\n", sbytes, " KMGT"[sunit], (u64)ctx.trimmer->buckets);
   printf("%dx%d%cB thread memory at %lx,\n", nthreads, tbytes, " KMGT"[tunit], (u64)ctx.trimmer->tbuckets);
-  printf("%d-way siphash, and %d buckets.\n", NSIPHASH, NBUCKETS);
+  printf("%d-way siphash, and %d buckets.\n", NSIPHASH, NX);
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);
