@@ -677,6 +677,8 @@ big[z] += BIGSIZE;
       }
       barrier();
     }
+    if (id == 0)
+      idx[1]->setbase((u8 *)buckets, 42); // restore former glory
   }
 };
 
@@ -688,12 +690,12 @@ void *etworker(void *vp) {
 }
 
 #ifndef IDXSHIFT
-// we want sizeof(cuckoo_hash) < sizeof(trimmer), so
-// CUCKOO_SIZE * sizeof(u64)   < NEDGES * sizeof(u32)
-// CUCKOO_SIZE * 8             < NEDGES * 4
-// (NNODES >> IDXSHIFT) * 2    < NEDGES
-// IDXSHIFT                    > 2
-#define IDXSHIFT 8
+// we want sizeof(cuckoo_hash) < sizeof(bigbucket)
+// CUCKOO_SIZE * sizeof(u64)   < NEDGES * BIGSIZE0 / NX
+// CUCKOO_SIZE * 8             < NEDGES / 64
+// NEDGES >> (IDXSHIFT-1)      < NEDGES >> 9
+// IDXSHIFT                    >= 10
+#define IDXSHIFT 10
 #endif
 
 #define NODEBITS (EDGEBITS + 1)
@@ -790,6 +792,7 @@ public:
     return NY * sizeof(smallbucket) + sizeof(indices) + sizeof(thread_ctx);
   }
   void solution(u32 *us, u32 nu, u32 *vs, u32 nv) {
+    return; // not functional yet
     typedef std::pair<u32,u32> edge;
     std::set<edge> cycle;
     u32 n = 0;
@@ -834,37 +837,67 @@ public:
     return nu-1;
   }
   
-  int solve() {
-    trimmer->trim();
+  template <u32 SRCSIZE>
+  void findcycles(indexer *src) {
     u32 us[MAXPATHLEN], vs[MAXPATHLEN];
-    for (u32 block = 0; block < NEDGES; block += 64) {
-      u64 alive64 = 0; // trimmer->block(block);
-      for (u32 nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
-        u32 ffs = __builtin_ffsll(alive64);
-        nonce += ffs; alive64 >>= ffs;
-        u32 u0=sipnode(&trimmer->sip_keys, nonce, 0), v0=sipnode(&trimmer->sip_keys, nonce, 1);
-        if (u0) {// ignore vertex 0 so it can be used as nil for cuckoo[]
-          u32 nu = path(u0, us), nv = path(v0, vs);
-          if (us[nu] == vs[nv]) {
-            u32 min = nu < nv ? nu : nv;
-            for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-            u32 len = nu + nv + 1;
-            printf("%4d-cycle found at %d%%\n", len, (u32)(nonce*100LL/NEDGES));
-            if (len == PROOFSIZE && nsols < MAXSOLS)
-              solution(us, nu, vs, nv);
-          } else if (nu < nv) {
-            while (nu--)
-              cuckoo->set(us[nu+1], us[nu]);
-            cuckoo->set(u0, v0);
-          } else {
-            while (nv--)
-              cuckoo->set(vs[nv+1], vs[nv]);
-            cuckoo->set(v0, u0);
+    u64 rdtsc0, rdtsc1;
+  
+    const u32 SRCSLOTBITS = SRCSIZE * 8;
+    const u64 SRCSLOTMASK = (1ULL << SRCSLOTBITS) - 1ULL;
+    const u32 SRCPREFBITS = SRCSLOTBITS - YZZBITS;
+    const u32 SRCPREFMASK = (1 << SRCPREFBITS) - 1;
+    rdtsc0 = __rdtsc();
+    for (u32 VX = 0; VX < NX; VX++) {
+      for (u32 from = 0 ; from < src->nthreads; from++) {
+        u32 UYX = (from * NY / src->nthreads) << XBITS;
+        u8    *readbig = src->base + src->start(from, VX);
+        u8 *endreadbig = src->base + src->curr(from, VX);
+        for (; readbig < endreadbig; readbig += SRCSIZE) {
+// bit        47..42    41..34    33..26     25..13     12..0
+// read       UYYYYY    UXXXXX    VYYYYY     VZZZZZ     UZZZZ   within VX partition
+          u64 e = *(u64 *)readbig & SRCSLOTMASK;
+          UYX += ((u32)(e>>YZZBITS) - UYX) & SRCPREFMASK;
+          u32 u0 = (((u32)e & ZMASK) << XYBITS | UYX) << 1 | 1, v0 = (((e >> ZBITS) & YZMASK) << XBITS | VX) << 1;
+          if (u0) {// ignore vertex 0 so it can be used as nil for cuckoo[]
+            u32 nu = path(u0, us), nv = path(v0, vs);
+            if (us[nu] == vs[nv]) {
+              u32 min = nu < nv ? nu : nv;
+              for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
+              u32 len = nu + nv + 1;
+              printf("%4d-cycle found\n", len);
+              if (len == PROOFSIZE && nsols < MAXSOLS)
+                solution(us, nu, vs, nv);
+            } else if (nu < nv) {
+              while (nu--)
+                cuckoo->set(us[nu+1], us[nu]);
+              cuckoo->set(u0, v0);
+            } else {
+              while (nv--)
+                cuckoo->set(vs[nv+1], vs[nv]);
+              cuckoo->set(v0, u0);
+            }
           }
         }
-        if (ffs & 64) break; // can't shift by 64
+        if (unlikely(UYX/NX != (from+1)*NY/src->nthreads - 1))
+        { printf("OOPS4: bkt %d from %d UYX %x vs %x\n", VX, from, UYX/NX, (from+1)*NY/src->nthreads - 1); }
       }
     }
+    rdtsc1 = __rdtsc();
+    printf("findcycles rdtsc: %lu\n", rdtsc1-rdtsc0);
+  }
+
+  int solve() {
+    assert(CUCKOO_SIZE * sizeof(u64) <= NEDGES * BIGSIZE0 / NX);
+    trimmer->trim();
+    indexer *edges = trimmer->idx[0];
+    u32 pctload = (edges->sumsize() / BIGGERSIZE) * 100 / CUCKOO_SIZE;
+    printf("cuckoo load %d%%\n", pctload);
+    if (pctload > 90) {
+      printf("overload!\n");
+      exit(0);
+    }
+    cuckoo = new cuckoo_hash(trimmer->tbuckets);
+    findcycles<BIGGERSIZE>(edges);
     return nsols;
   }
 };

@@ -10,7 +10,7 @@
 
 int main(int argc, char **argv) {
   u32 nthreads = 1;
-  u32 ntrims   = 0;
+  u32 ntrims   = 60;
   u32 nonce = 0;
   u32 range = 1;
   struct timeval time0, time1;
@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
         range = atoi(optarg);
         break;
       case 'm':
-        ntrims = atoi(optarg);
+        ntrims = atoi(optarg) & -2; // make even as required by solve()
         break;
       case 't':
         nthreads = atoi(optarg);
