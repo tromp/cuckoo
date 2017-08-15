@@ -52,7 +52,7 @@
 
 // initial entries could be smaller at percent or two slowdown
 #ifndef BIGSIZE0
-#define BIGSIZE0 5
+#define BIGSIZE0 4
 #endif
 // but they'll need syncing entries
 #if BIGSIZE0 == 4 && EDGEBITS > 27
@@ -114,56 +114,66 @@ const static u32 NEDGES0LO     = 1 << EDGE0BITSLO;
 // eps should be at least 1/sqrt(n*p/64)
 // to give negligible bad odds of e^-64.
 
+typedef uint8_t u8;
+typedef uint16_t u16;
+
 // 1/16 reduces odds of overflowing z bucket on 2^30 nodes to 2^16*e^-32 (less than 1 on a billion)
 #ifndef BIGEPS
 #define BIGEPS 1/16
 #endif
 const static u32 ZBUCKETSLOTS = NZ + NZ * BIGEPS;
-const static u32 ZBUCKETSIZE = ZBUCKETSLOTS * BIGSIZE0; 
-typedef uint8_t u8;
+
+template<u32 SLOTSIZE>
 struct zbucket {
+  const static u32 ZBUCKETSIZE = ZBUCKETSLOTS * SLOTSIZE; 
   u32 size;
   u8 bytes[ZBUCKETSIZE]; // conceptually, slot slots[ZBUCKETSLOTS], but need flexible slot size
   zbucket() {
     size = 0;
   }
-  void setsize(u32 _size) {
+  u32 setsize(u32 _size) {
     size = _size;
     assert(size <= ZBUCKETSIZE);
+    return size;
   }
 };
-typedef zbucket yzbucket[NY];
-typedef yzbucket xyzbucket[NX];
 
+template<u32 SLOTSIZE>
+using yzbucket = zbucket<SLOTSIZE>[NY];
+template <u32 SLOTSIZE>
+using xyzbucket = yzbucket<SLOTSIZE>[NX];
+
+template<u32 SLOTSIZE>
 struct indexer {
+  const static u32 ZBUCKETSIZE = ZBUCKETSLOTS * SLOTSIZE; 
   u32 index[NX];
 
   indexer() {
   }
   void starty(const u32 y) {
-    u32 byte_offset = y * sizeof(zbucket) + sizeof(u32);
-    for (u32 x = 0; x < NX; x++, byte_offset += sizeof(yzbucket))
+    u32 byte_offset = y * sizeof(zbucket<SLOTSIZE>) + sizeof(u32);
+    for (u32 x = 0; x < NX; x++, byte_offset += sizeof(yzbucket<SLOTSIZE>))
       index[x] = byte_offset;
   }
-  u32 storey(yzbucket *buckets, const u32 y) {
+  u32 storey(yzbucket<SLOTSIZE> *buckets, const u32 y) {
     u32 sumsize = 0;
-    u32 byte_offset = y * sizeof(zbucket) + sizeof(u32);
-    for (u32 x = 0; x < NX; x++, byte_offset += sizeof(yzbucket)) {
-      sumsize += buckets[x][y].size = index[x] - byte_offset;
+    u32 byte_offset = y * sizeof(zbucket<SLOTSIZE>) + sizeof(u32);
+    for (u32 x = 0; x < NX; x++, byte_offset += sizeof(yzbucket<SLOTSIZE>)) {
+      sumsize += buckets[x][y].setsize(index[x] - byte_offset);
       assert(buckets[x][y].size < ZBUCKETSIZE); // should just truncate if sufficiently unlikely
     }
     return sumsize;
   }
   void startx(const u32 x) {
-    u32 byte_offset = x * sizeof(yzbucket) + sizeof(u32);
-    for (u32 y = 0; y < NY; y++, byte_offset += sizeof(zbucket))
+    u32 byte_offset = x * sizeof(yzbucket<SLOTSIZE>) + sizeof(u32);
+    for (u32 y = 0; y < NY; y++, byte_offset += sizeof(zbucket<SLOTSIZE>))
       index[y] = byte_offset;
   }
-  u32 storex(yzbucket *buckets, const u32 x) {
+  u32 storex(yzbucket<SLOTSIZE> *buckets, const u32 x) {
     u32 sumsize = 0;
-    u32 byte_offset = x * sizeof(yzbucket) + sizeof(u32);
-    for (u32 y = 0; y < NY; y++, byte_offset += sizeof(zbucket)) {
-      sumsize += buckets[x][y].size = index[y] - byte_offset;
+    u32 byte_offset = x * sizeof(yzbucket<SLOTSIZE>) + sizeof(u32);
+    for (u32 y = 0; y < NY; y++, byte_offset += sizeof(zbucket<SLOTSIZE>)) {
+      sumsize += buckets[x][y].setsize(index[y] - byte_offset);
       assert(buckets[x][y].size < ZBUCKETSIZE); // should just truncate if sufficiently unlikely
     }
     return sumsize;
@@ -184,12 +194,23 @@ typedef struct {
 #define likely(x)   __builtin_expect((x)!=0, 1)
 #define unlikely(x)   __builtin_expect((x), 0)
 
+const static u32 NTRIMMEDZ  = NZ * 3/4; // safely over 1-e(-1) trimming fraction
+typedef u8 zbucket8[NZ];
+typedef u16 zbucket16[NTRIMMEDZ];
+typedef u32 zbucket32[NTRIMMEDZ];
+typedef zbucket32 yzbucket32[NY];
+typedef yzbucket32 xyzbucket32[NX];
+
 // maintains set of trimmable edges
 class edgetrimmer {
 public:
   siphash_keys sip_keys;
-  yzbucket *buckets;
-  yzbucket *tbuckets;
+  yzbucket<BIGSIZE0> *buckets;
+  yzbucket<BIGSIZE> *tbuckets;
+  yzbucket32 *saveedges;
+  zbucket32 *tedges;
+  zbucket16 *tzs;
+  zbucket8 *tdegs;
   u32 ntrims;
   u32 nthreads;
   thread_ctx *threads;
@@ -199,15 +220,20 @@ public:
     for (u32 i=0; i<n; i+=4096)
       *(u32 *)(p+i) = 0;
   }
-  edgetrimmer(const u32 n_threads, u32 n_trims) {
-    assert(sizeof(xyzbucket) == NX * sizeof(yzbucket));
+  edgetrimmer(const u32 n_threads, u32 n_trims, const bool showcycle) {
+    assert(sizeof(xyzbucket<BIGSIZE0>) == NX * sizeof(yzbucket<BIGSIZE0>));
+    assert(sizeof(xyzbucket<BIGSIZE>) == NX * sizeof(yzbucket<BIGSIZE>));
     nthreads = n_threads;
     ntrims   = n_trims;
-    buckets  = new yzbucket[NX];
-    touch((u8 *)buckets, sizeof(xyzbucket));
-    tbuckets = new yzbucket[n_threads];
-    touch((u8 *)tbuckets, n_threads * sizeof(yzbucket));
+    buckets  = new yzbucket<BIGSIZE0>[NX];
+    touch((u8 *)buckets, sizeof(xyzbucket<BIGSIZE0>));
+    tbuckets = new yzbucket<BIGSIZE>[nthreads];
+    touch((u8 *)tbuckets, nthreads * sizeof(yzbucket<BIGSIZE>));
     threads  = new thread_ctx[nthreads];
+    saveedges = showcycle ? new yzbucket32[NX] : 0;
+    tedges = showcycle ? 0 : new zbucket32[nthreads];
+    tdegs = new zbucket8[nthreads];
+    tzs = new zbucket16[nthreads];
     int err  = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
   }
@@ -215,16 +241,20 @@ public:
     delete[] buckets;
     delete[] tbuckets;
     delete[] threads;
+    delete[] saveedges;
+    delete[] tedges;
+    delete[] tdegs;
+    delete[] tzs;
   }
   void genUnodes(const u32 id, const u32 uorv) {
     u64 rdtsc0, rdtsc1;
 #ifdef NEEDSYNC
-    indexer last;
+    u32 last[NX];;
 #endif
   
     rdtsc0 = __rdtsc();
     u8 *base = (u8 *)buckets;
-    indexer dst;
+    indexer<BIGSIZE0> dst;
     u32 z;
     u32 starty = NY *  id    / nthreads;
     u32   endy = NY * (id+1) / nthreads;
@@ -247,13 +277,13 @@ public:
     __m256i vhi1 = _mm256_set_epi64x((e1+7)*NYZ, (e1+6)*NYZ, (e1+5)*NYZ, (e1+4)*NYZ);
     static const __m256i vhiinc = {8*NYZ, 8*NYZ, 8*NYZ, 8*NYZ};
 #endif
-#ifdef NEEDSYNC
-    for (u32 x=0; x < NX; x++)
-      last.index[x] = edge;
-#endif
     u32 sumsize = 0;
     for (u32 ey = starty; ey < endy; ey++, endedge += NYZ) {
       dst.starty(ey);
+#ifdef NEEDSYNC
+      for (u32 x=0; x < NX; x++)
+        last[x] = edge;
+#endif
       for (; edge < endedge; edge += NSIPHASH) {
 // bit        28..21     20..13    12..0
 // node       XXXXXX     YYYYYY    ZZZZZ
@@ -268,11 +298,11 @@ public:
         dst.index[z] += BIGSIZE0;
 #else
         if (zz) {
-          for (; unlikely(last.index[z] + NEDGES0LO <= block); last.index[z] += NEDGES0LO, dst.index[z] += BIGSIZE0)
+          for (; unlikely(last[z] + NEDGES0LO <= block); last[z] += NEDGES0LO, dst.index[z] += BIGSIZE0)
             *(u32 *)(base+dst.index[z]) = 0;
           *(u32 *)(base+dst.index[z]) = zz;
           dst.index[z] += BIGSIZE0;
-          last.index[z] = edge;
+          last[z] = edge;
         }
 #endif
 #elif NSIPHASH == 8
@@ -314,11 +344,11 @@ public:
   zz = _mm256_extract_epi32(w,x);\
   if (i || likely(zz)) {\
     z = _mm256_extract_epi32(v,x);\
-    for (; unlikely(last.index[z] + NEDGES0LO <= edge+i); last.index[z] += NEDGES0LO, dst.index[z] += BIGSIZE0)\
+    for (; unlikely(last[z] + NEDGES0LO <= edge+i); last[z] += NEDGES0LO, dst.index[z] += BIGSIZE0)\
       *(u32 *)(base+dst.index[z]) = 0;\
     *(u32 *)(base+dst.index[z]) = zz;\
     dst.index[z] += BIGSIZE0;\
-    last.index[z] = edge+i;\
+    last[z] = edge+i;\
   }
 #endif
         STORE0(0,v1,0,v0); STORE0(1,v1,2,v0); STORE0(2,v1,4,v0); STORE0(3,v1,6,v0);
@@ -329,7 +359,7 @@ public:
       }
 #ifdef NEEDSYNC
       for (u32 z=0; z < NX; z++) {
-        for (; last.index[z]<endedge-NEDGES0LO; last.index[z]+=NEDGES0LO) {
+        for (; last[z]<endedge-NEDGES0LO; last[z]+=NEDGES0LO) {
           *(u32 *)(base+dst.index[z]) = 0;
           dst.index[z] += BIGSIZE0;
         }
@@ -346,7 +376,6 @@ public:
   
 #if NSIPHASH == 8
     static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
-    static const __m256i vdegmask = {ZMASK, ZMASK, ZMASK, ZMASK};
     static const __m256i vbucketmask = {XMASK, XMASK, XMASK, XMASK};
     const __m256i vinit = _mm256_set_epi64x(
       sip_keys.k1^0x7465646279746573ULL,
@@ -355,19 +384,23 @@ public:
       sip_keys.k0^0x736f6d6570736575ULL);
     __m256i vpacket0, vpacket1, vhi0, vhi1;
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
-    u32 e0, e1, e2, e3;
-    u64 re0, re1, re2, re3;
     static const u32 EVENNONDEGMASK = (BIGSLOTMASK >> ZBITS1) & -2;
 #endif
-    indexer src, small;
+    indexer<BIGSIZE0> src, dst;
+    indexer<BIGSIZE> small;
   
     rdtsc0 = __rdtsc();
+    u32 sumsize = 0;
     u8 *base = (u8 *)buckets;
     u8 *small0 = (u8 *)tbuckets[id];
     u32 startx = NX *  id    / nthreads;
     u32   endx = NX * (id+1) / nthreads;
     for (u32 x = startx; x < endx; x++) {
       small.startx(0);
+      int64_t x34 = (int64_t)x << YZZBITS;
+#if NSIPHASH == 8
+      __m256i vx34  = {x34, x34, x34, x34};
+#endif
       for (u32 y = 0 ; y < NY; y++) {
         u32 edge = y * NYZ;
         u8    *readbig = buckets[x][y].bytes;
@@ -382,82 +415,62 @@ public:
 #else
           if (unlikely(!e)) { edge += NEDGES0LO; continue; }
 #endif
-// printf("id %d x %d y %d e %08x prefedge %x edge %x\n", id, x, y, e, e >> YZBITS, edge);
           edge += ((u32)(e>>YZBITS) - edge) & (NEDGES0LO-1);
+// if (y==199) printf("id %d x %d y %d e %08x prefedge %x edge %x\n", id, x, y, e, e >> YZBITS, edge);
           u32 z = (e >> ZBITS) & YMASK;
 // bit         39..13     12..0
 // write         edge     UZZZZ   within UX UY partition
-          *(u64 *)(small0+small.index[z]) = ((u64)edge << ZBITS) | (e >> YBITS);
+          *(u64 *)(small0+small.index[z]) = ((u64)edge << ZBITS) | (e & ZMASK);
+// printf("id %d x %d y %d e %010lx e' %010x\n", id, x, y, e, ((u64)edge << ZBITS) | (e >> YBITS));
           small.index[z] += SMALLSIZE;
         }
         if (unlikely(edge >> EDGE0BITSLO != ((y+1) * NYZ - 1) >> EDGE0BITSLO))
         { printf("OOPS1: id %d x %d y %d edge %x vs %x\n", id, x, y, edge, (y+1)*NYZ-1); exit(0); }
       }
-      u8 *degs = (u8 *)buckets[x]; // recycle!;
+      u8 *degs = tdegs[id];
+      small.storex(tbuckets, 0);
       for (u32 y = 0 ; y < NY; y++) {
-        memset(degs, 1, NZ);
-        u8    *readsmall = tbuckets[id][y].bytes;
-        u8 *endreadsmall = small0 + tbuckets[id][y].size;
+        memset(degs, 0xff, NZ);
+        u8    *readsmall = tbuckets[id][y].bytes, *endreadsmall = readsmall + tbuckets[id][y].size;
+// printf("id %d x %d y %d size %d sumsize %d\n", id, x, y, tbuckets[id][y].size/BIGSIZE, sumsize);
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALLSIZE)
-          degs[*(u32 *)rdsmall & ZMASK]--;
+          degs[*(u32 *)rdsmall & ZMASK]++;
+        u16 *zs = tzs[id];
+        u32 *edges0 = saveedges ? saveedges[x][y] : tedges[id], *edges = edges0;
+        u32 edge2 = 0;
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALLSIZE) {
 // bit         39..13     12..0
 // read          edge     UZZZZ    sorted by UY within UX partition
-          u64 z = *(u64 *)rdsmall;
+          u64 e = *(u64 *)rdsmall;
+// printf("id %d x %d y %d e %010lx z %04x\n", id, x, y, e, (u32)e & ZMASK);
+          edge2 += ((e>>ZBITS1) - edge2) & EVENNONDEGMASK;
+          *edges = edge2;
+          u32 z = e & ZMASK;
+          *zs = z;
+          u32 delta = degs[z] ? 1 : 0;
+          edges += delta;
+          zs    += delta;
+          sumsize += delta;
         }
-      }
-    }
-    rdtsc1 = __rdtsc();
-    printf("trimedgesU rdtsc: %lu\n", rdtsc1-rdtsc0);
-  }
-
-#if 0
-        int64_t UX34 = (int64_t)UX << YZZBITS;
+        u16 *readz = tzs[id];
+        assert(edges - edges0 < NTRIMMEDZ);
+        dst.startx(x);
 #if NSIPHASH == 8
-        __m256i vUX34  = {UX34, UX34, UX34, UX34};
-#endif
-        u8 *readedge = src->base + src->curr(id, UX);
-        u32 edge = 0;
-#if NSIPHASH == 8
-        u32 edge2 = 0, prevedge2 = 0;
-        for (; ; readedge += NSIPHASH*BIGSIZE) {
-          prevedge2 = edge2;
-break;
-// bit          39..13    12..0
-// read           edge    ZZZZZ
-          re0 = *(u64 *)(readedge+0*BIGSIZE);
+        for (u32 *readedge = edges0; readedge <= edges-NSIPHASH; readedge += NSIPHASH, readz += NSIPHASH) {
           v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-          e0 = edge2 += ((re0>>ZBITS1) - edge2) & EVENNONDEGMASK;
-          re1 = *(u64 *)(readedge+1*BIGSIZE);
           v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-          e1 = edge2 += ((re1>>ZBITS1) - edge2) & EVENNONDEGMASK;
-          re2 = *(u64 *)(readedge+2*BIGSIZE);
           v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-          e2 = edge2 += ((re2>>ZBITS1) - edge2) & EVENNONDEGMASK;
-          re3 = *(u64 *)(readedge+3*BIGSIZE);
           v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
-          e3 = edge2 += ((re3>>ZBITS1) - edge2) & EVENNONDEGMASK;
-          vpacket0 = _mm256_set_epi64x(e3, e2, e1, e0);
-          vhi0     = _mm256_set_epi64x(re3, re2, re1, re0);
-          re0 = *(u64 *)(readedge+4*BIGSIZE);
           v7 = _mm256_permute4x64_epi64(vinit, 0xFF);
-          e0 = edge2 += ((re0>>ZBITS1) - edge2) & EVENNONDEGMASK;
-          re1 = *(u64 *)(readedge+5*BIGSIZE);
           v4 = _mm256_permute4x64_epi64(vinit, 0x00);
-          e1 = edge2 += ((re1>>ZBITS1) - edge2) & EVENNONDEGMASK;
-          re2 = *(u64 *)(readedge+6*BIGSIZE);
           v5 = _mm256_permute4x64_epi64(vinit, 0x55);
-          e2 = edge2 += ((re2>>ZBITS1) - edge2) & EVENNONDEGMASK;
-          re3 = *(u64 *)(readedge+7*BIGSIZE);
           v6 = _mm256_permute4x64_epi64(vinit, 0xAA);
-          e3 = edge2 += ((re3>>ZBITS1) - edge2) & EVENNONDEGMASK;
 
-          if (unlikely(edge2 >= 2*NEDGES)) // less than 8 edges from current bucket
-            break;
+          vpacket0 = _mm256_cvtepu32_epi64(*(__m128i*)readedge);
+          vhi0     = _mm256_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)readz));
+          vpacket1 = _mm256_cvtepu32_epi64(*(__m128i*)(readedge + 4));
+          vhi1     = _mm256_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)(readz + 4)));
 
-          vpacket1 = _mm256_set_epi64x(e3, e2, e1, e0);
-          vhi1     = _mm256_set_epi64x(re3, re2, re1, re0);
-    
           v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
           SIPROUNDX8; SIPROUNDX8;
           v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
@@ -469,19 +482,28 @@ break;
     
           v1 = v0 & vbucketmask;
           v5 = v4 & vbucketmask;
-          v0 = vUX34 | _mm256_slli_epi64(_mm256_srli_epi64(v0 & vnodemask, XBITS), ZBITS) | (vhi0 & vdegmask);
-          v4 = vUX34 | _mm256_slli_epi64(_mm256_srli_epi64(v4 & vnodemask, XBITS), ZBITS) | (vhi1 & vdegmask);
+          v0 = vx34 | _mm256_slli_epi64(_mm256_srli_epi64(v0 & vnodemask, XBITS), ZBITS) | vhi0;
+          v4 = vx34 | _mm256_slli_epi64(_mm256_srli_epi64(v4 & vnodemask, XBITS), ZBITS) | vhi1;
 
+          u32 z;
 #define STORE(i,v,x,w) \
 z = _mm256_extract_epi32(v,x);\
-*(u64 *)(base+big[z]) = _mm256_extract_epi64(w,i%4);\
-big[z] += BIGSIZE;
+*(u64 *)(base+dst.index[z]) = _mm256_extract_epi64(w,i%4);\
+dst.index[z] += BIGSIZE0;
 
           STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
           STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
         }
-        edge = prevedge2 / 2;
 #endif
+      }
+    }
+    rdtsc1 = __rdtsc();
+    printf("genVnodes id %d rdtsc: %lu sumsize %d\n", id, rdtsc1-rdtsc0, sumsize);
+  }
+
+#if 0
+        }
+        edge = prevedge2 / 2;
         for (; ; readedge += BIGSIZE) { // process up to 7 leftover edges
 // bit         39..13     12..0
 // read          edge     UZZZZ within UX partition
@@ -739,8 +761,8 @@ public:
   u32 sols[MAXSOLS][PROOFSIZE];
   u32 nsols;
 
-  solver_ctx(u32 n_threads, u32 n_trims) {
-    trimmer = new edgetrimmer(n_threads, n_trims);
+  solver_ctx(u32 n_threads, u32 n_trims, const bool showcycle) {
+    trimmer = new edgetrimmer(n_threads, n_trims, showcycle);
     cuckoo = 0;
   }
   void setheadernonce(char* headernonce, const u32 len, const u32 nonce) {
@@ -753,10 +775,10 @@ public:
     delete trimmer;
   }
   u32 sharedbytes() {
-    return NX * sizeof(yzbucket);
+    return sizeof(xyzbucket<BIGSIZE0>) + (trimmer->saveedges ? sizeof(xyzbucket32) : 0);
   }
   u32 threadbytes() {
-    return sizeof(yzbucket) + sizeof(thread_ctx);
+    return sizeof(thread_ctx) + sizeof(yzbucket<BIGSIZE>) + sizeof(zbucket8) + sizeof(zbucket16) + sizeof(zbucket32);
   }
   void solution(u32 *us, u32 nu, u32 *vs, u32 nv) {
     return; // not functional yet

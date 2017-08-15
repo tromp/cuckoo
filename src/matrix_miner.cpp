@@ -13,6 +13,7 @@ int main(int argc, char **argv) {
   u32 ntrims   = 60;
   u32 nonce = 0;
   u32 range = 1;
+  bool showcycle = false;
   struct timeval time0, time1;
   u32 timems;
   char header[HEADERLEN];
@@ -20,7 +21,7 @@ int main(int argc, char **argv) {
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:m:n:r:t:x:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:r:st:x:")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
@@ -42,6 +43,9 @@ int main(int argc, char **argv) {
       case 'm':
         ntrims = atoi(optarg) & -2; // make even as required by solve()
         break;
+      case 's':
+        showcycle = true;
+        break;
       case 't':
         nthreads = atoi(optarg);
         break;
@@ -52,7 +56,7 @@ int main(int argc, char **argv) {
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges\n");
 
-  solver_ctx ctx(nthreads, ntrims);
+  solver_ctx ctx(nthreads, ntrims, showcycle);
 
   u32 sbytes = ctx.sharedbytes();
   u32 tbytes = ctx.threadbytes();
