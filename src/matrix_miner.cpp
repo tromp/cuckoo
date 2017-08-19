@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
 
   solver_ctx ctx(nthreads, ntrims, showcycle);
 
-  u32 sbytes = ctx.sharedbytes();
+  u64 sbytes = ctx.sharedbytes();
   u32 tbytes = ctx.threadbytes();
   int sunit,tunit;
   for (sunit=0; sbytes >= 10240; sbytes>>=10,sunit++) ;

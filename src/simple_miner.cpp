@@ -18,8 +18,9 @@ public:
   edge_t easiness;
   node_t *cuckoo;
 
-  cuckoo_ctx(const char* header, edge_t easy_ness) {
-    setheader(header, strlen(header), &sip_keys);
+  cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce, edge_t easy_ness) {
+    ((u32 *)header)[headerlen/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+    setheader(header, headerlen, &sip_keys);
     easiness = easy_ness;
     cuckoo = (node_t *)calloc(1+NNODES, sizeof(node_t));
     assert(cuckoo != 0);
@@ -110,6 +111,7 @@ int main(int argc, char **argv) {
   char header[HEADERLEN];
   memset(header, 0, HEADERLEN);
   int c, easipct = 50;
+  u32 nonce = 0;
   while ((c = getopt (argc, argv, "e:h:")) != -1) {
     switch (c) {
       case 'e':
@@ -123,7 +125,9 @@ int main(int argc, char **argv) {
   assert(easipct >= 0 && easipct <= 100);
   printf("Looking for %d-cycle on cuckoo%d(\"%s\") with %d%% edges\n",
                PROOFSIZE, EDGEBITS+1, header, easipct);
-  u64 easiness = easipct * NNODES / 100;
-  cuckoo_ctx ctx(header, easiness);
+  u64 easiness = easipct * (u64)NNODES / 100;
+  cuckoo_ctx ctx(header, sizeof(header), nonce, easiness);
+  printf("k0 %lx k1 %lx\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
+
   worker(&ctx);
 }
