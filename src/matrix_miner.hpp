@@ -522,7 +522,7 @@ dst.index[vx] += BIGSIZE;
   void trimedges(const u32 id, u32 round) {
     const u32 SRCSLOTBITS = SRCSIZE * 8;
     const u64 SRCSLOTMASK = (1ULL << SRCSLOTBITS) - 1ULL;
-    const u32 SRCPREFBITS = SRCSLOTBITS - YZZBITS;
+    const u32 SRCPREFBITS = SRCSLOTBITS - YZBITS;
     const u32 SRCPREFMASK = (1 << SRCPREFBITS) - 1;
     const u32 DSTSLOTBITS = DSTSIZE * 8;
     const u64 DSTSLOTMASK = (1ULL << DSTSLOTBITS) - 1ULL;
@@ -542,7 +542,7 @@ dst.index[vx] += BIGSIZE;
       small.matrixu(0);
                                 TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
       for (u32 ux = 0 ; ux < NX; ux++) {
-        u32 uxy = ux << YBITS;
+        u32 uxyz = ux << YZBITS;
         zbucket<BIGSIZE0> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
         u8 *readbig = zb.bytes, *endreadbig = readbig + zb.size;
 // printf("id %d vx %d ux %d size %d\n", id, vx, ux, zb.size/SRCSIZE);
@@ -550,16 +550,17 @@ dst.index[vx] += BIGSIZE;
 // bit        39..34    33..21     20..13     12..0
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition
           u64 e = *(u64 *)readbig & SRCSLOTMASK;
-          uxy += ((u32)(e >> YZZBITS) - uxy) & SRCPREFMASK;
+          uxyz += ((u32)(e >> YZBITS) - uxyz) & SRCPREFMASK;
 // printf("id %d vx %d ux %d e %010lx suffUXY %02x UXY %x mask %x\n", id, vx, ux, e, (u32)(e >> YZZBITS), uxy, SRCPREFMASK);
           u32 vy = (e >> ZBITS) & YMASK;
 // bit     41/39..34    33..26     25..13     12..0
 // write      UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition
-          *(u64 *)(small0+small.index[vy]) = ((u64)uxy << ZZBITS) | ((e >> YBITS) & (ZMASK << ZBITS)) | (e & ZMASK);
+          *(u64 *)(small0+small.index[vy]) = ((u64)uxyz << ZBITS) | (e & ZMASK);
+          uxyz &= ~ZMASK;
           small.index[vy] += DSTSIZE;
         }
-        if (unlikely(uxy >> YBITS != ux))
-        { printf("OOPS3: id %d vx %d ux %d UXY %x\n", id, vx, ux, uxy); exit(0); }
+        if (unlikely(uxyz >> YZBITS != ux))
+        { printf("OOPS3: id %d vx %d ux %d UXY %x\n", id, vx, ux, uxyz); exit(0); }
       }
       u8 *degs = tdegs[id];
       small.storeu(tbuckets+id, 0);
