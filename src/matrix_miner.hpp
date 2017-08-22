@@ -164,7 +164,6 @@ struct indexer {
     u32 byte_offset = y * sizeof(zbucket<SLOTSIZE>) + sizeof(u32);
     for (u32 x = 0; x < NX; x++, byte_offset += sizeof(yzbucket<SLOTSIZE>)) {
       sumsize += buckets[x][y].setsize(index[x] - byte_offset);
-      assert(buckets[x][y].size < ZBUCKETSIZE); // should just truncate if sufficiently unlikely
     }
     return sumsize;
   }
@@ -178,7 +177,6 @@ struct indexer {
     u32 byte_offset = x * sizeof(yzbucket<SLOTSIZE>) + sizeof(u32);
     for (u32 y = 0; y < NY; y++, byte_offset += sizeof(zbucket<SLOTSIZE>)) {
       sumsize += buckets[x][y].setsize(index[y] - byte_offset);
-      assert(buckets[x][y].size < ZBUCKETSIZE); // should just truncate if sufficiently unlikely
     }
     return sumsize;
   }
@@ -198,7 +196,12 @@ typedef struct {
 #define likely(x)   __builtin_expect((x)!=0, 1)
 #define unlikely(x)   __builtin_expect((x), 0)
 
-const static u32 NTRIMMEDZ  = NZ * 180/256; // safely over 1-e(-1) trimming fraction
+// safely over 1-e(-1) trimming fraction
+#ifndef TRIMFRAC256
+#define TRIMFRAC256 184
+#endif
+
+const static u32 NTRIMMEDZ  = NZ * TRIMFRAC256 / 256;
 typedef u8 zbucket8[NZ];
 typedef u16 zbucket16[NTRIMMEDZ];
 typedef u32 zbucket32[NTRIMMEDZ];

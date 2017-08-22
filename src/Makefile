@@ -51,8 +51,11 @@ mean28x8b:	cuckoo.h siphash.h mean_miner.h mean_miner.c Makefile
 mean30x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o mean30x8 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
-matrix:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
-	$(GPP) -o matrix -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
+matrix28:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
+	$(GPP) -o matrix28 -mavx2 -DBIGEPS=1/8 -DTRIMFRAC256=200 -DNSIPHASH=8 -DEDGEBITS=27 matrix_miner.cpp $(LIBS)
+
+matrix30:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
+	$(GPP) -o matrix30 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
 
 mean30x8s:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o mean30x8s -DBIG0SIZE=4 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
