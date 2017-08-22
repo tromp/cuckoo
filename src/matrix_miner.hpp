@@ -72,8 +72,10 @@
 #define BIGGERSIZE 6
 #endif
 
-#if EDGEBITS >= 32
-#error promote u32 to u64 where necessary
+#if EDGEBITS >= 30
+typedef u64 offset_t;
+#else
+typedef u32 offset_t;
 #endif
 
 #if BIGSIZE0 > 4
@@ -123,7 +125,7 @@ typedef uint16_t u16;
 
 // 1/16 reduces odds of overflowing z bucket on 2^30 nodes to 2^16*e^-32 (less than 1 on a billion)
 #ifndef BIGEPS
-#define BIGEPS 1/16
+#define BIGEPS 5/64
 #endif
 const static u32 ZBUCKETSLOTS = NZ + NZ * BIGEPS;
 
@@ -150,31 +152,31 @@ using xyzbucket = yzbucket<SLOTSIZE>[NX];
 template<u32 SLOTSIZE>
 struct indexer {
   const static u32 ZBUCKETSIZE = ZBUCKETSLOTS * SLOTSIZE; 
-  u32 index[NX];
+  offset_t index[NX];
 
   indexer() {
   }
   void matrixv(const u32 y) {
-    u32 byte_offset = y * sizeof(zbucket<SLOTSIZE>) + sizeof(u32);
+    offset_t byte_offset = y * sizeof(zbucket<SLOTSIZE>) + sizeof(u32);
     for (u32 x = 0; x < NX; x++, byte_offset += sizeof(yzbucket<SLOTSIZE>))
       index[x] = byte_offset;
   }
-  u32 storev(yzbucket<SLOTSIZE> *buckets, const u32 y) {
-    u32 sumsize = 0;
-    u32 byte_offset = y * sizeof(zbucket<SLOTSIZE>) + sizeof(u32);
+  offset_t storev(yzbucket<SLOTSIZE> *buckets, const u32 y) {
+    offset_t sumsize = 0;
+    offset_t byte_offset = y * sizeof(zbucket<SLOTSIZE>) + sizeof(u32);
     for (u32 x = 0; x < NX; x++, byte_offset += sizeof(yzbucket<SLOTSIZE>)) {
       sumsize += buckets[x][y].setsize(index[x] - byte_offset);
     }
     return sumsize;
   }
   void matrixu(const u32 x) {
-    u32 byte_offset = x * sizeof(yzbucket<SLOTSIZE>) + sizeof(u32);
+    offset_t byte_offset = x * sizeof(yzbucket<SLOTSIZE>) + sizeof(u32);
     for (u32 y = 0; y < NY; y++, byte_offset += sizeof(zbucket<SLOTSIZE>))
       index[y] = byte_offset;
   }
-  u32 storeu(yzbucket<SLOTSIZE> *buckets, const u32 x) {
-    u32 sumsize = 0;
-    u32 byte_offset = x * sizeof(yzbucket<SLOTSIZE>) + sizeof(u32);
+  offset_t storeu(yzbucket<SLOTSIZE> *buckets, const u32 x) {
+    offset_t sumsize = 0;
+    offset_t byte_offset = x * sizeof(yzbucket<SLOTSIZE>) + sizeof(u32);
     for (u32 y = 0; y < NY; y++, byte_offset += sizeof(zbucket<SLOTSIZE>)) {
       sumsize += buckets[x][y].setsize(index[y] - byte_offset);
     }
@@ -224,8 +226,8 @@ public:
   thread_ctx *threads;
   pthread_barrier_t barry;
 
-  void touch(u8 *p, u32 n) {
-    for (u32 i=0; i<n; i+=4096)
+  void touch(u8 *p, offset_t n) {
+    for (offset_t i=0; i<n; i+=4096)
       *(u32 *)(p+i) = 0;
   }
   edgetrimmer(const u32 n_threads, u32 n_trims, const bool showcycle) {
@@ -292,7 +294,7 @@ public:
     __m256i vhi1 = _mm256_set_epi64x((e1+7)*NYZ, (e1+6)*NYZ, (e1+5)*NYZ, (e1+4)*NYZ);
     static const __m256i vhiinc = {8*NYZ, 8*NYZ, 8*NYZ, 8*NYZ};
 #endif
-    u32 sumsize = 0;
+    offset_t sumsize = 0;
     for (u32 my = starty; my < endy; my++, endedge += NYZ) {
       dst.matrixv(my);
 #ifdef NEEDSYNC
@@ -384,7 +386,7 @@ public:
       sumsize += dst.storev(buckets, my);
     }
     rdtsc1 = __rdtsc();
-    printf("genUnodes id %d size %d rdtsc: %lu\n", id, sumsize/BIGSIZE0, rdtsc1-rdtsc0);
+    printf("genUnodes id %d size %u rdtsc: %lu\n", id, sumsize/BIGSIZE0, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/BIGSIZE0;
   }
 
@@ -402,13 +404,13 @@ public:
     __m256i vpacket0, vpacket1, vhi0, vhi1;
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
 #endif
-    static const u32 NONDEGBITS = BIGSLOTBITS - ZBITS;
+    static const u32 NONDEGBITS = std::min(BIGSLOTBITS, 2 * YZBITS) - ZBITS;
     static const u32 NONDEGMASK = (1 << NONDEGBITS) - 1;
     indexer<BIGSIZE0> src, dst;
     indexer<BIGSIZE> small;
   
     rdtsc0 = __rdtsc();
-    u32 sumsize = 0;
+    offset_t sumsize = 0;
     u8 *base = (u8 *)buckets;
     u8 *small0 = (u8 *)tbuckets[id];
     u32 startux = NX *  id    / nthreads;
@@ -419,18 +421,18 @@ public:
         u32 edge = my * NYZ;
         u8    *readbig = buckets[ux][my].bytes;
         u8 *endreadbig = readbig + buckets[ux][my].size;
-// printf("id %d x %d y %d size %d read %d\n", id, ux, my, buckets[ux][my].size, readbig-base);
+// printf("id %d x %d y %d size %u read %d\n", id, ux, my, buckets[ux][my].size, readbig-base);
         for (; readbig < endreadbig; readbig += BIGSIZE0) {
 // bit     39/31..21     20..13    12..0
 // read         edge     UYYYYY    UZZZZ   within UX partition
           BIGTYPE e = *(BIGTYPE *)readbig;
 #if BIGSIZE0 > 4
           e &= BIGSLOTMASK0;
-#else
+#elif defined NEEDSYNC
           if (unlikely(!e)) { edge += NEDGES0LO; continue; }
 #endif
           edge += ((u32)(e >> YZBITS) - edge) & (NEDGES0LO-1);
-// if (my==199) printf("id %d ux %d my %d e %08x prefedge %x edge %x\n", id, ux, my, e, e >> YZBITS, edge);
+// if (ux==78 && my==243) printf("id %d ux %d my %d e %08x prefedge %x edge %x\n", id, ux, my, e, e >> YZBITS, edge);
           u32 uy = (e >> ZBITS) & YMASK;
 // bit         39..13     12..0
 // write         edge     UZZZZ   within UX UY partition
@@ -447,7 +449,7 @@ public:
       for (u32 uy = 0 ; uy < NY; uy++) {
         memset(degs, 0xff, NZ);
         u8 *readsmall = tbuckets[id][uy].bytes, *endreadsmall = readsmall + tbuckets[id][uy].size;
-// if (id==1) printf("id %d ux %d y %d size %d sumsize %d\n", id, ux, uy, tbuckets[id][uy].size/BIGSIZE, sumsize);
+// if (id==1) printf("id %d ux %d y %d size %u sumsize %u\n", id, ux, uy, tbuckets[id][uy].size/BIGSIZE, sumsize);
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALLSIZE)
           degs[*(u32 *)rdsmall & ZMASK]++;
         u16 *zs = tzs[id];
@@ -457,8 +459,8 @@ public:
 // bit         39..13     12..0
 // read          edge     UZZZZ    sorted by UY within UX partition
           u64 e = *(u64 *)rdsmall;
-// if (id==1) printf("id %d ux %d y %d e %010lx z %04x\n", id, ux, uy, e, (u32)e & ZMASK);
           edge += ((e >> ZBITS) - edge) & NONDEGMASK;
+// if (id==0) printf("id %d ux %d y %d e %010lx pref %4x edge %x\n", id, ux, uy, e, e>>ZBITS, edge);
           *edges = edge;
           u32 z = e & ZMASK;
           *zs = z;
@@ -466,7 +468,7 @@ public:
           edges += delta;
           zs    += delta;
         }
-        if (unlikely((edge) >> NONDEGBITS != EDGEMASK >> NONDEGBITS))
+        if (unlikely(edge >> NONDEGBITS != EDGEMASK >> NONDEGBITS))
         { printf("OOPS2: id %d ux %d y %d edge %x vs %x\n", id, ux, uy, edge, EDGEMASK); exit(0); }
         assert(edges - edges0 < NTRIMMEDZ);
         u16 *readz = tzs[id];
@@ -528,7 +530,7 @@ dst.index[vx] += BIGSIZE;
       sumsize += dst.storeu(buckets, ux);
     }
     rdtsc1 = __rdtsc();
-    printf("genVnodes id %d size %d rdtsc: %lu\n", id, sumsize/BIGSIZE, rdtsc1-rdtsc0);
+    printf("genVnodes id %d size %u rdtsc: %lu\n", id, sumsize/BIGSIZE, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/BIGSIZE;
   }
 
@@ -547,7 +549,7 @@ dst.index[vx] += BIGSIZE;
     indexer<BIGSIZE> small;
   
     rdtsc0 = __rdtsc();
-    u32 sumsize = 0;
+    offset_t sumsize = 0;
     u8 *base = (u8 *)buckets;
     u8 *small0 = (u8 *)tbuckets[id];
     u32 startvx = NY *  id    / nthreads;
@@ -559,7 +561,7 @@ dst.index[vx] += BIGSIZE;
         u32 uxyz = ux << YZBITS;
         zbucket<BIGSIZE0> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
         u8 *readbig = zb.bytes, *endreadbig = readbig + zb.size;
-// printf("id %d vx %d ux %d size %d\n", id, vx, ux, zb.size/SRCSIZE);
+// printf("id %d vx %d ux %d size %u\n", id, vx, ux, zb.size/SRCSIZE);
         for (; readbig < endreadbig; readbig += SRCSIZE) {
 // bit        39..34    33..21     20..13     12..0
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition
@@ -582,7 +584,7 @@ dst.index[vx] += BIGSIZE;
         u64 vy34 = (u64)vy << YZZBITS;
         memset(degs, 0xff, NZ);
         u8    *readsmall = tbuckets[id][vy].bytes, *endreadsmall = readsmall + tbuckets[id][vy].size;
-// printf("id %d vx %d vy %d size %d sumsize %d\n", id, vx, vy, tbuckets[id][vx].size/BIGSIZE, sumsize);
+// printf("id %d vx %d vy %d size %u sumsize %u\n", id, vx, vy, tbuckets[id][vx].size/BIGSIZE, sumsize);
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall += DSTSIZE)
           degs[*(u32 *)rdsmall & ZMASK]++;
         u32 ux = 0;
@@ -603,7 +605,7 @@ dst.index[vx] += BIGSIZE;
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    printf("trimedges round %02d size %d rdtsc: %lu\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0);
+    printf("trimedges round %02d size %u rdtsc: %lu\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/DSTSIZE;
   }
 
@@ -821,7 +823,7 @@ public:
         u32 uxyz = ux << YZBITS;
         zbucket<BIGSIZE0> &zb = trimmer->buckets[ux][vx];
         u8 *readbig = zb.bytes, *endreadbig = readbig + zb.size;
-// printf("id %d vx %d ux %d size %d\n", id, vx, ux, zb.size/SRCSIZE);
+// printf("id %d vx %d ux %d size %u\n", id, vx, ux, zb.size/SRCSIZE);
         for (; readbig < endreadbig; readbig += SRCSIZE) {
 // bit        41..34    33..21     20..13     12..0
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition
@@ -860,7 +862,7 @@ public:
   }
 
   int solve() {
-    assert(CUCKOO_SIZE * sizeof(u64) <= NEDGES * BIGSIZE0 / NX);
+    assert((u64)CUCKOO_SIZE * sizeof(u64) <= (u64)NEDGES * BIGSIZE0 / NX);
     trimmer->trim();
     u32 pctload = trimmer->count() * 100 / CUCKOO_SIZE;
     printf("cuckoo load %d%%\n", pctload);
