@@ -58,7 +58,7 @@ matrix30:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -o matrix30 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
 
 matrix30s:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
-	$(GPP) -DSHOWCYCLE -o matrix30s -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
+	$(GPP) -DSAVEEDGES -DBIGSIZE0=5 -o matrix30s -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
 
 matrix32:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -o matrix32 -mavx2 -DEXPANDROUND=8 -DNSIPHASH=8 -DEDGEBITS=31 matrix_miner.cpp $(LIBS)

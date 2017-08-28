@@ -13,6 +13,11 @@ int main(int argc, char **argv) {
   u32 ntrims   = 60;
   u32 nonce = 0;
   u32 range = 1;
+#ifdef SAVEEDGES
+  bool showcycle = 1;
+#else
+  bool showcycle = 0;
+#endif
   struct timeval time0, time1;
   u32 timems;
   char header[HEADERLEN];
@@ -20,7 +25,7 @@ int main(int argc, char **argv) {
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:m:n:r:t:x:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:r:st:x:")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
@@ -42,6 +47,9 @@ int main(int argc, char **argv) {
       case 'm':
         ntrims = atoi(optarg) & -2; // make even as required by solve()
         break;
+      case 's':
+        showcycle = true;
+        break;
       case 't':
         nthreads = atoi(optarg);
         break;
@@ -52,7 +60,7 @@ int main(int argc, char **argv) {
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges\n");
 
-  solver_ctx ctx(nthreads, ntrims);
+  solver_ctx ctx(nthreads, ntrims, showcycle);
 
   u64 sbytes = ctx.sharedbytes();
   u32 tbytes = ctx.threadbytes();
@@ -62,9 +70,6 @@ int main(int argc, char **argv) {
   printf("Using %d%cB bucket memory at %lx,\n", sbytes, " KMGT"[sunit], (u64)ctx.trimmer->buckets);
   printf("%dx%d%cB thread memory at %lx,\n", nthreads, tbytes, " KMGT"[tunit], (u64)ctx.trimmer->tbuckets);
   printf("%d-way siphash, and %d buckets.\n", NSIPHASH, NX);
-
-  thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
-  assert(threads);
 
   u32 sumnsols = 0;
   for (u32 r = 0; r < range; r++) {
