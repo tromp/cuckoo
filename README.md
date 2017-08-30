@@ -145,9 +145,9 @@ Anyone who'd like to see my claims tested is invited to donate to the Cuckoo Cyc
 which has received generous donations by
 
 <ul>
-<li> Readers of the Zcash Forum </li>
-<li> A $20k donation by <a href="https://www.genesis-mining.com/">Genesis Mining</a>) </li>
-<li> A 10BTC donation by <a href="https://www.simply-vc-co.ltd/?page_id=8">Simply VC</a>) </li>
+<li> Readers of the <a href="https://forum.z.cash/">Zcash Forum</a> </li>
+<li> A $20k donation by <a href="https://www.genesis-mining.com/">Genesis Mining</a> </li>
+<li> A 10BTC donation by <a href="https://www.simply-vc-co.ltd/?page_id=8">Simply VC</a> </li>
 </ul>
 
 I intend for the total bounty value to stay ahead of funding levels. Happy bounty hunting!
