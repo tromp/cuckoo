@@ -140,7 +140,15 @@ I further offer half the regular bounty for improvements by a factor of sqrt(2).
 
 Anyone who'd like to see my claims tested is invited to donate to the Cuckoo Cycle Bounty Fund at
 
-<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a> (wallet balance as of July 13, 2017: 16.7 BTC, following a generous $20k donation by <a href="https://www.genesis-mining.com/">Genesis Mining</a>)
+<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a>
+
+which has received generous donations by
+
+<ul>
+<li> Readers of the Zcash Forum </li>
+<li> A $20k donation by <a href="https://www.genesis-mining.com/">Genesis Mining</a>) </li>
+<li> A 10BTC donation by <a href="https://www.simply-vc-co.ltd/?page_id=8">Simply VC</a>) </li>
+</ul>
 
 I intend for the total bounty value to stay ahead of funding levels. Happy bounty hunting!
 
