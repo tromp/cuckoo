@@ -152,10 +152,11 @@ which has received generous donations by
 
 I intend for the total bounty value to stay ahead of funding levels. Happy bounty hunting!
 
-Cryptocurrencies using, or planning to use, Cuckoo Cycle
+Projects using, or planning to use, Cuckoo Cycle
 --------------
 <UL>
 <LI> <a href="https://github.com/ignopeverell/grin">Minimal implementation of the MimbleWimble protocol</a>
 <LI> <a href="http://www.aeternity.com/">æternity - the oracle machine</a>
 <LI> <a href="https://github.com/bitcoin/bips/blob/master/bip-0154.mediawiki">BIP 154: Rate Limiting via peer specified challenges; Bitcoin Peer Services</a>
+<LI> <a href="http://www.raddi.net/">Raddi // radically decentralized discussion</a>
 </UL>
