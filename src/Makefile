@@ -14,6 +14,7 @@ all : blake2b test example cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28 cucko
 
 blake2b:	blake2.h blake2-impl.h blake2b-ref.c
 	$(GCC) -fPIC -shared -o libblake2b.so blake2b-ref.c
+	echo "add build dir to LD_LIBRARY_PATH (or DYLD_LIBRARY_PATH on Mac OSX) if library not found"
 
 test:	cuckoo20 verify20 Makefile
 	./cuckoo20 -n 77 | grep ^Sol | ./verify20 -n 77
@@ -56,6 +57,9 @@ matrix28:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 
 matrix30:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -o matrix30 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
+
+matrix308:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
+	$(GPP) -DXBITS=8 -DCOMPRESSROUND=14 -DBIGEPS=5/64 -DTRIMFRAC=184 -o matrix308 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
 
 matrix30s:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -DSAVEEDGES -DBIGSIZE0=5 -o matrix30s -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
