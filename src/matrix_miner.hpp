@@ -393,7 +393,7 @@ public:
       sumsize += dst.storev(buckets, my);
     }
     rdtsc1 = __rdtsc();
-    printf("genUnodes id %d size %u rdtsc: %lu\n", id, sumsize/BIGSIZE0, rdtsc1-rdtsc0);
+    printf("genUnodes round %d size %u rdtsc: %lu\n", uorv, sumsize/BIGSIZE0, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/BIGSIZE0;
   }
 
@@ -541,7 +541,7 @@ dst.index[vx] += BIGSIZE;
       sumsize += dst.storeu(buckets, ux);
     }
     rdtsc1 = __rdtsc();
-    printf("genVnodes id %d size %u rdtsc: %lu\n", id, sumsize/BIGSIZE, rdtsc1-rdtsc0);
+    printf("genVnodes round %d size %u rdtsc: %lu\n", uorv, sumsize/BIGSIZE, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/BIGSIZE;
   }
 
@@ -618,7 +618,8 @@ dst.index[vx] += BIGSIZE;
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    printf("trimedges round %2d size %u rdtsc: %lu\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0);
+    if (!(round & round+1))
+      printf("trimedges round %2d size %u rdtsc: %lu\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/DSTSIZE;
   }
 
@@ -634,7 +635,7 @@ dst.index[vx] += BIGSIZE;
     u64 rdtsc0, rdtsc1;
     indexer<ZBUCKETSIZE> dst;
     indexer<TBUCKETSIZE> small;
-    u32 nbad = 0;
+    u32 noverflow = 0;
   
     rdtsc0 = __rdtsc();
     offset_t sumsize = 0;
@@ -694,7 +695,7 @@ dst.index[vx] += BIGSIZE;
             if (vdeg < 32) {
               degs[vz] = vdeg = nrenames++;
               if (unlikely(nrenames >= NZ1)) {
-                nbad++;
+                noverflow++;
                 continue;
               }
               *renames++ = vz;
@@ -714,7 +715,7 @@ dst.index[vx] += BIGSIZE;
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    printf("trimrename round %2d size %u rdtsc: %lu nbad %d\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0, nbad);
+    printf("trimrename round %2d size %u rdtsc: %lu noverflow %d\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0, noverflow);
     tcounts[id] = sumsize/DSTSIZE;
   }
 
@@ -757,7 +758,8 @@ dst.index[vx] += BIGSIZE;
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    printf("trimedges1 round %2d size %u rdtsc: %lu\n", round, sumsize/sizeof(u32), rdtsc1-rdtsc0);
+    if (!(round & round+1))
+      printf("trimedges1 round %2d size %u rdtsc: %lu\n", round, sumsize/sizeof(u32), rdtsc1-rdtsc0);
     tcounts[id] = sumsize/sizeof(u32);
   }
 
