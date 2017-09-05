@@ -43,44 +43,29 @@ verify20:	siphash.h cuckoo.h cuckoo.c Makefile
 cuckoo25:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo25 -DATOMIC -DEDGEBITS=24 cuckoo_miner.cpp $(LIBS)
 
-mean28x8:	cuckoo.h siphash.h mean_miner.h mean_miner.c Makefile
-	$(GPP) -o mean28x8 -mavx2 -DNSIPHASH=8 -DEDGEBITS=27 mean_miner.cpp $(LIBS)
-
-mean28x8b:	cuckoo.h siphash.h mean_miner.h mean_miner.c Makefile
-	$(GPP) -o mean28x8b -DBIG0SIZE=5 -mavx2 -DNSIPHASH=8 -DEDGEBITS=27 mean_miner.cpp $(LIBS)
-
-mean30x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
-	$(GPP) -o mean30x8 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
-
 matrix20:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -o matrix25 -mavx2 -DXBITS=5 -DNSIPHASH=8 -DEDGEBITS=19 matrix_miner.cpp $(LIBS)
 
 matrix25:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -o matrix25 -mavx2 -DXBITS=5 -DNSIPHASH=8 -DEDGEBITS=24 matrix_miner.cpp $(LIBS)
 
-matrix26:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
-	$(GPP) -o matrix26 -mavx2 -DXBITS=5 -DNSIPHASH=8 -DEDGEBITS=25 matrix_miner.cpp $(LIBS)
-
 matrix28:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -o matrix28 -mavx2 -DXBITS=6 -DNSIPHASH=8 -DEDGEBITS=27 matrix_miner.cpp $(LIBS)
+
+matrix28s:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
+	$(GPP) -o matrix28s -mavx2 -DSAVEEDGES  -DXBITS=6 -DNSIPHASH=8 -DEDGEBITS=27 matrix_miner.cpp $(LIBS)
 
 matrix30:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -o matrix30 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
 
-matrix308:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
-	$(GPP) -DXBITS=8 -DCOMPRESSROUND=16 -DBIGEPS=5/64 -DTRIMFRAC256=184 -o matrix308 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
-
 matrix30s:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
-	$(GPP) -DSAVEEDGES -DBIGSIZE0=5 -o matrix30s -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
+	$(GPP) -o matrix30s -mavx2 -DSAVEEDGES -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
 
 matrix32:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
-	$(GPP) -o matrix32 -mavx2 -DBIGSIZE=6 -DCOMPRESSROUND=28 -DXBITS=8 -DNSIPHASH=8 -DEDGEBITS=31 matrix_miner.cpp $(LIBS)
+	$(GPP) -o matrix32 -mavx2 -DEXPANDROUND=8 -DCOMPRESSROUND=32 -DXBITS=8 -DNSIPHASH=8 -DEDGEBITS=31 matrix_miner.cpp $(LIBS)
 
-mean30x8s:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
-	$(GPP) -o mean30x8s -DBIG0SIZE=4 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
-
-mean32x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
-	$(GPP) -o mean32x8 -mavx2 -DNSIPHASH=8 -DEDGEBITS=31 mean_miner.cpp $(LIBS)
+matrix32s:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
+	$(GPP) -o matrix32s -mavx2 -DSAVEEDGES -DEXPANDROUND=8 -DCOMPRESSROUND=32 -DXBITS=8 -DNSIPHASH=8 -DEDGEBITS=31 matrix_miner.cpp $(LIBS)
 
 cuckoo28:	cuckoo.h siphash.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo28 -DATOMIC -DEDGEBITS=27 cuckoo_miner.cpp $(LIBS)
@@ -115,8 +100,8 @@ cuckoo28.2:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 sols28:	cuckoo28stx8
 	for n in 962976 962982 962990 963011 963142 963146 963292 963317 963357 963499 963537 963577 963727 963757 963795 963867 963870 963893; do time ./cuckoo28stx8 -n $$n; done
 
-speedup:	cuckoo28 Makefile
-	for t in 1 2 4 6 8 12 16; do echo $$i; time ./cuckoo28 -t $$t -r 10 2>&1; done > speedup
+speedup28:	cuckoo28 Makefile
+	for t in 1 2 4 6 8 12 16; do echo $$i; time ./cuckoo28 -t $$t -r 10 2>&1; done > speedup28
 
 cudaspeedup28:	cuda28 Makefile
 	for t in 65536 32768 16384 8192 4096 2048 1024; do echo $$t; time ./cuda28 -t $$t -r 10; done;
@@ -132,12 +117,6 @@ cuckoo30x8:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 
 cuckoo30stx8:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo30stx8 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 cuckoo_miner.cpp $(LIBS)
-
-cuckoo30.2:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo30.2 -DATOMIC -DPART_BITS=2 -DEDGEBITS=29 cuckoo_miner.cpp $(LIBS)
-
-cuckoo30.3:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo30.3 -DATOMIC -DPART_BITS=3 -DEDGEBITS=29 cuckoo_miner.cpp $(LIBS)
 
 speedup30:	cuckoo30 Makefile
 	for t in 1 2 4 6 8; do echo $$i; do ./cuckoo30 -t $$t -r 10 2>&1; done > speedup30
@@ -184,14 +163,11 @@ cuckoo32x8:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 cuckoo32stx8:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
 	$(GPP) -o cuckoo32stx8 -mavx2 -DNSIPHASH=8 -DEDGEBITS=31 cuckoo_miner.cpp $(LIBS)
 
-cuckoo32.2:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo32.2 -DATOMIC -DPART_BITS=2 -DEDGEBITS=31 cuckoo_miner.cpp $(LIBS)
-
-cuckoo35:	siphash.h cuckoo.h cuckoo_miner.hpp cuckoo_miner.cpp Makefile
-	$(GPP) -o cuckoo35 -DATOMIC -DEDGEBITS=34 cuckoo_miner.cpp $(LIBS)
-
-cpubounty:	cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28x8 cuckoo30x8 cuckoo32x8
+leancpubounty:	cuckoo28stx8 cuckoo30stx8 cuckoo32stx8 cuckoo28x8 cuckoo30x8 cuckoo32x8
 	for s in 28 30 32; do for t in 8 4 2; do time ./cuckoo$${s}x8 -t $$t -r 10; done; time ./cuckoo$${s}stx8 -r 10; done
+
+meancpubounty:	matrix28s matrix30s matrix32s
+	for s in 28 30 32; do for t in 8 4 2 1; do time ./matrix$${s}s -t $$t -r 10; done; done
 
 tmtobounty:	tomato28 tomato30 tomato32
 	for s in 28 30 32; do for t in 8 4 2 1; do time ./tomato$$s -t $$t -r 10; done; done

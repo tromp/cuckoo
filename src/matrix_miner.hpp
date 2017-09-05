@@ -58,7 +58,7 @@
 #define BIGSIZE 5
 #endif
 // size in bytes of a small bucket entry
-#define SMALLSIZE 5
+#define SMALLSIZE BIGSIZE
 
 // initial entries could be smaller at percent or two slowdown
 #ifndef BIGSIZE0
@@ -393,7 +393,7 @@ public:
       sumsize += dst.storev(buckets, my);
     }
     rdtsc1 = __rdtsc();
-    printf("genUnodes round %d size %u rdtsc: %lu\n", uorv, sumsize/BIGSIZE0, rdtsc1-rdtsc0);
+    if (!id) printf("genUnodes round %2d size %u rdtsc: %lu\n", uorv, sumsize/BIGSIZE0, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/BIGSIZE0;
   }
 
@@ -471,7 +471,7 @@ public:
 // read          edge     UZZZZ    sorted by UY within UX partition
           const u64 e = *(u64 *)rdsmall;
           edge += ((e >> ZBITS) - edge) & NONDEGMASK;
-// if (id==0) printf("id %d ux %d y %d e %010lx pref %4x edge %x\n", id, ux, uy, e, e>>ZBITS, edge);
+// if (id==0) printf("id %d ux %d uy %d e %010lx pref %4x edge %x mask %x\n", id, ux, uy, e, e>>ZBITS, edge, NONDEGMASK);
           *edges = edge;
           const u32 z = e & ZMASK;
           *zs = z;
@@ -480,7 +480,7 @@ public:
           zs    += delta;
         }
         if (unlikely(edge >> NONDEGBITS != EDGEMASK >> NONDEGBITS))
-        { printf("OOPS2: id %d ux %d y %d edge %x vs %x\n", id, ux, uy, edge, EDGEMASK); exit(0); }
+        { printf("OOPS2: id %d ux %d uy %d edge %x vs %x\n", id, ux, uy, edge, EDGEMASK); exit(0); }
         assert(edges - edges0 < NTRIMMEDZ);
         const u16 *readz = tzs[id];
         const u32 *readedge = edges0;
@@ -541,7 +541,7 @@ dst.index[vx] += BIGSIZE;
       sumsize += dst.storeu(buckets, ux);
     }
     rdtsc1 = __rdtsc();
-    printf("genVnodes round %d size %u rdtsc: %lu\n", uorv, sumsize/BIGSIZE, rdtsc1-rdtsc0);
+    if (!id) printf("genVnodes round %2d size %u rdtsc: %lu\n", uorv, sumsize/BIGSIZE, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/BIGSIZE;
   }
 
@@ -618,7 +618,7 @@ dst.index[vx] += BIGSIZE;
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    if (!(round & round+1))
+    if (!id && !(round & round+1))
       printf("trimedges round %2d size %u rdtsc: %lu\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/DSTSIZE;
   }
@@ -656,7 +656,7 @@ dst.index[vx] += BIGSIZE;
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition
           const u64 e = *(u64 *)readbig & SRCSLOTMASK;
           uxyz += ((u32)(e >> YZBITS) - uxyz) & SRCPREFMASK;
-// if (round==6) printf("id %d vx %d ux %d e %010lx suffUXYZ %05x suffUXY %03x UXYZ %08x UXY %04x mask %x\n", id, vx, ux, e, (u32)(e >> YZBITS), (u32)(e >> YZZBITS), uxyz, uxyz>>ZBITS, SRCPREFMASK);
+// if (round==32 && ux==25) printf("id %d vx %d ux %d e %010lx suffUXYZ %05x suffUXY %03x UXYZ %08x UXY %04x mask %x\n", id, vx, ux, e, (u32)(e >> YZBITS), (u32)(e >> YZZBITS), uxyz, uxyz>>ZBITS, SRCPREFMASK);
           const u32 vy = (e >> ZBITS) & YMASK;
 // bit     41/39..34    33..26     25..13     12..0
 // write      UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition
@@ -715,7 +715,7 @@ dst.index[vx] += BIGSIZE;
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    printf("trimrename round %2d size %u rdtsc: %lu noverflow %d\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0, noverflow);
+    if (!id || noverflow) printf("trimrename round %2d size %u rdtsc: %lu noverflow %d\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0, noverflow);
     tcounts[id] = sumsize/DSTSIZE;
   }
 
@@ -758,7 +758,7 @@ dst.index[vx] += BIGSIZE;
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    if (!(round & round+1))
+    if (!id && !(round & round+1))
       printf("trimedges1 round %2d size %u rdtsc: %lu\n", round, sumsize/sizeof(u32), rdtsc1-rdtsc0);
     tcounts[id] = sumsize/sizeof(u32);
   }
@@ -786,23 +786,35 @@ dst.index[vx] += BIGSIZE;
     int rc = pthread_barrier_wait(&barry);
     assert(rc == 0 || rc == PTHREAD_BARRIER_SERIAL_THREAD);
   }
+#ifdef EXPANDROUND
+#define BIGGERSIZE BIGSIZE+1
+#else
+#define BIGGERSIZE BIGSIZE
+#define EXPANDROUND COMPRESSROUND
+#endif
   void trimmer(u32 id) {
     genUnodes(id, 0);
     barrier();
     genVnodes(id, 1);
     for (u32 round = 2; round < ntrims; round += 2) {
       barrier();
-      if (round < COMPRESSROUND)
-        trimedges<BIGSIZE, BIGSIZE, true>(id, round);
-      else if (round==COMPRESSROUND)
-        trimrename<BIGSIZE, BIGSIZE, true>(id, round);
+      if (round < COMPRESSROUND) {
+        if (round < EXPANDROUND)
+          trimedges<BIGSIZE, BIGSIZE, true>(id, round);
+        else if (round == EXPANDROUND)
+          trimedges<BIGSIZE, BIGGERSIZE, true>(id, round);
+        else trimedges<BIGGERSIZE, BIGGERSIZE, true>(id, round);
+      } else if (round==COMPRESSROUND)
+        trimrename<BIGGERSIZE, BIGGERSIZE, true>(id, round);
       else
         trimedges1<true>(id, round);
       barrier();
-      if (round < COMPRESSROUND)
-        trimedges<BIGSIZE, BIGSIZE, false>(id, round+1);
-      else if (round==COMPRESSROUND)
-        trimrename<BIGSIZE, sizeof(u32), false>(id, round+1);
+      if (round < COMPRESSROUND) {
+        if (round < EXPANDROUND)
+          trimedges<BIGSIZE, BIGSIZE, false>(id, round+1);
+        else trimedges<BIGGERSIZE, BIGGERSIZE, false>(id, round+1);
+      } else if (round==COMPRESSROUND)
+        trimrename<BIGGERSIZE, sizeof(u32), false>(id, round+1);
       else
         trimedges1<false>(id, round+1);
     }

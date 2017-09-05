@@ -94,29 +94,28 @@ is used to recognise all cycles, and recover those of the right length.
 Performance
 --------------
 
-The runtime of a single proof attempt on a 4GHz i7-4790K is 2.3 minutes
-for a single-threaded cuckoo32stx8 using 768MB, or 1.1 minutes for 8 threads.
-The 16x smaller cuckoo28stx8 takes only 7.4 seconds single-threaded.
+The runtime of a single proof attempt on a 4GHz i7-4790K is under 12 seconds
+for a single-threaded matrix30s using 3200MB. Using only 200MB, cuckoo30stx8
+is about 4x slower.
 
 I claim that these implementations are reasonably optimal,
 secondly, that trading off (less) memory for (more) running time,
 incurs at least one order of magnitude extra slowdown,
 and finally, that cuda_miner.cu is a reasonably optimal memory-efficient GPU miner.
-The latter runs about 4x faster on an NVIDA GTX 980 than on an Intel Core-i7 CPU
-(and thus about as fast as xenoncat's CPU solver).
+The latter runs about 4x faster on an NVIDA GTX 980 than on an Intel Core-i7 CPU.
 To that end, I offer the following bounties:
 
 CPU Speedup Bounties
 --------------
-$5000 for an open source implementation that finds 42-cycles twice as fast
+$8000 for an open source implementation that finds 42-cycles twice as fast
 as cuckoo_miner, using no more than 1 byte per edge.
 
-$5000 for an open source implementation that finds 42-cycles twice as fast
-as xenoncat's miners, regardless of memory use.
+$8000 for an open source implementation that finds 42-cycles twice as fast
+as matrix_miner, regardless of memory use.
 
 Linear Time-Memory Trade-Off Bounty
 --------------
-$5000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
+$8000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
 
 All of these bounties require N ranging over {2^28,2^30,2^32} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
@@ -129,7 +128,7 @@ that finds 42-cycles twice as fast as cuda_miner.cu on comparable hardware,
 using no more than 1 byte per edge.
 Again with N ranging over {2^28,2^30,2^32}.
 
-The Makefile defines corresponding targets cpubounty, tmtobounty, and gpubounty.
+The Makefile defines corresponding targets leancpubounty, meancpubounty, tmtobounty, and gpubounty.
 
 Double and Half bounties
 ------------------------
