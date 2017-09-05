@@ -52,20 +52,29 @@ mean28x8b:	cuckoo.h siphash.h mean_miner.h mean_miner.c Makefile
 mean30x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o mean30x8 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
+matrix20:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
+	$(GPP) -o matrix25 -mavx2 -DXBITS=5 -DNSIPHASH=8 -DEDGEBITS=19 matrix_miner.cpp $(LIBS)
+
+matrix25:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
+	$(GPP) -o matrix25 -mavx2 -DXBITS=5 -DNSIPHASH=8 -DEDGEBITS=24 matrix_miner.cpp $(LIBS)
+
+matrix26:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
+	$(GPP) -o matrix26 -mavx2 -DXBITS=5 -DNSIPHASH=8 -DEDGEBITS=25 matrix_miner.cpp $(LIBS)
+
 matrix28:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
-	$(GPP) -o matrix28 -mavx2 -DXBITS=7 -DNSIPHASH=8 -DEDGEBITS=27 matrix_miner.cpp $(LIBS)
+	$(GPP) -o matrix28 -mavx2 -DXBITS=6 -DNSIPHASH=8 -DEDGEBITS=27 matrix_miner.cpp $(LIBS)
 
 matrix30:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -o matrix30 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
 
 matrix308:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
-	$(GPP) -DXBITS=8 -DCOMPRESSROUND=14 -DBIGEPS=5/64 -DTRIMFRAC=184 -o matrix308 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
+	$(GPP) -DXBITS=8 -DCOMPRESSROUND=16 -DBIGEPS=5/64 -DTRIMFRAC256=184 -o matrix308 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
 
 matrix30s:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
 	$(GPP) -DSAVEEDGES -DBIGSIZE0=5 -o matrix30s -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 matrix_miner.cpp $(LIBS)
 
 matrix32:	cuckoo.h siphash.h matrix_miner.hpp matrix_miner.cpp Makefile
-	$(GPP) -o matrix32 -mavx2 -DEXPANDROUND=8 -DNSIPHASH=8 -DEDGEBITS=31 matrix_miner.cpp $(LIBS)
+	$(GPP) -o matrix32 -mavx2 -DBIGSIZE=6 -DCOMPRESSROUND=28 -DXBITS=8 -DNSIPHASH=8 -DEDGEBITS=31 matrix_miner.cpp $(LIBS)
 
 mean30x8s:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o mean30x8s -DBIG0SIZE=4 -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
