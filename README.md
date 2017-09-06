@@ -94,15 +94,20 @@ is used to recognise all cycles, and recover those of the right length.
 Performance
 --------------
 
-The runtime of a single proof attempt on a 4GHz i7-4790K is under 12 seconds
-for a single-threaded matrix30s using 3200MB. Using only 200MB, cuckoo30stx8
-is about 4x slower.
+The runtime of a single proof attempt for a 2^30 node graph on a 4GHz i7-4790K is 10.5 seconds
+with the single-threaded matrix solver, using 3200MB (or 2200MB with slower cycle recovery).
+This reduces to 3.5 seconds with 4 threads (3x speedup).
+
+Using an order of magnitude less memory (just under 200MB),
+the cuckoo solver takes 32.8 seconds per proof attempt.
+Its multi-threading performance is less impressive though,
+with 2 threads still taking 25.6 seconds and 4 taking 20.5 seconds.
 
 I claim that these implementations are reasonably optimal,
 secondly, that trading off (less) memory for (more) running time,
 incurs at least one order of magnitude extra slowdown,
 and finally, that cuda_miner.cu is a reasonably optimal memory-efficient GPU miner.
-The latter runs about 4x faster on an NVIDA GTX 980 than on an Intel Core-i7 CPU.
+The latter runs about 4x faster on an NVIDA GTX 980 than cuckoo_miner on an Intel Core-i7 CPU.
 To that end, I offer the following bounties:
 
 CPU Speedup Bounties
