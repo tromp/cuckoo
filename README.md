@@ -78,7 +78,7 @@ where the latter dominate both the hardware and energy cost (about 1 Watt per DR
 
 Cycle finding
 --------------
-The algorithm implemented in cuckoo_miner.h runs in time linear in N.
+The algorithm implemented in lean_miner.h runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
 only compute a fraction of all edges, and the odds of all 42 edges of a cycle
 occurring in this fraction are astronomically small).
@@ -107,16 +107,16 @@ I claim that these implementations are reasonably optimal,
 secondly, that trading off (less) memory for (more) running time,
 incurs at least one order of magnitude extra slowdown,
 and finally, that cuda_miner.cu is a reasonably optimal memory-efficient GPU miner.
-The latter runs about 4x faster on an NVIDA GTX 980 than cuckoo_miner on an Intel Core-i7 CPU.
+The latter runs about 4x faster on an NVIDA GTX 980 than lean_miner on an Intel Core-i7 CPU.
 To that end, I offer the following bounties:
 
 CPU Speedup Bounties
 --------------
 $8000 for an open source implementation that finds 42-cycles twice as fast
-as cuckoo_miner, using no more than 1 byte per edge.
+as lean_miner, using no more than 1 byte per edge.
 
 $8000 for an open source implementation that finds 42-cycles twice as fast
-as matrix_miner, regardless of memory use.
+as mean_miner, regardless of memory use.
 
 Linear Time-Memory Trade-Off Bounty
 --------------

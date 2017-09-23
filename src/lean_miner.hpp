@@ -269,6 +269,10 @@ public:
   }
   void node_deg(const u64 *hashes, const u32 nsiphash, const u32 part) const {
     for (u32 i=0; i < nsiphash; i++) {
+#ifdef SKIPZERO
+    if (!hashes[i])
+      continue;
+#endif
       u32 u = hashes[i] & EDGEMASK;
       if ((u & PART_MASK) == part) {
         nonleaf->set(u >>= PART_BITS);
@@ -305,6 +309,10 @@ public:
   void kill(const u64 *hashes, const u64 *indices, const u32 nsiphash,
              const u32 part, const u32 id) const {
     for (u32 i=0; i < nsiphash; i++) {
+#ifdef SKIPZERO
+    if (!hashes[i])
+      continue;
+#endif
       u32 u = hashes[i] & EDGEMASK;
       if ((u & PART_MASK) == part && !nonleaf->test(u >> PART_BITS)) {
         alive->reset(indices[i]/2, id);
@@ -409,11 +417,10 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset *alive = ctx->alive;
-  u32 load = 100LL * NEDGES / CUCKOO_SIZE;
   if (tp->id == 0)
-    printf("initial load %d%%\n", load);
+    printf("initial size %d\n", NEDGES);
   for (u32 round=1; round <= ctx->ntrims; round++) {
-    if (tp->id == 0) printf("round %2d partition loads", round);
+    if (tp->id == 0) printf("round %2d partition sizes", round);
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         if (tp->id == 0)
@@ -424,15 +431,15 @@ void *worker(void *vp) {
         ctx->kill_leaf_edges(tp->id,uorv,part);
         barrier(&ctx->barry);
         if (tp->id == 0) {
-          u32 load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
-          printf(" %c%d %4d%%", "UV"[uorv], part, load);
+          u32 size = alive->count();
+          printf(" %c%d %d", "UV"[uorv], part, size);
         }
       }
     }
     if (tp->id == 0) printf("\n");
   }
   if (tp->id == 0) {
-    load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
+    u32 load = (u32)(100LL * alive->count() / CUCKOO_SIZE);
     printf("nonce %d: %d trims completed  final load %d%%\n", ctx->nonce, ctx->ntrims, load);
     if (load >= 90) {
       printf("overloaded! exiting...");
