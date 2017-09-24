@@ -17,6 +17,12 @@ shall offer to share half the fee revenue with the coin developers.
 The above copyright notice, FAIR MINING condition, and this permission notice
 shall be included in all copies or substantial portions of the Software.
 
+
+ALTERNATIVELY, this software may be distributed under the terms of the
+GNU General Public License ("GPL") version 2 or later, as published by
+the Free Software Foundation.
+
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
