@@ -845,7 +845,7 @@ void *etworker(void *vp) {
 #define NODEBITS (EDGEBITS + 1)
 
 // grow with cube root of size, hardly affected by trimming
-const static u32 MAXPATHLEN = 8 << (NODEBITS/3);
+const static u32 MAXPATHLEN = 10 << (NODEBITS/3);
 
 const static u32 CUCKOO_SIZE = NEDGES >> (IDXSHIFT-1);
 const static u32 CUCKOO_MASK = CUCKOO_SIZE - 1;
