@@ -1,6 +1,6 @@
 Cuckoo Cycle
 ============
-Newsflash: The Cuckoo Cycle <a hre="https://github.com/tromp/cuckoo/blob/master/LICENSE.txt">LICENSE</a>
+Newsflash: The Cuckoo Cycle <a href="https://github.com/tromp/cuckoo/blob/master/LICENSE.txt">LICENSE</a>
 has been amended with a FAIR MINING clause. This hopefully allows coin developers to receive compensation
 without needing to resort to unfair practices like premines (e.g. ICOs), instamines, or large mining taxes
 (e.g. 10% of monetary base).
