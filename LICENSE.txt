@@ -10,8 +10,8 @@ copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
 
 FAIR MINING
-Any derived non-open-source miner that charges a developer fee for mining
-a fair coin---one with no premine or other form of developer compensation---
+Any derived miner that charges a developer fee for mining a fair coin
+---one with no premine or other form of developer compensation---
 shall offer to share half the fee revenue with the coin developers.
 
 The above copyright notice, FAIR MINING condition, and this permission notice
