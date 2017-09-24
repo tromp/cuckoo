@@ -1,17 +1,9 @@
 Cuckoo Cycle
 ============
-Newsflash: On April 8 2017, xenoncat claimed my previous CPU speedup bounty to the tune of $5000.
-Congratulations to xenoncat!
-
-His solvers, available at https://github.com/xenoncat/cuckoo_pow,
-achieve speedups ranging from 2.8x to over 4x by using 20x more memory to
-avoid the high latency of completely random bit accesses
-(one third of that memory is used only for recovering the edge indices from a
-cycle and could be separated).  I am rewriting my solver to incorporate
-those speedups as an additional
-option, while trying to reduce the memory overhead to 11x.
-In light of this claimed bounty, the bounties below are amended with an
-additional requirement of limited memory use.
+Newsflash: The Cuckoo Cycle <a hre="https://github.com/tromp/cuckoo/blob/master/LICENSE.txt">LICENSE</a>
+has been amended with a FAIR MINING clause. This hopefully allows coin developers to receive compensation
+without needing to resort to unfair practices like premines (e.g. ICOs), instamines, or large mining taxes
+(e.g. 10% of monetary base).
 
 Whitepaper at
 https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
@@ -48,8 +40,8 @@ requiring considerable resources, and some luck
 
 The memory efficient miner uses 3 bits per edge and is bottlenecked by
 accessing random 2-bit counters, making it memory latency bound.  The roughly
-4x faster latency avoiding miner uses 58 bits per edge and is bottlenecked by
-bucket sorting. making it memory bandwidth bound.
+4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
+uses 58 bits per edge and is bottlenecked by bucket sorting. making it memory bandwidth bound.
 It is not clear which method is more energy efficient.
 
 An indirectly useful Proof of Work
