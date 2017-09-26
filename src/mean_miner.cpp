@@ -22,11 +22,15 @@ int main(int argc, char **argv) {
   u32 timems;
   char header[HEADERLEN];
   u32 len;
+  bool allrounds = false;
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:m:n:r:st:x:")) != -1) {
+  while ((c = getopt (argc, argv, "ah:m:n:r:st:x:")) != -1) {
     switch (c) {
+      case 'a':
+        allrounds = true;
+        break;
       case 'h':
         len = strlen(optarg);
         assert(len <= sizeof(header));
@@ -60,7 +64,7 @@ int main(int argc, char **argv) {
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges\n");
 
-  solver_ctx ctx(nthreads, ntrims, showcycle);
+  solver_ctx ctx(nthreads, ntrims, allrounds, showcycle);
 
   u64 sbytes = ctx.sharedbytes();
   u32 tbytes = ctx.threadbytes();

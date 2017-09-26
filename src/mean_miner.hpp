@@ -232,17 +232,19 @@ public:
   offset_t *tcounts;
   u32 ntrims;
   u32 nthreads;
+  bool showall;
   pthread_barrier_t barry;
 
   void touch(u8 *p, const offset_t n) {
     for (offset_t i=0; i<n; i+=4096)
       *(u32 *)(p+i) = 0;
   }
-  edgetrimmer(const u32 n_threads, const u32 n_trims) {
+  edgetrimmer(const u32 n_threads, const u32 n_trims, const bool show_all) {
     assert(sizeof(matrix<ZBUCKETSIZE>) == NX * sizeof(yzbucket<ZBUCKETSIZE>));
     assert(sizeof(matrix<TBUCKETSIZE>) == NX * sizeof(yzbucket<TBUCKETSIZE>));
     nthreads = n_threads;
     ntrims   = n_trims;
+    showall = show_all;
     buckets  = new yzbucket<ZBUCKETSIZE>[NX];
     touch((u8 *)buckets, sizeof(matrix<ZBUCKETSIZE>));
     tbuckets = new yzbucket<TBUCKETSIZE>[nthreads];
@@ -620,7 +622,7 @@ public:
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    if (!id && !(round & (round+1)))
+    if (!id && (showall || !(round & (round+1))))
       printf("trimedges round %2d size %u rdtsc: %lu\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/DSTSIZE;
   }
@@ -761,7 +763,7 @@ public:
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    if (!id && !(round & (round+1)))
+    if (!id && (showall || !(round & (round+1))))
       printf("trimedges1 round %2d size %u rdtsc: %lu\n", round, sumsize/sizeof(u32), rdtsc1-rdtsc0);
     tcounts[id] = sumsize/sizeof(u32);
   }
@@ -917,8 +919,8 @@ public:
   proof sols[MAXSOLS];
   u32 nsols;
 
-  solver_ctx(const u32 n_threads, const u32 n_trims, bool show_cycle) {
-    trimmer = new edgetrimmer(n_threads, n_trims);
+  solver_ctx(const u32 n_threads, const u32 n_trims, bool allrounds, bool show_cycle) {
+    trimmer = new edgetrimmer(n_threads, n_trims, allrounds);
     showcycle = show_cycle;
     cuckoo = 0;
   }
