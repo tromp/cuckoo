@@ -56,8 +56,8 @@ __device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
 
 __device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
   u64 nonce = 2*nce + uorv;
-  u64 v0 = keys.k0 ^ 0x736f6d6570736575ULL, v1 = keys.k0 ^ 0x646f72616e646f6dULL,
-      v2 = keys.k0 ^ 0x6c7967656e657261ULL, v3 = keys.k0 ^ 0x7465646279746573ULL ^ nonce;
+  u64 v0 = keys.k0 ^ 0x736f6d6570736575ULL, v1 = keys.k1 ^ 0x646f72616e646f6dULL,
+      v2 = keys.k0 ^ 0x6c7967656e657261ULL, v3 = keys.k1 ^ 0x7465646279746573ULL ^ nonce;
   SIPROUND; SIPROUND;
   v0 ^= nonce;
   v2 ^= 0xff;
