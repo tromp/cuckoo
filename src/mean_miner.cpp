@@ -85,11 +85,23 @@ int main(int argc, char **argv) {
     timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
     printf("Time: %d ms\n", timems);
 
-    for (unsigned s = 0; s < ctx.nsols; s++) {
+    for (unsigned s = 0; s < nsols; s++) {
       printf("Solution");
+      u32* prf = &ctx.sols[s * PROOFSIZE];
       for (u32 i = 0; i < PROOFSIZE; i++)
-        printf(" %jx", (uintmax_t)ctx.sols[s][i]);
+        printf(" %jx", (uintmax_t)prf[i]);
       printf("\n");
+      int pow_rc = verify(prf, &ctx.trimmer->sip_keys);
+      if (pow_rc == POW_OK) {
+        printf("Verified with cyclehash ");
+        unsigned char cyclehash[32];
+        blake2b((void *)cyclehash, sizeof(cyclehash), (const void *)prf, sizeof(proof), 0, 0);
+        for (int i=0; i<32; i++)
+          printf("%02x", cyclehash[i]);
+        printf("\n");
+      } else {
+        printf("FAILED due to %s\n", errstr[pow_rc]);
+      }
     }
     sumnsols += nsols;
   }
