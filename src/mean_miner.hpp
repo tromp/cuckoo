@@ -164,7 +164,7 @@ template<u32 BUCKETSIZE>
 struct zbucket {
   u32 size;
   const static u32 RENAMESIZE = 2*NZ2 + 2*(COMPRESSROUND ? NZ1 : 0);
-  alignas(16) union {
+  union alignas(16) {
     u8 bytes[BUCKETSIZE];
     struct {
 #ifdef SAVEEDGES
