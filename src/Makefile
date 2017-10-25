@@ -154,6 +154,15 @@ cuda30:	cuda_miner.cu Makefile
 cuda32:	cuda_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 cuda_miner.cu $(LIBS)
 
+mcuda28:	mean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 mean_miner.cu $(LIBS)
+
+mcuda30:	mean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
+
+mcuda32:	mean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 mean_miner.cu $(LIBS)
+
 cycle28:	cycle_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 cycle_miner.cu $(LIBS)
 
