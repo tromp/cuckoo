@@ -209,7 +209,7 @@ template<u32 BUCKETSIZE>
 struct zbucket {
   u32 size;
   const static u32 RENAMESIZE = 2*NZ2 + 2*(COMPRESSROUND ? NZ1 : 0);
-  union alignas(16) {
+  union {
     u8 bytes[BUCKETSIZE];
     struct {
 #ifdef SAVEEDGES
@@ -233,21 +233,21 @@ struct zbucket {
   }
 };
 
-template<u32 BUCKETSIZE>
-using yzbucket = zbucket<BUCKETSIZE>[NY];
-template <u32 BUCKETSIZE>
-using matrix = yzbucket<BUCKETSIZE>[NX];
+// template<u32 BUCKETSIZE>
+// using yzbucket = zbucket<BUCKETSIZE>[NY];
+// template <u32 BUCKETSIZE>
+// using matrix = yzbucket<BUCKETSIZE>[NX];
 
 template<u32 BUCKETSIZE>
 struct indexer {
   offset_t index[NX];
 
   __device__ void matrixv(const u32 y) {
-    const yzbucket<BUCKETSIZE> *foo = 0;
+    const zbucket<BUCKETSIZE>[NY] *foo = 0;
     for (u32 x = 0; x < NX; x++)
       index[x] = foo[x][y].bytes - (u8 *)foo;
   }
-  __device__ offset_t storev(yzbucket<BUCKETSIZE> *buckets, const u32 y) {
+  __device__ offset_t storev(zbucket<BUCKETSIZE> (*buckets)[NY], const u32 y) {
     u8 const *base = (u8 *)buckets;
     offset_t sumsize = 0;
     for (u32 x = 0; x < NX; x++)
@@ -255,11 +255,11 @@ struct indexer {
     return sumsize;
   }
   __device__ void matrixu(const u32 x) {
-    const yzbucket<BUCKETSIZE> *foo = 0;
+    const zbucket<BUCKETSIZE>[NY] *foo = 0;
     for (u32 y = 0; y < NY; y++)
       index[y] = foo[x][y].bytes - (u8 *)foo;
   }
-  __device__ offset_t storeu(yzbucket<BUCKETSIZE> *buckets, const u32 x) {
+  __device__ offset_t storeu(zbucket<BUCKETSIZE> (*buckets)[NY], const u32 x) {
     u8 const *base = (u8 *)buckets;
     offset_t sumsize = 0;
     for (u32 y = 0; y < NY; y++)
@@ -282,13 +282,21 @@ typedef u8 zbucket8[2*NYZ1];
 typedef u16 zbucket16[NTRIMMEDZ];
 typedef u32 zbucket32[NTRIMMEDZ];
 
+#define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
+  if (code != cudaSuccess) {
+    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+    if (abort) exit(code);
+  }
+}
+
 // maintains set of trimmable edges
 class edgetrimmer {
 public:
   siphash_keys sip_keys;
   edgetrimmer *dt;
-  yzbucket<ZBUCKETSIZE> *buckets;
-  yzbucket<TBUCKETSIZE> *tbuckets;
+  zbucket<ZBUCKETSIZE> (*buckets)[NY];
+  zbucket<TBUCKETSIZE> (*tbuckets)[NY];
   zbucket32 *tedges;
   zbucket16 *tzs;
   zbucket8 *tdegs;
@@ -301,24 +309,22 @@ public:
   //   for (offset_t i=0; i<n; i+=4096)
   //     *(u32 *)(p+i) = 0;
   // }
-  edgetrimmer(const u32 n_threads, const u32 n_trims) {
-    assert(sizeof(matrix<ZBUCKETSIZE>) == NX * sizeof(yzbucket<ZBUCKETSIZE>));
-    assert(sizeof(matrix<TBUCKETSIZE>) == NX * sizeof(yzbucket<TBUCKETSIZE>));
+  edgetrimmer(const u32 n_threads, const u32 n_trims, const bool show_all) {
     nthreads = n_threads;
     ntrims   = n_trims;
     showall = show_all;
     checkCudaErrors(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
     // buckets  = new yzbucket<ZBUCKETSIZE>[NX];
-    checkCudaErrors(cudaMalloc((void**)&buckets, sizeof(matrix<ZBUCKETSIZE>)));
+    checkCudaErrors(cudaMalloc((void**)&buckets, sizeof(zbucket<ZBUCKETSIZE>[NX][NY])));
     // touch((u8 *)buckets, sizeof(matrix<ZBUCKETSIZE>));
     // tbuckets = new yzbucket<TBUCKETSIZE>[nthreads];
-    checkCudaErrors(cudaMalloc((void**)&tbuckets, sizeof(yzbucket<TBUCKETSIZE>)));
+    checkCudaErrors(cudaMalloc((void**)&tbuckets, sizeof(zbucket<TBUCKETSIZE>[NY])));
     // touch((u8 *)tbuckets, nthreads * sizeof(yzbucket<TBUCKETSIZE>));
 #ifdef SAVEEDGES
     tedges  = 0;
 #else
     // tedges  = new zbucket32[nthreads];
-    checkCudaErrors(cudaMalloc((void**)&tedges, sizeof(yzbucket<TBUCKETSIZE>)));
+    checkCudaErrors(cudaMalloc((void**)&tedges, sizeof(zbucket<TBUCKETSIZE>[NY])));
 #endif
     // tdegs   = new zbucket8[nthreads];
     checkCudaErrors(cudaMalloc((void**)&tdegs, nthreads * sizeof(zbucket8)));
@@ -349,12 +355,10 @@ public:
   }
 
   __device__ void genUnodes(const u32 id, const u32 uorv) {
-    u64 rdtsc0, rdtsc1;
 #ifdef NEEDSYNC
     u32 last[NX];;
 #endif
 
-    rdtsc0 = __rdtsc();
     u8 const *base = (u8 *)buckets;
     indexer<ZBUCKETSIZE> dst;
     const u32 starty = NY *  id    / nthreads;
@@ -367,10 +371,9 @@ public:
       for (u32 x=0; x < NX; x++)
         last[x] = edge;
 #endif
-      for (; edge < endedge; edge += NSIPHASH) {
+      for (; edge < endedge; edge += 1) {
 // bit        28..21     20..13    12..0
 // node       XXXXXX     YYYYYY    ZZZZZ
-#if NSIPHASH == 1
         const u32 node = _sipnode(&sip_keys, edge, uorv);
         const u32 ux = node >> YZBITS;
         const BIGTYPE zz = (BIGTYPE)edge << YZBITS | (node & YZMASK);
@@ -388,7 +391,6 @@ public:
           last[ux] = edge;
         }
 #endif
-#endif
       }
 #ifdef NEEDSYNC
       for (u32 ux=0; ux < NX; ux++) {
@@ -400,20 +402,17 @@ public:
 #endif
       sumsize += dst.storev(buckets, my);
     }
-    rdtsc1 = __rdtsc();
-    if (!id) printf("genUnodes round %2d size %u rdtsc: %lu\n", uorv, sumsize/BIGSIZE0, rdtsc1-rdtsc0);
+    if (!id) printf("genUnodes round %2d size %u\n", uorv, sumsize/BIGSIZE0);
     tcounts[id] = sumsize/BIGSIZE0;
   }
 
   __device__ void genVnodes(const u32 id, const u32 uorv) {
-    u64 rdtsc0, rdtsc1;
 
     static const u32 NONDEGBITS = std::min(BIGSLOTBITS, 2 * YZBITS) - ZBITS;
     static const u32 NONDEGMASK = (1 << NONDEGBITS) - 1;
     indexer<ZBUCKETSIZE> dst;
     indexer<TBUCKETSIZE> small;
 
-    rdtsc0 = __rdtsc();
     offset_t sumsize = 0;
     u8 const *base = (u8 *)buckets;
     u8 const *small0 = (u8 *)tbuckets[id];
@@ -482,7 +481,7 @@ public:
         const u16 *readz = tzs[id];
         const u32 *readedge = edges0;
         int64_t uy34 = (int64_t)uy << YZZBITS;
-        for (; readedge < edges; readedge++, readz++) { // process up to 7 leftover edges if NSIPHASH==8
+        for (; readedge < edges; readedge++, readz++) {
           const u32 node = _sipnode(&sip_keys, *readedge, uorv);
           const u32 vx = node >> YZBITS; // & XMASK;
 // bit        39..34    33..21     20..13     12..0
@@ -494,8 +493,7 @@ public:
       }
       sumsize += dst.storeu(buckets, ux);
     }
-    rdtsc1 = __rdtsc();
-    if (!id) printf("genVnodes round %2d size %u rdtsc: %lu\n", uorv, sumsize/BIGSIZE, rdtsc1-rdtsc0);
+    if (!id) printf("genVnodes round %2d size %u\n", uorv, sumsize/BIGSIZE);
     tcounts[id] = sumsize/BIGSIZE;
   }
 
@@ -549,14 +547,6 @@ __global__ void _genVnodes(const edgetrimmer &et, const u32 uorv) {
 
 // grow with cube root of size, hardly affected by trimming
 #define MAXPATHLEN (8 << (NODEBITS/3))
-
-#define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
-  if (code != cudaSuccess) {
-    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-    if (abort) exit(code);
-  }
-}
 
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) < sizeof(bigbucket)
@@ -647,7 +637,7 @@ public:
     return sizeof(matrix<ZBUCKETSIZE>);
   }
   u32 threadbytes() const {
-    return sizeof(thread_ctx) + sizeof(yzbucket<TBUCKETSIZE>) + sizeof(zbucket8) + sizeof(zbucket16) + sizeof(zbucket32);
+    return sizeof(thread_ctx) + sizeof(zbucket<TBUCKETSIZE>[NY]) + sizeof(zbucket8) + sizeof(zbucket16) + sizeof(zbucket32);
   }
 
   void recordedge(const u32 i, const u32 u2, const u32 v2) {
@@ -700,9 +690,7 @@ public:
 
   void findcycles() {
     u32 us[MAXPATHLEN], vs[MAXPATHLEN];
-    u64 rdtsc0, rdtsc1;
 
-    rdtsc0 = __rdtsc();
     for (u32 vx = 0; vx < NX; vx++) {
       for (u32 ux = 0 ; ux < NX; ux++) {
         zbucket<ZBUCKETSIZE> &zb = trimmer->buckets[ux][vx];
@@ -738,14 +726,13 @@ public:
         }
       }
     }
-    rdtsc1 = __rdtsc();
-    printf("findcycles rdtsc: %lu\n", rdtsc1-rdtsc0);
+    printf("findcycles\n");
   }
 
   int solve() {
-    assert((u64)CUCKOO_SIZE * sizeof(u64) <= trimmer->nthreads * sizeof(yzbucket<TBUCKETSIZE>));
+    assert((u64)CUCKOO_SIZE * sizeof(u64) <= trimmer->nthreads * sizeof(zbucket<TBUCKETSIZE>[NY]));
     trimmer->trim();
-    buckets = new yzbucket<ZBUCKETSIZE>[NX];
+    buckets = new zbucket<ZBUCKETSIZE>[NY][NX];
     assert(buckets != 0);
     cudaMemcpy(buckets, ctx.buckets, (NEDGES/64) * sizeof(u64), cudaMemcpyDeviceToHost);
     u32 *cuckoo = new u32[CUCKOO_SIZE];
