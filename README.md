@@ -41,32 +41,33 @@ requiring considerable resources, and some luck
 The memory efficient miner uses 3 bits per edge and is bottlenecked by
 accessing random 2-bit counters, making it memory latency bound.  The roughly
 4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
-uses 58 bits per edge and is bottlenecked by bucket sorting. making it memory bandwidth bound.
-It is not clear which method is more energy efficient.
-
-An indirectly useful Proof of Work
---------------
-
-Traditional DRAM architectures are ill-suited for energy-efficient operation because
-they are designed to fetch much more data than required, having long been optimized for cost-per-bit
-rather than energy efficiency.
-Thus there is enormous energy savings potential in accelerating the development of more efficient
-DRAM designs. Papers like
-<a href="https://www.cs.utah.edu/~rajeev/pubs/isca10.pdf">Rethinking DRAM design and organization for energy-constrained multi-cores</a> and
-<a href="http://mbsullivan.info/attachments/papers/yoon2012dgms.pdf">The Dynamic Granularity Memory System</a>
-have proposed several sensible and promising designs with large energy efficiency improvements,
-which a latency bound proof of work could help realize.
+uses 33 bits per edge and is bottlenecked by bucket sorting. making it memory bandwidth bound.
 
 ASICs
 --------------
-Cuckoo Cycle avoids the traditional ASICs arm race since it only takes a few dozen tiny siphash
-computing cores to saturate the DRAM memory bandwidth, at which point
-any further performance improvements will go to waste as the ASIC sits idle waiting for memory.
-Using anything other than cheap commodity DRAM is going to be cost prohibitive.
-Even the 10x faster SRAM is about 100x more expensive than DRAM, and thus not competitive.
-The most cost effective Cuckoo Cycle mining hardware should consist of a relatively
-cheap and tiny many core memory controller paired with commodity DRAM chips,
-where the latter dominate both the hardware and energy cost (about 1 Watt per DRAM chip).
+The most cost effective Cuckoo Cycle mining hardware could consist of a relatively cheap and tiny ASIC
+containing a few dozen simple cores and memory controllers, coupled with 3D-stacked DRAM using
+the <\a href="https://en.wikipedia.org/wiki/High_Bandwidth_Memory">High Bandwidth Memory<\a> interface.
+The ASIC, running the faster bandwidth bound solver, wouldn't be very compute intensive.
+Since it only needs to keep the memory bandwidth saturated, its optimization would soon reach a point of
+diminishing returns. The hardware and energy costs will be dominated by the memory chips,
+which the commodity DRAM market is already constantly optimizing.
+Although running the memory efficient latency bound solver would allow for processing many graph
+instances simultaneously, the induced latencies would multiply and overall throughput remain lower.
+Unless, that is, a new kind of RAM were developed that much more cost efficient for random accesses.
+
+An indirectly useful Proof of Work
+--------------
+Traditional DRAM architectures are ill-suited for energy-efficient operation because
+they are designed to fetch much more data than required, having long been optimized for cost-per-bit
+rather than energy efficiency.
+Thus there is enormous energy savings potential in the development of more efficient DRAM designs.
+Papers like
+<a href="https://www.cs.utah.edu/~rajeev/pubs/isca10.pdf">Rethinking DRAM design and organization for energy-constrained multi-cores</a> and
+<a href="http://mbsullivan.info/attachments/papers/yoon2012dgms.pdf">The Dynamic Granularity Memory System</a>
+have proposed several sensible and promising designs with large energy efficiency improvements.
+If any such designs could demonstrate a throughput/Watt benefit for latency bound solving,
+then Cuckoo Cycle could strongly incentivize their development.
 
 Cycle finding
 --------------
