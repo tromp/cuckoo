@@ -244,7 +244,7 @@ struct indexer {
   offset_t index[NX];
 
   __device__ void matrixv(const u32 y) {
-    const zbucket<BUCKETSIZE>[NY] *foo = 0;
+    const zbucket<BUCKETSIZE> (*foo)[NY] = 0;
     for (u32 x = 0; x < NX; x++)
       index[x] = foo[x][y].bytes - (u8 *)foo;
   }
@@ -256,7 +256,7 @@ struct indexer {
     return sumsize;
   }
   __device__ void matrixu(const u32 x) {
-    const zbucket<BUCKETSIZE>[NY] *foo = 0;
+    const zbucket<BUCKETSIZE> (*foo)[NY] = 0;
     for (u32 y = 0; y < NY; y++)
       index[y] = foo[x][y].bytes - (u8 *)foo;
   }
@@ -377,7 +377,7 @@ public:
       for (; edge < endedge; edge += 1) {
 // bit        28..21     20..13    12..0
 // node       XXXXXX     YYYYYY    ZZZZZ
-        const u32 node = _sipnode(&sip_keys, edge, uorv);
+        const u32 node = dipnode(sip_keys, edge, uorv);
         const u32 ux = node >> YZBITS;
         const BIGTYPE zz = (BIGTYPE)edge << YZBITS | (node & YZMASK);
 #ifndef NEEDSYNC
@@ -447,7 +447,7 @@ public:
           small.index[uy] += SMALLSIZE;
         }
         if (unlikely(edge >> NONYZBITS != (((my+1) << YZBITS) - 1) >> NONYZBITS))
-        { printf("OOPS1: id %d ux %d y %d edge %x vs %x\n", id, ux, my, edge, ((my+1)<<YZBITS)-1); exit(0); }
+        { printf("OOPS1: id %d ux %d y %d edge %x vs %x\n", id, ux, my, edge, ((my+1)<<YZBITS)-1); assert(0); }
       }
       u8 *degs = tdegs[id];
       small.storeu(tbuckets+id, 0);
@@ -479,13 +479,13 @@ public:
           zs    += delta;
         }
         if (unlikely(edge >> NONDEGBITS != EDGEMASK >> NONDEGBITS))
-        { printf("OOPS2: id %d ux %d uy %d edge %x vs %x\n", id, ux, uy, edge, EDGEMASK); exit(0); }
+        { printf("OOPS2: id %d ux %d uy %d edge %x vs %x\n", id, ux, uy, edge, EDGEMASK); assert(0); }
         assert(edges - edges0 < NTRIMMEDZ);
         const u16 *readz = tzs[id];
         const u32 *readedge = edges0;
         int64_t uy34 = (int64_t)uy << YZZBITS;
         for (; readedge < edges; readedge++, readz++) {
-          const u32 node = _sipnode(&sip_keys, *readedge, uorv);
+          const u32 node = dipnode(sip_keys, *readedge, uorv);
           const u32 vx = node >> YZBITS; // & XMASK;
 // bit        39..34    33..21     20..13     12..0
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition
@@ -589,7 +589,7 @@ public:
     delete cuckoo;
     delete trimmer;
   }
-  u64 sharedbytes() const {
+  u32 sharedbytes() const {
     return sizeof(zbucket<ZBUCKETSIZE>[NX][NY]);
   }
   u32 threadbytes() const {
@@ -739,9 +739,15 @@ public:
 int main(int argc, char **argv) {
   int nblocks = 64;
   int ntrims = 96;
-  int tpb = 0;
+  int tpb = 1;
   int nonce = 0;
   int range = 1;
+  bool allrounds = false;
+#ifdef SAVEEDGES
+  bool showcycle = 1;
+#else
+  bool showcycle = 0;
+#endif
   char header[HEADERLEN];
   u32 len;
   int c;
@@ -749,6 +755,9 @@ int main(int argc, char **argv) {
   memset(header, 0, sizeof(header));
   while ((c = getopt (argc, argv, "h:n:m:r:t:p:x:")) != -1) {
     switch (c) {
+      case 'a':
+        allrounds = true;
+        break;
       case 'h':
         len = strlen(optarg);
         assert(len <= sizeof(header));
@@ -772,6 +781,9 @@ int main(int argc, char **argv) {
       case 'p':
         tpb = atoi(optarg);
         break;
+      case 's':
+        showcycle = true;
+        break;
       case 'r':
         range = atoi(optarg);
         break;
@@ -785,44 +797,48 @@ int main(int argc, char **argv) {
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges, %d trims, %d threads %d per block\n", ntrims, nblocks, tpb);
 
-  solver_ctx ctx(nblocks, ntrims);
+  solver_ctx ctx(nblocks, ntrims, allrounds, showcycle);
 
-  u64 sbytes = ctx.sharedbytes();
+  u32 sbytes = ctx.sharedbytes();
   u32 tbytes = ctx.threadbytes();
   int sunit,tunit;
   for (sunit=0; sbytes >= 10240; sbytes>>=10,sunit++) ;
   for (tunit=0; tbytes >= 10240; tbytes>>=10,tunit++) ;
-  printf("Using %d%cB bucket memory at %lx,\n", sbytes, " KMGT"[sunit], (u64)ctx.trimmer->buckets);
-  printf("%dx%d%cB thread memory at %lx,\n", nblocks, tbytes, " KMGT"[tunit], (u64)ctx.trimmer->tbuckets);
+  printf("Using %d%cB bucket memory at %llx,\n", sbytes, " KMGT"[sunit], (u64)ctx.trimmer->buckets);
+  printf("%dx%d%cB thread memory at %llx,\n", nblocks, tbytes, " KMGT"[tunit], (u64)ctx.trimmer->tbuckets);
   printf("and %d buckets.\n", NX);
-
-  checkCudaErrors(cudaMalloc((void**)&ctx.alive.bits, edgeBytes));
-  checkCudaErrors(cudaMalloc((void**)&ctx.nonleaf.bits, nodeBytes));
 
   cudaEvent_t start, stop;
   checkCudaErrors(cudaEventCreate(&start));
   checkCudaErrors(cudaEventCreate(&stop));
+  u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
     cudaEventRecord(start, NULL);
-    checkCudaErrors(cudaMemset(ctx.alive.bits, 0, edgeBytes));
     ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("nonce %d k0 k1 %lx %lx\n", nonce+r, ctx.trimmer->sip_keys.k0, ctx.trimmer->sip_keys.k1);
+    printf("nonce %d k0 k1 %llx %llx\n", nonce+r, ctx.trimmer->sip_keys.k0, ctx.trimmer->sip_keys.k1);
     u32 nsols = ctx.solve();
-    gettimeofday(&time1, 0);
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
-    printf("Time: %d ms\n", timems);
 
-    for (unsigned s = 0; s < ctx.nsols; s++) {
+    for (unsigned s = 0; s < nsols; s++) {
       printf("Solution");
+      u32* prf = &ctx.sols[s * PROOFSIZE];
       for (u32 i = 0; i < PROOFSIZE; i++)
-        printf(" %jx", (uintmax_t)ctx.sols[s][i]);
+        printf(" %jx", (uintmax_t)prf[i]);
       printf("\n");
+      int pow_rc = verify(prf, &ctx.trimmer->sip_keys);
+      if (pow_rc == POW_OK) {
+        printf("Verified with cyclehash ");
+        unsigned char cyclehash[32];
+        blake2b((void *)cyclehash, sizeof(cyclehash), (const void *)prf, sizeof(proof), 0, 0);
+        for (int i=0; i<32; i++)
+          printf("%02x", cyclehash[i]);
+        printf("\n");
+      } else {
+        printf("FAILED due to %s\n", errstr[pow_rc]);
+      }
     }
     sumnsols += nsols;
   }
   printf("%d total solutions\n", sumnsols);
 
-  checkCudaErrors(cudaFree(ctx.alive.bits));
-  checkCudaErrors(cudaFree(ctx.nonleaf.bits));
   return 0;
 }
