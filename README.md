@@ -54,7 +54,7 @@ diminishing returns. The hardware and energy costs will be dominated by the memo
 which the commodity DRAM market is already constantly optimizing.
 Although running the memory efficient latency bound solver would allow for processing many graph
 instances simultaneously, the induced latencies would multiply and overall throughput remain lower.
-Unless, that is, a new kind of RAM were developed that much more cost efficient for random accesses.
+Unless, that is, a new kind of RAM were developed that is much more cost efficient for random accesses.
 
 An indirectly useful Proof of Work
 --------------
