@@ -154,6 +154,7 @@ Projects using, or planning to use, Cuckoo Cycle
 --------------
 <UL>
 <LI> <a href="https://github.com/mimblewimble/grin">Minimal implementation of the MimbleWimble protocol</a>
+<LI> <a href="https://bitcointalk.org/index.php?topic=2360396">[ANN] Bitcoin Resilience: Cuckoo Cycle PoW Bitcoin Hardfork</a>
 <LI> <a href="http://www.aeternity.com/">æternity - the oracle machine</a>
 <LI> <a href="https://github.com/bitcoin/bips/blob/master/bip-0154.mediawiki">BIP 154: Rate Limiting via peer specified challenges; Bitcoin Peer Services</a>
 <LI> <a href="http://www.raddi.net/">Raddi // radically decentralized discussion</a>
