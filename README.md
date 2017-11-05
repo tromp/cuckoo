@@ -47,7 +47,7 @@ ASICs
 --------------
 The most cost effective Cuckoo Cycle mining hardware could consist of a relatively cheap and tiny ASIC
 containing a few dozen simple cores and memory controllers, coupled with 3D-stacked DRAM using
-the <a href="https://en.wikipedia.org/wiki/High_Bandwidth_Memory">High Bandwidth Memory<\a> interface.
+the <a href="https://en.wikipedia.org/wiki/High_Bandwidth_Memory">High Bandwidth Memory</a> interface.
 The ASIC, running the faster bandwidth bound solver, wouldn't be very compute intensive.
 Since it only needs to keep the memory bandwidth saturated, its optimization would soon reach a point of
 diminishing returns. The hardware and energy costs will be dominated by the memory chips,
