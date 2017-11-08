@@ -40,6 +40,9 @@ lean16:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 lean20:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=19 lean_miner.cpp $(LIBS)
 
+verify16:	siphash.h cuckoo.h cuckoo.c Makefile
+	$(GCC) -o $@ -DEDGEBITS=15 cuckoo.c $(LIBS)
+
 verify20:	siphash.h cuckoo.h cuckoo.c Makefile
 	$(GCC) -o $@ -DEDGEBITS=19 cuckoo.c $(LIBS)
 
