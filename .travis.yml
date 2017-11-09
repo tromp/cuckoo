@@ -1,0 +1,24 @@
+dist: trusty
+sudo: false
+language: cpp
+env:
+  - JOB=quick
+  - JOB=demo30
+matrix:
+  include:
+    - os: osx
+      osx_image: xcode8.3 # [`xcode8.3` is Xcode 8.3.3 on OS X 10.12](https://docs.travis-ci.com/user/reference/osx#OS-X-Version)
+      language: generic
+      env: JOB=quick
+  allow_failures:
+    - env: JOB=demo30
+  fast_finish: true
+before_script:
+  - case "${TRAVIS_OS_NAME:?}" in linux) LIBV=LD_LIBRARY_PATH;; osx) LIBV=DYLD_LIBRARY_PATH;; esac
+  - echo "The library path variable name is ${LIBV:?}"
+  - LIBP="$(pwd)/src"
+  - echo "The library path variable value is ${LIBP:?}"
+script:
+  - ( cd src && make blake2b; )
+  - if test quick = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make test example; ); fi
+  - if test demo30 = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make demo30; ); fi
