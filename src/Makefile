@@ -10,9 +10,9 @@ CFLAGS = -Wall -Wno-format -fomit-frame-pointer $(OPT)
 GCC = gcc -m64 -std=gnu11 $(CFLAGS)
 LIBS = -L. -lblake2b
 
-all : blake2b test example lean28stx8 mean28 lean30stx8 mean30 lean32stx8 mean32 verify28 verify30 verify32 demo30
+all : libblake2b.so test example lean28stx8 mean28 lean30stx8 mean30 lean32stx8 mean32 verify28 verify30 verify32 demo30
 
-blake2b:	blake2.h blake2-impl.h blake2b-ref.c
+libblake2b.so:	blake2.h blake2-impl.h blake2b-ref.c
 	$(GCC) -fPIC -shared -o libblake2b.so blake2b-ref.c
 	echo "add build dir to LD_LIBRARY_PATH (or DYLD_LIBRARY_PATH on Mac OSX) if library not found"
 
