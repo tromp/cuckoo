@@ -16,8 +16,14 @@ libblake2b.so:	blake2.h blake2-impl.h blake2b-ref.c
 	$(GCC) -fPIC -shared -o libblake2b.so blake2b-ref.c
 	echo "add build dir to LD_LIBRARY_PATH (or DYLD_LIBRARY_PATH on Mac OSX) if library not found"
 
-test:	lean20 verify20 Makefile
-	./lean20 -n 77 | grep ^Sol | ./verify20 -n 77
+test:	test1 test2
+
+test1:	lean20 verify20 Makefile
+	./lean20 -n 77 | grep ^Sol |./verify20 -n 77
+
+# Verify that nonces can be used up to (2^32 - 1)
+test2:	lean20 verify20 Makefile
+	./lean20 -h "q2wdcfefgaqdadfww" -n 4294967295 | grep ^Sol | ./verify20 -h "q2wdcfefgaqdadfww" -n 4294967295
 
 lean4:	siphash.h cuckoo.h lean_miner.hpp simple_miner.cpp Makefile
 	$(GPP) -o $@ -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DEDGEBITS=3 simple_miner.cpp $(LIBS)
