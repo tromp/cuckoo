@@ -1,14 +1,17 @@
 .POSIX:
 .SUFFIXES:
 
-OPT = -O3
+OPT ?= -O3
+
+GCC_ARCH_FLAGS ?= -m64
+GPP_ARCH_FLAGS ?= -march=native -m64
 
 # -Wno-deprecated-declarations shuts up Apple OSX clang
-FLAGS = -Wall -Wno-format -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) -DPREFETCH -I. $(CPPFLAGS) -pthread 
-GPP = g++ -march=native -m64 -std=c++11 $(FLAGS)
-CFLAGS = -Wall -Wno-format -fomit-frame-pointer $(OPT)
-GCC = gcc -m64 -std=gnu11 $(CFLAGS)
-LIBS = -L. -lblake2b
+FLAGS ?= -Wall -Wno-format -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) -DPREFETCH -I. $(CPPFLAGS) -pthread
+GPP ?= g++ $(GPP_ARCH_FLAGS) -std=c++11 $(FLAGS)
+CFLAGS ?= -Wall -Wno-format -fomit-frame-pointer $(OPT)
+GCC ?= gcc $(GCC_ARCH_FLAGS) -std=gnu11 $(CFLAGS)
+LIBS ?= -L. -lblake2b
 
 all : libblake2b.so test example lean28stx8 mean28 lean30stx8 mean30 lean32stx8 mean32 verify28 verify30 verify32 demo30
 
