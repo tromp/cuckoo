@@ -5,7 +5,7 @@
 
 #include "cuckoo.h"
 #ifdef __APPLE__
-#include "osx_barrier.h"
+#include "osx_pthread_barrier.h"
 #endif
 #include <stdio.h>
 #include <stdlib.h>

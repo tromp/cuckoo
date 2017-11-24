@@ -105,15 +105,15 @@ To that end, I offer the following bounties:
 
 CPU Speedup Bounties
 --------------
-$8000 for an open source implementation that finds 42-cycles twice as fast
+$10000 for an open source implementation that finds 42-cycles twice as fast
 as lean_miner, using no more than 1 byte per edge.
 
-$8000 for an open source implementation that finds 42-cycles twice as fast
+$10000 for an open source implementation that finds 42-cycles twice as fast
 as mean_miner, regardless of memory use.
 
 Linear Time-Memory Trade-Off Bounty
 --------------
-$8000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
+$10000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
 
 All of these bounties require N ranging over {2^28,2^30,2^32} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
@@ -121,7 +121,7 @@ recent gcc compiler with regular flags as in my Makefile.
 
 GPU Speedup Bounty
 --------------
-$2000 for an open source implementation for a consumer GPU combo
+$2500 for an open source implementation for a consumer GPU combo
 that finds 42-cycles twice as fast as cuda_miner.cu on comparable hardware,
 using no more than 1 byte per edge.
 Again with N ranging over {2^28,2^30,2^32}.
@@ -146,6 +146,7 @@ which has received generous donations by
 <li> <a href="https://www.genesis-mining.com/">Genesis Mining</a> </li>
 <li> <a href="https://www.simply-vc-co.ltd/?page_id=8">Simply VC</a> </li>
 <li> <a href="https://bitcointalk.org/index.php?topic=1670733.0">Claymore</a> </li>
+<LI> <a href="http://www.aeternity.com/">Aeternity developers</a>
 </ul>
 
 I intend for the total bounty value to grow with funding levels. Happy bounty hunting!
