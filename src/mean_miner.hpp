@@ -160,12 +160,24 @@ const static u32 ZBUCKETSIZE = ZBUCKETSLOTS * BIGSIZE0;
 #endif
 const static u32 TBUCKETSIZE = ZBUCKETSLOTS * BIGSIZE; 
 
+/*
+// make 128 byte waves
+#ifndef WAVESIZE
+#define WAVESIZE 25
+#endif
+
+struct wave {
+  u32 words[WAVESIZE];
+  u8 bytes[WAVESIZE];
+}*/;
+
 template<u32 BUCKETSIZE>
 struct zbucket {
   u32 size;
   const static u32 RENAMESIZE = 2*NZ2 + 2*(COMPRESSROUND ? NZ1 : 0);
   union alignas(16) {
     u8 bytes[BUCKETSIZE];
+    // wave waves[BUCKETSIZE/sizeof(wave)];
     struct {
 #ifdef SAVEEDGES
       u32 words[BUCKETSIZE/sizeof(u32) - RENAMESIZE - NTRIMMEDZ];

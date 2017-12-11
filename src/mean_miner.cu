@@ -269,8 +269,8 @@ struct indexer {
   }
 };
 
-#define likely(x)   __builtin_expect((x)!=0, 1)
-#define unlikely(x) __builtin_expect((x), 0)
+#define likely(x)   ((x)!=0)
+#define unlikely(x) (x)
 
 class edgetrimmer; // avoid circular references
 
@@ -337,17 +337,11 @@ public:
     checkCudaErrors(cudaMalloc((void**)&tcounts, nblocks * sizeof(offset_t)));
   }
   ~edgetrimmer() {
-    // delete[] buckets;
     checkCudaErrors(cudaFree(buckets));
-    // delete[] tbuckets;
     checkCudaErrors(cudaFree(tbuckets));
-    // delete[] tedges;
     checkCudaErrors(cudaFree(tedges));
-    // delete[] tdegs;
     checkCudaErrors(cudaFree(tdegs));
-    // delete[] tzs;
     checkCudaErrors(cudaFree(tzs));
-    // delete[] tcounts;
     checkCudaErrors(cudaFree(tcounts));
   }
   __device__ offset_t count() const {
@@ -508,8 +502,10 @@ public:
     cudaEvent_t start, stop;
     checkCudaErrors(cudaEventCreate(&start));
     checkCudaErrors(cudaEventCreate(&stop));
+    cudaEventRecord(start, NULL);
 
     _genUnodes<<<nblocks,threadsperblock>>>(dt, 0);
+    checkCudaErrors(cudaDeviceSynchronize());
     _genVnodes<<<nblocks,threadsperblock>>>(dt, 1);
 #if 0
     for (u32 round = 2; round < ntrims; round += 2) {
@@ -586,7 +582,6 @@ public:
     sols.clear();
   }
   ~solver_ctx() {
-    delete cuckoo;
     delete trimmer;
   }
   u32 sharedbytes() const {
@@ -808,12 +803,8 @@ int main(int argc, char **argv) {
   printf("%dx%d%cB thread memory at %llx,\n", nblocks, tbytes, " KMGT"[tunit], (u64)ctx.trimmer->tbuckets);
   printf("and %d buckets.\n", NX);
 
-  cudaEvent_t start, stop;
-  checkCudaErrors(cudaEventCreate(&start));
-  checkCudaErrors(cudaEventCreate(&stop));
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
-    cudaEventRecord(start, NULL);
     ctx.setheadernonce(header, sizeof(header), nonce + r);
     printf("nonce %d k0 k1 %llx %llx\n", nonce+r, ctx.trimmer->sip_keys.k0, ctx.trimmer->sip_keys.k1);
     u32 nsols = ctx.solve();

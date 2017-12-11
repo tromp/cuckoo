@@ -13,7 +13,7 @@ CFLAGS ?= -Wall -Wno-format -fomit-frame-pointer $(OPT)
 GCC ?= gcc $(GCC_ARCH_FLAGS) -std=gnu11 $(CFLAGS)
 LIBS ?= -L. -lblake2b
 
-all : libblake2b.so test example lean28stx8 mean28x8 lean30stx8 mean30x8 lean32stx8 mean32 verify28 verify30 verify32 demo30x8
+all : libblake2b.so test example lean28stx8 mean28x8 lean30stx8 mean30x8 lean32stx8 mean32x8 verify28 verify30 verify32 demo30x8
 
 libblake2b.so:	blake2.h blake2-impl.h blake2b-ref.c
 	$(GCC) -fPIC -shared -o libblake2b.so blake2b-ref.c
@@ -184,8 +184,8 @@ cuda32:	cuda_miner.cu Makefile
 mcuda28:	mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 mean_miner.cu $(LIBS)
 
-mcuda30:	mean_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
+mcuda30s:	mean_miner.cu Makefile
+	nvcc -o $@ -SAVEEDGES -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
 
 mcuda32:	mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 mean_miner.cu $(LIBS)
