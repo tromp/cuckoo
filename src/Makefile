@@ -20,7 +20,7 @@ libblake2b.so:	blake2.h blake2-impl.h blake2b-ref.c
 	echo "add build dir to LD_LIBRARY_PATH (or DYLD_LIBRARY_PATH on Mac OSX) if library not found"
 
 test:	lean20 verify20 Makefile
-	./lean20 -n 77 | grep ^Sol | ./verify20 -n 77
+	./lean20 -n 38 | grep ^Sol | ./verify20 -n 38
 
 lean4:	siphash.h cuckoo.h lean_miner.hpp simple_miner.cpp Makefile
 	$(GPP) -o $@ -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DEDGEBITS=3 simple_miner.cpp $(LIBS)
@@ -29,7 +29,7 @@ lean6:	cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=6 -DLOGNBUCKETS=0 -DSHOWSOL -DEDGEBITS=5 lean_miner.cpp $(LIBS)
 
 example:	lean4
-	./lean4 -h 452
+	./lean4 -h 211
 
 lean10:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=9 -DPROOFSIZE=8 -DSHOWSOL lean_miner.cpp $(LIBS)
@@ -94,14 +94,18 @@ cutrix30:	mean_miner.cu Makefile
 mean30sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DSAVEEDGES -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
+# compatible with original siphash eg for reproducing xenoncat results
+mean30sx8c:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+	$(GPP) -o $@ -mavx2 -DSIPHASH_COMPAT -DSAVEEDGES -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
+
 mean30sx1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES -DNSIPHASH=1 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
 demo30x8:	mean30sx8
-	time ./mean30sx8 -n 25
+	time ./mean30sx8 -n 63
 
 demo30x1:	mean30sx1
-	time ./mean30sx1 -n 25
+	time ./mean30sx1 -n 63
 
 mean32x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DEXPANDROUND=8 -DCOMPRESSROUND=22 -DXBITS=8 -DNSIPHASH=8 -DEDGEBITS=31 mean_miner.cpp $(LIBS)
@@ -248,4 +252,4 @@ SimpleMiner.class:	Cuckoo.java SimpleMiner.java Makefile
 	javac -O Cuckoo.java SimpleMiner.java
 
 java:	Cuckoo.class SimpleMiner.class Makefile
-	java SimpleMiner -h 85 | tail -1 | java Cuckoo -h 85
+	java SimpleMiner -h 261 | tail -1 | java Cuckoo -h 261

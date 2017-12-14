@@ -32,8 +32,8 @@ int main(int argc, char **argv) {
   ((u32 *)headernonce)[HEADERLEN/sizeof(u32)-1] = htole32(nonce);
   siphash_keys keys;
   setheader(headernonce, sizeof(headernonce), &keys);
-  printf("Verifying size %d proof for cuckoo%d(\"%s\",%d) k0 %lu k1 %lu\n",
-               PROOFSIZE, EDGEBITS+1, header, nonce, keys.k0, keys.k1);
+  printf("Verifying size %d proof for cuckoo%d(\"%s\",%d)\n",
+               PROOFSIZE, EDGEBITS+1, header, nonce);
   for (int nsols=0; scanf(" Solution") == 0; nsols++) {
     edge_t nonces[PROOFSIZE];
     for (int n = 0; n < PROOFSIZE; n++) {

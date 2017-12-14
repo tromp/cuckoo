@@ -59,7 +59,6 @@ int main(int argc, char **argv) {
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
     ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("k0 %lx k1 %lx\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
     for (int t = 0; t < nthreads; t++) {
       threads[t].id = t;
       threads[t].ctx = &ctx;

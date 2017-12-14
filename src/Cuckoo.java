@@ -51,12 +51,10 @@ public class Cuckoo {
     byte[] hdrkey;
     try {
       hdrkey = MessageDigest.getInstance("SHA-256").digest(header);
-      long k0 = u8to64(hdrkey, 0);
-      long k1 = u8to64(hdrkey, 8);
-      v[0] = k0 ^ 0x736f6d6570736575L;
-      v[1] = k1 ^ 0x646f72616e646f6dL;
-      v[2] = k0 ^ 0x6c7967656e657261L;
-      v[3] = k1 ^ 0x7465646279746573L;
+      v[0] = u8to64(hdrkey, 0);
+      v[1] = u8to64(hdrkey, 8);
+      v[2] = u8to64(hdrkey, 16);
+      v[3] = u8to64(hdrkey, 24);
     } catch(NoSuchAlgorithmException e) {
       System.out.println(e);
       System.exit(1);

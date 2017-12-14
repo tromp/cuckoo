@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
   for (u32 r = 0; r < range; r++) {
     gettimeofday(&time0, 0);
     ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("nonce %d k0 k1 %lx %lx\n", nonce+r, ctx.trimmer->sip_keys.k0, ctx.trimmer->sip_keys.k1);
+    printf("nonce %d\n", nonce+r);
     u32 nsols = ctx.solve();
     gettimeofday(&time1, 0);
     timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;

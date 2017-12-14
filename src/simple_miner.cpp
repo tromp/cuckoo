@@ -127,7 +127,6 @@ int main(int argc, char **argv) {
                PROOFSIZE, EDGEBITS+1, header, easipct);
   u64 easiness = easipct * (u64)NNODES / 100;
   cuckoo_ctx ctx(header, sizeof(header), nonce, easiness);
-  printf("k0 %lx k1 %lx\n", ctx.sip_keys.k0, ctx.sip_keys.k1);
 
   worker(&ctx);
 }

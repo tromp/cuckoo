@@ -6,6 +6,10 @@
 #include "blake2.h"
 #include "siphash.h"
 
+#ifdef SIPHASH_COMPAT
+#include <stdio.h>
+#endif
+
 // proof-of-work parameters
 #ifndef EDGEBITS
 // the main parameter is the 2-log of the graph size,
@@ -82,5 +86,15 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
   char hdrkey[32];
   // SHA256((unsigned char *)header, headerlen, (unsigned char *)hdrkey);
   blake2b((void *)hdrkey, sizeof(hdrkey), (const void *)header, headerlen, 0, 0);
+#ifdef SIPHASH_COMPAT
+  u64 *k = (u64 *)hdrkey;
+  u64 k0 = k[0];
+  u64 k1 = k[1];
+  printf("k0 k1 %lx %lx\n", k0, k1);
+  k[0] = k0 ^ 0x736f6d6570736575ULL;
+  k[1] = k1 ^ 0x646f72616e646f6dULL;
+  k[2] = k0 ^ 0x6c7967656e657261ULL;
+  k[3] = k1 ^ 0x7465646279746573ULL;
+#endif
   setkeys(keys, hdrkey);
 }
