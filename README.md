@@ -1,18 +1,10 @@
 Cuckoo Cycle
 ============
-Newsflash: The Cuckoo Cycle <a href="https://github.com/tromp/cuckoo/blob/master/LICENSE.txt">LICENSE</a>
-has been amended with a FAIR MINING clause. This hopefully allows coin developers to receive compensation
-without needing to resort to unfair practices like premines (e.g. ICOs), instamines, or large mining taxes
-(e.g. 10% of monetary base).
-
 Whitepaper at
 https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
 Blog article explaining Cuckoo Cycle at
 http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing
-
-This repo is Linux based. Microsoft Windows friendly code at
-https://github.com/Genoil/cuckoo
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work,
 and the most memory bound, yet with instant verification.
