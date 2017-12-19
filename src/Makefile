@@ -189,7 +189,7 @@ mcuda28:	mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 mean_miner.cu $(LIBS)
 
 mcuda30s:	mean_miner.cu Makefile
-	nvcc -o $@ -SAVEEDGES -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
+	nvcc -o $@ -DSAVEEDGES -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
 
 mcuda32:	mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 mean_miner.cu $(LIBS)

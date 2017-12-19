@@ -645,7 +645,7 @@ public:
     }
     rdtsc1 = __rdtsc();
     if (showall || (!id && !(round & (round+1))))
-      printf("trimedges round %2d size %u rdtsc: %lu\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0);
+      printf("trimedges id %d round %2d size %u rdtsc: %lu\n", id, round, sumsize/DSTSIZE, rdtsc1-rdtsc0);
     tcounts[id] = sumsize/DSTSIZE;
   }
 
@@ -750,7 +750,7 @@ public:
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    if (showall || !id) printf("trimrename round %2d size %u rdtsc: %lu maxnnid %d\n", round, sumsize/DSTSIZE, rdtsc1-rdtsc0, maxnnid);
+    if (showall || !id) printf("trimrename id %d round %2d size %u rdtsc: %lu maxnnid %d\n", id, round, sumsize/DSTSIZE, rdtsc1-rdtsc0, maxnnid);
     assert(maxnnid < NYZ1);
     tcounts[id] = sumsize/DSTSIZE;
   }
@@ -795,7 +795,7 @@ public:
     }
     rdtsc1 = __rdtsc();
     if (showall || (!id && !(round & (round+1))))
-      printf("trimedges1 round %2d size %u rdtsc: %lu\n", round, sumsize/sizeof(u32), rdtsc1-rdtsc0);
+      printf("trimedges1 id %d round %2d size %u rdtsc: %lu\n", id, round, sumsize/sizeof(u32), rdtsc1-rdtsc0);
     tcounts[id] = sumsize/sizeof(u32);
   }
 
@@ -854,7 +854,7 @@ public:
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
     rdtsc1 = __rdtsc();
-    if (showall || !id) printf("trimrename1 round %2d size %u rdtsc: %lu maxnnid %d\n", round, sumsize/sizeof(u32), rdtsc1-rdtsc0, maxnnid);
+    if (showall || !id) printf("trimrename1 id %d round %2d size %u rdtsc: %lu maxnnid %d\n", id, round, sumsize/sizeof(u32), rdtsc1-rdtsc0, maxnnid);
     assert(maxnnid < NYZ2);
     tcounts[id] = sumsize/sizeof(u32);
   }
