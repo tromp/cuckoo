@@ -660,7 +660,7 @@ public:
     u64 rdtsc0, rdtsc1;
     indexer<ZBUCKETSIZE> dst;
     indexer<TBUCKETSIZE> small;
-    static u32 maxnnid=0;
+    u32 maxnnid = 0;
   
     rdtsc0 = __rdtsc();
     offset_t sumsize = 0;
@@ -803,7 +803,7 @@ public:
   void trimrename1(const u32 id, const u32 round) {
     u64 rdtsc0, rdtsc1;
     indexer<ZBUCKETSIZE> dst;
-    static u32 maxnnid=0;
+    u32 maxnnid = 0;
   
     rdtsc0 = __rdtsc();
     offset_t sumsize = 0;
@@ -1068,7 +1068,7 @@ public:
       for (u32 ux = 0 ; ux < NX; ux++) {
         zbucket<ZBUCKETSIZE> &zb = trimmer->buckets[ux][vx];
         u32 *readbig = zb.words, *endreadbig = readbig + zb.size/sizeof(u32);
-// printf("id %d vx %d ux %d size %u\n", id, vx, ux, zb.size/4);
+// printf("vx %d ux %d size %u\n", vx, ux, zb.size/4);
         for (; readbig < endreadbig; readbig++) {
 // bit        21..11     10...0
 // write      UYYZZZ'    VYYZZ'   within VX partition

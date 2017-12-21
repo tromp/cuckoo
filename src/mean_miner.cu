@@ -307,9 +307,9 @@ public:
   //   for (offset_t i=0; i<n; i+=4096)
   //     *(u32 *)(p+i) = 0;
   // }
-  edgetrimmer(const u32 n_blocks, const u32 n_trims, const bool show_all) {
+  edgetrimmer(const u32 n_blocks, const u32 tpb, const u32 n_trims, const bool show_all) {
     nblocks = n_blocks;
-    threadsperblock = 1;
+    threadsperblock = tpb;
     ntrims   = n_trims;
     showall = show_all;
     checkCudaErrors(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
@@ -594,7 +594,7 @@ public:
     const u32 SRCPREFMASK2 = (1 << SRCPREFBITS2) - 1;
     indexer<ZBUCKETSIZE> dst;
     indexer<TBUCKETSIZE> small;
-    static u32 maxnnid=0;
+    u32 maxnnid = 0;
 
     offset_t sumsize = 0;
     u8 *base = (u8 *)buckets;
@@ -682,7 +682,7 @@ public:
         maxnnid = newnodeid;
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
     }
-    if (showall || !id) printf("trimrename id %d round %2d size %u maxnnid %d\n", id, round, sumsize/DSTSIZE, maxnnid);
+    if (showall || !id) printf("trimrename id %d round %2d size %u maxnnid %d\n", id, round, (u32)sumsize/DSTSIZE, maxnnid);
     assert(maxnnid < NYZ1);
     tcounts[id] = sumsize/DSTSIZE;
   }
@@ -729,6 +729,63 @@ public:
     tcounts[id] = sumsize/sizeof(u32);
   }
 
+  template <bool TRIMONV>
+  __device__ void trimrename1(const u32 id, const u32 round) {
+    indexer<ZBUCKETSIZE> dst;
+    u32 maxnnid = 0;
+
+    offset_t sumsize = 0;
+    u16 *degs = (u16 *)tdegs[id];
+    u8 const *base = (u8 *)buckets;
+    const u32 startvx = NY *  id    / nblocks;
+    const u32   endvx = NY * (id+1) / nblocks;
+    for (u32 vx = startvx; vx < endvx; vx++) {
+      TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
+      memset(degs, 0xff, 2 * NYZ1); // sets each u16 entry to 0xffff
+      for (u32 ux = 0 ; ux < NX; ux++) {
+        zbucket<ZBUCKETSIZE> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
+        u32 *readbig = zb.words, *endreadbig = readbig + zb.size/sizeof(u32);
+        // printf("id %d vx %d ux %d size %d\n", id, vx, ux, zb.size/SRCSIZE);
+        for (; readbig < endreadbig; readbig++)
+          degs[*readbig & YZ1MASK]++;
+      }
+      u32 newnodeid = 0;
+      u32 *renames = TRIMONV ? buckets[0][vx].renamev1 : buckets[vx][0].renameu1;
+      u32 *endrenames = renames + NZ2;
+      for (u32 ux = 0 ; ux < NX; ux++) {
+        zbucket<ZBUCKETSIZE> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
+        u32 *readbig = zb.words, *endreadbig = readbig + zb.size/sizeof(u32);
+        for (; readbig < endreadbig; readbig++) {
+// bit       29...15     14...0
+// read      UYYYZZ'     VYYZZ'   within VX partition
+          const u32 e = *readbig;
+          const u32 vyz = e & YZ1MASK;
+          u16 vdeg = degs[vyz];
+          if (vdeg) {
+            if (vdeg < 32) {
+              degs[vyz] = vdeg = 32 + newnodeid++;
+              *renames++ = vyz;
+              if (renames == endrenames) {
+                endrenames += (TRIMONV ? sizeof(zbucket<ZBUCKETSIZE>[NY]) : sizeof(zbucket<ZBUCKETSIZE>)) / sizeof(u32);
+                renames = endrenames - NZ2;
+              }
+            }
+// bit       25...15     14...0
+// write     VYYZZZ"     UYYZZ'   within UX partition
+            *(u32 *)(base+dst.index[ux]) = ((vdeg - 32) << (TRIMONV ? YZ1BITS : YZ2BITS)) | (e >> YZ1BITS);
+            dst.index[ux] += sizeof(u32);
+          }
+        }
+      }
+      if (newnodeid > maxnnid)
+        maxnnid = newnodeid;
+      sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);
+    }
+    if (showall || !id) printf("trimrename1 id %d round %2d size %d maxnnid %d\n", id, round, (u32)(sumsize/sizeof(u32)), maxnnid);
+    assert(maxnnid < NYZ2);
+    tcounts[id] = sumsize/sizeof(u32);
+  }
+
   void trim();
 };
 
@@ -760,6 +817,12 @@ __global__ void _trimedges1(edgetrimmer *et, const u32 round) {
   et->trimedges1<TRIMONV>(id, round);
 }
 
+template <bool TRIMONV>
+__global__ void _trimrename1(edgetrimmer *et, const u32 round) {
+  int id = blockIdx.x * blockDim.x + threadIdx.x;
+  et->trimrename1<TRIMONV>(id, round);
+}
+
 #ifdef EXPANDROUND
 #define BIGGERSIZE BIGSIZE+1
 #else
@@ -778,7 +841,7 @@ __global__ void _trimedges1(edgetrimmer *et, const u32 round) {
     checkCudaErrors(cudaDeviceSynchronize());
     _genVnodes<<<nblocks,threadsperblock>>>(dt, 1);
     checkCudaErrors(cudaDeviceSynchronize());
-    for (u32 round = 2; round < ntrims; round += 2) {
+    for (u32 round = 2; round < ntrims-2; round += 2) {
       if (round < COMPRESSROUND) {
         if (round < EXPANDROUND)
           _trimedges<BIGSIZE, BIGSIZE, true><<<nblocks,threadsperblock>>>(dt, round);
@@ -797,7 +860,12 @@ __global__ void _trimedges1(edgetrimmer *et, const u32 round) {
       } else if (round==COMPRESSROUND) {
         _trimrename<BIGGERSIZE, sizeof(u32), false><<<nblocks,threadsperblock>>>(dt, round+1);
       } else _trimedges1<false><<<nblocks,threadsperblock>>>(dt, round+1);
+      checkCudaErrors(cudaDeviceSynchronize());
     }
+    _trimrename1<true ><<<nblocks,threadsperblock>>>(dt, ntrims-2);
+    checkCudaErrors(cudaDeviceSynchronize());
+    _trimrename1<false><<<nblocks,threadsperblock>>>(dt, ntrims-1);
+    checkCudaErrors(cudaDeviceSynchronize());
     cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop);
     float duration;
@@ -829,8 +897,8 @@ public:
   std::bitset<NXY> uxymap;
   std::vector<u32> sols; // concatanation of all proof's indices
 
-  solver_ctx(const u32 n_threads, const u32 n_trims, bool allrounds, bool show_cycle) {
-    trimmer = new edgetrimmer(n_threads, n_trims, allrounds);
+  solver_ctx(const u32 n_threads, const u32 tpb, const u32 n_trims, bool allrounds, bool show_cycle) {
+    trimmer = new edgetrimmer(n_threads, tpb, n_trims, allrounds);
     showcycle = show_cycle;
     cuckoo = 0;
   }
@@ -935,14 +1003,13 @@ public:
     for (u32 vx = 0; vx < NX; vx++) {
       for (u32 ux = 0 ; ux < NX; ux++) {
         zbucket<ZBUCKETSIZE> &zb = buckets[ux][vx];
-        u32 *readbig = (u32 *)zb.bytes, *endreadbig = (u32 *)((u8 *)readbig + zb.size);
-// printf("id %d vx %d ux %d size %u\n", id, vx, ux, zb.size/4);
+        u32 *readbig = zb.words, *endreadbig = readbig + zb.size/sizeof(u32);
         for (; readbig < endreadbig; readbig++) {
-// bit        29..22    21..15     14..7     6..0
-// write      UYYYYY    UZZZZ'     VYYYY     VZZ'   within VX partition
+// bit        21..11     10...0
+// write      UYYZZZ'    VYYZZ'   within VX partition
           const u32 e = *readbig;
-          const u32 uxyz = (ux << YZ1BITS) | (e >> YZ1BITS);
-          const u32 vxyz = (vx << YZ1BITS) | (e & YZ1MASK);
+          const u32 uxyz = (ux << YZ2BITS) | (e >> YZ2BITS);
+          const u32 vxyz = (vx << YZ2BITS) | (e & YZ2MASK);
           const u32 u0 = uxyz << 1, v0 = (vxyz << 1) | 1;
           if (u0 != CUCKOO_NIL) {
             u32 nu = path(u0, us), nv = path(v0, vs);
@@ -973,11 +1040,13 @@ public:
   int solve() {
     assert((u64)CUCKOO_SIZE * sizeof(u32) <= trimmer->nblocks * sizeof(zbucket<TBUCKETSIZE>[NY]));
     trimmer->trim();
-    return 0;
     buckets = new zbucket<ZBUCKETSIZE>[NX][NY];
-    cudaMemcpy(buckets, trimmer->buckets, sizeof(zbucket<ZBUCKETSIZE>[NX][NY]), cudaMemcpyDeviceToHost);
-    u32 *cuckoo = new u32[CUCKOO_SIZE];
-    memset(cuckoo, (int)CUCKOO_NIL, CUCKOO_SIZE * sizeof(u32));
+    printf("start cudaMemcpy\n");
+    checkCudaErrors(cudaMemcpy(buckets, trimmer->buckets, sizeof(zbucket<ZBUCKETSIZE>[NX][NY]), cudaMemcpyDeviceToHost));
+    printf("end cudaMemcpy\n");
+    cuckoo = new u32[CUCKOO_SIZE];
+    memset(cuckoo, CUCKOO_NIL, CUCKOO_SIZE * sizeof(u32));
+    printf("start findcycles\n");
     findcycles();
     delete[] cuckoo;
     delete[] buckets;
@@ -992,7 +1061,7 @@ public:
 
 int main(int argc, char **argv) {
   int nblocks = 64;
-  int ntrims = 96;
+  int ntrims = 68;
   int tpb = 1;
   int nonce = 0;
   int range = 1;
@@ -1043,15 +1112,13 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  // if (!tpb) // if not set, then default threads per block to roughly square root of threads
-    // for (tpb = 1; tpb*tpb < nblocks; tpb *= 2) ;
 
   printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges, %d trims, %d threads %d per block\n", ntrims, nblocks, tpb);
 
-  solver_ctx ctx(nblocks, ntrims, allrounds, showcycle);
+  solver_ctx ctx(nblocks, tpb, ntrims, allrounds, showcycle);
 
   u32 sbytes = ctx.sharedbytes();
   u32 tbytes = ctx.threadbytes();

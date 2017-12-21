@@ -1,10 +1,10 @@
 Cuckoo Cycle
 ============
-Whitepaper at
-https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
-
 Blog article explaining Cuckoo Cycle at
 http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing
+
+Whitepaper at
+https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work,
 and the most memory bound, yet with instant verification.
@@ -13,15 +13,15 @@ Proofs take the form of a length 42 cycle in a bipartite graph with N nodes and
 N/2 edges, with N scalable from millions to billions and beyond.
 
 This makes verification trivial: compute the 42x2 edge endpoints with one
-initialising sha256 and 84 very cheap siphash-2-4 hashes, check that each
+initialising blake2b and 84 very cheap siphash-2-4 hashes, check that each
 endpoint occurs twice, and that you come back to the starting point only after
 traversing 42 edges (this also makes Cuckoo Cycle, unlike Hashcash, relatively
 immune from Grover's quantum search algorithm).
 
-A final sha256 hash on the sorted 42 nonces can check whether the 42-cycle
+A final blake2b hash on the sorted 42 nonces can check whether the 42-cycle
 meets a difficulty target.
 
-This is implemented in under 200 lines of C code (files src/{siphash.h,cuckoo.h,cuckoo.c}).
+This is implemented in under 220 lines of C code (files src/{siphash.h,cuckoo.h,cuckoo.c}).
 
 From this point of view, Cuckoo Cycle is a very simple PoW,
 requiring hardly any code, time, or memory to verify.
