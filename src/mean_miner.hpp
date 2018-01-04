@@ -265,6 +265,17 @@ public:
   bool showall;
   pthread_barrier_t barry;
 
+  void* operator new(size_t size) noexcept {
+    void* newobj;
+    int tmp = posix_memalign(&newobj, 32, sizeof(edgetrimmer));
+
+    if (tmp != 0) {
+      return nullptr;
+    }
+
+    return newobj;
+  }
+
   void touch(u8 *p, const offset_t n) {
     for (offset_t i=0; i<n; i+=4096)
       *(u32 *)(p+i) = 0;
@@ -320,7 +331,7 @@ public:
 #if NSIPHASH == 8
     static const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
     static const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
-    const __m256i vinit = _mm256_loadu_si256((__m256i *)&sip_keys);
+    const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge + uorv;
     __m256i vpacket0 = _mm256_set_epi64x(e2+6, e2+4, e2+2, e2+0);
@@ -433,7 +444,7 @@ public:
 #if NSIPHASH == 8
     static const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
     static const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
-    const __m256i vinit = _mm256_loadu_si256((__m256i *)&sip_keys);
+    const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
     __m256i vpacket0, vpacket1, vhi0, vhi1;
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
 #endif
