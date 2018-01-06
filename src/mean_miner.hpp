@@ -253,15 +253,9 @@ typedef u32 zbucket32[NTRIMMEDZ];
 // maintains set of trimmable edges
 class edgetrimmer {
 public:
+  siphash_keys sip_keys;
   yzbucket<ZBUCKETSIZE> *buckets;
   yzbucket<TBUCKETSIZE> *tbuckets;
-
-  // DO NOT move this siphash_keys struct declaration or put any new declarations
-  // (except the two bucket pointers) above this, or this code will break
-  // on Linux! Sip_keys must be 32 byte aligned for the _mm256_load_si256 
-  // to work below.
-  siphash_keys sip_keys;
-
   zbucket32 *tedges;
   zbucket16 *tzs;
   zbucket8 *tdegs;
@@ -270,6 +264,17 @@ public:
   u32 nthreads;
   bool showall;
   pthread_barrier_t barry;
+
+  void* operator new(size_t size) noexcept {
+    void* newobj;
+    int tmp = posix_memalign(&newobj, 32, sizeof(edgetrimmer));
+
+    if (tmp != 0) {
+      return nullptr;
+    }
+
+    return newobj;
+  }
 
   void touch(u8 *p, const offset_t n) {
     for (offset_t i=0; i<n; i+=4096)
