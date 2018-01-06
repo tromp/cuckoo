@@ -265,6 +265,21 @@ public:
   bool showall;
   pthread_barrier_t barry;
 
+#if NSIPHASH > 4
+
+  void* operator new(size_t size) noexcept {
+    void* newobj;
+    int tmp = posix_memalign(&newobj, NSIPHASH * sizeof(u32), sizeof(edgetrimmer));
+
+    if (tmp != 0) {
+      return nullptr;
+    }
+
+    return newobj;
+  }
+
+#endif
+
   void touch(u8 *p, const offset_t n) {
     for (offset_t i=0; i<n; i+=4096)
       *(u32 *)(p+i) = 0;
