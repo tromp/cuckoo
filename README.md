@@ -126,12 +126,10 @@ Improvements by a factor of 4 will be rewarded with double the regular bounty.
 
 In order to minimize the risk of missing out on less drastic improvements,
 I further offer half the regular bounty for improvements by a factor of sqrt(2).
-
-Anyone who'd like to see my claims tested is invited to donate to the Cuckoo Cycle Bounty Fund at
-
-<a href="https://blockchain.info/address/1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN">1CnrpdKtfF3oAZmshyVC1EsRUa25nDuBvN</a>
-
-which has received generous donations by
+Happy bounty hunting!
+ 
+Bounty contributors
+-------------------
 
 <ul>
 <li> <a href="https://forum.z.cash/">Zcash Forum</a> participants</li>
@@ -140,8 +138,6 @@ which has received generous donations by
 <li> <a href="https://bitcointalk.org/index.php?topic=1670733.0">Claymore</a> </li>
 <LI> <a href="http://www.aeternity.com/">Aeternity developers</a>
 </ul>
-
-I intend for the total bounty value to grow with funding levels. Happy bounty hunting!
 
 Projects using, or planning to use, Cuckoo Cycle
 --------------
