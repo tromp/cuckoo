@@ -215,8 +215,8 @@ lean32stx8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 leancpubounty:	lean28stx8 lean30stx8 lean32stx8 lean28x8 lean30x8 lean32x8
 	for s in 28 30 32; do for t in 8 4 2; do time ./lean$${s}x8 -t $$t -r 10; done; time ./lean$${s}stx8 -r 10; done
 
-meancpubounty:	mean28s mean30s mean32s
-	for s in 28 30 32; do for t in 8 4 2 1; do time ./mean$${s}s -t $$t -r 10; done; done
+meancpubounty:	mean28sx8 mean30sx8 mean32sx8
+	for s in 28 30 32; do for t in 8 4 2 1; do time ./mean$${s}sx8 -t $$t -r 10; done; done
 
 tmtobounty:	tomato28 tomato30 tomato32
 	for s in 28 30 32; do for t in 8 4 2 1; do time ./tomato$$s -t $$t -r 10; done; done
