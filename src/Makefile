@@ -176,22 +176,22 @@ tomato30:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 tomato32:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=31 tomato_miner.cpp $(LIBS)
 
-cuda28:	cuda_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 cuda_miner.cu $(LIBS)
+lcuda28:	lean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 lean_miner.cu $(LIBS)
 
-cuda30:	cuda_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 cuda_miner.cu $(LIBS)
+lcuda30:	lean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lean_miner.cu $(LIBS)
 
-cuda32:	cuda_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 cuda_miner.cu $(LIBS)
+lcuda32:	lean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 lean_miner.cu $(LIBS)
 
-mcuda28:	mean_miner.cu Makefile
+cuda28:	mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 mean_miner.cu $(LIBS)
 
-mcuda30s:	mean_miner.cu Makefile
-	nvcc -o $@ -DSAVEEDGES -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
+cuda30:	mean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
 
-mcuda32:	mean_miner.cu Makefile
+cuda32:	mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 mean_miner.cu $(LIBS)
 
 cycle28:	cycle_miner.cu Makefile
