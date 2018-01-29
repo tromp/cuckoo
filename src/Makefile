@@ -18,6 +18,9 @@ all : libblake2b.so test example lean28stx8 mean28x8 lean30stx8 mean30x8 lean32s
 libblake2b.so:	blake2.h blake2-impl.h blake2b-ref.c
 	$(GCC) -fPIC -shared -o libblake2b.so blake2b-ref.c
 	echo "add build dir to LD_LIBRARY_PATH (or DYLD_LIBRARY_PATH on Mac OSX) if library not found"
+	echo "or, if you have sudo rights, a better solution is to run"
+	echo "sudo echo <build dir> > /etc/ld.so.conf.d/cuckoo.conf"
+	echo "sudo ldconfig"
 
 test:	lean20 verify20 Makefile
 	./lean20 -n 38 | grep ^Sol | ./verify20 -n 38
