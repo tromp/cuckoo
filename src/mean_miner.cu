@@ -640,11 +640,10 @@ public:
 
   template <bool TRIMONV>
   __device__ void trimedges3(const u32 round) {
-    __shared__ indexer<ZBUCKETSIZE,NZ1,NZ2> dst;
     __shared__ twice_set<NYZ1> degs;
 
-    dst.init(buckets);
     for (u32 vx = blockIdx.x; vx < NY; vx += gridDim.x) {
+      __syncthreads();
       degs.reset();
       __syncthreads();
       for (u32 ux = threadIdx.x ; ux < NX; ux += blockDim.x) {
@@ -654,12 +653,12 @@ public:
         for (; readbg < endreadbg; readbg++)
           degs.set(*readbg & YZ1MASK);
       }
-      TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
+      __syncthreads();
       for (u32 ux = threadIdx.x ; ux < NX; ux += blockDim.x) {
         zbucket<ZBUCKETSIZE,NZ1,NZ2> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
         u32 *readbg = zb.words, *endreadbg = readbg + zb.size/sizeof(u32);
+        u32 *write = readbg;
         for (; readbg < endreadbg; readbg++) {
-          __syncthreads(); // REQUIRES blockDim.x EVENLY DIVIDES INTO NX !!!!!!1
 // bit       29..23    22..15     14..8     7..0
 // read      UYYYYY    UZZZZ'     VYYYY     VZZ'   within VX partition
           const u32 e = *readbg;
@@ -667,28 +666,23 @@ public:
 // bit       29..23    22..15     14..8     7..0
 // write     VYYYYY    VZZZZ'     UYYYY     UZZ'   within UX partition
           if (degs.test(vyz))
-            dst.write32(ux, (vyz << YZ1BITS) | (e >> YZ1BITS));
+            *write++ = (vyz << YZ1BITS) | (e >> YZ1BITS);
 // if (e==0x30951) printf("round %d id %d\ntest %d vx %d ux %d e %08x readbig %d\n", round, threadIdx.x, degs.test(vyz), vx, ux, e, readbg-zb.words);
         }
+        zb.size = (u8 *)write - zb.bytes;
       }
-      __syncthreads();
-      TRIMONV ? dst.storev(vx) : dst.storeu(vx);
     }
   }
 
   template <bool TRIMONV>
   __device__ void trimrename1(const u32 round) {
-    static const u32 BS = TRIMONV ? ZBUCKETSIZE : Z2BUCKETSIZE;
-    static const u32 NR1 = TRIMONV ? NZ1 : 0;
-    static const u32 NR2 = TRIMONV ? NZ2 : 0;
-    __shared__ indexer<BS,NR1,NR2> dst;
     __shared__ twice_set<NYZ1> degs;
     const u32 NONAME = ~0;
     u32 maxrename = 0;
 
-    dst.init((zbucket<BS,NR1,NR2> (*)[NY])(TRIMONV ? (u8 *)buckets : (u8 *)tbuckets));
     u32 *names = tnames[blockIdx.x];
     for (u32 vx = blockIdx.x; vx < NY; vx += gridDim.x) {
+      __syncthreads();
       for (u32 z = threadIdx.x; z < NYZ1; z += blockDim.x)
         names[z] = NONAME;
       degs.reset();
@@ -700,13 +694,14 @@ public:
         for (; readbg < endreadbg; readbg ++)
           degs.set(*readbg & YZ1MASK);
       }
-      TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
       u32 nrenames = threadIdx.x;
+      __syncthreads();
       for (u32 ux = threadIdx.x; ux < NX; ux += blockDim.x) {
         zbucket<ZBUCKETSIZE,NZ1,NZ2> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
+        zbucket<Z2BUCKETSIZE,0,0> &wb = ((zbucket<Z2BUCKETSIZE,0,0> (*)[NY])tbuckets)[vx][ux];
         u32 *readbg = zb.words, *endreadbg = readbg + zb.size/sizeof(u32);
+        u32 *write = TRIMONV ? readbg : wb.words;
         for (; readbg < endreadbg; readbg ++) {
-          __syncthreads(); // REQUIRES blockDim.x EVENLY DIVIDES INTO NX !!!!!!1
 // bit       29...15     14...0
 // read      UYYYZZ'     VYYZZ'   within VX partition
           const u32 e = *readbg;
@@ -723,14 +718,14 @@ public:
             }
 // bit       25...15     14...0
 // write     VYYZZZ"     UYYZZ'   within UX partition
-            dst.write32(ux, (vdeg << (TRIMONV ? YZ1BITS : YZ2BITS)) | (e >> YZ1BITS));
+            *write++ = (vdeg << (TRIMONV ? YZ1BITS : YZ2BITS)) | (e >> YZ1BITS);
           }
         }
+        if (TRIMONV) zb.size = (u8 *)write - zb.bytes;
+	else         wb.size = (u8 *)write - wb.bytes;
       }
-      __syncthreads();
       if (nrenames > maxrename)
         maxrename = nrenames;
-      TRIMONV ? dst.storev(vx) : dst.storeu(vx);
     }
     assert(maxrename < NYZ2);
   }
@@ -1116,10 +1111,8 @@ int main(int argc, char **argv) {
         break;
       case 't':
 	assert(nspecs == 2*COMPRESSROUND);
-	for (char *comma = optarg-1; comma && sscanf(comma+1, "%d",&nt); comma=strchr(comma+1,',')) {
+	for (char *comma = optarg-1; comma && sscanf(comma+1, "%d",&nt); comma=strchr(comma+1,','))
           nthreads[nspecs++] = nt;
-	  assert(NX % nt == 0); // NEEDED FOR EQUAL NUMBER OF __synthreads() IN trimedeges3
-	}
         for (; nspecs < MAXNSPECS; nspecs++)
           nthreads[nspecs] = nthreads[nspecs-1];
         break;
