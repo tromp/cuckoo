@@ -532,21 +532,15 @@ public:
   }
 
   template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV>
-  __device__ void trimrename(const u32 round) {
+  __device__ void trimrename1(const u32 round, const u32 part) {
     static const u32 SRCSLOTBITS = mymin(SRCSIZE * 8, (TRIMONV ? YZBITS : YZ1BITS) + YZBITS);
     static const u32 SRCPREFBITS = SRCSLOTBITS - YZBITS;
     static const u32 SRCPREFMASK = (1 << SRCPREFBITS) - 1;
-    static const u32 SRCPREFBITS2 = SRCSLOTBITS - YZZBITS;
-    static const u32 SRCPREFMASK2 = (1 << SRCPREFBITS2) - 1;
-    __shared__ indexer<ZBUCKETSIZE,NZ1,NZ2> dst;
     __shared__ indexer<TBUCKETSIZE,0,0> small;
-    __shared__ twice_set<NZ> degs;
-    const u32 NONAME = ~0;
-    u32 maxrename = 0;
 
-    dst.init(buckets);
     small.init(&tbuckets[blockIdx.x]);
-    for (u32 vx = blockIdx.x; vx < NY; vx += gridDim.x) {
+    const u32 vx = blockIdx.x + part * gridDim.x;
+    {
       small.matrixu(0);
       for (u32 ux = 0 ; ux < NX; ux++) {
         __syncthreads();
@@ -578,6 +572,22 @@ public:
         }
       }
       small.storeu(0);
+    }
+  }
+
+  template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV>
+  __device__ void trimrename2(const u32 round, const u32 part) {
+    static const u32 SRCSLOTBITS = mymin(SRCSIZE * 8, (TRIMONV ? YZBITS : YZ1BITS) + YZBITS);
+    static const u32 SRCPREFBITS2 = SRCSLOTBITS - YZZBITS;
+    static const u32 SRCPREFMASK2 = (1 << SRCPREFBITS2) - 1;
+    __shared__ indexer<ZBUCKETSIZE,NZ1,NZ2> dst;
+    __shared__ twice_set<NZ> degs;
+    const u32 NONAME = ~0;
+    u32 maxrename = 0;
+
+    dst.init(buckets);
+    const u32 vx = blockIdx.x + part * gridDim.x;
+    {
       TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
       u32 *names = tnames[blockIdx.x];
       u32 nrenames = threadIdx.x;
@@ -642,6 +652,7 @@ public:
   __device__ void trimedges3(const u32 round) {
     __shared__ twice_set<NYZ1> degs;
 
+    // if (!blockIdx.x && !threadIdx.x ) printf("%dx%d threads\n", gridDim.x, blockDim.x);
     for (u32 vx = blockIdx.x; vx < NY; vx += gridDim.x) {
       __syncthreads();
       degs.reset();
@@ -675,7 +686,7 @@ public:
   }
 
   template <bool TRIMONV>
-  __device__ void trimrename1(const u32 round) {
+  __device__ void trimrename3(const u32 round) {
     __shared__ twice_set<NYZ1> degs;
     const u32 NONAME = ~0;
     u32 maxrename = 0;
@@ -774,8 +785,8 @@ public:
     }
   }
 
-  template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV>
-  void _trimedges(edgetrimmer *et, const u32 round);
+  template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV> void _trimedges(edgetrimmer *et, const u32 round);
+  template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV> void _trimrename(edgetrimmer *et, const u32 round);
 
   void trim();
 };
@@ -813,8 +824,23 @@ void edgetrimmer::_trimedges(edgetrimmer *et, const u32 round) {
 }
 
 template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV>
-__global__ void _trimrename(edgetrimmer *et, const u32 round) {
-  et->trimrename<SRCSIZE, DSTSIZE, TRIMONV>(round);
+__global__ void _trimrename1(edgetrimmer *et, const u32 round, const u32 part) {
+  et->trimrename1<SRCSIZE, DSTSIZE, TRIMONV>(round, part);
+}
+
+template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV>
+__global__ void _trimrename2(edgetrimmer *et, const u32 round, const u32 part) {
+  et->trimrename2<SRCSIZE, DSTSIZE, TRIMONV>(round, part);
+}
+
+template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV>
+void edgetrimmer::_trimrename(edgetrimmer *et, const u32 round) {
+  for (u32 part=0; part < NX/nblocks; part++) {
+    // printf("_trimrename1<<<%d,%d>>>(%d,%d)\n", nblocks,nthreads[2*round],round,part);
+    _trimrename1<SRCSIZE, DSTSIZE, TRIMONV><<<nblocks,nthreads[2*round]>>>(dt, round, part);
+    // printf("_trimrename2<<<%d,%d>>>(%d,%d)\n", nblocks,nthreads[2*round+1],round,part);
+    _trimrename2<SRCSIZE, DSTSIZE, TRIMONV><<<nblocks,nthreads[2*round+1]>>>(dt, round, part);
+  }
 }
 
 template <bool TRIMONV>
@@ -823,8 +849,8 @@ __global__ void _trimedges3(edgetrimmer *et, const u32 round) {
 }
 
 template <bool TRIMONV>
-__global__ void _trimrename1(edgetrimmer *et, const u32 round) {
-  et->trimrename1<TRIMONV>(round);
+__global__ void _trimrename3(edgetrimmer *et, const u32 round) {
+  et->trimrename3<TRIMONV>(round);
 }
 
 __global__ void _recoveredges(edgetrimmer *et) {
@@ -880,8 +906,8 @@ __global__ void _recoveredges1(edgetrimmer *et) {
           _trimedges<BIGSIZE, BIGGERSIZE, true>(dt, round);
         else _trimedges<BIGGERSIZE, BIGGERSIZE, true>(dt, round);
       } else if (round==COMPRESSROUND) {
-        _trimrename<BIGGERSIZE, BIGGERSIZE, true><<<nblocks,nthreads[2*round]>>>(dt, round);
-      } else _trimedges3<true><<<nblocks,nthreads[round+COMPRESSROUND]>>>(dt, round);
+        _trimrename<BIGGERSIZE, BIGGERSIZE, true>(dt, round);
+      } else _trimedges3<true><<<nblocks,nthreads[round+COMPRESSROUND+2]>>>(dt, round);
       checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL); cudaEventSynchronize(stop);
       cudaEventElapsedTime(&duration, start, stop);
        if (round < REPORTROUNDS)
@@ -895,8 +921,8 @@ __global__ void _recoveredges1(edgetrimmer *et) {
           _trimedges<BIGSIZE, BIGGERSIZE, false>(dt, round+1);
         else _trimedges<BIGGERSIZE, BIGGERSIZE, false>(dt, round+1);
       } else if (round==COMPRESSROUND) {
-        _trimrename<BIGGERSIZE, sizeof(u32), false><<<nblocks,nthreads[2*round+1]>>>(dt, round+1);
-      } else _trimedges3<false><<<nblocks,nthreads[round+COMPRESSROUND+1]>>>(dt, round+1);
+        _trimrename<BIGGERSIZE, sizeof(u32), false>(dt, round+1);
+      } else _trimedges3<false><<<nblocks,nthreads[round+COMPRESSROUND+3]>>>(dt, round+1);
       checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL); cudaEventSynchronize(stop);
       cudaEventElapsedTime(&duration, start, stop);
       if (round+1 < REPORTROUNDS)
@@ -904,14 +930,14 @@ __global__ void _recoveredges1(edgetrimmer *et) {
     }
 
     cudaEventRecord(start, NULL);
-    _trimrename1<true ><<<nblocks,8>>>(dt, ntrims-2);
+    _trimrename3<true ><<<nblocks,8>>>(dt, ntrims-2);
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL); cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&duration, start, stop); printf("rename1 size %u completed in %.0f ms\n", count(cnt,cnt), duration);
+    cudaEventElapsedTime(&duration, start, stop); printf("rename3 size %u completed in %.0f ms\n", count(cnt,cnt), duration);
 
     cudaEventRecord(start, NULL);
-    _trimrename1<false><<<nblocks,8>>>(dt, ntrims-1);
+    _trimrename3<false><<<nblocks,8>>>(dt, ntrims-1);
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL); cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&duration, start, stop); printf("rename1 size %u completed in %.0f ms\n", count(cnt,cnt), duration);
+    cudaEventElapsedTime(&duration, start, stop); printf("rename3 size %u completed in %.0f ms\n", count(cnt,cnt), duration);
 
     cudaEventRecord(stopall, NULL); cudaEventSynchronize(stopall);
     cudaEventElapsedTime(&duration, startall, stopall); printf("trim completed in %.0f ms\n", duration);
@@ -1126,7 +1152,7 @@ int main(int argc, char **argv) {
   }
 
   if (nspecs != MAXNSPECS) {
-    printf("usage: cuda30 [-b #threadblocks] [-c #counted x/y] [-d cuda_device] [-h header] [-x hexheader] [-n nonce] [-r range] -T threadschedule -t threadschedule\nExample:\n./cuda30 -n 60 -r 4 -T 256,8,32,128 -t 32,32,64\n");
+    printf("usage: cuda30 [-b #threadblocks] [-c #counted x/y] [-d cuda_device] [-h header] [-x hexheader] [-n nonce] [-r range] -T threadschedule -t threadschedule\nExample:\n./cuda30 -n 60 -r 4 -T 256,8,32,128 -t 32,128,32,128,64\n");
     exit(0);
   }
   assert(ntrims + COMPRESSROUND <= MAXNSPECS);
