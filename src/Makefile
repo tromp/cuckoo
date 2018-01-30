@@ -224,8 +224,8 @@ meancpubounty:	mean28sx8 mean30sx8 mean32sx8
 tmtobounty:	tomato28 tomato30 tomato32
 	for s in 28 30 32; do for t in 8 4 2 1; do time ./tomato$$s -t $$t -r 10; done; done
 
-gpubounty:	cuda28 cuda30 cuda32
-	for s in 28 30 32; do time ./cuda$$s -r 10; done
+gpubounty:	cuda30
+	time ./cuda30 -r 100
 
 hashonly: hash_only.cpp Makefile
 	$(GPP) -o $@ hash_only.cpp $(LIBS)
