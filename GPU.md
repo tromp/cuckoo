@@ -31,7 +31,7 @@ a plain 1080, which is about 50% slower, and a GTX 980Ti, which is over 200% slo
 How fast is this Cuckoo Cycle solver on the fastest known consumer hardware?
 ------------
 
-First of all, we need to agre on a performance metric. Cuckoo Cycle and Equihash are examples of
+First of all, we need to agree on a performance metric. Cuckoo Cycle and Equihash are examples of
 asymmetric proofs-of-work. As explained in this
 [article](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing),
 instead of just computing hash functions, they look for solutions to puzzles. Now, in the case of
