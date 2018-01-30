@@ -1,12 +1,12 @@
-Progress report on mean_miner.cu, the Cuckoo Cycle GPU solver
+Progress report on the Cuckoo Cycle GPU solver
 ============
 
-Since completing my rewrite of xenoncat's performance quadrupling CPU solver (winning a double bounty),
+Since completing my rewrite of xenoncat's performance quadrupling CPU solver (winning a double bounty)
 in the form of mean_miner.cpp, I've been slowly grinding away at porting that code to CUDA.
 
-I consider myself an amateur GPU coder, having previously ported lean_miner.cpp to CUDA
+I consider myself an amateur GPU coder, having previously ported the latency bound lean_miner to CUDA
 (and having to pay a bounty to fellow Dutchman Genoil for improving performance by merely
-tweaking the threads per block which I had naively fixed at 1), as well as my own
+tweaking the threads-per-block which I had naively fixed at 1), as well as my own
 [Equihash miner](https://github.com/tromp/equihash) submission to the
 [Zcash Open Source Miner Challenge](https://z.cash/blog/open-source-miner-winners.html).
 That Equihash CUDA miner achieved a paltry 27.2 Sol/s on an NVIDIA GTX 980,
@@ -16,7 +16,9 @@ rewrites such as this
 by Leet Softdev (a.k.a. djezo), which achieves around 400 Sol/s on similar hardware.
 
 Today, on Jan 30, 2018, I finished writing, optimizing, and tuning my CUDA solver, mean_miner.cu
-Unlike my other, more generic, solvers, this one is written to target only billion-node (2^30 to be precise)
+------------
+
+Unlike my other, more generic solvers, this one is written to target only billion-node (2^30 to be precise)
 graphs, which is how Cuckoo Cycle will be deployed in the upcoming cryptocurrencies Aeternity and Grin.
 The reason I recommended deployment at this size is that it's the largest one that a majority of GPUs
 can handle. Indeed, with the default settings, the solver uses 3.95 GB. Throwing more memory at this solver
@@ -24,9 +26,10 @@ appears to do little good; I saw only about a 1% performance improvement.
 Changing settings to allow it to run within 3GB however imposes a huge penalty, more than halving performance.
 
 All my final tuning was done on an NVIDIA 1080Ti. The only other card I ran it on was the GTX 980Ti,
-which achieves less than 1/3 the performance.
+which achieves not even one third the performance.
 
 So how fast is this currently fastest known Cuckoo Cycle solver on the fastest known consumer hardware?
+------------
 
 First of all, we need to agre on a performance metric. Cuckoo Cycle and Equihash are examples of
 asymmetric proofs-of-work. As explained in this
@@ -39,6 +42,7 @@ per second. Since each puzzle is a billion-node graph, we arrive at graphs per s
 performance measure. So, to return to our question:
 
 How many graphs per second does the fastest solver achieve?
+------------
 
 Less than one.
 
@@ -136,6 +140,7 @@ edge-index generates what edge endpoint, so it needs to regenerate all of them.
 One may wonder:
 
 Does it really take more than a second to solve this puzzle?
+------------
 
 No, I don't believe that for a second! I think my solver is suboptimal For several reasons, including:
 
@@ -146,6 +151,6 @@ No, I don't believe that for a second! I think my solver is suboptimal For sever
 5. Written by a GPU coding amateur
 
 So I suspect there's room for at least a doubling of performance.
-To that end I offer the GPU bounty on the [project page](https://github.com/tromp/cuckoo)
+To that end I offer the GPU bounty on the [Cuckoo Cycle homepage](https://github.com/tromp/cuckoo)
 
 Please help me find the remaning possible optimizations and perhaps help yourself to some Bitcoin Cash in the proces!
