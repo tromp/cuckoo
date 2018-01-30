@@ -7,7 +7,7 @@ in the form of mean_miner.hpp, I've been slowly grinding away at porting that co
 I consider myself an amateur GPU coder, having previously ported lean_miner.hpp to CUDA
 (and having to pay a bounty to fellow Dutchman Genoil for improving performance by merely
 tweaking the threads per block which I had naively fixed at 1), as well as my own
-<a href="https://github.com/tromp/equihash">Equihash miner</a> submission to the
+[Equihash miner](https://github.com/tromp/equihash) ">Equihash miner</a> submission to the
 <a href="https://z.cash/blog/open-source-miner-winners.html">Zcash Open Source Miner Challenge</a>.
 That Equihash CUDA miner achieved a paltry 27.2 Sol/s on an NVIDIA GTX 980,
 matching the performance of my Equihash CPU solver. But it did serve as the basis for far more capable
