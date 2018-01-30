@@ -15,7 +15,7 @@ rewrites such as this
 [Nicehash miner](https://github.com/nicehash/nheqminer/blob/master/cuda_djezo/equi_miner.cu)
 by Leet Softdev (a.k.a. djezo), which achieves around 400 Sol/s on similar hardware.
 
-Today, on Jan 30, 2018, I finished writing, optimizing, and tuning my CUDA solver, mean_miner.cu
+Today, on Jan 30, 2018, I finished my CUDA solver, mean_miner.cu
 ------------
 
 Unlike my other, more generic solvers, this one is written to target only billion-node (2^30 to be precise)
@@ -28,7 +28,7 @@ Changing settings to allow it to run within 3GB however imposes a huge penalty, 
 All my final tuning was done on an NVIDIA 1080Ti. The only other card I ran it on was the GTX 980Ti,
 which achieves not even one third the performance.
 
-So how fast is this currently fastest known Cuckoo Cycle solver on the fastest known consumer hardware?
+How fast is this Cuckoo Cycle solver on the fastest known consumer hardware?
 ------------
 
 First of all, we need to agre on a performance metric. Cuckoo Cycle and Equihash are examples of
@@ -142,7 +142,7 @@ One may wonder:
 Does it really take more than a second to solve this puzzle?
 ------------
 
-No, I don't believe that for a second! I think my solver is suboptimal For several reasons, including:
+No, I don't believe that for a second! I think my solver is suboptimal for several reasons, including:
 
 1. Uses memcpy() to perform unaligned reads/writes of 40-bit and 48-bit numbers
 2. Uses only a fraction of the available memory bandwidth
