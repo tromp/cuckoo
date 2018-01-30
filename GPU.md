@@ -15,7 +15,7 @@ rewrites such as this
 [Nicehash miner](https://github.com/nicehash/nheqminer/blob/master/cuda_djezo/equi_miner.cu)
 by Leet Softdev (a.k.a. djezo), which achieves around 400 Sol/s on similar hardware.
 
-Today, on Jan 30, 2018, I finished my CUDA solver, mean_miner.cu
+Today, on Jan 30, 2018, I completed work on my CUDA solver, mean_miner.cu
 ------------
 
 Unlike my other, more generic solvers, this one is written to target only billion-node (2^30 to be precise)
@@ -25,8 +25,8 @@ can handle. Indeed, with the default settings, the solver uses 3.95 GB. Throwing
 appears to do little good; I saw only about a 1% performance improvement.
 Changing settings to allow it to run within 3GB however imposes a huge penalty, more than halving performance.
 
-All my final tuning was done on an NVIDIA 1080Ti. The only other cards I ran it on were
-a plain 1080, which is about 50% slower, and a GTX 980Ti, which is over 200% slower...
+All my final tuning was done on an NVIDIA 1080 Ti. The only other cards I ran it on were
+a plain 1080, which is about 50% slower, and a GTX 980 Ti, which is over 200% slower...
 
 How fast is this Cuckoo Cycle solver on the fastest known consumer hardware?
 ------------
@@ -46,7 +46,7 @@ How many graphs per second does the fastest solver achieve?
 
 Less than one.
 
-cuda_miner.cu takes about 1.03 seconds to search one graph on the NVIDIA 1080Ti.
+cuda_miner.cu takes about 1.03 seconds to search one graph on the NVIDIA 1080 Ti.
 That's still 2.5 times faster than mean_miner.cpp on the fastest Intel Core i7 CPU,
 and according to nvidia-smi, the GPU was using 155W of power.
 I don't know how much the i7 was using, but it was likely more than 155W/2.5 = 62W,
@@ -77,10 +77,16 @@ Here's a typical solver run:
     Time: 1018 ms
     0 total solutions
     
-We used option -r to specify a range of 2 nonces. For some reason, the first nonce is always run at a slower pace,
-so we're more interested in the Time taken by the 2nd nonce. Each nonce is hashed together with a header into a 256 bit key for the siphash function which generates the half-billion graph edges. This key is shown after each nonce as 4 64 bit hexadecimal numbers. The GPU is responsible for generating all edges and then trimming the majority of
-them away for clearly not being part of any cycle. After a default number of 176 trimming rounds, only about 1 of every 8000 edges survives, and the remaining ~68000 edges are sent back to the CPU for cycle finding,
-using a an algorithm inspired by Cuckoo Hashing (which is where the name derives from).
+We used option -r to specify a range of 2 nonces. For some reason, the first
+nonce is always run at a slower pace, so we're more interested in the time
+taken by the 2nd nonce. Each nonce is hashed together with a header into a 256
+bit key for the siphash function which generates the half-billion graph edges.
+This key is shown after each nonce as four 64-bit hexadecimal numbers. The GPU is
+responsible for generating all edges and then trimming the majority of
+them away for clearly not being part of any cycle. After a default number of
+176 trimming rounds, only about 1 in every 8000 edges survives, and the
+remaining 68000 or so edges are sent back to the CPU for cycle finding, using a an
+algorithm inspired by Cuckoo Hashing (which is where the name derives from).
 
 To see a synopsis of all possible options, run:
 
