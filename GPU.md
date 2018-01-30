@@ -25,8 +25,8 @@ can handle. Indeed, with the default settings, the solver uses 3.95 GB. Throwing
 appears to do little good; I saw only about a 1% performance improvement.
 Changing settings to allow it to run within 3GB however imposes a huge penalty, more than halving performance.
 
-All my final tuning was done on an NVIDIA 1080Ti. The only other card I ran it on was the GTX 980Ti,
-which achieves not even one third the performance.
+All my final tuning was done on an NVIDIA 1080Ti. The only other cards I ran it on were
+a plain 1080, which is about 50% slower, and a GTX 980Ti, which is over 200% slower...
 
 How fast is this Cuckoo Cycle solver on the fastest known consumer hardware?
 ------------
@@ -133,8 +133,8 @@ Here's a run that uncovers a solution:
     Verified with cyclehash b06d3a638f4237c1d5d96fe57e549a83b76421522fb09af24d3520fb91f364f7
     1 total solutions
     
-We can see that recovering the Solution takes some extra time, since the solver doesn't keep track of what
-edge-index generates what edge endpoint, so it needs to regenerate all of them.
+We can see that recovering the 42-cycle takes some extra time, since the solver doesn't keep track of what
+edge index generates what edge endpoint, so it needs to regenerate all of them.
 
 
 One may wonder:
@@ -150,7 +150,9 @@ No, I don't believe that for a second! I think my solver is suboptimal for sever
 4. Makes no use of PTX assembly
 5. Written by a GPU coding amateur
 
-So I suspect there's room for at least a doubling of performance.
-To that end I offer the GPU bounty on the [Cuckoo Cycle homepage](https://github.com/tromp/cuckoo)
+So I suspect there's room for at least a doubling of performance, and perhaps even a quadrupling
+(I don't expect to see more than single digit performances though).
+To that end I offer the GPU speedup bounty on the [Cuckoo Cycle homepage](https://github.com/tromp/cuckoo)
 
-Please help me find the remaning possible optimizations and perhaps help yourself to some Bitcoin Cash in the proces!
+Please help me find the remaning possible optimizations and perhaps help yourself to some Bitcoin Cash
+in the process!
