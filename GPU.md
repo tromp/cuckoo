@@ -1,18 +1,18 @@
-Progress report on mean_miner.cu, the CUDA Cuckoo Cycle solver for billion-node graphs
+Progress report on mean_miner.cu, the Cuckoo Cycle GPU solver
 ============
 
 Since completing my rewrite of xenoncat's performance quadrupling CPU solver (winning a double bounty),
-in the form of mean_miner.hpp, I've been slowly grinding away at porting that code to CUDA.
+in the form of mean_miner.cpp, I've been slowly grinding away at porting that code to CUDA.
 
-I consider myself an amateur GPU coder, having previously ported lean_miner.hpp to CUDA
+I consider myself an amateur GPU coder, having previously ported lean_miner.cpp to CUDA
 (and having to pay a bounty to fellow Dutchman Genoil for improving performance by merely
 tweaking the threads per block which I had naively fixed at 1), as well as my own
-[Equihash miner](https://github.com/tromp/equihash) ">Equihash miner</a> submission to the
-<a href="https://z.cash/blog/open-source-miner-winners.html">Zcash Open Source Miner Challenge</a>.
+[Equihash miner](https://github.com/tromp/equihash) submission to the
+[Zcash Open Source Miner Challenge](https://z.cash/blog/open-source-miner-winners.html).
 That Equihash CUDA miner achieved a paltry 27.2 Sol/s on an NVIDIA GTX 980,
 matching the performance of my Equihash CPU solver. But it did serve as the basis for far more capable
 rewrites such as this
-<a href="https://github.com/nicehash/nheqminer/blob/master/cuda_djezo/equi_miner.cu">Nicehash miner</a>
+[Nicehash miner](https://github.com/nicehash/nheqminer/blob/master/cuda_djezo/equi_miner.cu)
 by Leet Softdev (a.k.a. djezo), which achieves around 400 Sol/s on similar hardware.
 
 Today, on Jan 30, 2018, I finished writing, optimizing, and tuning my CUDA solver, mean_miner.cu
@@ -26,11 +26,11 @@ Changing settings to allow it to run within 3GB however imposes a huge penalty, 
 All my final tuning was done on an NVIDIA 1080Ti. The only other card I ran it on was the GTX 980Ti,
 which achieves less than 1/3 the performance.
 
-So how fast is this fastest known Cuckoo Cycle solver on the fastest known hardware?
+So how fast is this currently fastest known Cuckoo Cycle solver on the fastest known consumer hardware?
 
 First of all, we need to agre on a performance metric. Cuckoo Cycle and Equihash are examples of
 asymmetric proofs-of-work. As explained in this
-<a href="http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing">article</a>,
+[article](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing),
 instead of just computing hash functions, they look for solutions to puzzles. Now, in the case of
 Equihash, solutions are plentiful, on average nearly 2 solutions per random puzzle. So there it makes
 sense to measure performance in solutions per second. With Cuckoo Cycle, the 42-cycles solutions
@@ -43,25 +43,109 @@ How many graphs per second does the fastest solver achieve?
 Less than one.
 
 cuda_miner.cu takes about 1.03 seconds to search one graph on the NVIDIA 1080Ti.
+That's still 2.5 times faster than mean_miner.cpp on the fastest Intel Core i7 CPU,
+and according to nvidia-smi, the GPU was using 155W of power.
+I don't know how much the i7 was using, but it was likely more than 155W/2.5 = 62W,
+which also makes the GPU the more power efficient solver, although not by much.
+
+Here's a typical solver run:
+
+    $ ./cuda30 -r 2
+    GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
+    Looking for 42-cycle on cuckoo30("",0-1) with 50% edges, 128*128 buckets, 176 trims, and 64 thread blocks.
+    Using 2680MB bucket memory and 21MB memory per thread block (4028MB total)
+    nonce 0 k0 k1 k2 k3 a34c6a2bdaa03a14 d736650ae53eee9e 9a22f05e3bffed5e b8d55478fa3a606d
+    trim completed in 2218 ms
+       2-cycle found
+       4-cycle found
+      26-cycle found
+      40-cycle found
+      16-cycle found
+    findcycles completed on 71133 edges
+    Time: 2230 ms
+    nonce 1 k0 k1 k2 k3 be6c0ae25622e409 ede28d78411671d4 74ffaa51c7aa70ac 2ab552193088c87a
+    trim completed in 1008 ms
+       4-cycle found
+     390-cycle found
+    1006-cycle found
+     282-cycle found
+    findcycles completed on 63937 edges
+    Time: 1018 ms
+    0 total solutions
+    
+We used option -r to specify a range of 2 nonces. For some reason, the first nonce is always run at a slower pace,
+so we're more interested in the Time taken by the 2nd nonce. Each nonce is hashed together with a header into a 256 bit key for the siphash function which generates the half-billion graph edges. This key is shown after each nonce as 4 64 bit hexadecimal numbers. The GPU is responsible for generating all edges and then trimming the majority of
+them away for clearly not being part of any cycle. After a default number of 176 trimming rounds, only about 1 of every 8000 edges survives, and the remaining ~68000 edges are sent back to the CPU for cycle finding,
+using a an algorithm inspired by Cuckoo Hashing (which is where the name derives from).
+
+To see a synopsis of all possible options, run:
+
+    $ ./cuda30 -s
+    SYNOPSIS
+      cuda30 [-b sblocks] [-c count] [-d device] [-h hexheader] [-k rounds] [-m trims] [-n nonce] [-r range] [-U sblocks] [-u threads] [-V threads] [-v threads] [-T threads] [-t threads] [-X threads] [-x threads] [-Y threads] [-y threads] [-Z threads] [-z threads]
+    DEFAULTS
+      cuda30 -b 64 -c 1 -d 0 -h "" -k 0 -m 176 -n 0 -r 1 -U 256 -u 8 -V 32 -v 128 -T 32 -t 128 -X 32 -x 64 -Y 32 -y 128 -Z 64 -z 2
+
+Ok, we're not gonna explain all of those here. Most of them are for shaping the GPU's thread parallellism in the various edge generation and trimming rounds.
+
+Here's a run that uncovers a solution:
+
+    $ ./cuda30 -n 60 -r 4
+    GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
+    Looking for 42-cycle on cuckoo30("",60-63) with 50% edges, 128*128 buckets, 176 trims, and 64 thread blocks.
+    Using 2680MB bucket memory and 21MB memory per thread block (4028MB total)
+    nonce 60 k0 k1 k2 k3 275f9313c78adcec c3dc47d972920e25 41f8c5d51abbf1e7 74da5cc5b52b2a0b
+    trim completed in 2220 ms
+       2-cycle found
+      16-cycle found
+      26-cycle found
+      12-cycle found
+       8-cycle found
+       6-cycle found
+    findcycles completed on 71347 edges
+    Time: 2232 ms
+    nonce 61 k0 k1 k2 k3 4178123b6607deb3 596e493a0fe04022 685fbcfc1d315fe 7cf66796fc0083c1
+    trim completed in 1007 ms
+       4-cycle found
+      32-cycle found
+     302-cycle found
+     314-cycle found
+      56-cycle found
+    findcycles completed on 69175 edges
+    Time: 1018 ms
+    nonce 62 k0 k1 k2 k3 544f44b2b17afc97 4ba38ecebc2fa72c 21e2c32bba7f6196 4d8886ccba77435b
+    trim completed in 1006 ms
+    findcycles completed on 68830 edges
+    Time: 1018 ms
+    nonce 63 k0 k1 k2 k3 7d4f06d5f68dc772 331017080ac63322 e62926ee68af70ed cf2efe7e2f4dbc16
+    trim completed in 1007 ms
+      84-cycle found
+      42-cycle found
+     320-cycle found
+     192-cycle found
+    findcycles completed on 68096 edges
+    Time: 1218 ms
+    Solution 23ece 27e0856 2ad8c27 2cbb0b5 3694cdd 477a095 64de6fc 64e1c92 68e624d 6aa4c6f 6b1d0c2 76f07d2 c273122 c2e38ed c655cde c97ba17 e708130 ec8890d ecb9932 f28d66d f577aff 104d8441 116de91f 116e61cb 1178ea28 11840f8a 11ce10b0 12792630 12ae2388 140ae893 1439b9fd 146a3047 1538d93c 176cb068 17e01c9b 1876ee0a 1c871774 1d37d976 1d6fa785 1d9c1669 1d9d015e 1db85f7e
+    Verified with cyclehash b06d3a638f4237c1d5d96fe57e549a83b76421522fb09af24d3520fb91f364f7
+    1 total solutions
+    
+We can see that recovering the Solution takes some extra time, since the solver doesn't keep track of what
+edge-index generates what edge endpoint, so it needs to regenerate all of them.
 
 
-having made it as fast as I know
+One may wonder:
 
-https://www.reddit.com/r/Aeternity/comments/6vsot4/towards_a_more_egalitarian_pow_using_cuckoo_cycle/
-https://moneromonitor.com/episodes/2017-09-26-Episode-014.html
+Does it really take more than a second to solve this puzzle?
 
-Blog article explaining Cuckoo Cycle at
+No, I don't believe that for a second! I think my solver is suboptimal For several reasons, including:
 
+1. Uses memcpy() to perform unaligned reads/writes of 40-bit and 48-bit numbers
+2. Uses only a fraction of the available memory bandwidth
+3. Ignorant of warp boundaries
+4. Makes no use of PTX assembly
+5. Written by a GPU coding amateur
 
+So I suspect there's room for at least a doubling of performance.
+To that end I offer the GPU bounty on the [project page](https://github.com/tromp/cuckoo)
 
-
-
-
-
-<UL>
-<LI> <a href="https://github.com/mimblewimble/grin">Minimal implementation of the MimbleWimble protocol</a>
-<LI> <a href="http://www.aeternity.com/">æternity - the oracle machine</a>
-<LI> <a href="https://github.com/bitcoin/bips/blob/master/bip-0154.mediawiki">BIP 154: Rate Limiting via peer specified challenges; Bitcoin Peer Services</a>
-<LI> <a href="http://www.raddi.net/">Raddi // radically decentralized discussion</a>
-<LI> <a href="https://bitcointalk.org/index.php?topic=2360396">[ANN] *Aborted* Bitcoin Resilience: Cuckoo Cycle PoW Bitcoin Hardfork</a>
-</UL>
+Please help me find the remaning possible optimizations and perhaps help yourself to some Bitcoin Cash in the proces!
