@@ -113,6 +113,7 @@ const static u32 YMASK     = NY - 1;
 const static u32 XYBITS    = XBITS + YBITS;
 const static u32 NXY       = 1 << XYBITS;
 const static u32 ZBITS     = EDGEBITS - XYBITS;
+const static u32 ZBYTES    = (ZBITS + 7) / 8;
 const static u32 NZ        = 1 << ZBITS;
 const static u32 ZMASK     = NZ - 1;
 const static u32 YZBITS    = YBITS + ZBITS;
@@ -198,7 +199,7 @@ struct indexer {
       index[x] = buckets[x][y].bytes - (u8 *)buckets;
   }
   template <u32 SIZE>
-  __device__ void writebig(u32 i, const u64 x) {
+  __device__ void writebytes(u32 i, const u64 x) {
     const u32 idx = atomicAdd(index+i, SIZE);
     memcpy((u8 *)buckets + idx, (u8 *)&x, SIZE);
   }
@@ -336,21 +337,12 @@ struct edgetrimmer {
   }
 
   template <u32 SIZE>
-  __device__ void writebig(u8 *p64, const u64 x) {
+  __device__ void writebytes(u8 *p64, const u64 x) {
     memcpy(p64, (u8 *)&x, SIZE);
   }
 
   template <u32 SIZE>
-  __device__ u16 read16(const u8 *p64) {
-    if (SIZE & 1) {
-      u16 foo;
-      memcpy((u8 *)&foo, p64, sizeof(u16));
-      return foo;
-    } else return *(u16 *)p64;
-  }
-
-  template <u32 SIZE>
-  __device__ u64 readbig(const u8 *p64) {
+  __device__ u64 readbytes(const u8 *p64) {
     u64 foo = 0;
     memcpy((u8 *)&foo, p64, SIZE);
     return foo;
@@ -370,7 +362,7 @@ struct edgetrimmer {
         const u32 ux = node >> YZBITS;
 // bit        28..22     21..15    14..0
 // node       XXXXXX     YYYYYY    ZZZZZ
-        dst.writebig<BIGSIZE>(ux, (u64)edge << YZBITS | (node & YZMASK));
+        dst.writebytes<BIGSIZE>(ux, (u64)edge << YZBITS | (node & YZMASK));
 // bit        39..22     21..15    14..0
 // write        edge     YYYYYY    ZZZZZ
       }
@@ -391,14 +383,14 @@ struct edgetrimmer {
       bigbuck &zb = buckets[ux][my];
       const u8 *readb = zb.bytes, *endreadb = readb + zb.size;
       for (readb += BIGSIZE*threadIdx.x; readb < endreadb; readb += BIGSIZE*blockDim.x) {
-        const u64 e = readbig<BIGSIZE>(readb);
-// bit     39/31..22     21..15    14..0
+        const u64 e = readbytes<BIGSIZE>(readb);
+// bit  47/39/31..22     21..15    14..0
 // read         edge     UYYYYY    UZZZZ   within UX partition
         const u32 lag = NNONYZ >> 2;
         edge += (((u32)(e >> YZBITS) - edge + lag) & (NNONYZ-1)) - lag;
         const u32 uy = (e >> ZBITS) & YMASK;
-        dst.writebig<BIGSIZE>(uy, ((u64)edge << ZBITS) | (e & ZMASK));;
-// bit         39..15     14..0
+        dst.writebytes<BIGSIZE>(uy, ((u64)edge << ZBITS) | (e & ZMASK));;
+// bit      43/39..15     14..0
 // write         edge     UZZZZ   within UX UY partition
       }
       if (unlikely(edge >> NONYZBITS != (((my+1) << YZBITS) - 1) >> NONYZBITS))
@@ -424,13 +416,13 @@ struct edgetrimmer {
       u8 *readb = zb.bytes, *endreadb = readb + zb.size;
       readb += BIGSIZE * threadIdx.x;
       for (u8 *rd= readb; rd< endreadb; rd+=BIGSIZE*blockDim.x)
-        degs.set(read16<BIGSIZE>(rd) & ZMASK);
+        degs.set(readbytes<ZBYTES>(rd) & ZMASK);
       __syncthreads();
       u32 edge = 0;
-      u64 uy34 = (u64)uy << YZZBITS;
+      u64 uy37 = (u64)uy << YZZBITS;
       for (u8 *rd= readb; rd< endreadb; rd+=BIGSIZE*blockDim.x) {
-        const u64 e = readbig<BIGSIZE>(rd);
-// bit         39..15     14..0
+        const u64 e = readbytes<BIGSIZE>(rd);
+// bit      43/39..15     14..0
 // read          edge     UZZZZ    within UX UY partition
 	const u32 lag = NONDEGMASK >> 2;
         edge += (((e >> ZBITS) - edge + lag) & NONDEGMASK) - lag;
@@ -438,7 +430,7 @@ struct edgetrimmer {
         if (degs.test(z)) {
           const u32 node = dipnode(sip_keys, edge, uorv);
           const u32 vx = node >> YZBITS; // & XMASK;
-          dst.writebig<BIGSIZE>(vx, uy34 | ((u64)z << YZBITS) | (node & YZMASK));
+          dst.writebytes<BIGSIZE>(vx, uy37 | ((u64)z << YZBITS) | (node & YZMASK));
 // bit        39..37    36..22     21..15     14..0
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition
         }
@@ -467,7 +459,7 @@ struct edgetrimmer {
       bigbuck &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
       const u8 *readbg = zb.bytes, *endreadbg = readbg + zb.size;
       for (readbg += SRCSIZE*threadIdx.x; readbg < endreadbg; readbg += SRCSIZE*blockDim.x) {
-        const u64 e = readbig<SRCSIZE>(readbg); // & SRCSLOTMASK;
+        const u64 e = readbytes<SRCSIZE>(readbg); // & SRCSLOTMASK;
 // bit     43/39..37    36..22     21..15     14..0
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition
         static const u32 lag = SRCPREFMASK >> 2;
@@ -475,7 +467,7 @@ struct edgetrimmer {
           uyz = e >> YZBITS;
         else uyz += (((u32)(e >> YZBITS) - uyz + lag) & SRCPREFMASK) - lag;
         const u32 vy = (e >> ZBITS) & YMASK;
-        dst.writebig<DSTSIZE>(vy, ((u64)(ux << YZBITS | uyz) << ZBITS) | (e & ZMASK));
+        dst.writebytes<DSTSIZE>(vy, ((u64)(ux << YZBITS | uyz) << ZBITS) | (e & ZMASK));
 // bit     43/39..37    36..30     29..15     14..0
 // write      UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition
         uyz &= ~ZMASK;
@@ -505,11 +497,11 @@ struct edgetrimmer {
       u8 *readb = zb.bytes, *endreadb = readb + zb.size;
       readb += DSTSIZE * threadIdx.x;
       for (u8 *rd= readb; rd< endreadb; rd+= DSTSIZE*blockDim.x)
-        degs.set(read16<DSTSIZE>(rd) & ZMASK);
+        degs.set(readbytes<ZBYTES>(rd) & ZMASK);
       __syncthreads();
       u32 ux = 0;
       for (u8 *rd= readb; rd< endreadb; rd+= DSTSIZE*blockDim.x) {
-        const u64 e = readbig<DSTSIZE>(rd); //  & DSTSLOTMASK;
+        const u64 e = readbytes<DSTSIZE>(rd); //  & DSTSLOTMASK;
 // bit     45/39..37    36..30     29..15     14..0
 // read       UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition
 	if (DSTPREFBITS < XBITS) {
@@ -517,7 +509,7 @@ struct edgetrimmer {
           ux += (((u32)(e >> YZZBITS) - ux + lag) & DSTPREFMASK) - lag;
         } else ux = e >> YZZBITS;
         if (degs.test(e & ZMASK))
-          dst.writebig<DSTSIZE>(ux, vy34 | ((e & ZMASK) << YZBITS) | ((e >> ZBITS) & YZMASK));
+          dst.writebytes<DSTSIZE>(ux, vy34 | ((e & ZMASK) << YZBITS) | ((e >> ZBITS) & YZMASK));
 // bit    41/39..37    36..22     21..15     14..0
 // write     VYYYYY    VZZZZZ     UYYYYY     UZZZZ   within UX partition
       }
@@ -541,14 +533,14 @@ struct edgetrimmer {
       for (readbg += SRCSIZE*threadIdx.x; readbg < endreadbg; readbg += SRCSIZE*blockDim.x) {
 // bit   43..37    36..22     21..15     14..0
 // write UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition  if TRIMONV
-        const u64 e = readbig<SRCSIZE>(readbg); //  & SRCSLOTMASK;
+        const u64 e = readbytes<SRCSIZE>(readbg); //  & SRCSLOTMASK;
 // bit            36...22     21..15     14..0
 // write          VYYYZZ'     UYYYYY     UZZZZ   within UX partition  if !TRIMONV
         const u32 uyz = e >> YZBITS;
         const u32 vy = (e >> ZBITS) & YMASK;
 // bit    43..37    36..30     29..15     14..0
 // write  UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition  if TRIMONV
-        dst.writebig<SRCSIZE>(vy, ((u64)(ux << (TRIMONV ? YZBITS : YZ1BITS) | uyz) << ZBITS) | (e & ZMASK));
+        dst.writebytes<SRCSIZE>(vy, ((u64)(ux << (TRIMONV ? YZBITS : YZ1BITS) | uyz) << ZBITS) | (e & ZMASK));
 // bit            36...30     29...15     14..0
 // write          VXXXXXX     VYYYZZ'     UZZZZ   within UX UY partition  if !TRIMONV
       }
@@ -576,12 +568,12 @@ struct edgetrimmer {
       u8 *readb = zb.bytes, *endreadb = readb + zb.size;
       readb += SRCSIZE * threadIdx.x;
       for (u8 *rd= readb; rd< endreadb; rd+= SRCSIZE*blockDim.x)
-        degs.set(read16<SRCSIZE>(rd) & ZMASK);
+        degs.set(readbytes<ZBYTES>(rd) & ZMASK);
       __syncthreads();
       for (u8 *rd= readb; rd< endreadb; rd+= SRCSIZE*blockDim.x) {
 // bit    43..37    36..30     29..15     14..0
 // read   UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition  if TRIMONV
-        const u64 e = readbig<SRCSIZE>(rd); //  & SRCSLOTMASK;
+        const u64 e = readbytes<SRCSIZE>(rd); //  & SRCSLOTMASK;
 // bit            36...30     29...15     14..0
 // read           VXXXXXX     VYYYZZ'     UZZZZ   within UX UY partition  if !TRIMONV
         const u32 ux = e >> (TRIMONV ? YZZBITS : YZZ1BITS);
@@ -597,7 +589,7 @@ struct edgetrimmer {
             nrenames += blockDim.x;
           }
           if (TRIMONV)
-            dst.writebig<DSTSIZE>(ux, ((u64)vdeg << YZBITS ) | ((e >> ZBITS) & YZMASK));
+            dst.writebytes<DSTSIZE>(ux, ((u64)vdeg << YZBITS ) | ((e >> ZBITS) & YZMASK));
 // bit       36..22     21..15     14..0
 // write     VYYZZ'     UYYYYY     UZZZZ   within UX partition  if TRIMONV
           else dst.write32(ux, (vdeg << YZ1BITS) | ((e >> ZBITS) & YZ1MASK));
