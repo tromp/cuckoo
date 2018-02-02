@@ -912,7 +912,8 @@ public:
 
   solver_ctx(const trimparams tp) {
     trimmer = new edgetrimmer(tp);
-    cuckoo = 0;
+    buckets = new smallbucks[NX];
+    cuckoo = new u32[CUCKOO_SIZE];
   }
   void setheadernonce(char* const headernonce, const u32 len, const u32 nonce) {
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
@@ -920,6 +921,8 @@ public:
     sols.clear();
   }
   ~solver_ctx() {
+    delete[] cuckoo;
+    delete[] buckets;
     delete trimmer;
   }
 
@@ -964,6 +967,8 @@ public:
   void findcycles() {
     u32 us[MAXPATHLEN], vs[MAXPATHLEN];
 
+    checkCudaErrors(cudaMemcpy(buckets, trimmer->tbuckets, NX * sizeof(smallbucks), cudaMemcpyDeviceToHost));
+    memset(cuckoo, (int)CUCKOO_NIL, CUCKOO_SIZE * sizeof(u32));
     u32 sumsize = 0;
     for (u32 vx = 0; vx < NX; vx++) {
       for (u32 ux = 0 ; ux < NX; ux++) {
@@ -1006,13 +1011,7 @@ public:
 
   int solve() {
     trimmer->trim();
-    buckets = new smallbucks[NX];
-    checkCudaErrors(cudaMemcpy(buckets, trimmer->tbuckets, NX * sizeof(smallbucks), cudaMemcpyDeviceToHost));
-    cuckoo = new u32[CUCKOO_SIZE];
-    memset(cuckoo, (int)CUCKOO_NIL, CUCKOO_SIZE * sizeof(u32));
     findcycles();
-    delete[] cuckoo;
-    delete[] buckets;
     return sols.size() / PROOFSIZE;
   }
 };
