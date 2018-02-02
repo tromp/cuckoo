@@ -100,7 +100,7 @@ __device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
 
 // YZ compression round; must be even
 #ifndef COMPRESSROUND
-#define COMPRESSROUND 16
+#define COMPRESSROUND 10
 #endif
 
 typedef uint8_t u8;
@@ -118,15 +118,16 @@ const static u32 ZMASK     = NZ - 1;
 const static u32 YZBITS    = YBITS + ZBITS;
 const static u32 NYZ       = 1 << YZBITS;
 const static u32 YZMASK    = NYZ - 1;
-const static u32 YZ1BITS   = 15;  // combined Y and compressed Z bits
+const static u32 YZ1BITS   = 16;  // make UYZ1,VYZ1 fit in 32 bits
 const static u32 NYZ1      = 1 << YZ1BITS;
 const static u32 MAXNZNYZ1 = NYZ1 > NZ ? NYZ1 : NZ;
 const static u32 YZ1MASK   = NYZ1 - 1;
 const static u32 Z1BITS    = YZ1BITS - YBITS;
 const static u32 NZ1       = 1 << Z1BITS;
 const static u32 Z1MASK    = NZ1 - 1;
-const static u32 YZ2BITS   = 9;  // more compressed YZ bits
+const static u32 YZ2BITS   = 9;  // more compressed edge reduces CUCKOO size
 const static u32 NYZ2      = 1 << YZ2BITS;
+const static u32 CUCKOO_SIZE = 2 * NX * NYZ2; // 2^17 elem  cuckoo table
 const static u32 YZ2MASK   = NYZ2 - 1;
 const static u32 Z2BITS    = YZ2BITS - YBITS;
 const static u32 NZ2       = 1 << Z2BITS;
@@ -138,7 +139,7 @@ const static u32 BIGSLOTBITS   = BIGSIZE * 8;
 const static u32 NONYZBITS     = BIGSLOTBITS - YZBITS;
 const static u32 NNONYZ        = 1 << NONYZBITS;
 
-const static u32 Z2BUCKETSIZE = NYZ2 >> 3; // drop few edges
+const static u32 Z2BUCKETSIZE = NYZ2 * 1/8; // drop few edges
 
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
@@ -272,7 +273,7 @@ struct trimparams {
   u16 reportrounds;
   
   trimparams() {
-    ntrims              = 176;
+    ntrims              = 192;
     nblocks             =  64;
     genUblocks          = 256;
     genUtpb             =   8;
@@ -388,8 +389,7 @@ struct edgetrimmer {
     for (u32 my = 0 ; my < NY; my++) {
       u32 edge = my << YZBITS;
       bigbuck &zb = buckets[ux][my];
-      const u8           *readb = zb.bytes;
-      const u8 * const endreadb = readb + zb.size;
+      const u8 *readb = zb.bytes, *endreadb = readb + zb.size;
       for (readb += BIGSIZE*threadIdx.x; readb < endreadb; readb += BIGSIZE*blockDim.x) {
         const u64 e = readbig<BIGSIZE>(readb);
 // bit     39/31..22     21..15    14..0
@@ -465,8 +465,7 @@ struct edgetrimmer {
     for (u32 ux = 0; ux < NX; ux++) {
       u32 uyz = 0;
       bigbuck &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
-      const u8 *readbg = zb.bytes;
-      const u8 * const endreadbg = readbg + zb.size;
+      const u8 *readbg = zb.bytes, *endreadbg = readbg + zb.size;
       for (readbg += SRCSIZE*threadIdx.x; readbg < endreadbg; readbg += SRCSIZE*blockDim.x) {
         const u64 e = readbig<SRCSIZE>(readbg); // & SRCSLOTMASK;
 // bit     43/39..37    36..22     21..15     14..0
@@ -513,8 +512,10 @@ struct edgetrimmer {
         const u64 e = readbig<DSTSIZE>(rd); //  & DSTSLOTMASK;
 // bit     45/39..37    36..30     29..15     14..0
 // read       UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition
-        static const u32 lag = DSTPREFMASK >> 2;
-        ux += (((u32)(e >> YZZBITS) - ux + lag) & DSTPREFMASK) - lag;
+	if (DSTPREFBITS < XBITS) {
+          static const u32 lag = DSTPREFMASK >> 2;
+          ux += (((u32)(e >> YZZBITS) - ux + lag) & DSTPREFMASK) - lag;
+        } else ux = e >> YZZBITS;
         if (degs.test(e & ZMASK))
           dst.writebig<DSTSIZE>(ux, vy34 | ((e & ZMASK) << YZBITS) | ((e >> ZBITS) & YZMASK));
 // bit    41/39..37    36..22     21..15     14..0
@@ -529,37 +530,27 @@ struct edgetrimmer {
 
   template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV>
   __device__ void trimrename1(const u32 round, const u32 part) {
-    static const u32 SRCSLOTBITS = mymin(SRCSIZE * 8, (TRIMONV ? YZBITS : YZ1BITS) + YZBITS);
-    static const u32 SRCPREFBITS = SRCSLOTBITS - YZBITS;
-    static const u32 SRCPREFMASK = (1 << SRCPREFBITS) - 1;
     __shared__ indexer dst;
 
     dst.init(tbuckets);
     const u32 vx = blockIdx.x + part * gridDim.x;
     dst.matrixu(blockIdx.x);
     for (u32 ux = 0 ; ux < NX; ux++) {
-      u32 uyz = 0;
       bigbuck &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
-      const u8 *readbg = zb.bytes;
-      const u8 * const endreadbg = readbg + zb.size;
+      const u8 *readbg = zb.bytes, *endreadbg = readbg + zb.size;
       for (readbg += SRCSIZE*threadIdx.x; readbg < endreadbg; readbg += SRCSIZE*blockDim.x) {
-// bit   39..37    36..22     21..15     14..0
+// bit   43..37    36..22     21..15     14..0
 // write UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition  if TRIMONV
         const u64 e = readbig<SRCSIZE>(readbg); //  & SRCSLOTMASK;
 // bit            36...22     21..15     14..0
 // write          VYYYZZ'     UYYYYY     UZZZZ   within UX partition  if !TRIMONV
-        static const u32 lag = SRCPREFMASK >> 2;
-        if (TRIMONV)
-          uyz += (((u32)(e >> YZBITS) - uyz + lag) & SRCPREFMASK) - lag;
-        else uyz = e >> YZBITS;
+        const u32 uyz = e >> YZBITS;
         const u32 vy = (e >> ZBITS) & YMASK;
-// bit    39..37    36..30     29..15     14..0
+// bit    43..37    36..30     29..15     14..0
 // write  UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition  if TRIMONV
         dst.writebig<SRCSIZE>(vy, ((u64)(ux << (TRIMONV ? YZBITS : YZ1BITS) | uyz) << ZBITS) | (e & ZMASK));
 // bit            36...30     29...15     14..0
 // write          VXXXXXX     VYYYZZ'     UZZZZ   within UX UY partition  if !TRIMONV
-        if (TRIMONV)
-          uyz &= ~ZMASK;
       }
     }
     dst.storeu(blockIdx.x);
@@ -567,11 +558,8 @@ struct edgetrimmer {
 
   template <u32 SRCSIZE, u32 DSTSIZE, bool TRIMONV>
   __device__ void trimrename2(const u32 round, const u32 part) {
-    static const u32 SRCSLOTBITS = mymin(SRCSIZE * 8, (TRIMONV ? YZBITS : YZ1BITS) + YZBITS);
-    static const u32 SRCPREFBITS2 = SRCSLOTBITS - YZZBITS;
-    static const u32 SRCPREFMASK2 = (1 << SRCPREFBITS2) - 1;
-    __shared__ indexer dst;
     __shared__ twice_set<NZ> degs;
+    __shared__ indexer dst;
     static const u32 NONAME = ~0;
 
     dst.init(buckets);
@@ -584,24 +572,19 @@ struct edgetrimmer {
         names[z] = NONAME;
       degs.reset();
       __syncthreads();
-      u8    *readb = tbuckets[blockIdx.x][vy].bytes, *endreadb = readb + tbuckets[blockIdx.x][vy].size;
+      bigbuck &zb = tbuckets[blockIdx.x][vy];
+      u8 *readb = zb.bytes, *endreadb = readb + zb.size;
       readb += SRCSIZE * threadIdx.x;
       for (u8 *rd= readb; rd< endreadb; rd+= SRCSIZE*blockDim.x)
         degs.set(read16<SRCSIZE>(rd) & ZMASK);
       __syncthreads();
-      u32 ux = 0;
       for (u8 *rd= readb; rd< endreadb; rd+= SRCSIZE*blockDim.x) {
-// bit    39..37    36..30     29..15     14..0
+// bit    43..37    36..30     29..15     14..0
 // read   UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition  if TRIMONV
         const u64 e = readbig<SRCSIZE>(rd); //  & SRCSLOTMASK;
 // bit            36...30     29...15     14..0
 // read           VXXXXXX     VYYYZZ'     UZZZZ   within UX UY partition  if !TRIMONV
-        static const u32 lag = SRCPREFMASK2 >> 2;
-        if (TRIMONV) {
-          if (SRCPREFBITS2 >= XBITS)
-            ux = e >> YZZBITS;
-          else ux += (((u32)(e >> YZZBITS) - ux + lag) & SRCPREFMASK2) - lag;
-        } else ux = e >> YZZ1BITS;
+        const u32 ux = e >> (TRIMONV ? YZZBITS : YZZ1BITS);
         const u32 vz = e & ZMASK;
         if (degs.test(vz)) {
           u32 vdeg = atomicCAS(&names[vz], NONAME, nrenames);
@@ -621,8 +604,6 @@ struct edgetrimmer {
         }
       }
       __syncthreads();
-      if (TRIMONV && unlikely(ux >> SRCPREFBITS2 != XMASK >> SRCPREFBITS2))
-      { printf("OOPS6: id %d vx %d vy %d ux %x vs %x\n", blockIdx.x, vx, vy, ux, XMASK); break; }
     }
     TRIMONV ? dst.storev(vx) : dst.storeu(vx);
     assert(nrenames < NYZ1);
@@ -924,8 +905,6 @@ __global__ void _recoveredges1(edgetrimmer *et) {
 // grow with cube root of size, hardly affected by trimming
 const static u32 MAXPATHLEN = 8 << ((NODEBITS+2)/3);
 
-const static u32 CUCKOO_SIZE = 2 * NX * NYZ2;
-
 int nonce_cmp(const void *a, const void *b) {
   return *(u32 *)a - *(u32 *)b;
 }
@@ -1004,7 +983,6 @@ public:
 // bit        21..11     10...0
 // write      UYYZZZ'    VYYZZ'   within VX partition
           const u32 e = *readbg;
-          assert(e < NYZ2*NYZ2);
           const u32 uxyz = (ux << YZ2BITS) | (e >> YZ2BITS);
           const u32 vxyz = (vx << YZ2BITS) | (e & YZ2MASK);
           const u32 u0 = uxyz << 1, v0 = (vxyz << 1) | 1;
@@ -1078,7 +1056,7 @@ int main(int argc, char **argv) {
       case 'k':
         tp.reportrounds = atoi(optarg);
         break;
-      case 'l':
+      case 'c':
         tp.reportcount = atoi(optarg);
         break;
       case 'h':
