@@ -1,64 +1,16 @@
+// Cuckoo Cycle, a memory-hard proof-of-work
+// Copyright (c) 2013-2018 John Tromp
+// The edge-trimming memory optimization is due to Dave Andersen
+// http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
+// xenoncat demonstrated at https://github.com/xenoncat/cuckoo_pow
+// how bucket sorting avoids random memory access latency
+// This CUDA port of mean_miner.cpp is covered by the FAIR MINING license
+
 #include "cuckoo.h"
+#include "siphash.cuh"
 #include <sys/time.h> // gettimeofday
-
-// d(evice s)ipnode
-#if (__CUDA_ARCH__  >= 320) // redefine ROTL to use funnel shifter, 3% speed gain
-
-static __device__ __forceinline__ uint2 operator^ (uint2 a, uint2 b) {
-  return make_uint2(a.x ^ b.x, a.y ^ b.y);
-}
-static __device__ __forceinline__ void operator^= (uint2 &a, uint2 b) {
-  a.x ^= b.x, a.y ^= b.y;
-}
-static __device__ __forceinline__ void operator+= (uint2 &a, uint2 b) {
-  asm("{\n\tadd.cc.u32 %0,%2,%4;\n\taddc.u32 %1,%3,%5;\n\t}\n\t"
-    : "=r"(a.x), "=r"(a.y) : "r"(a.x), "r"(a.y), "r"(b.x), "r"(b.y));
-}
-#undef ROTL
-__inline__ __device__ uint2 ROTL(const uint2 a, const int offset) {
-  uint2 result;
-  if (offset >= 32) {
-    asm("shf.l.wrap.b32 %0, %1, %2, %3;" : "=r"(result.x) : "r"(a.x), "r"(a.y), "r"(offset));
-    asm("shf.l.wrap.b32 %0, %1, %2, %3;" : "=r"(result.y) : "r"(a.y), "r"(a.x), "r"(offset));
-  } else {
-    asm("shf.l.wrap.b32 %0, %1, %2, %3;" : "=r"(result.x) : "r"(a.y), "r"(a.x), "r"(offset));
-    asm("shf.l.wrap.b32 %0, %1, %2, %3;" : "=r"(result.y) : "r"(a.x), "r"(a.y), "r"(offset));
-  }
-  return result;
-}
-__device__ __forceinline__ uint2 vectorize(const uint64_t x) {
-  uint2 result;
-  asm("mov.b64 {%0,%1},%2; \n\t" : "=r"(result.x), "=r"(result.y) : "l"(x));
-  return result;
-}
-__device__ __forceinline__ uint64_t devectorize(uint2 x) {
-  uint64_t result;
-  asm("mov.b64 %0,{%1,%2}; \n\t" : "=l"(result) : "r"(x.x), "r"(x.y));
-  return result;
-}
-__device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
-  uint2 nonce = vectorize(2*nce + uorv);
-  uint2 v0 = vectorize(keys.k0), v1 = vectorize(keys.k1), v2 = vectorize(keys.k2), v3 = vectorize(keys.k3) ^ nonce;
-  SIPROUND; SIPROUND;
-  v0 ^= nonce;
-  v2 ^= vectorize(0xff);
-  SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return devectorize(v0 ^ v1 ^ v2  ^ v3) & EDGEMASK;
-}
-
-#else
-
-__device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
-  u64 nonce = 2*nce + uorv;
-  u64 v0 = keys.k0, v1 = keys.k1, v2 = keys.k2, v3 = keys.k3^ nonce;
-  SIPROUND; SIPROUND;
-  v0 ^= nonce;
-  v2 ^= 0xff;
-  SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return (v0 ^ v1 ^ v2  ^ v3) & EDGEMASK;
-}
-
-#endif
+#include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <vector>
 #include <bitset>
@@ -79,9 +31,9 @@ __device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
 // uZ or vZ values are counted and edges with a count of only one are eliminated,
 // while remaining edges are bucket sorted back on vY or uY respectively.
 // When sufficiently many edges have been eliminated, a pair of compression
-// rounds remap surviving Z values in each X,Y bucket to fit into 15-YBITS bits,
+// rounds remap surviving Z values in each X,Y bucket to fit into 16-YBITS bits,
 // allowing the remaining rounds to avoid the sorting on Y and directly
-// count YZ values in a cache friendly 32KB.
+// count YZ values in a cache friendly 16KB.
 
 // algorithm/performance parameters
 // EDGEBITS/NEDGES/EDGEMASK defined in cuckoo.h
@@ -129,7 +81,8 @@ const static u32 Z1MASK    = NZ1 - 1;
 const static u32 YZ2BITS   = 9;  // more compressed edge reduces CUCKOO size
 const static u32 NYZ2      = 1 << YZ2BITS;
 const static u32 CUCKOO_SIZE = 2 * NX * NYZ2; // 2^17 elem  cuckoo table
-const static u32 YZ2MASK   = NYZ2 - 1;
+const static u32 XYZ2BITS  = XBITS + YZ2BITS;
+const static u32 XYZ2MASK  = (1 << XYZ2BITS) - 1;
 const static u32 Z2BITS    = YZ2BITS - YBITS;
 const static u32 NZ2       = 1 << Z2BITS;
 const static u32 Z2MASK    = NZ2 - 1;
@@ -140,7 +93,7 @@ const static u32 BIGSLOTBITS   = BIGSIZE * 8;
 const static u32 NONYZBITS     = BIGSLOTBITS - YZBITS;
 const static u32 NNONYZ        = 1 << NONYZBITS;
 
-const static u32 Z2BUCKETSIZE = NYZ2 * 1/8; // drop few edges
+const static u32 Z2BUCKETSIZE = NYZ2 * sizeof(u32);
 
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
@@ -180,7 +133,6 @@ typedef zbucket<ZBUCKETSIZE, NZ1, NZ2> bigbuck;
 typedef bigbuck bigbucks[NY];
 
 typedef zbucket<Z2BUCKETSIZE, 0, 0> smallbuck;
-typedef smallbuck smallbucks[NY];
 
 struct indexer {
   bigbucks *buckets;
@@ -200,12 +152,10 @@ struct indexer {
   }
   template <u32 SIZE>
   __device__ void writebytes(u32 i, const u64 x) {
-    const u32 idx = atomicAdd(index+i, SIZE);
-    memcpy((u8 *)buckets + idx, (u8 *)&x, SIZE);
+    memcpy((u8 *)buckets + atomicAdd(index+i, SIZE), (u8 *)&x, SIZE);
   }
   __device__ void write32(u32 i, const u32 x) {
-    const u32 idx = atomicAdd(index+i, sizeof(u32));
-    *(u32 *)((u8 *)buckets + idx) = x;
+    *(u32 *)((u8 *)buckets + atomicAdd(index+i, sizeof(u32))) = x;
   }
   __device__ void storeu(const u32 x) {
     for (u32 y = threadIdx.x; y < NY; y += blockDim.x)
@@ -218,9 +168,8 @@ struct indexer {
 };
 
 template <u32 SIZE>
-class twice_set {
+struct twice_set {
   const static u32 TWICE_WORDS = ((2 * SIZE) / 32);
-public:
   u32 bits[TWICE_WORDS];
   __device__ void reset() {
     for (u32 b = threadIdx.x; b < TWICE_WORDS; b += blockDim.x)
@@ -274,7 +223,7 @@ struct trimparams {
   u16 reportrounds;
   
   trimparams() {
-    ntrims              = 192;
+    ntrims              = 224;
     nblocks             =  64;
     genUblocks          = 256;
     genUtpb             =   8;
@@ -287,9 +236,9 @@ struct trimparams {
     rename[1].stage1tpb =  32;
     rename[1].stage2tpb = 128;
     trim3tpb            =  64;
-    rename3tpb          =   2;
-    reportcount   = 1;
-    reportrounds = 0;
+    rename3tpb          =  16;
+    reportcount         =   1;
+    reportrounds        =   0;
   }
 };
 
@@ -307,7 +256,7 @@ struct edgetrimmer {
   proof sol;
 
   edgetrimmer(const trimparams _tp) {
-    tp = _tp; // memcpy(tp, _tp, sizeof(trimparams));
+    tp = _tp;
     checkCudaErrors(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
     checkCudaErrors(cudaMalloc((void**)&buckets, NX * sizeof(bigbucks)));
     checkCudaErrors(cudaMalloc((void**)&tbuckets, tp.nblocks * sizeof(bigbucks)));
@@ -384,13 +333,13 @@ struct edgetrimmer {
       const u8 *readb = zb.bytes, *endreadb = readb + zb.size;
       for (readb += BIGSIZE*threadIdx.x; readb < endreadb; readb += BIGSIZE*blockDim.x) {
         const u64 e = readbytes<BIGSIZE>(readb);
-// bit  47/39/31..22     21..15    14..0
+// bit        39..22     21..15    14..0
 // read         edge     UYYYYY    UZZZZ   within UX partition
         const u32 lag = NNONYZ >> 2;
         edge += (((u32)(e >> YZBITS) - edge + lag) & (NNONYZ-1)) - lag;
         const u32 uy = (e >> ZBITS) & YMASK;
         dst.writebytes<BIGSIZE>(uy, ((u64)edge << ZBITS) | (e & ZMASK));;
-// bit      43/39..15     14..0
+// bit         39..15     14..0
 // write         edge     UZZZZ   within UX UY partition
       }
       if (unlikely(edge >> NONYZBITS != (((my+1) << YZBITS) - 1) >> NONYZBITS))
@@ -422,9 +371,9 @@ struct edgetrimmer {
       u64 uy37 = (u64)uy << YZZBITS;
       for (u8 *rd= readb; rd< endreadb; rd+=BIGSIZE*blockDim.x) {
         const u64 e = readbytes<BIGSIZE>(rd);
-// bit      43/39..15     14..0
+// bit         39..15     14..0
 // read          edge     UZZZZ    within UX UY partition
-	const u32 lag = NONDEGMASK >> 2;
+        const u32 lag = NONDEGMASK >> 2;
         edge += (((e >> ZBITS) - edge + lag) & NONDEGMASK) - lag;
         const u32 z = e & ZMASK;
         if (degs.test(z)) {
@@ -490,7 +439,7 @@ struct edgetrimmer {
     const u32 vx = blockIdx.x + part * gridDim.x;
     TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
     for (u32 vy = 0 ; vy < NY; vy++) {
-      const u64 vy34 = (u64)vy << YZZBITS;
+      const u64 vy37 = (u64)vy << YZZBITS;
       degs.reset();
       __syncthreads();
       bigbuck &zb = tbuckets[blockIdx.x][vy];
@@ -504,12 +453,12 @@ struct edgetrimmer {
         const u64 e = readbytes<DSTSIZE>(rd); //  & DSTSLOTMASK;
 // bit     45/39..37    36..30     29..15     14..0
 // read       UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition
-	if (DSTPREFBITS < XBITS) {
+        if (DSTPREFBITS < XBITS) {
           static const u32 lag = DSTPREFMASK >> 2;
           ux += (((u32)(e >> YZZBITS) - ux + lag) & DSTPREFMASK) - lag;
         } else ux = e >> YZZBITS;
         if (degs.test(e & ZMASK))
-          dst.writebytes<DSTSIZE>(ux, vy34 | ((e & ZMASK) << YZBITS) | ((e >> ZBITS) & YZMASK));
+          dst.writebytes<DSTSIZE>(ux, vy37 | ((e & ZMASK) << YZBITS) | ((e >> ZBITS) & YZMASK));
 // bit    41/39..37    36..22     21..15     14..0
 // write     VYYYYY    VZZZZZ     UYYYYY     UZZZZ   within UX partition
       }
@@ -534,14 +483,14 @@ struct edgetrimmer {
 // bit   43..37    36..22     21..15     14..0
 // write UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition  if TRIMONV
         const u64 e = readbytes<SRCSIZE>(readbg); //  & SRCSLOTMASK;
-// bit            36...22     21..15     14..0
+// bit            37...22     21..15     14..0
 // write          VYYYZZ'     UYYYYY     UZZZZ   within UX partition  if !TRIMONV
         const u32 uyz = e >> YZBITS;
         const u32 vy = (e >> ZBITS) & YMASK;
 // bit    43..37    36..30     29..15     14..0
 // write  UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition  if TRIMONV
         dst.writebytes<SRCSIZE>(vy, ((u64)(ux << (TRIMONV ? YZBITS : YZ1BITS) | uyz) << ZBITS) | (e & ZMASK));
-// bit            36...30     29...15     14..0
+// bit            37...31     30...15     14..0
 // write          VXXXXXX     VYYYZZ'     UZZZZ   within UX UY partition  if !TRIMONV
       }
     }
@@ -574,7 +523,7 @@ struct edgetrimmer {
 // bit    43..37    36..30     29..15     14..0
 // read   UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition  if TRIMONV
         const u64 e = readbytes<SRCSIZE>(rd); //  & SRCSLOTMASK;
-// bit            36...30     29...15     14..0
+// bit            37...31     30...15     14..0
 // read           VXXXXXX     VYYYZZ'     UZZZZ   within UX UY partition  if !TRIMONV
         const u32 ux = e >> (TRIMONV ? YZZBITS : YZZ1BITS);
         const u32 vz = e & ZMASK;
@@ -590,7 +539,7 @@ struct edgetrimmer {
           }
           if (TRIMONV)
             dst.writebytes<DSTSIZE>(ux, ((u64)vdeg << YZBITS ) | ((e >> ZBITS) & YZMASK));
-// bit       36..22     21..15     14..0
+// bit       37..22     21..15     14..0
 // write     VYYZZ'     UYYYYY     UZZZZ   within UX partition  if TRIMONV
           else dst.write32(ux, (vdeg << YZ1BITS) | ((e >> ZBITS) & YZ1MASK));
         }
@@ -612,7 +561,7 @@ struct edgetrimmer {
         bigbuck &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
         u32 *readbg = zb.words, *endreadbg = readbg + zb.size/sizeof(u32);
         for (; readbg < endreadbg; readbg++)
-          degs.set(*readbg & YZ1MASK);
+          degs.set((*readbg >> (TRIMONV ? 0 : YZ1BITS)) & YZ1MASK);
       }
       __syncthreads();
       for (u32 ux = threadIdx.x ; ux < NX; ux += blockDim.x) {
@@ -621,13 +570,11 @@ struct edgetrimmer {
         u32 *write = readbg;
         for (; readbg < endreadbg; readbg++) {
           const u32 e = *readbg;
-// bit       29..23    22..15     14..8     7..0
-// read      UYYYYY    UZZZZ'     VYYYY     VZZ'   within VX partition
-          const u32 vyz = e & YZ1MASK;
+// bit       31...16     15....0
+// read      UYYZZZ'     VYYVZZ'   within VX partition
+          const u32 vyz = (e >> (TRIMONV ? 0 : YZ1BITS)) & YZ1MASK;
           if (degs.test(vyz))
-            *write++ = (vyz << YZ1BITS) | (e >> YZ1BITS);
-// bit       29..23    22..15     14..8     7..0
-// write     VYYYYY    VZZZZ'     UYYYY     UZZ'   within UX partition
+            *write++ = e;
         }
         zb.setsize((u8 *)write);
       }
@@ -638,10 +585,13 @@ struct edgetrimmer {
   template <bool TRIMONV>
   __device__ void trimrename3(const u32 round) {
     __shared__ twice_set<NYZ1> degs;
+    __shared__ u32 dstidx;
     const u32 NONAME = ~0;
 
+    smallbuck *bucks = (smallbuck *)tbuckets;
     u32 *names = tnames[blockIdx.x];
     for (u32 vx = blockIdx.x; vx < NY; vx += gridDim.x) {
+      u32 vx25 = vx << (YZ2BITS + XYZ2BITS);
       __syncthreads();
       for (u32 z = threadIdx.x; z < NYZ1; z += blockDim.x)
         names[z] = NONAME;
@@ -650,21 +600,22 @@ struct edgetrimmer {
       for (u32 ux = threadIdx.x; ux < NX; ux += blockDim.x) {
         bigbuck &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
         u32 *readbg = zb.words, *endreadbg = readbg + zb.size/sizeof(u32);
-        // printf("id %d vx %d ux %d size %d\n", blockIdx.x, vx, ux, zb.size/SRCSIZE);
         for (; readbg < endreadbg; readbg ++)
           degs.set(*readbg & YZ1MASK);
       }
       u32 nrenames = threadIdx.x;
+      smallbuck &vb = bucks[vx];
+      if (!TRIMONV && !threadIdx.x)
+        dstidx = 0;
       __syncthreads();
       for (u32 ux = threadIdx.x; ux < NX; ux += blockDim.x) {
         bigbuck &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
-        smallbuck &wb = ((smallbucks *)tbuckets)[vx][ux];
         u32 *readbg = zb.words, *endreadbg = readbg + zb.size/sizeof(u32);
-        u32 *write = TRIMONV ? readbg : wb.words;
+        u32 *write = readbg;
         for (; readbg < endreadbg; readbg ++) {
           const u32 e = *readbg;
-// bit       29...15     14...0
-// read      UYYYZZ'     VYYZZ'   within VX partition
+// bit      31...16     15...0
+// read     UYYYZZ'     VYYZZ'   within VX partition
           const u32 vyz = e & YZ1MASK;
           if (degs.test(vyz)) {
             u32 vdeg = atomicCAS(&names[vyz], NONAME, nrenames);
@@ -676,18 +627,22 @@ struct edgetrimmer {
                 buckets[vx][vdeg >> Z2BITS].renameu1[vdeg & Z2MASK] = vyz;
               nrenames += blockDim.x;
             }
-// bit       23...15     14...0
-// write     VYYZZZ"     UYYZZ'   within UX partition
-            if (!TRIMONV && write-wb.words >= Z2BUCKETSIZE/sizeof(u32)) {
-              printf("Dropped %d edges from ux %d vx %d\n", (u32)(endreadbg-readbg), ux, vx);
-              break;
+            if (TRIMONV) {
+              *write++ = (vdeg  << YZ1BITS) | (e >> YZ1BITS);
+// bit      24...16     15...0
+// write    VYYZZZ"     UYYZZ'   within UX partition
+	    } else {
+              vb.words[atomicAdd(&dstidx, 1)] = vx25 | (((vdeg << XBITS) | ux) << YZ2BITS) | (e >> YZ1BITS);
+// bit      31...16   15....0
+// write    UXXYYZZ"  VXXYYZZ"
             }
-            *write++ = (vdeg << (TRIMONV ? YZ1BITS : YZ2BITS)) | (e >> YZ1BITS);
           }
         }
-        if (TRIMONV) zb.setsize((u8 *)write); else wb.setsize((u8 *)write);
+        if (TRIMONV) zb.setsize((u8 *)write);
       }
       assert(nrenames < NYZ2);
+      __syncthreads();
+      if (!TRIMONV && !threadIdx.x) vb.setsize((u8 *)(vb.words+dstidx));
     }
   }
 
@@ -702,10 +657,8 @@ struct edgetrimmer {
       assert(uyz < NYZ1);
       vyz = buckets[(v1 >> Z2BITS) & YMASK][vx].renamev1[v1 & Z2MASK];
       assert(vyz < NYZ1);
-#if COMPRESSROUND > 0
       uyz = buckets[ux][uyz >> Z1BITS].renameu[uyz & Z1MASK];
       vyz = buckets[vyz >> Z1BITS][vx].renamev[vyz & Z1MASK];
-#endif
       u = (ux << YZBITS) | uyz;
       v = (vx << YZBITS) | vyz;
       uvnodes[2*blockIdx.x] = u;
@@ -811,11 +764,7 @@ __global__ void _recoveredges1(edgetrimmer *et) {
 #define EXPANDROUND 5
 #endif
 
-#if EXPANDROUND < COMPRESSROUND
 #define BIGGERSIZE BIGSIZE+1
-#else
-#define BIGGERSIZE BIGSIZE
-#endif
 
   void edgetrimmer::trim() {
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
@@ -882,11 +831,18 @@ __global__ void _recoveredges1(edgetrimmer *et) {
         printf("round %d size %u completed in %.0f ms\n", round+1, count(size_of), duration);
     }
 
+    cudaEventRecord(start, NULL);
     _trimrename3<true ><<<tp.nblocks,tp.rename3tpb>>>(dt, tp.ntrims-2);
-    checkCudaErrors(cudaDeviceSynchronize()); // cudaEventRecord(stop, NULL);
-
+    checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
+    cudaEventSynchronize(stop); cudaEventElapsedTime(&duration, start, stop);
+    if (tp.reportrounds)
+      printf("trimrename3 round %d size %u completed in %.0f ms\n", tp.ntrims-2, count(sizeof(u32)), duration);
+    cudaEventRecord(start, NULL);
     _trimrename3<false><<<tp.nblocks,tp.rename3tpb>>>(dt, tp.ntrims-1);
-    checkCudaErrors(cudaDeviceSynchronize()); // cudaEventRecord(stop, NULL);
+    checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
+    cudaEventSynchronize(stop); cudaEventElapsedTime(&duration, start, stop);
+    if (tp.reportrounds)
+      printf("trimrename3 round %d size %u completed in %.0f ms\n", tp.ntrims-1, count(sizeof(u32)), duration);
 
     cudaEventRecord(stopall, NULL); cudaEventSynchronize(stopall); cudaEventElapsedTime(&duration, startall, stopall);
     printf("trim completed in %.0f ms\n", duration);
@@ -901,18 +857,19 @@ int nonce_cmp(const void *a, const void *b) {
   return *(u32 *)a - *(u32 *)b;
 }
 
-class solver_ctx {
-public:
+struct solver_ctx {
   edgetrimmer *trimmer;
-  smallbucks *buckets;
+  smallbuck *buckets;
   u32 *cuckoo;
   u32 uvnodes[2*PROOFSIZE];
   std::bitset<NXY> uxymap;
   std::vector<u32> sols; // concatenation of all proof's indices
+  u32 us[MAXPATHLEN];
+  u32 vs[MAXPATHLEN];
 
   solver_ctx(const trimparams tp) {
     trimmer = new edgetrimmer(tp);
-    buckets = new smallbucks[NX];
+    buckets = new smallbuck[NX];
     cuckoo = new u32[CUCKOO_SIZE];
   }
   void setheadernonce(char* const headernonce, const u32 len, const u32 nonce) {
@@ -964,47 +921,43 @@ public:
     return nu-1;
   }
 
-  void findcycles() {
-    u32 us[MAXPATHLEN], vs[MAXPATHLEN];
-
-    checkCudaErrors(cudaMemcpy(buckets, trimmer->tbuckets, NX * sizeof(smallbucks), cudaMemcpyDeviceToHost));
-    memset(cuckoo, (int)CUCKOO_NIL, CUCKOO_SIZE * sizeof(u32));
-    u32 sumsize = 0;
-    for (u32 vx = 0; vx < NX; vx++) {
-      for (u32 ux = 0 ; ux < NX; ux++) {
-        smallbuck &zb = buckets[ux][vx];
-        u32 size = zb.size / sizeof(u32);
-        u32 *readbg = zb.words, *endreadbg = readbg + size;
-        sumsize += size;
-        for (; readbg < endreadbg; readbg++) {
-// bit        21..11     10...0
-// write      UYYZZZ'    VYYZZ'   within VX partition
-          const u32 e = *readbg;
-          const u32 uxyz = (ux << YZ2BITS) | (e >> YZ2BITS);
-          const u32 vxyz = (vx << YZ2BITS) | (e & YZ2MASK);
-          const u32 u0 = uxyz << 1, v0 = (vxyz << 1) | 1;
-          if (u0 != CUCKOO_NIL) {
-            u32 nu = path(u0, us), nv = path(v0, vs);
-// printf("vx %02x ux %02x e %08x uxyz %06x vxyz %06x u0 %x v0 %x nu %d nv %d\n", vx, ux, e, uxyz, vxyz, u0, v0, nu, nv);
-            if (us[nu] == vs[nv]) {
-              const u32 min = nu < nv ? nu : nv;
-              for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-              const u32 len = nu + nv + 1;
-              printf("%4d-cycle found\n", len);
-              if (len == PROOFSIZE)
-                solution(us, nu, vs, nv);
-            } else if (nu < nv) {
-              while (nu--)
-                cuckoo[us[nu+1]] = us[nu];
-              cuckoo[u0] = v0;
-            } else {
-              while (nv--)
-                cuckoo[vs[nv+1]] = vs[nv];
-              cuckoo[v0] = u0;
-            }
-          }
-        }
+  void addedge(u32 uxyz, u32 vxyz) {
+    const u32 u0 = uxyz << 1, v0 = (vxyz << 1) | 1;
+    if (u0 != CUCKOO_NIL) {
+      u32 nu = path(u0, us), nv = path(v0, vs);
+      // printf("vx %02x ux %02x e %08x uxyz %06x vxyz %06x u0 %x v0 %x nu %d nv %d\n", vx, ux, e, uxyz, vxyz, u0, v0, nu, nv);
+      if (us[nu] == vs[nv]) {
+        const u32 min = nu < nv ? nu : nv;
+        for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
+        const u32 len = nu + nv + 1;
+        printf("%4d-cycle found\n", len);
+        if (len == PROOFSIZE)
+          solution(us, nu, vs, nv);
+      } else if (nu < nv) {
+        while (nu--)
+          cuckoo[us[nu+1]] = us[nu];
+        cuckoo[u0] = v0;
+      } else {
+        while (nv--)
+          cuckoo[vs[nv+1]] = vs[nv];
+        cuckoo[v0] = u0;
       }
+    }
+  }
+
+  void findcycles() {
+    memset(cuckoo, (int)CUCKOO_NIL, CUCKOO_SIZE * sizeof(u32));
+    checkCudaErrors(cudaMemcpy(buckets, trimmer->tbuckets, NX * sizeof(smallbuck), cudaMemcpyDeviceToHost));
+    u32 sumsize = 0;
+    for (u32 ux = 0; ux < NX; ux++) {
+      smallbuck &zb = buckets[ux];
+      const u32 size = zb.size / sizeof(u32);
+      u32 *readbg = zb.words, *endreadbg = readbg + size;
+      for (; readbg < endreadbg; readbg++) {
+        const u32 e = *readbg;
+        addedge((XYZ2BITS <= 16 ? 0 : ux << YZ2BITS) | (e >> XYZ2BITS), e & XYZ2MASK);
+      }
+      sumsize += size;
     }
     printf("findcycles completed on %d edges\n", sumsize);
   }
@@ -1036,7 +989,7 @@ int main(int argc, char **argv) {
     switch (c) {
       case 's':
         printf("SYNOPSIS\n  cuda30 [-b sblocks] [-c count] [-d device] [-h hexheader] [-k rounds] [-m trims] [-n nonce] [-r range] [-U sblocks] [-u threads] [-V threads] [-v threads] [-T threads] [-t threads] [-X threads] [-x threads] [-Y threads] [-y threads] [-Z threads] [-z threads]\n");
-        printf("DEFAULTS\n  cuda30 -b %d -c %d -d %d -h \"\" -k %d -m %d -n %d -r %d -U %d -u %d -V %d -v %d -T %d -t %d -X %d -x %d -Y %d -y 128 -Z 64 -z 2\n", tp.nblocks, tp.reportcount, device, tp.reportrounds, tp.ntrims, nonce, range, tp.genUblocks, tp.genUtpb, tp.genV.stage1tpb, tp.genV.stage2tpb, tp.trim.stage1tpb, tp.trim.stage2tpb, tp.rename[0].stage1tpb, tp.rename[0].stage2tpb, tp.rename[1].stage1tpb, tp.rename[1].stage1tpb, tp.trim3tpb, tp.rename3tpb);
+        printf("DEFAULTS\n  cuda30 -b %d -c %d -d %d -h \"\" -k %d -m %d -n %d -r %d -U %d -u %d -V %d -v %d -T %d -t %d -X %d -x %d -Y %d -y %d -Z %d -z %d\n", tp.nblocks, tp.reportcount, device, tp.reportrounds, tp.ntrims, nonce, range, tp.genUblocks, tp.genUtpb, tp.genV.stage1tpb, tp.genV.stage2tpb, tp.trim.stage1tpb, tp.trim.stage2tpb, tp.rename[0].stage1tpb, tp.rename[0].stage2tpb, tp.rename[1].stage1tpb, tp.rename[1].stage2tpb, tp.trim3tpb, tp.rename3tpb);
         exit(0);
       case 'b':
         tp.nblocks = atoi(optarg);
