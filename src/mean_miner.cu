@@ -236,7 +236,7 @@ struct trimparams {
     rename[1].stage1tpb =  32;
     rename[1].stage2tpb = 128;
     trim3tpb            =  64;
-    rename3tpb          =  16;
+    rename3tpb          =   8;
     reportcount         =   1;
     reportrounds        =   0;
   }
