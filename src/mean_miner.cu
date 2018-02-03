@@ -223,7 +223,7 @@ struct trimparams {
   u16 reportrounds;
   
   trimparams() {
-    ntrims              = 224;
+    ntrims              = 240;
     nblocks             =  64;
     genUblocks          = 256;
     genUtpb             =   8;
