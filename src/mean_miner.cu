@@ -770,7 +770,6 @@ __global__ void _recoveredges1(edgetrimmer *et) {
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
     cudaEvent_t start, stop, startall, stopall;
     checkCudaErrors(cudaEventCreate(&startall)); checkCudaErrors(cudaEventCreate(&stopall));
-    cudaEventRecord(startall, NULL);
     checkCudaErrors(cudaEventCreate(&start)); checkCudaErrors(cudaEventCreate(&stop));
     float duration;
     cudaEventRecord(start, NULL);
@@ -821,6 +820,7 @@ __global__ void _recoveredges1(edgetrimmer *et) {
       } else if (round==COMPRESSROUND) {
         _trimrename<BIGGERSIZE, sizeof(u32), false>(dt, round+1);
         size_of = sizeof(u32);
+        cudaEventRecord(startall, NULL);
       } else {
         _trimedges3<false><<<tp.nblocks,tp.trim3tpb>>>(dt, round+1);
         size_of = sizeof(u32);
@@ -830,6 +830,10 @@ __global__ void _recoveredges1(edgetrimmer *et) {
       if (round+1 < tp.reportrounds)
         printf("round %d size %u completed in %.0f ms\n", round+1, count(size_of), duration);
     }
+
+    cudaEventRecord(stopall, NULL); cudaEventSynchronize(stopall); cudaEventElapsedTime(&duration, startall, stopall);
+    if (tp.reportrounds)
+      printf("rounds %d through %d completed in %.0f ms\n", COMPRESSROUND+2, tp.ntrims-3, duration);
 
     cudaEventRecord(start, NULL);
     _trimrename3<true ><<<tp.nblocks,tp.rename3tpb>>>(dt, tp.ntrims-2);
@@ -844,8 +848,6 @@ __global__ void _recoveredges1(edgetrimmer *et) {
     if (tp.reportrounds)
       printf("trimrename3 round %d size %u completed in %.0f ms\n", tp.ntrims-1, count(sizeof(u32)), duration);
 
-    cudaEventRecord(stopall, NULL); cudaEventSynchronize(stopall); cudaEventElapsedTime(&duration, startall, stopall);
-    printf("trim completed in %.0f ms\n", duration);
   }
 
 #define NODEBITS (EDGEBITS + 1)
