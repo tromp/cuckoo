@@ -27,7 +27,7 @@ class Edge {
 }
 
 public class Cuckoo {
-  public static final int EDGEBITS = 16;
+  public static final int EDGEBITS = 19;
   public static final int NEDGES = 1 << EDGEBITS;
   public static final int NODEBITS = EDGEBITS + 1;
   public static final int NNODES = 1 << NODEBITS;
@@ -50,8 +50,7 @@ public class Cuckoo {
   public Cuckoo(byte[] header) {
     byte[] hdrkey;
     try {
-      Blake2b mac = Blake2b.Mac.newInstance("LOVE".getBytes());
-      hdrkey = mac.digest(header());
+      hdrkey = MessageDigest.getInstance("SHA-256").digest(header);
       v[0] = u8to64(hdrkey, 0);
       v[1] = u8to64(hdrkey, 8);
       v[2] = u8to64(hdrkey, 16);
