@@ -92,11 +92,12 @@ To see a synopsis of all possible options, run:
 
     $ ./cuda30 -s
     SYNOPSIS
-      cuda30 [-b sblocks] [-c count] [-d device] [-h hexheader] [-k rounds] [-m trims] [-n nonce] [-r range] [-U sblocks] [-u threads] [-V threads] [-v threads] [-T threads] [-t threads] [-X threads] [-x threads] [-Y threads] [-y threads] [-Z threads] [-z threads]
+      cuda30 [-b blocks] [-c count] [-d device] [-h hexheader] [-k rounds] [-m trims] [-n nonce] [-r range] [-U blocks] [-u threads] [-V threads] [-v threads] [-T threads] [-t threads] [-X threads] [-x threads] [-Y threads] [-y threads] [-Z threads] [-z threads]
     DEFAULTS
       cuda30 -b 64 -c 1 -d 0 -h "" -k 0 -m 240 -n 0 -r 1 -U 256 -u 8 -V 32 -v 128 -T 32 -t 128 -X 32 -x 64 -Y 32 -y 128 -Z 64 -z 16
 
-Ok, we're not gonna explain all of those here. Most of them are for shaping the GPU's thread parallellism in the various edge generation and trimming rounds.
+Most of these are for shaping the GPU's thread parallellism in the various edge generation and trimming rounds. 
+A detailed discussion of these can be found in this [tuning guide](https://github.com/tromp/cuckoo/blob/master/GPU_tuning.md)
 
 Here's a run that uncovers a solution:
 

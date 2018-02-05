@@ -224,8 +224,8 @@ struct trimparams {
   
   trimparams() {
     ntrims              = 240;
-    nblocks             =  64;
-    genUblocks          = 256;
+    nblocks             = 128;
+    genUblocks          = 128;
     genUtpb             =   8;
     genV.stage1tpb      =  32;
     genV.stage2tpb      = 128;
@@ -235,7 +235,7 @@ struct trimparams {
     rename[0].stage2tpb =  64;
     rename[1].stage1tpb =  32;
     rename[1].stage2tpb = 128;
-    trim3tpb            =  64;
+    trim3tpb            =  32;
     rename3tpb          =   8;
     reportcount         =   1;
     reportrounds        =   0;
@@ -990,8 +990,8 @@ int main(int argc, char **argv) {
   while ((c = getopt(argc, argv, "sb:c:d:h:k:m:n:r:U:u:V:v:T:t:X:x:Y:y:Z:z:")) != -1) {
     switch (c) {
       case 's':
-        printf("SYNOPSIS\n  cuda30 [-b sblocks] [-c count] [-d device] [-h hexheader] [-k rounds] [-m trims] [-n nonce] [-r range] [-U sblocks] [-u threads] [-V threads] [-v threads] [-T threads] [-t threads] [-X threads] [-x threads] [-Y threads] [-y threads] [-Z threads] [-z threads]\n");
-        printf("DEFAULTS\n  cuda30 -b %d -c %d -d %d -h \"\" -k %d -m %d -n %d -r %d -U %d -u %d -V %d -v %d -T %d -t %d -X %d -x %d -Y %d -y %d -Z %d -z %d\n", tp.nblocks, tp.reportcount, device, tp.reportrounds, tp.ntrims, nonce, range, tp.genUblocks, tp.genUtpb, tp.genV.stage1tpb, tp.genV.stage2tpb, tp.trim.stage1tpb, tp.trim.stage2tpb, tp.rename[0].stage1tpb, tp.rename[0].stage2tpb, tp.rename[1].stage1tpb, tp.rename[1].stage2tpb, tp.trim3tpb, tp.rename3tpb);
+        printf("SYNOPSIS\n  cuda30 [-b blocks] [-d device] [-h hexheader] [-k rounds [-c count]] [-m trims] [-n nonce] [-r range] [-U blocks] [-u threads] [-V threads] [-v threads] [-T threads] [-t threads] [-X threads] [-x threads] [-Y threads] [-y threads] [-Z threads] [-z threads]\n");
+        printf("DEFAULTS\n  cuda30 -b %d -d %d -h \"\" -k %d -c %d -m %d -n %d -r %d -U %d -u %d -V %d -v %d -T %d -t %d -X %d -x %d -Y %d -y %d -Z %d -z %d\n", tp.nblocks, device, tp.reportrounds, tp.reportcount, tp.ntrims, nonce, range, tp.genUblocks, tp.genUtpb, tp.genV.stage1tpb, tp.genV.stage2tpb, tp.trim.stage1tpb, tp.trim.stage2tpb, tp.rename[0].stage1tpb, tp.rename[0].stage2tpb, tp.rename[1].stage1tpb, tp.rename[1].stage2tpb, tp.trim3tpb, tp.rename3tpb);
         exit(0);
       case 'b':
         tp.nblocks = atoi(optarg);
@@ -1009,7 +1009,7 @@ int main(int argc, char **argv) {
         len = strlen(optarg)/2;
         assert(len <= sizeof(header));
         for (u32 i=0; i<len; i++)
-          sscanf(optarg+2*i, "%2hhx", header+i);
+          sscanf(optarg+2*i, "%2hhx", header+i); // hh specifies storage of a single byte
         break;
       case 'n':
         nonce = atoi(optarg);
