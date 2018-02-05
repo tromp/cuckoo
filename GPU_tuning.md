@@ -204,7 +204,7 @@ Preferrably a 2-power. Here's the effect on genVnodes times:
 
 tpb |    1 |   2 |   4 |   8 |  16 |  32 |  64 | 128 | 256 |   512
 --- | ---- | --- | --- | --- | --- | --- | --- | --- | --- | -----
- | 1124 | 707 | 517 | 414 | 326 | 285 | 291 | 304 | 336 | CRASH
+ ms | 1124 | 707 | 517 | 414 | 326 | 285 | 291 | 304 | 336 | CRASH
 
 -v threads
 ------------
@@ -213,7 +213,7 @@ Need not be a 2-power. Here's the effect on genVnodes times:
 
 tpb |    4 |   8 |  16 |  32 |  64 | 128 | 256 | 512 | 1024 |  2048
 --- | ---- | --- | --- | --- | --- | --- | --- | --- | ---- | -----
- | 1135 | 711 | 558 | 347 | 295 | 286 | 291 | 313 |  290 | CRASH
+ ms | 1135 | 711 | 558 | 347 | 295 | 286 | 291 | 313 |  290 | CRASH
 
 -T threads
 ------------
@@ -222,7 +222,7 @@ Preferrably a 2-power. Here's the effect on round 2 times:
 
 tpb |   1 |   2 |   4 |   8 |  16 |  32 |    64
 --- | --- | --- | --- | --- | --- | --- | -----
- | 668 | 403 | 277 | 196 | 139 | 131 | CRASH
+ ms | 668 | 403 | 277 | 196 | 139 | 131 | CRASH
 
 -t threads
 ------------
@@ -231,7 +231,7 @@ Need not be a 2-power. Here's the effect on round 2 times:
 
 tpb |   4 |   8 |  16 |  32 |  64 |  96 | 128 |   192
 --- | --- | --- | --- | --- | --- | --- | --- | -----
- | 596 | 380 | 247 | 180 | 147 | 136 | 131 | CRASH
+ ms | 596 | 380 | 247 | 180 | 147 | 136 | 131 | CRASH
 
 -X threads
 ------------
@@ -240,7 +240,7 @@ Preferrably a 2-power. Here's the effect on round 10 times:
 
 tpb |  1 |   2 |   4 |   8 |  16 |  32 |  64 | 128 | 256 | 512 |  1024
 --- | -- | --- | --- | --- | --- | --- | --- | --- | --- | --- | -----
- | 59 |  45 |  39 |  32 |  31 |  31 |  31 |  31 |  32 |  34 | CRASH
+ ms | 59 |  45 |  39 |  32 |  31 |  31 |  31 |  31 |  32 |  34 | CRASH
 
 -x threads
 ------------
@@ -249,7 +249,7 @@ Need not be a 2-power. Here's the effect on round 10 times:
 
 tpb |  4 |  8 | 16 | 32 | 64 |    96
 --- | -- | -- | -- | -- | -- | -----
- | 84 | 50 | 31 | 31 | 31 | CRASH
+ ms | 84 | 50 | 31 | 31 | 31 | CRASH
 
 -Y threads
 ------------
@@ -258,7 +258,7 @@ Preferrably a 2-power. Here's the effect on round 11 times:
 
 tpb |  1 |   2 |   4 |   8 |  16 |  32 |  64 | 128 | 256 |   512
 --- | -- | --- | --- | --- | --- | --- | --- | --- | --- | -----
- | 50 |  39 |  34 |  30 |  27 |  27 |  27 |  27 |  29 | CRASH
+ ms | 50 |  39 |  34 |  30 |  27 |  27 |  27 |  27 |  29 | CRASH
 
 -y threads
 ------------
@@ -267,7 +267,7 @@ Need not be a 2-power. Here's the effect on round 11 times:
 
 tpb |  4 |  8 | 16 | 32 | 64 | 128 | 192 | 256 |   384
 --- | -- | -- | -- | -- | -- | --- | --- | --- | -----
- | 75 | 44 | 27 | 27 | 27 |  27 |  27 |  26 | CRASH
+ ms | 75 | 44 | 27 | 27 | 27 |  27 |  27 |  26 | CRASH
 
 -Z threads
 ------------
@@ -276,7 +276,7 @@ Preferrably a 2-power. Here's the effect on round 12-237 times:
 
 tpb |   4 |   8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 |  2048
 --- | --- | --- | -- | -- | -- | --- | --- | --- | ---- | -----
- | 186 | 112 | 68 | 52 | 54 | 102 | 102 | 109 |   71 | CRASH
+ ms | 186 | 112 | 68 | 52 | 54 | 102 | 102 | 109 |   71 | CRASH
 
 -z threads
 ------------
@@ -285,6 +285,6 @@ Preferrably a 2-power. Here's the lack of effect on round 238 times:
 
 tpb | 1 | 2 | 4 | 8 | 16 |    32
 --- | - | - | - | - | -- | -----
- | 0 | 0 | 0 | 0 |  0 | CRASH
+ ms | 0 | 0 | 0 | 0 |  0 | CRASH
 
 Happy tuning!
