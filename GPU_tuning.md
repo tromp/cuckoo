@@ -16,10 +16,10 @@ The number of threadblocks to use, which should be a 2-power between 1 and 128. 
 Each block requires its own 21MB memory buffer. Here's how memory (in MB) and graph times in (ms)
 vary with different blocks on an NVIDIA 1080 Ti
 
-      |     1 |     2 |    4 |    8 |   16 |   32 |   64 |  128
-------|-------|-------|------|------|------|------|------|-----
-Memory|  2701 |  2722 | 2764 | 2849 | 3019 | 3358 | 4036 | 5392
-Time  | 30510 | 15545 | 7912 | 4120 | 2230 | 1359 | 1012 |  968
+       |     1 |     2 |    4 |    8 |   16 |   32 |   64 |  128
+-----  | ----- | ----- | ---- | ---- | ---- | ---- | ---- | ----
+Memory |  2701 |  2722 | 2764 | 2849 | 3019 | 3358 | 4036 | 5392
+Time   | 30510 | 15545 | 7912 | 4120 | 2230 | 1359 | 1012 |  968
 
 So we can achieve subsecond times by using over 5GB. On the other hand,
 a GPU with only 3GB is restricted to 16 thread blocks and is not even half as fast.
@@ -190,7 +190,7 @@ arbitrarily many threadblocks. Here's a table of genUnodes times with various
 combinations of blocks and threads per block (tpb):
 
 tpb\blocks |     4 |    8 |   16 |   32 |  64 | 128 | 256 | 512
------------|-------|------|------|------|-----|-----|-----|----
+---------- | ----- | ---- | ---- | ---- | --- | --- | --- | ---
         4  | 11274 | 5638 | 2819 | 1408 | 745 | 395 | 395 | 396
         8  |  5936 | 2949 | 1465 |  736 | 419 | 256 | 255 | 256
        16  |  3416 | 1719 |  855 |  496 | 269 | 303 | 304 | 301
@@ -203,7 +203,7 @@ The number of threads per block to use in stage 1 of round 1. Default 32.
 Preferrably a 2-power. Here's the effect on genVnodes times:
 
 tpb |    1 |   2 |   4 |   8 |  16 |  32 |  64 | 128 | 256 |   512
-----|------|-----|-----|-----|-----|-----|-----|-----|-----|------
+--- | ---- | --- | --- | --- | --- | --- | --- | --- | --- | -----
     | 1124 | 707 | 517 | 414 | 326 | 285 | 291 | 304 | 336 | CRASH
 
 -v threads
@@ -212,7 +212,7 @@ The number of threads per block to use in stage 2 of round 1. Default 128.
 Need not be a 2-power. Here's the effect on genVnodes times:
 
 tpb |    4 |   8 |  16 |  32 |  64 | 128 | 256 | 512 | 1024 |  2048
-----|------|-----|-----|-----|-----|-----|-----|-----|------|------
+--- | ---- | --- | --- | --- | --- | --- | --- | --- | ---- | -----
     | 1135 | 711 | 558 | 347 | 295 | 286 | 291 | 313 |  290 | CRASH
 
 -T threads
@@ -221,7 +221,7 @@ The number of threads per block to use in stage 1 of rounds 2-9. Default 32.
 Preferrably a 2-power. Here's the effect on round 2 times:
 
 tpb |   1 |   2 |   4 |   8 |  16 |  32 |    64
-----|-----|-----|-----|-----|-----|-----|------
+--- | --- | --- | --- | --- | --- | --- | -----
     | 668 | 403 | 277 | 196 | 139 | 131 | CRASH
 
 -t threads
@@ -230,7 +230,7 @@ The number of threads per block to use in stage 2 of rounds 2-9. Default 128.
 Need not be a 2-power. Here's the effect on round 2 times:
 
 tpb |   4 |   8 |  16 |  32 |  64 |  96 | 128 |   192
-----|-----|-----|-----|-----|-----|-----|-----|------
+--- | --- | --- | --- | --- | --- | --- | --- | -----
     | 596 | 380 | 247 | 180 | 147 | 136 | 131 | CRASH
 
 -X threads
@@ -239,7 +239,7 @@ The number of threads per block to use in stage 1 of renaming round 10. Default 
 Preferrably a 2-power. Here's the effect on round 10 times:
 
 tpb |  1 |   2 |   4 |   8 |  16 |  32 |  64 | 128 | 256 | 512 |  1024
-----|----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------
+--- | -- | --- | --- | --- | --- | --- | --- | --- | --- | --- | -----
     | 59 |  45 |  39 |  32 |  31 |  31 |  31 |  31 |  32 |  34 | CRASH
 
 -x threads
@@ -248,7 +248,7 @@ The number of threads per block to use in stage 2 of renaming round 10. Default 
 Need not be a 2-power. Here's the effect on round 10 times:
 
 tpb |  4 |  8 | 16 | 32 | 64 |    96
-----|----|----|----|----|----|------
+--- | -- | -- | -- | -- | -- | -----
     | 84 | 50 | 31 | 31 | 31 | CRASH
 
 -Y threads
@@ -257,7 +257,7 @@ The number of threads per block to use in stage 1 of renaming round 11. Default 
 Preferrably a 2-power. Here's the effect on round 11 times:
 
 tpb |  1 |   2 |   4 |   8 |  16 |  32 |  64 | 128 | 256 |   512
-----|----|-----|-----|-----|-----|-----|-----|-----|-----|------
+--- | -- | --- | --- | --- | --- | --- | --- | --- | --- | -----
     | 50 |  39 |  34 |  30 |  27 |  27 |  27 |  27 |  29 | CRASH
 
 -y threads
@@ -266,7 +266,7 @@ The number of threads per block to use in stage 2 of renaming round 11. Default 
 Need not be a 2-power. Here's the effect on round 11 times:
 
 tpb |  4 |  8 | 16 | 32 | 64 | 128 | 192 | 256 |   384
-----|----|----|----|----|----|-----|-----|-----|------
+--- | -- | -- | -- | -- | -- | --- | --- | --- | -----
     | 75 | 44 | 27 | 27 | 27 |  27 |  27 |  26 | CRASH
 
 -Z threads
@@ -275,7 +275,7 @@ The number of threads per block to use in rounds 12..ntrims-3. Default 32.
 Preferrably a 2-power. Here's the effect on round 12-237 times:
 
 tpb |   4 |   8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 |  2048
-----|-----|-----|----|----|----|-----|-----|-----|------|------
+--- | --- | --- | -- | -- | -- | --- | --- | --- | ---- | -----
     | 186 | 112 | 68 | 52 | 54 | 102 | 102 | 109 |   71 | CRASH
 
 -z threads
@@ -284,7 +284,7 @@ The number of threads per block to use in the final two renaming rounds. Default
 Preferrably a 2-power. Here's the lack of effect on round 238 times:
 
 tpb | 1 | 2 | 4 | 8 | 16 |    32
-----|---|---|---|---|----|------
+--- | - | - | - | - | -- | -----
     | 0 | 0 | 0 | 0 |  0 | CRASH
 
 Hapyy tuning!
