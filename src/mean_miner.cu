@@ -404,6 +404,7 @@ struct edgetrimmer {
     const u32 vx = blockIdx.x + part * gridDim.x;
     dst.matrixu(blockIdx.x);
     for (u32 ux = 0; ux < NX; ux++) {
+      __syncthreads();
       u32 uyz = 0;
       bigbuck &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
       const u8 *readbg = zb.bytes, *endreadbg = readbg + zb.size;
@@ -424,6 +425,7 @@ struct edgetrimmer {
       if (unlikely(uyz >> ZBITS >= NY))
       { printf("OOPS3: id %d vx %d ux %d uyz %x\n", blockIdx.x, vx, ux, uyz); break; }
     }
+    __syncthreads();
     dst.storeu(blockIdx.x);
   }
 
@@ -464,7 +466,7 @@ struct edgetrimmer {
       }
       __syncthreads();
       if (unlikely(ux >> DSTPREFBITS != XMASK >> DSTPREFBITS))
-      { printf("OOPS4: id %d.%d vx %x ux %x vs %x\n", blockIdx.x, threadIdx.x, vx, ux, XMASK); }
+      { printf("OOPS4: id %d.%d vx %x ux %x vs %x\n", blockIdx.x, threadIdx.x, vx, ux, XMASK); assert(0); }
     }
     TRIMONV ? dst.storev(vx) : dst.storeu(vx);
   }
@@ -477,6 +479,7 @@ struct edgetrimmer {
     const u32 vx = blockIdx.x + part * gridDim.x;
     dst.matrixu(blockIdx.x);
     for (u32 ux = 0 ; ux < NX; ux++) {
+      __syncthreads();
       bigbuck &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
       const u8 *readbg = zb.bytes, *endreadbg = readbg + zb.size;
       for (readbg += SRCSIZE*threadIdx.x; readbg < endreadbg; readbg += SRCSIZE*blockDim.x) {
@@ -494,6 +497,7 @@ struct edgetrimmer {
 // write          VXXXXXX     VYYYZZ'     UZZZZ   within UX UY partition  if !TRIMONV
       }
     }
+      __syncthreads();
     dst.storeu(blockIdx.x);
   }
 
@@ -1064,6 +1068,17 @@ int main(int argc, char **argv) {
   assert(device < nDevices);
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
+  assert(tp.genUtpb <= prop.maxThreadsPerBlock);
+  assert(tp.genV.stage1tpb <= prop.maxThreadsPerBlock);
+  assert(tp.genV.stage2tpb <= prop.maxThreadsPerBlock);
+  assert(tp.trim.stage1tpb <= prop.maxThreadsPerBlock);
+  assert(tp.trim.stage2tpb <= prop.maxThreadsPerBlock);
+  assert(tp.rename[0].stage1tpb <= prop.maxThreadsPerBlock);
+  assert(tp.rename[0].stage2tpb <= prop.maxThreadsPerBlock);
+  assert(tp.rename[1].stage1tpb <= prop.maxThreadsPerBlock);
+  assert(tp.rename[1].stage2tpb <= prop.maxThreadsPerBlock);
+  assert(tp.trim3tpb <= prop.maxThreadsPerBlock);
+  assert(tp.rename3tpb <= prop.maxThreadsPerBlock);
   u64 dbytes = prop.totalGlobalMem;
   int dunit;
   for (dunit=0; dbytes >= 10240; dbytes>>=10,dunit++) ;
