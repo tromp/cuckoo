@@ -131,10 +131,11 @@ Happy bounty hunting!
  
 How to build
 --------------
+<pre>
 cd src
+export LD_LIBRARY_PATH="$PWD:LD_LIBRARY_PATH"
 make
-
-Note the instructions for setting LD_LIBRARY_PATH
+</pre>
 
 Bounty contributors
 -------------------
