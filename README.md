@@ -129,6 +129,13 @@ Note that 2^0.1 is about a 7% improvement.
 
 Happy bounty hunting!
  
+How to build
+--------------
+cd src
+make
+
+Note the instructions for setting LD_LIBRARY_PATH
+
 Bounty contributors
 -------------------
 

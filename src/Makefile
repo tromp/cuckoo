@@ -105,10 +105,10 @@ mean30sx1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES -DNSIPHASH=1 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
 demo30x8:	mean30sx8
-	time ./mean30sx8 -n 63
+	./mean30sx8 -n 63
 
 demo30x1:	mean30sx1
-	time ./mean30sx1 -n 63
+	./mean30sx1 -n 63
 
 mean32x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DEXPANDROUND=8 -DCOMPRESSROUND=22 -DXBITS=8 -DNSIPHASH=8 -DEDGEBITS=31 mean_miner.cpp $(LIBS)
