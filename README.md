@@ -35,31 +35,33 @@ accessing random 2-bit counters, making it memory latency bound.  The roughly
 4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
 uses 33 bits per edge and is bottlenecked by bucket sorting. making it memory bandwidth bound.
 
-ASICs
+ASIC-resistant
 --------------
-The most cost effective Cuckoo Cycle mining hardware could consist of a relatively cheap and tiny ASIC
-containing a few dozen simple cores and memory controllers, coupled with 3D-stacked DRAM using
-the <a href="https://en.wikipedia.org/wiki/High_Bandwidth_Memory">High Bandwidth Memory</a> interface.
-The ASIC, running the faster bandwidth bound solver, wouldn't be very compute intensive.
-Since it only needs to keep the memory bandwidth saturated, its optimization would soon reach a point of
-diminishing returns. The hardware and energy costs will be dominated by the memory chips,
+Cuckoo Cycle strongly resists single-chip ASICs due to the sheer memory requirements.
+Such ASICs are indesirable both because they raise the barrier to entry, and because
+single purpose hardware is rendered useless once surpassed in efficiency.
+
+ASIC-friendly
+--------------
+The most cost effective Cuckoo Cycle mining hardware consists of a relatively cheap and tiny Cuckoo ASIC
+containing a few dozen simple cores and memory controllers, coupled with dozens of memory ASICs.
+The Cuckoo ASIC, running the bandwidth bound solver, wouldn't be very compute intensive.
+Since its purpose is limited to saturating the memory bandwidth, its optimization would soon reach a point of
+diminishing returns. The hardware and energy costs will be dominated by the memory ASICs,
 which the commodity DRAM market is already constantly optimizing.
-Although running the memory efficient latency bound solver would allow for processing many graph
-instances simultaneously, the induced latencies would multiply and overall throughput remain lower.
-Unless, that is, a new kind of RAM were developed that is much more cost efficient for random accesses.
+Moreover, the memory ASICs remain useful once surpassed in efficiency.
+
+There is a huge installed and exapanding base of memory ASICs, which need only the minor
+addition of a Cuckoo ASIC to become somewhat efficient Cuckoo miners. If added to phones, then
+mining while charging overnight could become attractive, either as a way to pay for internet access,
+or to obtain small amounts of currency without the hassle of establishing credentials at exchanges.
+
+Although running the latency bound solver requires an order of magnitude less memory,
+current low-latency memory ASICs such as RLDRAM3 and QDR-IV SRAM are over an order of magnitude more expensive.
 
 An indirectly useful Proof of Work
 --------------
-Traditional DRAM architectures are ill-suited for energy-efficient operation because
-they are designed to fetch much more data than required, having long been optimized for cost-per-bit
-rather than energy efficiency.
-Thus there is enormous energy savings potential in the development of more efficient DRAM designs.
-Papers like
-<a href="https://www.cs.utah.edu/~rajeev/pubs/isca10.pdf">Rethinking DRAM design and organization for energy-constrained multi-cores</a> and
-<a href="http://mbsullivan.info/attachments/papers/yoon2012dgms.pdf">The Dynamic Granularity Memory System</a>
-have proposed several sensible and promising designs with large energy efficiency improvements.
-If any such designs could demonstrate a throughput/Watt benefit for latency bound solving,
-then Cuckoo Cycle could strongly incentivize their development.
+Cuckoo Cycle provides strong incentives to making low-latency memory more affordable, which benefits many applications beyond mining.
 
 Cycle finding
 --------------
