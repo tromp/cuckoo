@@ -37,8 +37,8 @@ uses 33 bits per edge and is bottlenecked by bucket sorting. making it memory ba
 
 ASIC-resistant
 --------------
-Cuckoo Cycle strongly resists single-chip ASICs due to the sheer memory requirements.
-Such ASICs are indesirable both because they raise the barrier to entry, and because
+Cuckoo Cycle strongly resists single-chip ASICs due to its large memory requirements.
+Such ASICs are undesirable, both because they raise the barrier to entry, and because
 single purpose hardware is rendered useless once surpassed in efficiency.
 
 ASIC-friendly
