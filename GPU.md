@@ -56,7 +56,7 @@ Here's a typical solver run:
 
     $ ./cuda30 -r 2
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
-    Looking for 42-cycle on cuckoo30("",0-1) with 50% edges, 128*128 buckets, 240 trims, and 128 thread blocks.
+    Looking for 42-cycle on cuckoo30("",0-1) with 50% edges, 128*128 buckets, 256 trims, and 128 thread blocks.
     Using 2680MB bucket memory and 21MB memory per thread block (5392MB total)
     nonce 0 k0 k1 k2 k3 a34c6a2bdaa03a14 d736650ae53eee9e 9a22f05e3bffed5e b8d55478fa3a606d
        4-cycle found
@@ -82,7 +82,7 @@ bit key for the siphash function which generates the half-billion graph edges.
 This key is shown after each nonce as four 64-bit hexadecimal numbers. The GPU is
 responsible for generating all edges and then trimming the majority of
 them away for clearly not being part of any cycle. After a default number of
-240 trimming rounds, only about 1 in every 13450 edges survives, and the
+256 trimming rounds, only about 1 in every 13450 edges survives, and the
 remaining 37000 or so edges are sent back to the CPU for cycle finding, using a an
 algorithm inspired by Cuckoo Hashing (which is where the name derives from).
 
@@ -92,7 +92,7 @@ To see a synopsis of all possible options, run:
     SYNOPSIS
       cuda30 [-b blocks] [-d device] [-h hexheader] [-k rounds [-c count]] [-m trims] [-n nonce] [-r range] [-U blocks] [-u threads] [-V threads] [-v threads] [-T threads] [-t threads] [-X threads] [-x threads] [-Y threads] [-y threads] [-Z threads] [-z threads]
     DEFAULTS
-      cuda30 -b 128 -d 0 -h "" -k 0 -c 1 -m 240 -n 0 -r 1 -U 128 -u 8 -V 32 -v 128 -T 32 -t 128 -X 32 -x 64 -Y 32 -y 128 -Z 32 -z 8
+      cuda30 -b 128 -d 0 -h "" -k 0 -c 1 -m 256 -n 0 -r 1 -U 128 -u 8 -V 32 -v 128 -T 32 -t 128 -X 32 -x 64 -Y 32 -y 128 -Z 32 -z 8
 
 
 Most of these are for shaping the GPU's thread parallellism in the various edge generation and trimming rounds. 
@@ -102,7 +102,7 @@ Here's a run that uncovers a solution:
 
     $ ./cuda30 -n 60 -r 4
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
-    Looking for 42-cycle on cuckoo30("",60-63) with 50% edges, 128*128 buckets, 240 trims, and 128 thread blocks.
+    Looking for 42-cycle on cuckoo30("",60-63) with 50% edges, 128*128 buckets, 256 trims, and 128 thread blocks.
     Using 2680MB bucket memory and 21MB memory per thread block (5392MB total)
     nonce 60 k0 k1 k2 k3 275f9313c78adcec c3dc47d972920e25 41f8c5d51abbf1e7 74da5cc5b52b2a0b
        6-cycle found

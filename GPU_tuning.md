@@ -6,7 +6,7 @@ Recall the solver options:
     SYNOPSIS
       cuda30 [-b blocks] [-d device] [-h hexheader] [-k rounds [-c count]] [-m trims] [-n nonce] [-r range] [-U blocks] [-u threads] [-V threads] [-v threads] [-T threads] [-t threads] [-X threads] [-x threads] [-Y threads] [-y threads] [-Z threads] [-z threads]
     DEFAULTS
-      cuda30 -b 128 -d 0 -h "" -k 0 -c 1 -m 240 -n 0 -r 1 -U 128 -u 8 -V 32 -v 128 -T 32 -t 128 -X 32 -x 64 -Y 32 -y 128 -Z 32 -z 8
+      cuda30 -b 128 -d 0 -h "" -k 0 -c 1 -m 256 -n 0 -r 1 -U 128 -u 8 -V 32 -v 128 -T 32 -t 128 -X 32 -x 64 -Y 32 -y 128 -Z 32 -z 8
 
 Let's look at each of these in turn.
 
@@ -40,12 +40,12 @@ For example,
 
     $ ./cuda30 -h "DEADBEEF" | head -2
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
-    Looking for 42-cycle on cuckoo30("ޭ??",0) with 50% edges, 128*128 buckets, 240 trims, and 128 thread blocks.
+    Looking for 42-cycle on cuckoo30("ޭ??",0) with 50% edges, 128*128 buckets, 256 trims, and 128 thread blocks.
 
     $ ./cuda30 -h "444541440A42454546" | head -3
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("DEAD
-    BEEF",0) with 50% edges, 128*128 buckets, 240 trims, and 128 thread blocks.
+    BEEF",0) with 50% edges, 128*128 buckets, 256 trims, and 128 thread blocks.
 
 -k rounds [-c counts]
 ------------
@@ -70,14 +70,14 @@ For example:
     round 13 size 542 completed in 2 ms
     round 14 size 470 completed in 3 ms
     round 15 size 403 completed in 2 ms
-    rounds 12 through 237 completed in 58 ms
-    trimrename3 round 238 size 2 completed in 1 ms
-    trimrename3 round 239 size 2 completed in 1 ms
+    rounds 12 through 253 completed in 58 ms
+    trimrename3 round 254 size 2 completed in 1 ms
+    trimrename3 round 255 size 2 completed in 1 ms
        4-cycle found
      282-cycle found
     1006-cycle found
      390-cycle found
-    findcycles completed on 33234 edges
+    findcycles completed on 29180 edges
     Time: 1010 ms
     0 total solutions
 
@@ -103,14 +103,14 @@ count all 128\*128 buckets is rather slow, as witnessed by the 3x longer Time be
     round 13 size 9301758 completed in 2 ms
     round 14 size 8167240 completed in 3 ms
     round 15 size 7230054 completed in 2 ms
-    rounds 12 through 237 completed in 709 ms
-    trimrename3 round 238 size 33514 completed in 1 ms
-    trimrename3 round 239 size 33514 completed in 1 ms
+    rounds 12 through 253 completed in 709 ms
+    trimrename3 round 254 size 33514 completed in 1 ms
+    trimrename3 round 255 size 33514 completed in 1 ms
        4-cycle found
      282-cycle found
     1006-cycle found
      390-cycle found
-    findcycles completed on 33234 edges
+    findcycles completed on 29180 edges
     Time: 3356 ms
     0 total solutions
 
@@ -128,7 +128,7 @@ back to the host.
 
 -m trims
 ------------
-The number of trimming rounds. Default 240. Can be increased arbitrarily. At some point, there will be
+The number of trimming rounds. Default 256. Can be increased arbitrarily. At some point, there will be
 no edges left to trim, as all remaining edges are already part of a cycle:
 
     $ ./cuda30 -m 1518 -k 2000 -c 128
@@ -149,8 +149,8 @@ no edges left to trim, as all remaining edges are already part of a cycle:
     round 1514 size 88 completed in 0 ms
     round 1515 size 88 completed in 0 ms
     rounds 12 through 1515 completed in 281145 ms
-    trimrename3 round 1998 size 88 completed in 0 ms
-    trimrename3 round 1999 size 88 completed in 0 ms
+    trimrename3 round 1516 size 88 completed in 0 ms
+    trimrename3 round 1517 size 88 completed in 0 ms
        4-cycle found
        2-cycle found
       16-cycle found
