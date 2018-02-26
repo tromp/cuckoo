@@ -1,5 +1,3 @@
-![](img/logo.png?raw=true)
-
 Cuckoo Cycle
 ============
 Blog article explaining Cuckoo Cycle at
@@ -161,3 +159,5 @@ Projects using, or planning to use, Cuckoo Cycle
 <LI> <a href="http://www.raddi.net/">Raddi // radically decentralized discussion</a>
 <LI> <a href="https://bitcointalk.org/index.php?topic=2360396">[ANN] *Aborted* Bitcoin Resilience: Cuckoo Cycle PoW Bitcoin Hardfork</a>
 </UL>
+
+![](img/logo.png?raw=true)
