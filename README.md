@@ -1,3 +1,5 @@
+![](img/logo.png?raw=true)
+
 Cuckoo Cycle
 ============
 Blog article explaining Cuckoo Cycle at
