@@ -25,14 +25,17 @@ libblake2b.so:	blake2.h blake2-impl.h blake2b-ref.c
 test:	lean20 verify20 Makefile
 	./lean20 -n 38 | grep ^Sol | ./verify20 -n 38
 
-lean4:	siphash.h cuckoo.h lean_miner.hpp simple_miner.cpp Makefile
+simple4:	siphash.h cuckoo.h lean_miner.hpp simple_miner.cpp Makefile
 	$(GPP) -o $@ -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DEDGEBITS=3 simple_miner.cpp $(LIBS)
+
+simple30:	siphash.h cuckoo.h lean_miner.hpp simple_miner.cpp Makefile
+	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=29 simple_miner.cpp $(LIBS)
 
 lean6:	cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=6 -DLOGNBUCKETS=0 -DSHOWSOL -DEDGEBITS=5 lean_miner.cpp $(LIBS)
 
-example:	lean4
-	./lean4 -h 211
+example:	simple4
+	./simple4 -h 211
 
 lean10:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=9 -DPROOFSIZE=8 -DSHOWSOL lean_miner.cpp $(LIBS)
