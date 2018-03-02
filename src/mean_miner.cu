@@ -917,20 +917,24 @@ struct solver_ctx {
     for (nu = 0; u != CUCKOO_NIL; u = cuckoo[u]) {
       if (nu >= MAXPATHLEN) {
         while (nu-- && us[nu] != u) ;
-        if (!~nu)
-          printf("maximum path length exceeded\n");
-        else printf("illegal %4d-cycle from node %d\n", MAXPATHLEN-nu, u0);
-        exit(0);
+        if (~nu) {
+          printf("illegal %4d-cycle from node %d\n", MAXPATHLEN-nu, u0);
+	  exit(0);
+	}
+        printf("maximum path length exceeded\n");
+	return 0; // happens once in a million runs or so; signal trouble
       }
       us[nu++] = u;
     }
-    return nu-1;
+    return nu;
   }
 
   void addedge(u32 uxyz, u32 vxyz) {
     const u32 u0 = uxyz << 1, v0 = (vxyz << 1) | 1;
     if (u0 != CUCKOO_NIL) {
       u32 nu = path(u0, us), nv = path(v0, vs);
+      if (!nu-- || !nv--)
+        return; // drop edge causing trouble
       // printf("vx %02x ux %02x e %08x uxyz %06x vxyz %06x u0 %x v0 %x nu %d nv %d\n", vx, ux, e, uxyz, vxyz, u0, v0, nu, nv);
       if (us[nu] == vs[nv]) {
         const u32 min = nu < nv ? nu : nv;

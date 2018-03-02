@@ -14,6 +14,7 @@
 #ifdef __APPLE__
 #include "osx_barrier.h"
 #endif
+#include <intrin.h>
 #include <assert.h>
 
 #ifdef ATOMIC
@@ -162,7 +163,7 @@ public:
     cnt[thread]--;
   }
   bool test(node_t n) const {
-    return !((bits[n/64] >> (n%64)) & 1LL);
+    return !_bittest64(&bits[n>>6], n&63));
   }
   u64 block(node_t n) const {
     return ~bits[n/64];

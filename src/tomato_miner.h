@@ -230,7 +230,7 @@ void solution(cuckoo_ctx *ctx, node_t *us, u32 nu, node_t *vs, u32 nv) {
     cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
   while (nv--)
     cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-  printf("Solution: ");
+  printf("Solution ");
   for (nonce_t nonce = n = 0; nonce < NEDGES; nonce++) {
     edge e(sipnode(&ctx->sip_keys, nonce, 0), sipnode(&ctx->sip_keys, nonce, 1));
     if (cycle.find(e) != cycle.end()) {
@@ -292,7 +292,6 @@ void *worker(void *vp) {
             if (depth&1)
               solution(ctx, vs, nv, us, nu);
             else solution(ctx, us, nu, vs, nv);
-            pthread_exit(NULL);
           }
           continue;
         }

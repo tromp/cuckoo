@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
   unsigned len;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:n:t:r:m")) != -1) {
+  while ((c = getopt (argc, argv, "h:n:p:t:r:m")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
