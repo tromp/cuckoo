@@ -56,7 +56,8 @@ It uses only moderate power (on the order of 1W per chip) and is ubiquitous in t
 Every modern smart phone includes a few GBs of DRAM that mostly sits idle as it recharges overnight.
 This presents unique opportunities for a PoW that is minimally compute intensive and maximally memory intensive.
 
-Cuckoo Cycle could be implemented as a tiny low-power ASIC that runs the bandwidth bound solver.
+Cuckoo Cycle could be implemented as a tiny low-power ASIC that runs the bandwidth bound solver,
+paired with existing DRAM chips.
 It wouldn't need to run at the highest possible levels of efficiency, just efficient enough to saturate
 the limited DRAM bandwidth, which is going to be the bottleneck anyway.
 In terms of solutions per Joule of energy, this should be least somewhat efficient,
