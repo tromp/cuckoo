@@ -35,44 +35,50 @@ accessing random 2-bit counters, making it memory latency bound.  The roughly
 4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
 uses 33 bits per edge and is bottlenecked by bucket sorting. making it memory bandwidth bound.
 
-ASIC-resistant
---------------
+ASICs
+-----
+Competitive single-chip mining ASICs have the following characteristics:
+* They run hot and require extensive, noisy, cooling
+* Their operational (electricity) costs exceed their capital costs
+* They tend to get obsoleted by more efficient newer generations
+* They require ordering long in advance of delivery
+The need for big and risky investment raises the barrier to entry,
+while the mining industries' thirst for cheap power leads to geographical centralization.
 Cuckoo Cycle strongly resists single-chip ASICs due to its large memory requirements.
-Such ASICs are undesirable, both because they raise the barrier to entry, and because
-single purpose hardware is rendered useless once surpassed in efficiency.
 
-ASIC-friendly
---------------
-The most cost effective Cuckoo Cycle mining hardware consists of a relatively cheap and tiny Cuckoo ASIC
-containing a few dozen simple cores and memory controllers, coupled with dozens of memory ASICs.
-The Cuckoo ASIC, running the bandwidth bound solver, wouldn't be very compute intensive.
-Since its purpose is limited to saturating the memory bandwidth, its optimization would soon reach a point of
-diminishing returns. The hardware and energy costs will be dominated by the memory ASICs,
-which the commodity DRAM market is already constantly optimizing.
-Moreover, the memory ASICs remain useful once surpassed in efficiency.
+Memory ASICs
+------------
+DRAM can be viewed as an Integrated Circuit Customized to the Application of writing and reading words of memory
+in mostly sequential fashion. It's perhaps the most cost optimized and commoditized ASICs in existence.
+It uses only moderate power (on the order of 1W per chip) and is ubiquitous in the device landscape.
+Every modern smart phone includes a few GBs of DRAM that mostly sits idle as it recharges overnight.
+This present unique opportunities for a PoW that is minimally compute intensive and maximally memory intensive.
 
-There is a huge installed and exapanding base of memory ASICs, which need only the minor
-addition of a Cuckoo ASIC to become somewhat efficient Cuckoo miners. If added to phones, then
-mining while charging overnight could become attractive, either as a way to pay for internet access,
-or to obtain small amounts of currency without the hassle of establishing credentials at exchanges.
-
-Although running the latency bound solver requires an order of magnitude less memory,
-current low-latency memory ASICs such as RLDRAM3 and QDR-IV SRAM are over an order of magnitude more expensive.
+Cuckoo Cycle could be implemented as a tiny low-power ASIC that runs the bandwidth bound solver.
+It wouldn't need to run at the highest possible levels of efficiency, just efficient enough to saturate
+the limited DRAM bandwidth, which is going to be the bottleneck anyway.
+In terms of solutions per Joule of energy, this should be least somewhat efficient,
+and with most of the capital cost already sunk, offers a very attractive mining platform,
+with huge scope for decentralization.
 
 An indirectly useful Proof of Work
 --------------
-Cuckoo Cycle provides strong incentives to making low-latency memory more affordable, which benefits many applications beyond mining.
+Although running the latency bound solver requires an order of magnitude less memory,
+current low-latency memory ASICs such as RLDRAM3 and QDR-IV SRAM are over an order of magnitude more expensive.
+Cuckoo Cycle provides strong incentives to making low-latency memory affordable enough to tip the scale,
+benefitting many applications beyond mining.
 
 Cycle finding
 --------------
-The algorithm implemented in lean_miner.h runs in time linear in N.
+The algorithm implemented in lean_miner.hpp runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
 only compute a fraction of all edges, and the odds of all 42 edges of a cycle
 occurring in this fraction are astronomically small).
 
 Memory-wise, it uses N/2 bits to maintain a subset of all edges (potential
-cycle edges) and N additional bits (or 40N bits in the latency avoiding algorithm)
-to trim the subset in a series of edge trimming rounds.
+cycle edges) and N additional bits to trim the subset in a series of edge trimming rounds.
+The bandwidth bound algorithm implemented in mean_miner.hpp instead uses 16N bits to maintains
+lists of edges and less than N bits for trimming.
 This is the phase that takes the vast majority of runtime.
 
 Once the subset is small enough, an algorithm inspired by Cuckoo Hashing
@@ -82,7 +88,7 @@ Performance
 --------------
 
 The runtime of a single proof attempt for a 2^30 node graph on a 4GHz i7-4790K is 10.5 seconds
-with the single-threaded mean solver, using 3200MB (or 2200MB with slower cycle recovery).
+with the single-threaded mean solver, using 2200MB (or 3200MB with faster solution recovery).
 This reduces to 3.5 seconds with 4 threads (3x speedup).
 
 Using an order of magnitude less memory (just under 200MB),
