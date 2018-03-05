@@ -42,17 +42,19 @@ Competitive single-chip mining ASICs have the following characteristics:
 * Their operational (electricity) costs exceed their capital costs
 * They tend to get obsoleted by more efficient newer generations
 * They require ordering long in advance of delivery
-The need for big and risky investment raises the barrier to entry,
+
+The need for big and risky investments raises the barrier to entry,
 while the mining industries' thirst for cheap power leads to geographical centralization.
+
 Cuckoo Cycle strongly resists single-chip ASICs due to its large memory requirements.
 
 Memory ASICs
 ------------
 DRAM can be viewed as an Integrated Circuit Customized to the Application of writing and reading words of memory
-in mostly sequential fashion. It's perhaps the most cost optimized and commoditized ASICs in existence.
+in mostly sequential fashion. It's perhaps the most cost optimized and commoditized ASIC in existence.
 It uses only moderate power (on the order of 1W per chip) and is ubiquitous in the device landscape.
 Every modern smart phone includes a few GBs of DRAM that mostly sits idle as it recharges overnight.
-This present unique opportunities for a PoW that is minimally compute intensive and maximally memory intensive.
+This presents unique opportunities for a PoW that is minimally compute intensive and maximally memory intensive.
 
 Cuckoo Cycle could be implemented as a tiny low-power ASIC that runs the bandwidth bound solver.
 It wouldn't need to run at the highest possible levels of efficiency, just efficient enough to saturate
