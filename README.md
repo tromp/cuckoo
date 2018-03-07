@@ -35,34 +35,22 @@ accessing random 2-bit counters, making it memory latency bound.  The roughly
 4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
 uses 33 bits per edge and is bottlenecked by bucket sorting. making it memory bandwidth bound.
 
-ASICs
------
-Competitive single-chip mining ASICs have the following characteristics:
-* They run hot and require extensive, noisy, cooling
-* Their operational (electricity) costs exceed their capital costs
-* They tend to get obsoleted by more efficient newer generations
-* They require ordering long in advance of delivery
-
-The need for big and risky investments raises the barrier to entry,
-while the mining industries' thirst for cheap power leads to geographical centralization.
-
-Cuckoo Cycle strongly resists single-chip ASICs due to its large memory requirements.
-
-Memory ASICs
+Hybrid ASICs
 ------------
+Its large memory requirements make single-chip ASICs economically infeasable for Cuckoo Cycle.
+For the default billion node graph size, the bandwidth bound solver needs well over 2GB,
+requiring a multitude of 1GB DRAM chips.
 DRAM can be viewed as an Integrated Circuit Customized to the Application of writing and reading words of memory
 in mostly sequential fashion. It's perhaps the most cost optimized and commoditized ASIC in existence.
 It uses only moderate power (on the order of 1W per chip) and is ubiquitous in the device landscape.
 Every modern smart phone includes a few GBs of DRAM that mostly sits idle as it recharges overnight.
 This presents unique opportunities for a PoW that is minimally compute intensive and maximally memory intensive.
 
-Cuckoo Cycle could be implemented as a tiny low-power ASIC that runs the bandwidth bound solver,
-paired with existing DRAM chips.
-It wouldn't need to run at the highest possible levels of efficiency, just efficient enough to saturate
-the limited DRAM bandwidth, which is going to be the bottleneck anyway.
-In terms of solutions per Joule of energy, this should be least somewhat efficient,
-and with most of the capital cost already sunk, offers a very attractive mining platform,
-with huge scope for decentralization.
+A hybrid ASIC solution for Cuckoo Cycle pairs a bunch of DRAM chips with a small low-power ASIC,
+which needs to run just efficient enough to saturate the limited DRAM bandwidth.
+In terms of solutions per Joule of energy, this should be reasonably efficient mining platform.
+Adding such chips to existing devices, using already present DRAM as a sunk cost, makes for a
+cost effective mining platform.
 
 An indirectly useful Proof of Work
 --------------

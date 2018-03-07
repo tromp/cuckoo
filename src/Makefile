@@ -192,7 +192,7 @@ lcuda32:	lean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 lean_miner.cu $(LIBS)
 
 cuda28:	mean_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 mean_miner.cu $(LIBS)
+       nvcc -o $@ -DEDGEBITS=27 -DCOMPRESSROUND=4 -DBIGEPS=1/16 -arch sm_35 mean_miner.cu $(LIBS)
 
 cuda30:	mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)

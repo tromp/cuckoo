@@ -24,10 +24,11 @@ We exhibit two time-memory trade-off (TMTO) algorithms
 decreasing memory usage by a factor $k$ while increasing runtime by a factor $c \cdot k$.
 The constant $c$ provides a measure of memory-hardness, which is shown to be dependent
 on cycle length, guiding the latter's choice.
-Trading in the other direction, algorithm "mean" usees dozens more bits per edge but is 4x faster
+Trading in the other direction, algorithm "mean" uses a few dozen bits per edge but is 4x faster
 in practice, becoming memory bandwidth bound rather than latency bound.
-We present performance
-Both algorithms are shown to parallelize well.
+We present performance figures for optimized CPU and GPU implementations, including a CUDA port for GPUs,
+and discuss possible ASIC implementations.
+% Both algorithms are shown to parallelize well.
 \end{abstract}
 
 \section{Introduction}
