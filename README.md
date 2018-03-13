@@ -3,8 +3,7 @@ Cuckoo Cycle
 Blog article explaining Cuckoo Cycle at
 http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing
 
-Whitepaper at
-https://github.com/tromp/cuckoo/blob/master/doc/cuckoo.pdf?raw=true
+[Whitepaper](blob/master/doc/cuckoo.pdf?raw=true)
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work,
 and the most memory bound, yet with instant verification.
@@ -134,7 +133,7 @@ Siphash Bounties
 While both siphash-2-4 and siphash-1-3 pass the [smhasher](https://github.com/aappleby/smhasher)
 test suite for non-cryptographic hash functions,
 siphash-1-2, with 1 compression round and only 2 finalization rounds,
-[fails](https://github.com/tromp/cuckoo/doc/SipHash12) quite badly in the Avalanche department.
+[fails](master/doc/SipHash12) quite badly in the Avalanche department.
 We invite attacks on Cuckoo Cycle's dependence on its underlying hash function by offering
 
 $5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
@@ -158,22 +157,18 @@ make
 Bounty contributors
 -------------------
 
-<ul>
-<li> <a href="https://forum.z.cash/">Zcash Forum</a> participants</li>
-<li> <a href="https://www.genesis-mining.com/">Genesis Mining</a> </li>
-<li> <a href="https://www.simply-vc-co.ltd/?page_id=8">Simply VC</a> </li>
-<li> <a href="https://bitcointalk.org/index.php?topic=1670733.0">Claymore</a> </li>
-<LI> <a href="http://www.aeternity.com/">Aeternity developers</a>
-</ul>
+* [Zcash Forum](https://forum.z.cash/) participants
+* [Genesis Mining](https://www.genesis-mining.com/)
+* [Simply VC](https://www.simply-vc-co.ltd/?page_id=8)
+* [Claymore](https://bitcointalk.org/index.php?topic=1670733.0)
+* [Aeternity developers](http://www.aeternity.com/)
 
 Projects using, or planning to use, Cuckoo Cycle
 --------------
-<UL>
-<LI> <a href="https://github.com/mimblewimble/grin">Minimal implementation of the MimbleWimble protocol</a>
-<LI> <a href="http://www.aeternity.com/">æternity - the oracle machine</a>
-<LI> <a href="https://github.com/bitcoin/bips/blob/master/bip-0154.mediawiki">BIP 154: Rate Limiting via peer specified challenges; Bitcoin Peer Services</a>
-<LI> <a href="http://www.raddi.net/">Raddi // radically decentralized discussion</a>
-<LI> <a href="https://bitcointalk.org/index.php?topic=2360396">[ANN] *Aborted* Bitcoin Resilience: Cuckoo Cycle PoW Bitcoin Hardfork</a>
-</UL>
+* [Minimal implementation of the MimbleWimble protocol](https://github.com/mimblewimble/grin)
+* [æternity - the oracle machine](http://www.aeternity.com/)
+* [BIP 154: Rate Limiting via peer specified challenges; Bitcoin Peer Services](https://github.com/bitcoin/bips/blob/master/bip-0154.mediawiki)
+* [Raddi // radically decentralized discussion](http://www.raddi.net/)
+* [Bitcoin Resilience: Cuckoo Cycle PoW Bitcoin Hardfork](https://bitcointalk.org/index.php?topic=2360396)
 
 ![](img/logo.png?raw=true)
