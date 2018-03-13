@@ -94,9 +94,6 @@ mean30x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 mean30x1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DNSIPHASH=1 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
-cutrix30:	mean_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
-
 mean30sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DSAVEEDGES -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
@@ -182,22 +179,22 @@ tomato30:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 tomato32:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=31 tomato_miner.cpp $(LIBS)
 
-lcuda28:	lean_miner.cu Makefile
+lcuda28:	siphash.cuh lean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 lean_miner.cu $(LIBS)
 
-lcuda30:	lean_miner.cu Makefile
+lcuda30:	siphash.cuh lean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lean_miner.cu $(LIBS)
 
-lcuda32:	lean_miner.cu Makefile
+lcuda32:	siphash.cuh lean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 lean_miner.cu $(LIBS)
 
-cuda28:	mean_miner.cu Makefile
+cuda28:	siphash.cuh mean_miner.cu Makefile
        nvcc -o $@ -DEDGEBITS=27 -DCOMPRESSROUND=4 -DBIGEPS=1/16 -arch sm_35 mean_miner.cu $(LIBS)
 
-cuda30:	mean_miner.cu Makefile
+cuda30:	siphash.cuh mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
 
-cuda32:	mean_miner.cu Makefile
+cuda32:	siphash.cuh mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 mean_miner.cu $(LIBS)
 
 cycle28:	cycle_miner.cu Makefile

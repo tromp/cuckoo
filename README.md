@@ -12,8 +12,10 @@ and the most memory bound, yet with instant verification.
 Proofs take the form of a length 42 cycle in a bipartite graph with N nodes and
 N/2 edges, with N scalable from millions to billions and beyond.
 
-This makes verification trivial: compute the 42x2 edge endpoints with one
-initialising blake2b and 84 very cheap siphash-2-4 hashes, check that each
+The graph is defined by the siphash-2-4 keyed hash function mapping an edge index
+and partition side (0 or 1) to the edge endpoint on that side.
+This makes verification trivial: hash the header with blake2b to derive the siphash key,
+then compute the 42x2 edge endpoints with 84 siphashes, check that each
 endpoint occurs twice, and that you come back to the starting point only after
 traversing 42 edges (this also makes Cuckoo Cycle, unlike Hashcash, relatively
 immune from Grover's quantum search algorithm).
@@ -39,7 +41,7 @@ Hybrid ASICs
 ------------
 Its large memory requirements make single-chip ASICs economically infeasable for Cuckoo Cycle.
 For the default billion node graph size, the bandwidth bound solver needs well over 2GB,
-requiring a multitude of 1GB DRAM chips.
+currently requiring a multitude of 1GB DRAM chips.
 DRAM can be viewed as an Integrated Circuit Customized to the Application of writing and reading words of memory
 in mostly sequential fashion. It's perhaps the most cost optimized and commoditized ASIC in existence.
 It uses only moderate power (on the order of 1W per chip) and is ubiquitous in the device landscape.
@@ -48,16 +50,16 @@ This presents unique opportunities for a PoW that is minimally compute intensive
 
 A hybrid ASIC solution for Cuckoo Cycle pairs a bunch of DRAM chips with a small low-power ASIC,
 which needs to run just efficient enough to saturate the limited DRAM bandwidth.
-In terms of solutions per Joule of energy, this should be reasonably efficient mining platform.
-Adding such chips to existing devices, using already present DRAM as a sunk cost, makes for a
+In terms of solutions per Joule of energy, this might be reasonably efficient mining platform.
+Adding such chips to existing devices, using already present DRAM as a sunk cost, could make for a
 cost effective mining platform.
 
 An indirectly useful Proof of Work
 --------------
 Although running the latency bound solver requires an order of magnitude less memory,
-current low-latency memory ASICs such as RLDRAM3 and QDR-IV SRAM are over an order of magnitude more expensive.
-Cuckoo Cycle provides strong incentives to making low-latency memory affordable enough to tip the scale,
-benefitting many applications beyond mining.
+current low-latency memory ASICs such as RLDRAM3 and QDR-IV SRAM are at least an order of magnitude more expensive.
+Cuckoo Cycle provides incentives to making low-latency memory affordable enough to tip the scale,
+which could benefit many applications beyond mining.
 
 Cycle finding
 --------------
@@ -87,15 +89,16 @@ the lean solver takes 32.8 seconds per proof attempt.
 Its multi-threading performance is less impressive though,
 with 2 threads still taking 25.6 seconds and 4 taking 20.5 seconds.
 
-I claim that these implementations are reasonably optimal,
-secondly, that trading off (less) memory for (more) running time,
+I claim that siphash-2-4 is a safe choice of underlying hash function,
+that these implementations are reasonably optimal,
+that trading off (less) memory for (more) running time,
 incurs at least one order of magnitude extra slowdown,
 and finally, that mean_miner.cu is a reasonably optimal GPU miner.
 The latter runs about 2.4x faster on an NVIDA 1080Ti than mean_miner on an Intel Core-i7 CPU.
-To that end, I offer the following bounties:
+In support of these claims, I offer the following bounties:
 
 CPU Speedup Bounties
---------------
+--------------------
 $10000 for an open source implementation that finds 42-cycles twice as fast
 as lean_miner, using no more than 1 byte per edge.
 
@@ -103,7 +106,7 @@ $10000 for an open source implementation that finds 42-cycles twice as fast
 as mean_miner, regardless of memory use.
 
 Linear Time-Memory Trade-Off Bounty
---------------
+-----------------------------------
 $10000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
 
 All of these bounties require N ranging over {2^28,2^30,2^32} and #threads
@@ -111,20 +114,36 @@ ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
 recent gcc compiler with regular flags as in my Makefile.
 
 GPU Speedup Bounty
---------------
+------------------
 $5000 for an open source implementation for a consumer GPU
 that finds 42-cycles twice as fast as mean_miner.cu on 2^30 node graphs on comparable hardware.
 
 The Makefile defines corresponding targets leancpubounty, meancpubounty, tmtobounty, and gpubounty.
 
 Double and fractional bounties
-------------------------
+------------------------------
 Improvements by a factor of 4 will be rewarded with double the regular bounty.
 
 In order to minimize the risk of missing out on less drastic improvements,
 I further offer a fraction FRAC of the regular CPU/GPU-speedup bounty, payable in bitcoin cash,
 for improvements by a factor of 2^FRAC, where FRAC is at least one-tenth.
 Note that 2^0.1 is about a 7% improvement.
+
+Siphash Bounties
+----------------
+While both siphash-2-4 and siphash-1-3 pass the [smhasher](https://github.com/aappleby/smhasher)
+test suite for non-cryptographic hash functions,
+siphash-1-2, with 1 compression round and only 2 finalization rounds,
+[fails]https://github.com/tromp/cuckoo/doc/SipHash12) quite badly in the Avalanche department.
+We invite attacks on Cuckoo Cycle's dependence on its underlying hash function by offering
+
+$5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
+twice as fast as lean_miner on graphs defined by siphash-2-4, using no more than 1 byte per edge.
+
+$5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
+twice as fast as mean_miner on graphs defined by siphash-2-4, regardless of memory use.
+
+These bounties are not subject to double and/or fractional payouts.
 
 Happy bounty hunting!
  
