@@ -134,7 +134,7 @@ Siphash Bounties
 While both siphash-2-4 and siphash-1-3 pass the [smhasher](https://github.com/aappleby/smhasher)
 test suite for non-cryptographic hash functions,
 siphash-1-2, with 1 compression round and only 2 finalization rounds,
-[fails]https://github.com/tromp/cuckoo/doc/SipHash12) quite badly in the Avalanche department.
+[fails](https://github.com/tromp/cuckoo/doc/SipHash12) quite badly in the Avalanche department.
 We invite attacks on Cuckoo Cycle's dependence on its underlying hash function by offering
 
 $5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
