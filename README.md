@@ -7,10 +7,10 @@ Cuckoo Cycle
 Cuckoo Cycle is the first graph-theoretic proof-of-work, and the most memory bound, yet with instant verification.
 Unlike Hashcash, Cuckoo Cycle is immune from quantum speedup by Grover's search algorithm.
 
-With a 42-line [complete specification](doc/spec), Cuckoo Cycle is less than half the size of
-* [SHA256](https://en.wikipedia.org/wiki/SHA-2#Pseudocode)
-* [Blake2b](https://en.wikipedia.org/wiki/BLAKE_%28hash_function%29#Blake2b_algorithm)
-* [SHA3 (Keccak)](https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c)
+With a 42-line [complete specification](doc/spec), Cuckoo Cycle is less than half the size of either
+[SHA256](https://en.wikipedia.org/wiki/SHA-2#Pseudocode),
+[Blake2b](https://en.wikipedia.org/wiki/BLAKE_%28hash_function%29#Blake2b_algorithm), or
+[SHA3 (Keccak)](https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c)
 as used in Bitcoin, Equihash and ethash. Simplicity matters.
 
 Proofs take the form of a length 42 cycle in a bipartite graph with N nodes and
