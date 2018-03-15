@@ -1,54 +1,51 @@
 Cuckoo Cycle
 ============
 [Blog article explaining Cuckoo Cycle](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing)
+
 [Whitepaper](doc/cuckoo.pdf?raw=true)
 
-Cuckoo Cycle is the first graph-theoretic proof-of-work,
-and the most memory bound, yet with instant verification.
+Cuckoo Cycle is the first graph-theoretic proof-of-work, and the most memory bound, yet with instant verification.
+Unlike Hashcash, Cuckoo Cycle is immune from quantum speedup by Grover's search algorithm.
+
+With a 42-line [complete specification](doc/spec), Cuckoo Cycle is less than half the size of
+* [SHA256](https://en.wikipedia.org/wiki/SHA-2#Pseudocode)
+* [Blake2b](https://en.wikipedia.org/wiki/BLAKE_%28hash_function%29#Blake2b_algorithm)
+* [SHA3 (Keccak)](https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c)
+as used in Bitcoin, Equihash and ethash. Simplicity matters.
 
 Proofs take the form of a length 42 cycle in a bipartite graph with N nodes and
 N/2 edges, with N scalable from millions to billions and beyond.
 
 The graph is defined by the siphash-2-4 keyed hash function mapping an edge index
 and partition side (0 or 1) to the edge endpoint on that side.
-This makes verification trivial: hash the header with blake2b to derive the siphash key,
-then compute the 42x2 edge endpoints with 84 siphashes, check that each
-endpoint occurs twice, and that you come back to the starting point only after
-traversing 42 edges (this also makes Cuckoo Cycle, unlike Hashcash, relatively
-immune from Grover's quantum search algorithm).
+This makes verification trivial: hash the header to derive the siphash key,
+then compute the 42x2 edge endpoints with 84 siphashes, check that each endpoint occurs twice,
+and that you come back to the starting point only after traversing 42 edges.
 
-A final blake2b hash on the sorted 42 nonces can check whether the 42-cycle
-meets a difficulty target.
-
-This is implemented in under 220 lines of C code (files src/{siphash.h,cuckoo.h,cuckoo.c}).
-
-From this point of view, Cuckoo Cycle is a very simple PoW,
-requiring hardly any code, time, or memory to verify.
-
-Finding a 42-cycle, on the other hand, is far from trivial,
+While trivially verifiable, finding a 42-cycle, on the other hand, is far from trivial,
 requiring considerable resources, and some luck
-(for a given header, the odds of its graph having a L-cycle are about 1 in L).
+(the odds of a random cuckoo graph having an L-cycle are approximately 1 in L).
 
 The memory efficient miner uses 3 bits per edge and is bottlenecked by
 accessing random 2-bit counters, making it memory latency bound.  The roughly
 4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
-uses 33 bits per edge and is bottlenecked by bucket sorting. making it memory bandwidth bound.
+uses 33 bits per edge and is bottlenecked by bucket sorting, making it memory bandwidth bound.
 
 Hybrid ASICs
 ------------
 Its large memory requirements make single-chip ASICs economically infeasable for Cuckoo Cycle.
 For the default billion node graph size, the bandwidth bound solver needs well over 2GB,
 currently requiring a multitude of 1GB DRAM chips.
-DRAM can be viewed as an Integrated Circuit Customized to the Application of writing and reading words of memory
-in mostly sequential fashion. It's perhaps the most cost optimized and commoditized ASIC in existence.
-It uses only moderate power (on the order of 1W per chip) and is ubiquitous in the device landscape.
+DRAM can be viewed as an ASIC for writing and reading words of memory in mostly sequential fashion.
+As such, it's perhaps the most cost optimized, commoditized, and unbiquitous ASIC in existence,
+using moderate power on the order of 1W per chip.
 Every modern smart phone includes a few GBs of DRAM that mostly sits idle as it recharges overnight.
 This presents unique opportunities for a PoW that is minimally compute intensive and maximally memory intensive.
 
 A hybrid ASIC solution for Cuckoo Cycle pairs a bunch of DRAM chips with a small low-power ASIC,
 which needs to run just efficient enough to saturate the limited DRAM bandwidth.
 In terms of solutions per Joule of energy, this might be reasonably efficient mining platform.
-Adding such chips to existing devices, using already present DRAM as a sunk cost, could make for a
+Adding such chips to devices already equipped with sufficient memory could make for a
 cost effective mining platform.
 
 An indirectly useful Proof of Work
