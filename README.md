@@ -37,7 +37,7 @@ Its large memory requirements make single-chip ASICs economically infeasable for
 For the default billion node graph size, the bandwidth bound solver needs well over 2GB,
 currently requiring a multitude of 1GB DRAM chips.
 DRAM can be viewed as an ASIC for writing and reading words of memory in mostly sequential fashion.
-As such, it's perhaps the most cost optimized, commoditized, and unbiquitous ASIC in existence,
+As such, it's perhaps the most cost optimized, commoditized, and ubiquitous ASIC in existence,
 using moderate power on the order of 1W per chip.
 Every modern smart phone includes a few GBs of DRAM that mostly sits idle as it recharges overnight.
 This presents unique opportunities for a PoW that is minimally compute intensive and maximally memory intensive.

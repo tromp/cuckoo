@@ -39,31 +39,26 @@ typedef u32 node_t;
 #define EDGEMASK ((edge_t)NEDGES - 1)
 
 // generate edge endpoint in cuckoo graph without partition bit
-edge_t _sipnode(siphash_keys *keys, edge_t nonce, u32 uorv) {
-  return siphash24(keys, 2*nonce + uorv) & EDGEMASK;
-}
-
-// generate edge endpoint in cuckoo graph
-node_t sipnode(siphash_keys *keys, edge_t nonce, u32 uorv) {
-  return _sipnode(keys, nonce, uorv) << 1 | uorv;
+node_t sipnode(siphash_keys *keys, edge_t edge, u32 uorv) {
+  return siphash24(keys, 2*edge + uorv) & EDGEMASK;
 }
 
 enum verify_code { POW_OK, POW_HEADER_LENGTH, POW_TOO_BIG, POW_TOO_SMALL, POW_NON_MATCHING, POW_BRANCH, POW_DEAD_END, POW_SHORT_CYCLE};
-const char *errstr[] = { "OK", "wrong header length", "nonce too big", "nonces not ascending", "endpoints don't match up", "branch in cycle", "cycle dead ends", "cycle too short"};
+const char *errstr[] = { "OK", "wrong header length", "edge too big", "edges not ascending", "endpoints don't match up", "branch in cycle", "cycle dead ends", "cycle too short"};
 
-// verify that nonces are ascending and form a cycle in header-generated graph
-int verify(edge_t nonces[PROOFSIZE], siphash_keys *keys) {
+// verify that edges are ascending and form a cycle in header-generated graph
+int verify(edge_t edges[PROOFSIZE], siphash_keys *keys) {
   node_t uvs[2*PROOFSIZE];
-  node_t xor0=0,xor1=0;
+  node_t xor0 = 0, xor1  =0;
   for (u32 n = 0; n < PROOFSIZE; n++) {
-    if (nonces[n] > EDGEMASK)
+    if (edges[n] > EDGEMASK)
       return POW_TOO_BIG;
-    if (n && nonces[n] <= nonces[n-1])
+    if (n && edges[n] <= edges[n-1])
       return POW_TOO_SMALL;
-    xor0 ^= uvs[2*n  ] = sipnode(keys, nonces[n], 0);
-    xor1 ^= uvs[2*n+1] = sipnode(keys, nonces[n], 1);
+    xor0 ^= uvs[2*n  ] = sipnode(keys, edges[n], 0);
+    xor1 ^= uvs[2*n+1] = sipnode(keys, edges[n], 1);
   }
-  if (xor0|xor1)              // matching endpoints imply zero xors
+  if (xor0|xor1)              // optional check for obviously bad proofs
     return POW_NON_MATCHING;
   u32 n = 0, i = 0, j;
   do {                        // follow cycle
@@ -97,4 +92,9 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
   k[3] = k1 ^ 0x7465646279746573ULL;
 #endif
   setkeys(keys, hdrkey);
+}
+
+// edge endpoint in cuckoo graph with partition bit
+edge_t sipnode_(siphash_keys *keys, edge_t edge, u32 uorv) {
+  return sipnode(keys, edge, uorv) << 1 | uorv;
 }

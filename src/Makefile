@@ -88,6 +88,9 @@ mean28sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 mean28sx1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES  -DXBITS=6 -DNSIPHASH=1 -DEDGEBITS=27 mean_miner.cpp $(LIBS)
 
+mean30x4:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+	$(GPP) -o $@ -msse2 -DNSIPHASH=4 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
+
 mean30x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
@@ -189,7 +192,7 @@ lcuda32:	siphash.cuh lean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 lean_miner.cu $(LIBS)
 
 cuda28:	siphash.cuh mean_miner.cu Makefile
-       nvcc -o $@ -DEDGEBITS=27 -DCOMPRESSROUND=4 -DBIGEPS=1/16 -arch sm_35 mean_miner.cu $(LIBS)
+	nvcc -o $@ -DEDGEBITS=27 -DCOMPRESSROUND=4 -DBIGEPS=1/16 -arch sm_35 mean_miner.cu $(LIBS)
 
 cuda30:	siphash.cuh mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)

@@ -367,7 +367,7 @@ public:
       for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        edge e(sipnode(&sip_keys, nonce, 0), sipnode(&sip_keys, nonce, 1));
+        edge e(sipnode_(&sip_keys, nonce, 0), sipnode_(&sip_keys, nonce, 1));
         if (cycle.find(e) != cycle.end()) {
           sols[soli][n++] = nonce;
   #ifdef SHOWSOL
@@ -463,7 +463,7 @@ void *worker(void *vp) {
     for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
-      node_t u0=sipnode(&ctx->sip_keys, nonce, 0), v0=sipnode(&ctx->sip_keys, nonce, 1);
+      node_t u0=sipnode_(&ctx->sip_keys, nonce, 0), v0=sipnode_(&ctx->sip_keys, nonce, 1);
       if (u0) {// ignore vertex 0 so it can be used as nil for cuckoo[]
         u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
         if (us[nu] == vs[nv]) {

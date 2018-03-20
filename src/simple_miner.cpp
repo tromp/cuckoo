@@ -62,7 +62,7 @@ public:
       cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
     printf("Solution");
     for (edge_t nonce = n = 0; nonce < easiness; nonce++) {
-      edge e(sipnode(&sip_keys, nonce, 0), sipnode(&sip_keys, nonce, 1));
+      edge e(2*sipnode(&sip_keys, nonce, 0), 2*sipnode(&sip_keys, nonce, 1)+1);
       if (cycle.find(e) != cycle.end()) {
         printf(" %x", nonce);
         cycle.erase(e);
@@ -73,9 +73,9 @@ public:
   void solve() {
     node_t us[MAXPATHLEN], vs[MAXPATHLEN];
     for (node_t nonce = 0; nonce < easiness; nonce++) {
-      node_t u0 = sipnode(&sip_keys, nonce, 0);
+      node_t u0 = 2*sipnode(&sip_keys, nonce, 0);
       if (u0 == 0) continue; // reserve 0 as nil; v0 guaranteed non-zero
-      node_t v0 = sipnode(&sip_keys, nonce, 1);
+      node_t v0 = 2*sipnode(&sip_keys, nonce, 1)+1;
       node_t u = cuckoo[u0], v = cuckoo[v0];
       us[0] = u0;
       vs[0] = v0;
