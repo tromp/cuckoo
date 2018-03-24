@@ -339,11 +339,11 @@ public:
     const u32 e2 = 2 * edge + uorv;
     __m128i vpacket0 = _mm_set_epi64x(e2+2, e2+0);
     __m128i vpacket1 = _mm_set_epi64x(e2+6, e2+4);
-    static const __m128i vpacketinc = {16, 16};
+    static const __m128i vpacketinc = {8, 8};
     u64 e1 = edge;
     __m128i vhi0 = _mm_set_epi64x((e1+1)<<YZBITS, (e1+0)<<YZBITS);
     __m128i vhi1 = _mm_set_epi64x((e1+3)<<YZBITS, (e1+2)<<YZBITS);
-    static const __m128i vhiinc = {8<<YZBITS, 8<<YZBITS};
+    static const __m128i vhiinc = {4<<YZBITS, 4<<YZBITS};
 #elif NSIPHASH == 8
     static const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
     static const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
@@ -414,7 +414,7 @@ public:
 #ifndef NEEDSYNC
 #define STORE0(i,v,x,w) \
   ux = _mm_extract_epi32(v,x);\
-  *(u64 *)(base+dst.index[ux]) = _mm128_extract_epi64(w,i%4);\
+  *(u64 *)(base+dst.index[ux]) = _mm128_extract_epi64(w,i%2);\
   dst.index[ux] += BIGSIZE0;
 #else
   u32 zz;
@@ -429,16 +429,13 @@ public:
     last[ux] = edge+i;\
   }
 #endif
-        STORE0(0,v1,0,v0); STORE0(1,v1,2,v0); STORE0(2,v1,4,v0); STORE0(3,v1,6,v0);
+        STORE0(0,v1,0,v0); STORE0(1,v1,2,v0);
+        STORE0(2,v5,0,v4); STORE0(3,v5,2,v4);
 #elif NSIPHASH == 8
-        v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-        v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-        v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-        v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
-        v7 = _mm256_permute4x64_epi64(vinit, 0xFF);
-        v4 = _mm256_permute4x64_epi64(vinit, 0x00);
-        v5 = _mm256_permute4x64_epi64(vinit, 0x55);
-        v6 = _mm256_permute4x64_epi64(vinit, 0xAA);
+        v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
+        v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+        v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+        v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
 
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
         SIPROUNDX2N; SIPROUNDX2N;
@@ -1188,7 +1185,15 @@ public:
     const u32 starty = NY *  mc->id    / trimmer->nthreads;
     const u32   endy = NY * (mc->id+1) / trimmer->nthreads;
     u32 edge = starty << YZBITS, endedge = edge + NYZ;
-  #if NSIPHASH == 8
+  #if NSIPHASH == 4
+    static const __m128i vnodemask = {EDGEMASK, EDGEMASK};
+    siphash_keys &sip_keys = trimmer->sip_keys;
+    __m128i v0, v1, v2, v3, v4, v5, v6, v7;
+    const u32 e2 = 2 * edge;
+    __m128i vpacket0 = _mm_set_epi64x(e2+2, e2+0);
+    __m128i vpacket1 = _mm_set_epi64x(e2+6, e2+4);
+    static const __m128i vpacketinc = {8, 8};
+  #elif NSIPHASH == 8
     static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
     const __m256i vinit = _mm256_load_si256((__m256i *)&trimmer->sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
@@ -1213,7 +1218,40 @@ public:
   // bit        39..21     20..13    12..0
   // write        edge     YYYYYY    ZZZZZ
   #elif NSIPHASH == 4
-// TODO
+        v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
+        v4 = v0 = _mm_set1_epi64x(sip_keys.k0);
+        v5 = v1 = _mm_set1_epi64x(sip_keys.k1);
+        v6 = v2 = _mm_set1_epi64x(sip_keys.k2);
+
+        v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
+        SIPROUNDX2N; SIPROUNDX2N;
+        v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
+        v2 = XOR(v2, _mm_set1_epi64x(0xffLL));
+        v6 = XOR(v6, _mm_set1_epi64x(0xffLL));
+        SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
+        v0 = XOR(XOR(v0,v1),XOR(v2,v3));
+        v4 = XOR(XOR(v4,v5),XOR(v6,v7));
+
+        vpacket0 = _mm_add_epi64(vpacket0, vpacketinc);
+        vpacket1 = _mm_add_epi64(vpacket1, vpacketinc);
+        v0 = v0 & vnodemask;
+        v4 = v4 & vnodemask;
+        v1 = _mm_srli_epi64(v0, ZBITS);
+        v5 = _mm_srli_epi64(v4, ZBITS);
+
+        u32 uxy;
+  #define MATCH(i,v,x,w) \
+  uxy = _mm_extract_epi32(v,x);\
+  if (uxymap[uxy]) {\
+    u32 u = _mm_extract_epi32(w,x);\
+    for (u32 j = 0; j < PROOFSIZE; j++) {\
+      if (cycleus[j] == u && cyclevs[j] == sipnode(&trimmer->sip_keys, edge+i, 1)) {\
+        sols[sols.size()-PROOFSIZE + j] = edge + i;\
+      }\
+    }\
+  }
+        MATCH(0,v1,0,v0); MATCH(1,v1,2,v0);
+        MATCH(2,v5,0,v4); MATCH(3,v5,2,v4);
   #elif NSIPHASH == 8
         v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
         v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
