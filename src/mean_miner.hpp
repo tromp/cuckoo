@@ -1213,6 +1213,7 @@ public:
   // bit        39..21     20..13    12..0
   // write        edge     YYYYYY    ZZZZZ
   #elif NSIPHASH == 4
+// TODO
   #elif NSIPHASH == 8
         v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
         v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
