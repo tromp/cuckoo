@@ -158,6 +158,12 @@ lean30:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 lean30.1:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DPART_BITS=1 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 
+lean30x2:	siphash.h siphashxN.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+	$(GPP) -o $@ -mno-avx2 -DATOMIC -DNSIPHASH=2 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
+	
+lean30x4:	siphash.h siphashxN.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+	$(GPP) -o $@ -mno-avx2 -DATOMIC -DNSIPHASH=4 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
+	
 lean30x8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 
