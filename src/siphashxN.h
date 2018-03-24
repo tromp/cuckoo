@@ -18,10 +18,10 @@
 #define ADD(a, b) _mm_add_epi64(a, b)
 #define XOR(a, b) _mm_xor_si128(a, b)
 #define ROT13(x) _mm_or_si128(_mm_slli_epi64(x,13),_mm_srli_epi64(x,51))
+#define ROT16(x) _mm_shufflehi_epi16(_mm_shufflelo_epi16(x, _MM_SHUFFLE(2,1,0,3)), _MM_SHUFFLE(2,1,0,3))
 #define ROT17(x) _mm_or_si128(_mm_slli_epi64(x,17),_mm_srli_epi64(x,47))
 #define ROT21(x) _mm_or_si128(_mm_slli_epi64(x,21),_mm_srli_epi64(x,43))
 #define ROT32(x) _mm_shuffle_epi32  (x, _MM_SHUFFLE(2,3,0,1))
-#define ROT16(x) _mm_shufflehi_epi16(_mm_shufflelo_epi16(x, _MM_SHUFFLE(2,1,0,3)), _MM_SHUFFLE(2,1,0,3))
 
 #endif
 
@@ -176,14 +176,10 @@ void siphash24x2(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
 // 4-way sipHash-2-4 specialized to precomputed key and 8 byte nonces
 void siphash24x4(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
   __m128i v0, v1, v2, v3, mi, v4, v5, v6, v7, m2;
-  v0 = _mm_set1_epi64x(keys->k0);
-  v1 = _mm_set1_epi64x(keys->k1);
-  v2 = _mm_set1_epi64x(keys->k2);
-  v3 = _mm_set1_epi64x(keys->k3);
-  v4 = _mm_set1_epi64x(keys->k0);
-  v5 = _mm_set1_epi64x(keys->k1);
-  v6 = _mm_set1_epi64x(keys->k2);
-  v7 = _mm_set1_epi64x(keys->k3);
+  v4 = v0 = _mm_set1_epi64x(keys->k0);
+  v5 = v1 = _mm_set1_epi64x(keys->k1);
+  v6 = v2 = _mm_set1_epi64x(keys->k2);
+  v7 = v3 = _mm_set1_epi64x(keys->k3);
 
   mi = _mm_load_si128((__m128i *)indices);
   m2 = _mm_load_si128((__m128i *)(indices + 2));

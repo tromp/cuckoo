@@ -333,10 +333,8 @@ public:
     const u32   endy = NY * (id+1) / nthreads;
     u32 edge = starty << YZBITS, endedge = edge + NYZ;
 #if NSIPHASH == 4
-    static const __m256i vxmask = {XMASK, XMASK};
-    static const __m256i vyzmask = {YZMASK, YZMASK};
-    const __m128i vinit0 = _mm_load_si128((__m128i *)&sip_keys);
-    const __m128i vinit1 = _mm_load_si128((__m128i *)(&sip_keys + 2));
+    static const __m128i vxmask = {XMASK, XMASK};
+    static const __m128i vyzmask = {YZMASK, YZMASK};
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge + uorv;
     __m128i vpacket0 = _mm_set_epi64x(e2+2, e2+0);
@@ -389,41 +387,41 @@ public:
         }
 #endif
 #elif NSIPHASH == 4
-        v7 = v3 = _mm_unpackhi_epi64(vinit1, vinit1); // _mm_shuffle_epi32(vinit1, 0xee);
-        v4 = v0 = _mm_unpacklo_epi64(vinit0, vinit0); // _mm_shuffle_epi32(vinit0, 0x44);
-        v5 = v1 = _mm_unpackhi_epi64(vinit0, vinit0); // _mm_shuffle_epi32(vinit0, 0xee);
-        v6 = v2 = _mm_unpacklo_epi64(vinit1, vinit1); // _mm_shuffle_epi32(vinit1, 0x44);
+        v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
+        v4 = v0 = _mm_set1_epi64x(sip_keys.k0);
+        v5 = v1 = _mm_set1_epi64x(sip_keys.k1);
+        v6 = v2 = _mm_set1_epi64x(sip_keys.k2);
 
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
         SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-        v2 = XOR(v2,_mm128_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-        v6 = XOR(v6,_mm128_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+        v2 = XOR(v2, _mm_set1_epi64x(0xffLL));
+        v6 = XOR(v6, _mm_set1_epi64x(0xffLL));
         SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(XOR(v0,v1),XOR(v2,v3));
         v4 = XOR(XOR(v4,v5),XOR(v6,v7));
 
-        vpacket0 = _mm128_add_epi64(vpacket0, vpacketinc);
-        vpacket1 = _mm128_add_epi64(vpacket1, vpacketinc);
-        v1 = _mm128_srli_epi64(v0, YZBITS) & vxmask;
-        v5 = _mm128_srli_epi64(v4, YZBITS) & vxmask;
+        vpacket0 = _mm_add_epi64(vpacket0, vpacketinc);
+        vpacket1 = _mm_add_epi64(vpacket1, vpacketinc);
+        v1 = _mm_srli_epi64(v0, YZBITS) & vxmask;
+        v5 = _mm_srli_epi64(v4, YZBITS) & vxmask;
         v0 = (v0 & vyzmask) | vhi0;
         v4 = (v4 & vyzmask) | vhi1;
-        vhi0 = _mm128_add_epi64(vhi0, vhiinc);
-        vhi1 = _mm128_add_epi64(vhi1, vhiinc);
+        vhi0 = _mm_add_epi64(vhi0, vhiinc);
+        vhi1 = _mm_add_epi64(vhi1, vhiinc);
 
         u32 ux;
 #ifndef NEEDSYNC
 #define STORE0(i,v,x,w) \
-  ux = _mm128_extract_epi32(v,x);\
+  ux = _mm_extract_epi32(v,x);\
   *(u64 *)(base+dst.index[ux]) = _mm128_extract_epi64(w,i%4);\
   dst.index[ux] += BIGSIZE0;
 #else
   u32 zz;
 #define STORE0(i,v,x,w) \
-  zz = _mm128_extract_epi32(w,x);\
+  zz = _mm_extract_epi32(w,x);\
   if (i || likely(zz)) {\
-    ux = _mm128_extract_epi32(v,x);\
+    ux = _mm_extract_epi32(v,x);\
     for (; unlikely(last[ux] + NNONYZ <= edge+i); last[ux] += NNONYZ, dst.index[ux] += BIGSIZE0)\
       *(u32 *)(base+dst.index[ux]) = 0;\
     *(u32 *)(base+dst.index[ux]) = zz;\
@@ -1214,16 +1212,13 @@ public:
         }
   // bit        39..21     20..13    12..0
   // write        edge     YYYYYY    ZZZZZ
+  #elif NSIPHASH == 4
   #elif NSIPHASH == 8
-        v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-        v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-        v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-        v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
-        v7 = _mm256_permute4x64_epi64(vinit, 0xFF);
-        v4 = _mm256_permute4x64_epi64(vinit, 0x00);
-        v5 = _mm256_permute4x64_epi64(vinit, 0x55);
-        v6 = _mm256_permute4x64_epi64(vinit, 0xAA);
-  
+        v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
+        v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+        v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+        v2 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
+
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
         SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
