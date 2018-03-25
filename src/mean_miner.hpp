@@ -411,17 +411,22 @@ public:
         vhi1 = _mm_add_epi64(vhi1, vhiinc);
 
         u32 ux;
+#ifndef __SSE41__
+#define extract32(x, imm) _mm_cvtsi128_si32(_mm_srli_si128((x), 4 * (imm)))
+#else
+#define extract32(x, imm) _mm_extract_epi32(x, imm)
+#endif
 #ifndef NEEDSYNC
 #define STORE0(i,v,x,w) \
-  ux = _mm_extract_epi32(v,x);\
+  ux = extract32(v,x);\
   *(u64 *)(base+dst.index[ux]) = _mm128_extract_epi64(w,i%2);\
   dst.index[ux] += BIGSIZE0;
 #else
   u32 zz;
 #define STORE0(i,v,x,w) \
-  zz = _mm_extract_epi32(w,x);\
+  zz = extract32(w,x);\
   if (i || likely(zz)) {\
-    ux = _mm_extract_epi32(v,x);\
+    ux = extract32(v,x);\
     for (; unlikely(last[ux] + NNONYZ <= edge+i); last[ux] += NNONYZ, dst.index[ux] += BIGSIZE0)\
       *(u32 *)(base+dst.index[ux]) = 0;\
     *(u32 *)(base+dst.index[ux]) = zz;\
@@ -1241,9 +1246,9 @@ public:
 
         u32 uxy;
   #define MATCH(i,v,x,w) \
-  uxy = _mm_extract_epi32(v,x);\
+  uxy = extract32(v,x);\
   if (uxymap[uxy]) {\
-    u32 u = _mm_extract_epi32(w,x);\
+    u32 u = extract32(w,x);\
     for (u32 j = 0; j < PROOFSIZE; j++) {\
       if (cycleus[j] == u && cyclevs[j] == sipnode(&trimmer->sip_keys, edge+i, 1)) {\
         sols[sols.size()-PROOFSIZE + j] = edge + i;\
