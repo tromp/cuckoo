@@ -420,19 +420,15 @@ public:
 #endif
 #ifndef NEEDSYNC
 #define STORE0(i,v,x,w) \
-
   ux = extract32(v,x);\
-
   *(u64 *)(base+dst.index[ux]) = _mm128_extract_epi64(w,i%2);\
   dst.index[ux] += BIGSIZE0;
 #else
   u32 zz;
 #define STORE0(i,v,x,w) \
-
   zz = extract32(w,x);\
   if (i || likely(zz)) {\
     ux = extract32(v,x);\
-
     for (; unlikely(last[ux] + NNONYZ <= edge+i); last[ux] += NNONYZ, dst.index[ux] += BIGSIZE0)\
       *(u32 *)(base+dst.index[ux]) = 0;\
     *(u32 *)(base+dst.index[ux]) = zz;\
