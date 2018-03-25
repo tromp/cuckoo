@@ -588,14 +588,10 @@ public:
         const __m256i vuy34  = {uy34, uy34, uy34, uy34};
         const __m256i vuorv  = {uorv, uorv, uorv, uorv};
         for (; readedge <= edges-NSIPHASH; readedge += NSIPHASH, readz += NSIPHASH) {
-          v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-          v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-          v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-          v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
-          v7 = _mm256_permute4x64_epi64(vinit, 0xFF);
-          v4 = _mm256_permute4x64_epi64(vinit, 0x00);
-          v5 = _mm256_permute4x64_epi64(vinit, 0x55);
-          v6 = _mm256_permute4x64_epi64(vinit, 0xAA);
+          v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
+          v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+          v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+          v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
 
           vpacket0 = _mm256_slli_epi64(_mm256_cvtepu32_epi64(*(__m128i*) readedge     ), 1) | vuorv;
           vhi0     = vuy34 | _mm256_slli_epi64(_mm256_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)readz)), YZBITS);
