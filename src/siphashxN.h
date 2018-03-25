@@ -75,11 +75,10 @@
 // 4-way sipHash-2-4 specialized to precomputed key and 8 byte nonces
 void siphash24x4(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
   const __m256i packet = _mm256_load_si256((__m256i *)indices);
-  const __m256i init = _mm256_set_epi64x(keys->k3, keys->k2, keys->k1, keys->k0);
-  __m256i v3 = _mm256_permute4x64_epi64(init, 0xFF);
-  __m256i v0 = _mm256_permute4x64_epi64(init, 0x00);
-  __m256i v1 = _mm256_permute4x64_epi64(init, 0x55);
-  __m256i v2 = _mm256_permute4x64_epi64(init, 0xAA);
+  __m256i v0 = _mm256_set1_epi64x(keys->k0);
+  __m256i v1 = _mm256_set1_epi64x(keys->k1);
+  __m256i v2 = _mm256_set1_epi64x(keys->k2);
+  __m256i v3 = _mm256_set1_epi64x(keys->k3);
 
   v3 = XOR(v3,packet);
   SIPROUNDXN; SIPROUNDXN;
@@ -91,17 +90,13 @@ void siphash24x4(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
 
 // 8-way sipHash-2-4 specialized to precomputed key and 8 byte nonces
 void siphash24x8(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
-  const __m256i init = _mm256_set_epi64x(keys->k3, keys->k2, keys->k1, keys->k0);
   const __m256i packet0 = _mm256_load_si256((__m256i *)indices);
   const __m256i packet4 = _mm256_load_si256((__m256i *)(indices+4));
-  __m256i v3 = _mm256_permute4x64_epi64(init, 0xFF);
-  __m256i v0 = _mm256_permute4x64_epi64(init, 0x00);
-  __m256i v1 = _mm256_permute4x64_epi64(init, 0x55);
-  __m256i v2 = _mm256_permute4x64_epi64(init, 0xAA);
-  __m256i v7 = _mm256_permute4x64_epi64(init, 0xFF);
-  __m256i v4 = _mm256_permute4x64_epi64(init, 0x00);
-  __m256i v5 = _mm256_permute4x64_epi64(init, 0x55);
-  __m256i v6 = _mm256_permute4x64_epi64(init, 0xAA);
+  __m256i v0, v1, v2, v3, v4, v5, v6, v7;
+  v7 = v3 = _mm256_set1_epi64x(keys->k3);
+  v4 = v0 = _mm256_set1_epi64x(keys->k0);
+  v5 = v1 = _mm256_set1_epi64x(keys->k1);
+  v6 = v2 = _mm256_set1_epi64x(keys->k2);
 
   v3 = XOR(v3,packet0); v7 = XOR(v7,packet4);
   SIPROUNDX2N; SIPROUNDX2N;
@@ -115,27 +110,15 @@ void siphash24x8(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
 
 // 16-way sipHash-2-4 specialized to precomputed key and 8 byte nonces
 void siphash24x16(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
-  const __m256i init = _mm256_set_epi64x(keys->k3, keys->k2, keys->k1, keys->k0);
   const __m256i packet0 = _mm256_load_si256((__m256i *)indices);
   const __m256i packet4 = _mm256_load_si256((__m256i *)(indices+4));
   const __m256i packet8 = _mm256_load_si256((__m256i *)(indices+8));
   const __m256i packetC = _mm256_load_si256((__m256i *)(indices+12));
-  __m256i v3 = _mm256_permute4x64_epi64(init, 0xFF);
-  __m256i v0 = _mm256_permute4x64_epi64(init, 0x00);
-  __m256i v1 = _mm256_permute4x64_epi64(init, 0x55);
-  __m256i v2 = _mm256_permute4x64_epi64(init, 0xAA);
-  __m256i v7 = _mm256_permute4x64_epi64(init, 0xFF);
-  __m256i v4 = _mm256_permute4x64_epi64(init, 0x00);
-  __m256i v5 = _mm256_permute4x64_epi64(init, 0x55);
-  __m256i v6 = _mm256_permute4x64_epi64(init, 0xAA);
-  __m256i vB = _mm256_permute4x64_epi64(init, 0xFF);
-  __m256i v8 = _mm256_permute4x64_epi64(init, 0x00);
-  __m256i v9 = _mm256_permute4x64_epi64(init, 0x55);
-  __m256i vA = _mm256_permute4x64_epi64(init, 0xAA);
-  __m256i vF = _mm256_permute4x64_epi64(init, 0xFF);
-  __m256i vC = _mm256_permute4x64_epi64(init, 0x00);
-  __m256i vD = _mm256_permute4x64_epi64(init, 0x55);
-  __m256i vE = _mm256_permute4x64_epi64(init, 0xAA);
+  __m256i v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, vA, vB, vC, vD, vE, vF;
+  vF = vB = v7 = v3 = _mm256_set1_epi64x(keys->k3);
+  vC = v8 = v4 = v0 = _mm256_set1_epi64x(keys->k0);
+  vD = v9 = v5 = v1 = _mm256_set1_epi64x(keys->k1);
+  vE = vA = v6 = v2 = _mm256_set1_epi64x(keys->k2);
 
   v3 = XOR(v3,packet0); v7 = XOR(v7,packet4); vB = XOR(vB,packet8); vF = XOR(vF,packetC);
   SIPROUNDX4N; SIPROUNDX4N;
