@@ -88,7 +88,11 @@ mean28sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 mean28sx1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES  -DXBITS=6 -DNSIPHASH=1 -DEDGEBITS=27 mean_miner.cpp $(LIBS)
 
+<<<<<<< HEAD
 mean30x4:	cuckoo.h siphashxN.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+=======
+mean30x4:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+>>>>>>> pr/1
 	$(GPP) -o $@ -mno-avx2 -DNSIPHASH=4 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
 mean30x8:	cuckoo.h siphashxN.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
