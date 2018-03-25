@@ -83,7 +83,7 @@ void siphash24x4(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
   v3 = XOR(v3,packet);
   SIPROUNDXN; SIPROUNDXN;
   v0 = XOR(v0,packet);
-  v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+  v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
   SIPROUNDXN; SIPROUNDXN; SIPROUNDXN; SIPROUNDXN;
   _mm256_store_si256((__m256i *)hashes, XOR(XOR(v0,v1),XOR(v2,v3)));
 }
@@ -101,8 +101,8 @@ void siphash24x8(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
   v3 = XOR(v3,packet0); v7 = XOR(v7,packet4);
   SIPROUNDX2N; SIPROUNDX2N;
   v0 = XOR(v0,packet0); v4 = XOR(v4,packet4);
-  v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-  v6 = XOR(v6,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+  v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
+  v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
   SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
   _mm256_store_si256((__m256i *)hashes, XOR(XOR(v0,v1),XOR(v2,v3)));
   _mm256_store_si256((__m256i *)(hashes+4), XOR(XOR(v4,v5),XOR(v6,v7)));
@@ -123,10 +123,10 @@ void siphash24x16(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
   v3 = XOR(v3,packet0); v7 = XOR(v7,packet4); vB = XOR(vB,packet8); vF = XOR(vF,packetC);
   SIPROUNDX4N; SIPROUNDX4N;
   v0 = XOR(v0,packet0); v4 = XOR(v4,packet4); v8 = XOR(v8,packet8); vC = XOR(vC,packetC);
-  v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-  v6 = XOR(v6,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-  vA = XOR(vA,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-  vE = XOR(vE,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+  v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
+  v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
+  vA = XOR(vA,_mm256_set1_epi64x(0xffLL));
+  vE = XOR(vE,_mm256_set1_epi64x(0xffLL));
   SIPROUNDX4N; SIPROUNDX4N; SIPROUNDX4N; SIPROUNDX4N;
   _mm256_store_si256((__m256i *) hashes    , XOR(XOR(v0,v1),XOR(v2,v3)));
   _mm256_store_si256((__m256i *)(hashes+ 4), XOR(XOR(v4,v5),XOR(v6,v7)));

@@ -445,8 +445,8 @@ public:
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
         SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-        v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-        v6 = XOR(v6,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+        v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
+        v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
         SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(XOR(v0,v1),XOR(v2,v3));
         v4 = XOR(XOR(v4,v5),XOR(v6,v7));
@@ -601,8 +601,8 @@ public:
           v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
           SIPROUNDX2N; SIPROUNDX2N;
           v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-          v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-          v6 = XOR(v6,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+          v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
+          v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
           SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
           v0 = XOR(XOR(v0,v1),XOR(v2,v3));
           v4 = XOR(XOR(v4,v5),XOR(v6,v7));
@@ -1262,8 +1262,8 @@ public:
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
         SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-        v2 = XOR(v2,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
-        v6 = XOR(v6,_mm256_broadcastq_epi64(_mm_cvtsi64_si128(0xff)));
+        v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
+        v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
         SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(XOR(v0,v1),XOR(v2,v3));
         v4 = XOR(XOR(v4,v5),XOR(v6,v7));
