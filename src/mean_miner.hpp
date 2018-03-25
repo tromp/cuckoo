@@ -1256,7 +1256,7 @@ public:
         v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
         v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
         v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-        v2 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
+        v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
 
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
         SIPROUNDX2N; SIPROUNDX2N;
