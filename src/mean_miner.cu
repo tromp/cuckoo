@@ -1068,10 +1068,10 @@ int main(int argc, char **argv) {
   }
 
   int nDevices;
-  cudaGetDeviceCount(&nDevices);
+  checkCudaErrors(cudaGetDeviceCount(&nDevices));
   assert(device < nDevices);
   cudaDeviceProp prop;
-  cudaGetDeviceProperties(&prop, device);
+  checkCudaErrors(cudaGetDeviceProperties(&prop, device));
   assert(tp.genUtpb <= prop.maxThreadsPerBlock);
   assert(tp.genV.stage1tpb <= prop.maxThreadsPerBlock);
   assert(tp.genV.stage2tpb <= prop.maxThreadsPerBlock);
