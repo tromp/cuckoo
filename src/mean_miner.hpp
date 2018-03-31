@@ -502,8 +502,13 @@ public:
 
   void genVnodes(const u32 id, const u32 uorv) {
     u64 rdtsc0, rdtsc1;
-  
-#if NSIPHASH == 8
+#if NSIPHASH == 4
+	static const __m128i vxmask = {XMASK, XMASK};
+    static const __m128i vyzmask = {YZMASK, YZMASK};
+	const __m128i ff = _mm_set1_epi64x(0xffLL);
+	__m128i v0, v1, v2, v3, v4, v5, v6, v7;
+	__m128i vpacket0, vpacket1, vhi0, vhi1;
+#elif NSIPHASH == 8
     static const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
     static const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
     const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
@@ -584,7 +589,49 @@ public:
         const u16 *readz = tzs[id];
         const u32 *readedge = edges0;
         int64_t uy34 = (int64_t)uy << YZZBITS;
-#if NSIPHASH == 8
+#if NSIPHASH == 4
+		const __m128i vuy34 = _mm_set1_epi64x(uy34);
+        const __m128i vuorv = _mm_set1_epi64x(uorv);
+        for (; readedge <= edges-NSIPHASH; readedge += NSIPHASH, readz += NSIPHASH) {
+          v4 = v0 = _mm_set1_epi64x(sip_keys.k0);
+          v5 = v1 = _mm_set1_epi64x(sip_keys.k1);
+          v6 = v2 = _mm_set1_epi64x(sip_keys.k2);
+		  v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
+
+          vpacket0 = _mm_slli_epi64(_mm_cvtepu32_epi64(*(__m128i*) readedge     ), 1) | vuorv;
+          vhi0     = vuy34 | _mm_slli_epi64(_mm_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)readz)), YZBITS);
+          vpacket1 = _mm_slli_epi64(_mm_cvtepu32_epi64(*(__m128i*)(readedge + 2)), 1) | vuorv;
+          vhi1     = vuy34 | _mm_slli_epi64(_mm_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)(readz + 2))), YZBITS);
+
+          v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
+          SIPROUNDX2N; SIPROUNDX2N;
+          v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
+          v2 = XOR(v2,ff);
+          v6 = XOR(v6,ff);
+          SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
+          v0 = XOR(XOR(v0,v1),XOR(v2,v3));
+          v4 = XOR(XOR(v4,v5),XOR(v6,v7));
+    
+          v1 = _mm_srli_epi64(v0, YZBITS) & vxmask;
+          v5 = _mm_srli_epi64(v4, YZBITS) & vxmask;
+          v0 = vhi0 | (v0 & vyzmask);
+          v4 = vhi1 | (v4 & vyzmask);
+
+          u32 vx;
+#ifndef __SSE41__
+#define extract32(x, imm) _mm_cvtsi128_si32(_mm_srli_si128((x), 4 * (imm)))
+#else
+#define extract32(x, imm) _mm_extract_epi32(x, imm)
+#endif
+		  
+#define STORE(i,v,x,w) \
+  vx = extract32(v,x);\
+  *(u64 *)(base+dst.index[vx]) = _mm_extract_epi64(w,i%2);\
+  dst.index[vx] += BIGSIZE;
+		  STORE(0,v1,0,v0); STORE(1,v1,2,v0);
+          STORE(2,v5,0,v4); STORE(3,v5,2,v4);
+        }
+#elif NSIPHASH == 8
         const __m256i vuy34  = {uy34, uy34, uy34, uy34};
         const __m256i vuorv  = {uorv, uorv, uorv, uorv};
         for (; readedge <= edges-NSIPHASH; readedge += NSIPHASH, readz += NSIPHASH) {
