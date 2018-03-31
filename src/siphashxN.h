@@ -113,13 +113,6 @@ void siphash24x8(const siphash_keys *keys, const u64 *indices, u64 *hashes) {
   const __m256i packet4 = _mm256_load_si256((__m256i *)(indices+4));
   
   __m256i v0, v1, v2, v3, v4, v5, v6, v7;
-  
-       v0 = _mm256_permute4x64_epi64(init, 0x00);
-       v1 = _mm256_permute4x64_epi64(init, 0x55);
-  v6 = v2 = _mm256_permute4x64_epi64(init, 0xAA);
-  v7 = v3 = _mm256_permute4x64_epi64(init, 0xFF);
-  
-  __m256i v0, v1, v2, v3, v4, v5, v6, v7;
   v7 = v3 = _mm256_set1_epi64x(keys->k3);
   v4 = v0 = _mm256_set1_epi64x(keys->k0);
   v5 = v1 = _mm256_set1_epi64x(keys->k1);
