@@ -348,8 +348,6 @@ public:
     static const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
     static const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
     const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
-	const __m256i ff = _mm256_set1_epi64x(0xffLL);
-	
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge + uorv;
     __m256i vpacket0 = _mm256_set_epi64x(e2+6, e2+4, e2+2, e2+0);
@@ -389,13 +387,13 @@ public:
         }
 #endif
 #elif NSIPHASH == 4
-             v0 = _mm_set1_epi64x(sip_keys.k0);
-             v1 = _mm_set1_epi64x(sip_keys.k1);
+        v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
+        v4 = v0 = _mm_set1_epi64x(sip_keys.k0);
+        v5 = v1 = _mm_set1_epi64x(sip_keys.k1);
         v6 = v2 = _mm_set1_epi64x(sip_keys.k2);
-		v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
 
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
-        SIPROUNDX2N_FIRST; SIPROUNDX2N;
+        SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
         v2 = XOR(v2, _mm_set1_epi64x(0xffLL));
         v6 = XOR(v6, _mm_set1_epi64x(0xffLL));
@@ -440,15 +438,15 @@ public:
         STORE0(2,v5,0,v4); STORE0(3,v5,2,v4);
 #elif NSIPHASH == 8
         v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-             v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-             v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+        v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+        v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
         v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
 
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
-        SIPROUNDX2N_FIRST; SIPROUNDX2N;
+        SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-        v2 = XOR(v2,ff);
-        v6 = XOR(v6,ff);
+        v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
+        v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
         SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(XOR(v0,v1),XOR(v2,v3));
         v4 = XOR(XOR(v4,v5),XOR(v6,v7));
@@ -509,7 +507,6 @@ public:
     static const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
     static const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
     const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
-	const __m256i ff = _mm256_set1_epi64x(0xffLL);
     __m256i vpacket0, vpacket1, vhi0, vhi1;
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
 #endif
@@ -591,10 +588,9 @@ public:
         const __m256i vuy34  = {uy34, uy34, uy34, uy34};
         const __m256i vuorv  = {uorv, uorv, uorv, uorv};
         for (; readedge <= edges-NSIPHASH; readedge += NSIPHASH, readz += NSIPHASH) {
-		
           v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-               v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-               v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+          v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+          v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
           v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
 
           vpacket0 = _mm256_slli_epi64(_mm256_cvtepu32_epi64(*(__m128i*) readedge     ), 1) | vuorv;
@@ -603,10 +599,10 @@ public:
           vhi1     = vuy34 | _mm256_slli_epi64(_mm256_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)(readz + 4))), YZBITS);
 
           v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
-          SIPROUNDX2N_FIRST; SIPROUNDX2N;
+          SIPROUNDX2N; SIPROUNDX2N;
           v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-          v2 = XOR(v2,ff);
-          v6 = XOR(v6,ff);
+          v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
+          v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
           SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
           v0 = XOR(XOR(v0,v1),XOR(v2,v3));
           v4 = XOR(XOR(v4,v5),XOR(v6,v7));
@@ -1201,7 +1197,6 @@ public:
   #elif NSIPHASH == 8
     static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
     const __m256i vinit = _mm256_load_si256((__m256i *)&trimmer->sip_keys);
-	const __m256i ff = _mm256_set1_epi64x(0xffLL);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge;
     __m256i vpacket0 = _mm256_set_epi64x(e2+6, e2+4, e2+2, e2+0);
@@ -1224,13 +1219,13 @@ public:
   // bit        39..21     20..13    12..0
   // write        edge     YYYYYY    ZZZZZ
   #elif NSIPHASH == 4
-             v0 = _mm_set1_epi64x(sip_keys.k0);
-             v1 = _mm_set1_epi64x(sip_keys.k1);
+        v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
+        v4 = v0 = _mm_set1_epi64x(sip_keys.k0);
+        v5 = v1 = _mm_set1_epi64x(sip_keys.k1);
         v6 = v2 = _mm_set1_epi64x(sip_keys.k2);
-		v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
 
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
-        SIPROUNDX2N_FIRST; SIPROUNDX2N;
+        SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
         v2 = XOR(v2, _mm_set1_epi64x(0xffLL));
         v6 = XOR(v6, _mm_set1_epi64x(0xffLL));
@@ -1247,9 +1242,9 @@ public:
 
         u32 uxy;
   #define MATCH(i,v,x,w) \
-  uxy = _mm_extract_epi32(v,x);\
+  uxy = extract32(v,x);\
   if (uxymap[uxy]) {\
-    u32 u = _mm_extract_epi32(w,x);\
+    u32 u = extract32(w,x);\
     for (u32 j = 0; j < PROOFSIZE; j++) {\
       if (cycleus[j] == u && cyclevs[j] == sipnode(&trimmer->sip_keys, edge+i, 1)) {\
         sols[sols.size()-PROOFSIZE + j] = edge + i;\
@@ -1260,15 +1255,15 @@ public:
         MATCH(2,v5,0,v4); MATCH(3,v5,2,v4);
   #elif NSIPHASH == 8
         v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-             v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-             v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+        v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+        v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
         v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
 
         v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
-        SIPROUNDX2N_FIRST; SIPROUNDX2N;
+        SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-        v2 = XOR(v2,ff);
-        v6 = XOR(v6,ff);
+        v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
+        v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
         SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
         v0 = XOR(XOR(v0,v1),XOR(v2,v3));
         v4 = XOR(XOR(v4,v5),XOR(v6,v7));
