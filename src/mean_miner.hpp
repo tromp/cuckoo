@@ -618,12 +618,6 @@ public:
           v4 = vhi1 | (v4 & vyzmask);
 
           u32 vx;
-#ifndef __SSE41__
-#define extract32(x, imm) _mm_cvtsi128_si32(_mm_srli_si128((x), 4 * (imm)))
-#else
-#define extract32(x, imm) _mm_extract_epi32(x, imm)
-#endif
-
 #define STORE(i,v,x,w) \
   vx = extract32(v,x);\
   *(u64 *)(base+dst.index[vx]) = _mm_extract_epi64(w,i%2);\
