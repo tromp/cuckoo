@@ -34,17 +34,17 @@ uses 33 bits per edge and is bottlenecked by bucket sorting, making it memory ba
 Hybrid ASICs
 ------------
 Its large memory requirements make single-chip ASICs economically infeasable for Cuckoo Cycle.
-For the default billion node graph size, the bandwidth bound solver needs well over 2GB,
-currently requiring a multitude of 1GB DRAM chips.
+For the default billion node graph size, the bandwidth bound solver needs well over 2 GB,
+currently requiring a multitude of 1 GB DRAM chips.
 DRAM can be viewed as an ASIC for writing and reading words of memory in mostly sequential fashion.
 As such, it's perhaps the most cost optimized, commoditized, and ubiquitous ASIC in existence,
-using moderate power on the order of 1W per chip.
+using moderate power on the order of 1 W per chip.
 Every modern smart phone includes a few GBs of DRAM that mostly sits idle as it recharges overnight.
 This presents unique opportunities for a PoW that is minimally compute intensive and maximally memory intensive.
 
 A hybrid ASIC solution for Cuckoo Cycle pairs a bunch of DRAM chips with a small low-power ASIC,
 which needs to run just efficient enough to saturate the limited DRAM bandwidth.
-In terms of solutions per Joule of energy, this might be reasonably efficient mining platform.
+In terms of solutions per Joule of energy, this might be a reasonably efficient mining platform.
 Adding such chips to devices already equipped with sufficient memory could make for a
 cost effective mining platform.
 
@@ -60,7 +60,7 @@ Cycle finding
 The algorithm implemented in lean_miner.hpp runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
 only compute a fraction of all edges, and the odds of all 42 edges of a cycle
-occurring in this fraction are astronomically small).
+occurring in this fraction are astronomically small.)
 
 Memory-wise, it uses N/2 bits to maintain a subset of all edges (potential
 cycle edges) and N additional bits to trim the subset in a series of edge trimming rounds.
@@ -74,11 +74,11 @@ is used to recognise all cycles, and recover those of the right length.
 Performance
 --------------
 
-The runtime of a single proof attempt for a 2^30 node graph on a 4GHz i7-4790K is 10.5 seconds
-with the single-threaded mean solver, using 2200MB (or 3200MB with faster solution recovery).
+The runtime of a single proof attempt for a 2^30 node graph on a 4 GHz i7-4790K is 10.5 seconds
+with the single-threaded mean solver, using 2200 MB (or 3200 MB with faster solution recovery).
 This reduces to 3.5 seconds with 4 threads (3x speedup).
 
-Using an order of magnitude less memory (just under 200MB),
+Using an order of magnitude less memory (just under 200 MB),
 the lean solver takes 32.8 seconds per proof attempt.
 Its multi-threading performance is less impressive though,
 with 2 threads still taking 25.6 seconds and 4 taking 20.5 seconds.
@@ -88,7 +88,7 @@ that these implementations are reasonably optimal,
 that trading off (less) memory for (more) running time,
 incurs at least one order of magnitude extra slowdown,
 and finally, that mean_miner.cu is a reasonably optimal GPU miner.
-The latter runs about 2.4x faster on an NVIDA 1080Ti than mean_miner on an Intel Core-i7 CPU.
+The latter runs about 2.4x faster on an NVIDIA 1080Ti than mean_miner on an Intel Core-i7 CPU.
 In support of these claims, I offer the following bounties:
 
 CPU Speedup Bounties
@@ -129,12 +129,12 @@ While both siphash-2-4 and siphash-1-3 pass the [smhasher](https://github.com/aa
 test suite for non-cryptographic hash functions,
 siphash-1-2, with 1 compression round and only 2 finalization rounds,
 [fails](doc/SipHash12) quite badly in the Avalanche department.
-We invite attacks on Cuckoo Cycle's dependence on its underlying hash function by offering
+We invite attacks on Cuckoo Cycle's dependence on its underlying hash function by offering:
 
-$5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
+- $5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
 twice as fast as lean_miner on graphs defined by siphash-2-4, using no more than 1 byte per edge.
 
-$5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
+- $5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
 twice as fast as mean_miner on graphs defined by siphash-2-4, regardless of memory use.
 
 These bounties are not subject to double and/or fractional payouts.
