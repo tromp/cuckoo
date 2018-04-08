@@ -1,5 +1,10 @@
 Cuckoo Cycle
 ============
+
+
+NEWSFLASH: A GPU bounty claim is currently under consideration.
+[Photon's miner](https://github.com/mozkomor/GrinGoldMiner) appears to be roughly 4 times faster.
+
 [Blog article explaining Cuckoo Cycle](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing)
 
 [Whitepaper](doc/cuckoo.pdf?raw=true)
@@ -45,8 +50,12 @@ This presents unique opportunities for a PoW that is minimally compute intensive
 A hybrid ASIC solution for Cuckoo Cycle pairs a bunch of DRAM chips with a small low-power ASIC,
 which needs to run just efficient enough to saturate the limited DRAM bandwidth.
 In terms of solutions per Joule of energy, this might be reasonably efficient mining platform.
+
+ASIC Commoditization
+--------------------
 Adding such chips to devices already equipped with sufficient memory could make for a
-cost effective mining platform.
+cost effective mining platform. Integration of a Cuckoo Cycle accelerator on future CPUs,
+obviating the need for a separate chip, would yield the ultimate form of decentralization.
 
 An indirectly useful Proof of Work
 --------------
