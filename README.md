@@ -1,9 +1,9 @@
 Cuckoo Cycle
 ============
 
+NEWSFLASH: Congratulations to Photon and Urza for earning a double GPU bounty of $10000 with their 4x faster [GPU solver](https://github.com/mozkomor/GrinGoldMiner)!
 
-NEWSFLASH: A GPU bounty claim is currently under consideration.
-[Photon's miner](https://github.com/mozkomor/GrinGoldMiner) appears to be roughly 4 times faster.
+appears to be roughly 4 times faster.
 
 [Blog article explaining Cuckoo Cycle](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing)
 
