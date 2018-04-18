@@ -419,7 +419,7 @@ public:
 #ifndef NEEDSYNC
 #define STORE0(i,v,x,w) \
   ux = extract32(v,x);\
-  *(u64 *)(base+dst.index[ux]) = _mm128_extract_epi64(w,i%2);\
+  *(u64 *)(base+dst.index[ux]) = _mm_extract_epi64(w,i%2);\
   dst.index[ux] += BIGSIZE0;
 #else
   u32 zz;
