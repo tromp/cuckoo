@@ -30,23 +30,22 @@ requiring considerable resources, and some luck
 (the odds of a random cuckoo graph having an L-cycle are approximately 1 in L).
 
 The memory efficient miner uses 3 bits per edge and is bottlenecked by
-accessing random 2-bit counters, making it memory latency bound.  The roughly
-4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
+accessing random 2-bit counters, making it memory latency bound. The core of this miner, where
+over 99% of time is spent, is also [extremely simple](doc/leancore).
+The roughly 4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
 uses 33 bits per edge and is bottlenecked by bucket sorting, making it memory bandwidth bound.
 
 Hybrid ASICs
 ------------
 Its large memory requirements make single-chip ASICs economically infeasable for Cuckoo Cycle.
-For the default billion node graph size, the bandwidth bound solver needs well over 2GB,
-currently requiring a multitude of 1GB DRAM chips.
-DRAM can be viewed as an ASIC for writing and reading words of memory in mostly sequential fashion.
-As such, it's perhaps the most cost optimized, commoditized, and ubiquitous ASIC in existence,
+With a two billion node graph size, the latency bound solver needs 128 MB DRAM and 256/2^k MB SRAM,
+while the bandwidth bound solver needs 4 GB DRAM.
+SRAM and DRAM can be viewed as ASICs for writing and reading words of memory in mostly random, respectively, sequential fashion.
+DRAM in particular is perhaps the most cost optimized, commoditized, and ubiquitous ASIC in existence,
 using moderate power on the order of 1W per chip.
-Every modern smart phone includes a few GBs of DRAM that mostly sits idle as it recharges overnight.
-This presents unique opportunities for a PoW that is minimally compute intensive and maximally memory intensive.
 
-A hybrid ASIC solution for Cuckoo Cycle pairs a bunch of DRAM chips with a small low-power ASIC,
-which needs to run just efficient enough to saturate the limited DRAM bandwidth.
+A hybrid ASIC solution for Cuckoo Cycle pairs a bunch of DRAM (and possibly SRAM) chips with a small low-power ASIC,
+which needs to run just efficient enough to saturate the limited memory bandwidth.
 In terms of solutions per Joule of energy, this might be reasonably efficient mining platform.
 
 ASIC Commoditization
