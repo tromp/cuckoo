@@ -31,7 +31,7 @@ requiring considerable resources, and some luck
 
 The memory efficient miner uses 3 bits per edge and is bottlenecked by
 accessing random 2-bit counters, making it memory latency bound. The core of this miner, where
-over 99% of time is spent, is also [extremely simple](doc/leancore).
+over 99% of time is spent, is also [relatively simple](doc/leancore).
 The roughly 4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
 uses 33 bits per edge and is bottlenecked by bucket sorting, making it memory bandwidth bound.
 
