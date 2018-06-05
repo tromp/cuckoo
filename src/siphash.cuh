@@ -1,3 +1,5 @@
+#include "siphash.h"
+
 // d(evice s)ipnode
 #if (__CUDA_ARCH__  >= 320) // redefine ROTL to use funnel shifter, 3% speed gain
 
@@ -33,7 +35,7 @@ __device__ __forceinline__ uint64_t devectorize(uint2 x) {
   asm("mov.b64 %0,{%1,%2}; \n\t" : "=l"(result) : "r"(x.x), "r"(x.y));
   return result;
 }
-__device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
+__device__ node_t dipnode(const siphash_keys &keys, edge_t nce, u32 uorv) {
   uint2 nonce = vectorize(2*nce + uorv);
   uint2 v0 = vectorize(keys.k0), v1 = vectorize(keys.k1), v2 = vectorize(keys.k2), v3 = vectorize(keys.k3) ^ nonce;
   SIPROUND; SIPROUND;
@@ -45,7 +47,7 @@ __device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
 
 #else
 
-__device__ node_t dipnode(siphash_keys &keys, edge_t nce, u32 uorv) {
+__device__ node_t dipnode(const siphash_keys &keys, edge_t nce, u32 uorv) {
   u64 nonce = 2*nce + uorv;
   u64 v0 = keys.k0, v1 = keys.k1, v2 = keys.k2, v3 = keys.k3^ nonce;
   SIPROUND; SIPROUND;
