@@ -14,8 +14,8 @@ With a 42-line [complete specification](doc/spec), Cuckoo Cycle is less than hal
 [SHA3 (Keccak)](https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c)
 as used in Bitcoin, Equihash and ethash. Simplicity matters.
 
-Proofs take the form of a length 42 cycle in a bipartite graph with N nodes and
-N/2 edges, with N scalable from millions to billions and beyond.
+Proofs take the form of a length 42 cycle in a bipartite graph with 2^N nodes and
+2^(N-1) edges, with N ranging from 10 up to 64.
 
 The graph is defined by the siphash-2-4 keyed hash function mapping an edge index
 and partition side (0 or 1) to the edge endpoint on that side.
@@ -27,26 +27,38 @@ While trivially verifiable, finding a 42-cycle, on the other hand, is far from t
 requiring considerable resources, and some luck
 (the odds of a random cuckoo graph having an L-cycle are approximately 1 in L).
 
+Lean mining
+-----------
 The memory efficient miner uses 3 bits per edge and is bottlenecked by
-accessing random 2-bit counters, making it memory latency bound. The core of this miner, where
-over 99% of time is spent, is also [relatively simple](doc/leancore).
-The roughly 4x faster latency avoiding miner, a rewrite from xenoncat's bounty winning solver,
-uses 33 bits per edge and is bottlenecked by bucket sorting, making it memory bandwidth bound.
+accessing random 2-bit counters, making it memory latency bound.
+The core of this miner, where over 99% of time is spent, is also [relatively simple](doc/leancore).
 
-Hybrid ASICs
-------------
-Its large memory requirements make single-chip ASICs economically infeasable for Cuckoo Cycle.
-With a two billion node graph size, the latency bound solver needs 128 MB DRAM and 256/2^k MB SRAM,
-while the bandwidth bound solver needs a little over 4 GB DRAM.
-SRAM and DRAM can be viewed as ASICs for writing and reading words of memory in mostly random, respectively, sequential fashion.
-DRAM in particular is perhaps the most cost optimized, commoditized, and ubiquitous ASIC in existence,
-using moderate power on the order of 1W per chip.
+Mean mining
+-----------
+The roughly 4x faster latency avoiding miner uses 33 bits per edge
+and is bottlenecked by bucket sorting, making it memory bandwidth bound.
 
-A hybrid ASIC solution for Cuckoo Cycle pairs a bunch of DRAM (and possibly SRAM) chips with a small low-power ASIC,
-which needs to run just efficient enough to saturate the limited memory bandwidth.
+Dynamic Sizing
+--------------
+Instead of fixing N, a proof-of-work system could allow miners to work on any graph size they like,
+above a certain minimum. Cycles in larger graphs are more valued as they take more effort to find.
+We propose to scale the difficulty for a graph on 2^N nodes by 2^N * (N-1),
+which is the number of bits of siphash output that define the graph.
+
+Upgrade by Soft Fork
+--------------------
+Dynamic Sizing allows for increasing the memory required for mining simply by raising the minimum allowed graph size.
+Since this makes new valid blocks a subset of old valid blocks, it is not a hard fork but a soft fork, and thus immensely
+easier to deploy. Miner manufacturers are incentivized to support larger sizes as being more future proof.
+
+Single Chip ASIC Resistant
+--------------------------
+Cuckoo Cycle's large and growing memory requirements aim to deter single-chip ASICs
+in favor of simpler memory-controller like ASICs that connect commodity memory chips together.
+Such ASICs only need to run efficient enough to saturate the limited memory bandwidth/latency.
 With power consumption and cost dominated by that of the memory chips,
 and the roles of ASIC design skills and fab access diminished, 
-miner manufacturers can compete on more equal terms.
+miner manufacturers can hopefully compete on more equal terms.
 
 ASIC Commoditization
 --------------------
@@ -55,26 +67,31 @@ cost effective mining platform. Integration of a Cuckoo Cycle accelerator on fut
 obviating the need for a separate chip, would yield the ultimate form of decentralization.
 
 An indirectly useful Proof of Work
---------------
-Although running the latency bound solver requires an order of magnitude less memory,
-current low-latency memory ASICs such as RLDRAM3 and QDR-IV SRAM are at least an order of magnitude more expensive.
-Cuckoo Cycle provides incentives to making low-latency memory affordable enough to tip the scale,
-which could benefit many applications beyond mining.
+----------------------------------
+Large scale Cuckoo Cycle mining would drive up demand for low-latency SRAM memory,
+ultimately making it more affordable as production increases in scale.
+This could benefit many applications beyond mining.
+It could also provide a market for faulty memory chips (which need to be indelibly marked as such),
+which would merely result in a slight degradation of a miner's solution rate.
 
 Cycle finding
 --------------
-The algorithm implemented in lean_miner.hpp runs in time linear in N.
+The most efficient known way to find cycles in random bipartite graphs is
+to start by eliminating edges that are not part of any cycle (over 99.9% of edges).
+This preprocessing phase is called edge trimming and actually takes the vast majority of runtime.
+
+The algorithm implemented in lean_miner.hpp runs in time linear in 2^N.
 (Note that running in sub-linear time is out of the question, as you could
 only compute a fraction of all edges, and the odds of all 42 edges of a cycle
 occurring in this fraction are astronomically small).
+Memory-wise, it uses 2^(N-1) bits to maintain a subset of all edges (potential
+cycle edges) and 2^N additional bits to trim the subset in a series of edge trimming rounds.
 
-Memory-wise, it uses N/2 bits to maintain a subset of all edges (potential
-cycle edges) and N additional bits to trim the subset in a series of edge trimming rounds.
-The bandwidth bound algorithm implemented in mean_miner.hpp instead uses 16N bits to maintains
-lists of edges and less than N bits for trimming.
-This is the phase that takes the vast majority of runtime.
+The bandwidth bound algorithm implemented in mean_miner.hpp
+uses (1+&Epsilon;) &times; 2^(N-1) words to maintain
+bins of edges instead of a bitmap which it sorts to do trimming.
 
-Once the subset is small enough, an algorithm inspired by Cuckoo Hashing
+After edge trimming, an algorithm inspired by Cuckoo Hashing
 is used to recognise all cycles, and recover those of the right length.
 
 Performance
