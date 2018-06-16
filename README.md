@@ -53,7 +53,8 @@ easier to deploy. Miner manufacturers are incentivized to support larger sizes a
 
 Single Chip ASIC Resistant
 --------------------------
-Cuckoo Cycle's large and growing memory requirements aim to deter single-chip ASICs
+The goal of a memory bound PoW is to make any ASICs face the same memory bottleneck that CPUs and GPUs do.
+Just as these processing units must go off-chip to access global memory, Cuckoo Cycle aims to deter single-chip ASICs
 in favor of simpler memory-controller like ASICs that connect commodity memory chips together.
 Such ASICs only need to run efficient enough to saturate the limited memory bandwidth/latency.
 With power consumption and cost dominated by that of the memory chips,
