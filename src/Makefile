@@ -210,7 +210,7 @@ meaner30:	siphash.cuh meaner_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 meaner_miner.cu  $(LIBS)
 
 lmeaner30:      siphash.cuh lmeaner_miner.cu Makefile
-        nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lmeaner_miner.cu  $(LIBS)
+	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lmeaner_miner.cu  $(LIBS)
 
 cycle28:	cycle_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 cycle_miner.cu $(LIBS)
