@@ -47,10 +47,6 @@ const static u32 NZ        = 1 << ZBITS;
 #define CTHREADS 1024
 #endif
 
-#ifndef BKTGRAN
-#define BKTGRAN 32
-#endif
-
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
 
@@ -59,103 +55,116 @@ __device__ __forceinline__ ulonglong4 Pack8(const u32 e0, const u32 e1, const u3
 }
 
 __global__  void FluffySeed2A(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buffer, int * __restrict__ indexes) {
-  const int gid = blockDim.x * blockIdx.x + threadIdx.x;
+  const int col = blockIdx.x;
+  const int dim = blockDim.x;
   const int lid = threadIdx.x;
-  const int nthreads = blockDim.x * gridDim.x;
-  const int FLUSHA = 16;
-  const int FLUSHA2 = 32;
+  const int FLUSHA = 32;
+  const int FLUSHA2 = 64;
 
-  __shared__ u32 tmp[NX][FLUSHA2];
+  __shared__ u16 tmp[NX][FLUSHA2];
+  const int TMPPERLL4 = sizeof(ulonglong4) / sizeof(tmp[0][0]);
   __shared__ int counters[NX];
 
-  counters[lid] = 0;
+  for (int r = lid; r < NX; r += dim)
+    counters[r] = 0;
   __syncthreads();
-  const int loops = NEDGES / nthreads;
+  const int loops = (NEDGES / NX) / dim;
+
   for (int i = 0; i < loops; i++) {
-    u64 nonce = gid * loops + i;
+    u64 nonce = col * (NEDGES / NX) + i * dim + lid;
     u32 hashx = dipnode(sipkeys, nonce, 0);
-    int bucket = hashx & XMASK;
+    int row = hashx & XMASK;
+    int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1));
+    tmp[row][counter] = (u16)nonce;
     __syncthreads();
-    int counter = min((int)atomicAdd(counters + bucket, 1), (int)(FLUSHA2-1));
-    tmp[bucket][counter] = (u32)nonce;
-    __syncthreads();
-#ifndef BYBKT
-    int localIdx = min(FLUSHA2, counters[lid]);
-    if (localIdx >= FLUSHA) {
-      bucket = lid;
-#else
     if (counter == FLUSHA-1) {
-      int localIdx = min(FLUSHA2, counters[bucket]);
-#endif
+      int localIdx = min(FLUSHA2, counters[row]);
       int newCount = localIdx - FLUSHA;
-      counters[bucket] = newCount;
-      int cnt = min((int)atomicAdd(indexes + bucket, FLUSHA), (int)(DUCK_A_EDGES_64 - FLUSHA));
-      for (int i=0; i<FLUSHA; i+=8)
-        buffer[(bucket * DUCK_A_EDGES_64 + cnt + i) / 8] = Pack8(tmp[bucket][i], tmp[bucket][i+1], tmp[bucket][i+2], tmp[bucket][i+3], tmp[bucket][i+4], tmp[bucket][i+5], tmp[bucket][i+6], tmp[bucket][i+7]); // *(ulonglong4 *)(&tmp[bucket][i]);
+      counters[row] = newCount;
+      int cnt = min((int)atomicAdd(indexes + row * NX + col, FLUSHA), (int)(DUCK_A_EDGES - FLUSHA));
+      for (int i = 0; i < FLUSHA; i += TMPPERLL4)
+        buffer[((u64)(row * NX + col) * DUCK_A_EDGES + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
       for (int t = 0; t < newCount; t++) {
-        tmp[bucket][t] = tmp[bucket][t + FLUSHA];
+        tmp[row][t] = tmp[row][t + FLUSHA];
       }
     }
   }
   __syncthreads();
-  int localIdx = min(FLUSHA2, counters[lid]);
-  for (int j=0; j<7; j++)
-    tmp[lid][localIdx+j] = 0;
-  for (int i=0; localIdx > i; i+=8) {
-    int cnt = min((int)atomicAdd(indexes + lid, 8), (int)(DUCK_A_EDGES_64 - 8));
-    buffer[(lid * DUCK_A_EDGES_64 + cnt) / 8] = Pack8(tmp[lid][i], tmp[lid][i+1], tmp[lid][i+2], tmp[lid][i+3], tmp[lid][i+4], tmp[lid][i+5], tmp[lid][i+6], tmp[lid][i+7]); // *(ulonglong4 *)(&tmp[lid][i]);
+  for (int row = lid; row < NX; row += dim) {
+    int localIdx = min(FLUSHA2, counters[row]);
+    for (int j = localIdx; j % TMPPERLL4; j++)
+      tmp[row][j] = 0;
+    for (int i = 0; i < localIdx; i += TMPPERLL4) {
+      int cnt = min((int)atomicAdd(indexes + row * NX + col, TMPPERLL4), (int)(DUCK_A_EDGES - TMPPERLL4));
+      buffer[((u64)(row * NX + col) * DUCK_A_EDGES + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
+    }
   }
 }
 
-__global__  void FluffySeed2B(const siphash_keys &sipkeys, const u32 * __restrict__ source, ulonglong4 * __restrict__ destination, const int * __restrict__ sourceIndexes, int * __restrict__ destinationIndexes) {
-  const int lid = threadIdx.x;
+__global__  void FluffySeed2B(const siphash_keys &sipkeys, const u16 * __restrict__ source, ulonglong4 * __restrict__ destination, const int * __restrict__ sourceIndexes, int * __restrict__ destinationIndexes) {
   const int group = blockIdx.x;
-  const int FLUSHB = 8;
+  const int dim = blockDim.x;
+  const int lid = threadIdx.x;
+  const int FLUSHB = 32;
   const int FLUSHB2 = 2 * FLUSHB;
 
   __shared__ uint2 tmp[NX][FLUSHB2];
+  const int TMPPERLL4 = sizeof(ulonglong4) / sizeof(tmp[0][0]);
   __shared__ int counters[NX];
 
-  counters[lid] = 0;
+  for (int r = lid; r < NX; r += dim)
+    counters[r] = 0;
   __syncthreads();
-  const int myBucket = group / BKTGRAN;
-  const int microBlockNo = group % BKTGRAN;
-  const int bucketEdges = min(sourceIndexes[myBucket], (int)DUCK_A_EDGES_64);
-  const int microBlockEdgesCount = DUCK_A_EDGES_64 / BKTGRAN;
-  const int loops = microBlockEdgesCount / NX;
-  for (int i = 0; i < loops; i++) {
-    int edgeIndex = microBlockNo * microBlockEdgesCount + NX*i + lid;
+  const int row = group / NX;
+  const int bucketEdges = min((int)sourceIndexes[group], (int)(DUCK_A_EDGES));
+  const int loops = (bucketEdges + dim-1) / dim;
+  const u64 lag = 16384;
+  u64 nonce = (group % NX) * (NEDGES / NX);
+  for (int loop = 0; loop < loops; loop++) {
+    int col;
+    int counter = 0;
+    const int edgeIndex = loop * dim + lid;
     if (edgeIndex < bucketEdges) {
-      u64 nonce = source[myBucket*DUCK_A_EDGES_64 + edgeIndex];
-      if (nonce == 0) continue;
-      uint2 edge;
-      edge.x = dipnode(sipkeys, nonce, 0);
-      edge.y = dipnode(sipkeys, nonce, 1);
-      int bucket = (edge.x >> XBITS) & XMASK;
-      __syncthreads();
-      int counter = min((int)atomicAdd(counters + bucket, 1), (int)(FLUSHB2-1));
-      tmp[bucket][counter] = edge;
-      __syncthreads();
-      int localIdx = min(FLUSHB2, counters[lid]);
-      if (localIdx >= FLUSHB) {
-        int newCount = localIdx - FLUSHB;
-        counters[lid] = newCount;
-        int cnt = min((int)atomicAdd(destinationIndexes + myBucket*64 + lid, FLUSHB), (int)(DUCK_A_EDGES - FLUSHB));
-        for (int i=0; i<FLUSHB; i+=4)
-          destination[((myBucket * NX + lid) * DUCK_A_EDGES + cnt + i) / 4] = *(ulonglong4 *)(&tmp[lid][i]);
-        for (int t = 0; t < newCount; t++) {
-          tmp[lid][t] = tmp[lid][t + FLUSHB];
-        }
+      const int index = group * DUCK_A_EDGES + edgeIndex;
+      u16 nonce16 = __ldg(&source[index]);
+      if (loop < (loops * 15/16) || nonce16 != 0) { // fillers only at end
+        nonce += (((u64)nonce16 - nonce + lag) & 0xffffULL) - lag;
+        uint2 edge;
+        edge.x = dipnode(sipkeys, nonce, 0);
+        edge.y = dipnode(sipkeys, nonce, 1);
+        col = (edge.x >> XBITS) & XMASK;
+        counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1));
+        tmp[col][counter] = edge;
       }
     }
+    __syncthreads();
+    if (counter == FLUSHB-1) {
+      int localIdx = min(FLUSHB2, counters[col]);
+      int newCount = localIdx - FLUSHB;
+      int cnt = min((int)atomicAdd(destinationIndexes + row * NX + col, FLUSHB), (int)(DUCK_A_EDGES - FLUSHB));
+      for (int i = 0; i < FLUSHB; i += TMPPERLL4)
+        destination[((u64)(row * NX + col) * DUCK_A_EDGES + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
+      for (int t = 0; t < newCount; t++) {
+        tmp[col][t] = tmp[col][t + FLUSHB];
+      }
+      counters[col] = newCount;
+      assert (newCount < FLUSHB);
+    }
+    __syncthreads(); 
   }
-  __syncthreads();
-  int localIdx = min(FLUSHB2, counters[lid]);
-  for (int j=0; j<3; j++)
-    tmp[lid][localIdx+j] = e0;
-  for (int i=0; localIdx > i; i+=4) {
-    int cnt = min((int)atomicAdd(destinationIndexes + myBucket*64 + lid, 4), (int)(DUCK_A_EDGES - 4));
-    destination[((myBucket * 64 + lid) * DUCK_A_EDGES + cnt) / 4] = *(ulonglong4 *)(&tmp[lid][i]);
+  if (((nonce - (group % NX) * (NEDGES / NX)) >> 16) != ((NEDGES-1)/NX)>>16) {
+    printf("group %x lid %x nonce %08llx\n", group, lid, nonce);
+    assert(0);
+  }
+  
+  for (int col = lid; col < NX; col += dim) {
+    int localIdx = min(FLUSHB2, counters[col]);
+    for (int j = localIdx; j % TMPPERLL4; j++)
+      tmp[col][j] = e0;
+    for (int i = 0; i < localIdx; i += TMPPERLL4) {
+      int cnt = min((int)atomicAdd(destinationIndexes + row * NX + col, TMPPERLL4), (int)(DUCK_A_EDGES - TMPPERLL4));
+      destination[((u64)(row * NX + col) * DUCK_A_EDGES + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
+    }
   }
 }
 
@@ -178,9 +187,9 @@ __device__ __forceinline__  bool Read2bCounter(u32 *ecounters, const int bucket)
 }
 
 template<int bktInSize, int bktOutSize>
-__global__  void FluffyRound(const uint2 * __restrict__ source, uint2 * __restrict__ destination, const int * __restrict__ sourceIndexes, int * __restrict__ destinationIndexes) {
-  const int lid = threadIdx.x;
+__global__  void FluffyRound(const int round, const uint2 * __restrict__ source, uint2 * __restrict__ destination, const int * __restrict__ sourceIndexes, int * __restrict__ destinationIndexes) {
   const int group = blockIdx.x;
+  const int lid = threadIdx.x;
   const static int COUNTERWORDS = NZ / 16; // 16 2-bit counters per 32-bit word
 
   __shared__ u32 ecounters[COUNTERWORDS];
@@ -189,10 +198,10 @@ __global__  void FluffyRound(const uint2 * __restrict__ source, uint2 * __restri
   const int loops = (edgesInBucket + CTHREADS-1) / CTHREADS;
 
   for (int i = 0; i < COUNTERWORDS / CTHREADS; i++)
-    ecounters[lid + CTHREADS * i] = 0;
+    ecounters[lid + CTHREADS * i] = 0; // IS SINGLE-INCREMENT FASTER?
   __syncthreads();
-  for (int i = 0; i < loops; i++) {
-    const int lindex = i * CTHREADS + lid;
+  for (int loop = 0; loop < loops; loop++) {
+    const int lindex = loop * CTHREADS + lid;
     if (lindex < edgesInBucket) {
       const int index = bktInSize * group + lindex;
       uint2 edge = __ldg(&source[index]);
@@ -201,8 +210,8 @@ __global__  void FluffyRound(const uint2 * __restrict__ source, uint2 * __restri
     }
   }
   __syncthreads();
-  for (int i = loops-1; i >= 0; i--) {
-    const int lindex = i * CTHREADS + lid;
+  for (int loop = loops-1; loop >= 0; loop--) {
+    const int lindex = loop * CTHREADS + lid;
     if (lindex < edgesInBucket) {
       const int index = bktInSize * group + lindex;
       uint2 edge = __ldg(&source[index]);
@@ -279,10 +288,10 @@ struct trimparams {
 
   trimparams() {
     ntrims              =  176;
-    genA.blocks         =  512;
-    genA.tpb            =   NX;
-    genB.blocks         = NX2*BKTGRAN/NX;
-    genB.tpb            =   NX;
+    genA.blocks         =   NX;
+    genA.tpb            = 2*NX;
+    genB.blocks         =  NX2;
+    genB.tpb            = 2*NX;
     trim.blocks         =  NX2;
     trim.tpb            = CTHREADS;
     tail.blocks         =  NX2;
@@ -354,27 +363,27 @@ struct edgetrimmer {
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationA, start, stop);
     cudaEventRecord(start, NULL);
   
-    FluffySeed2B<<<tp.genB.blocks, tp.genB.tpb>>>(*dipkeys, (const u32 *)bufferA, (ulonglong4 *)bufferB, (const int *)indexesE, (int *)indexesE2);
+    FluffySeed2B<<<tp.genB.blocks, tp.genB.tpb>>>(*dipkeys, (const u16 *)bufferA, (ulonglong4 *)bufferB, (const int *)indexesE, (int *)indexesE2);
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
     printf("Seeding completed in %.0f + %.0f ms\n", durationA, durationB);
   
     cudaMemset(indexesE, 0, indexesSize);
-    FluffyRound<DUCK_A_EDGES, DUCK_B_EDGES><<<tp.trim.blocks, tp.trim.tpb>>>((const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE2, (int *)indexesE);
+    FluffyRound<DUCK_A_EDGES, DUCK_B_EDGES><<<tp.trim.blocks, tp.trim.tpb>>>(0, (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE2, (int *)indexesE);
     cudaMemset(indexesE2, 0, indexesSize);
-    FluffyRound<DUCK_B_EDGES, DUCK_A_EDGES/2><<<tp.trim.blocks, tp.trim.tpb>>>((const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE, (int *)indexesE2);
+    FluffyRound<DUCK_B_EDGES, DUCK_A_EDGES/2><<<tp.trim.blocks, tp.trim.tpb>>>(1 ,(const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE, (int *)indexesE2);
     cudaMemset(indexesE, 0, indexesSize);
-    FluffyRound<DUCK_A_EDGES/2, DUCK_A_EDGES/4><<<tp.trim.blocks, tp.trim.tpb>>>((const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE2, (int *)indexesE);
+    FluffyRound<DUCK_A_EDGES/2, DUCK_A_EDGES/4><<<tp.trim.blocks, tp.trim.tpb>>>(2 ,(const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE2, (int *)indexesE);
     cudaMemset(indexesE2, 0, indexesSize);
-    FluffyRound<DUCK_A_EDGES/4, DUCK_B_EDGES/4><<<tp.trim.blocks, tp.trim.tpb>>>((const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE, (int *)indexesE2);
+    FluffyRound<DUCK_A_EDGES/4, DUCK_B_EDGES/4><<<tp.trim.blocks, tp.trim.tpb>>>(3 ,(const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE, (int *)indexesE2);
   
     cudaDeviceSynchronize();
   
-    for (int i = 4; i < tp.ntrims; i+=2) {
+    for (int round = 4; round < tp.ntrims; round += 2) {
       cudaMemset(indexesE, 0, indexesSize);
-      FluffyRound<DUCK_B_EDGES/4, DUCK_B_EDGES/4><<<tp.trim.blocks, tp.trim.tpb>>>((const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE2, (int *)indexesE);
+      FluffyRound<DUCK_B_EDGES/4, DUCK_B_EDGES/4><<<tp.trim.blocks, tp.trim.tpb>>>(round, (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE2, (int *)indexesE);
       cudaMemset(indexesE2, 0, indexesSize);
-      FluffyRound<DUCK_B_EDGES/4, DUCK_B_EDGES/4><<<tp.trim.blocks, tp.trim.tpb>>>((const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE, (int *)indexesE2);
+      FluffyRound<DUCK_B_EDGES/4, DUCK_B_EDGES/4><<<tp.trim.blocks, tp.trim.tpb>>>(round, (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE, (int *)indexesE2);
     }
     
     cudaMemset(indexesE, 0, indexesSize);
@@ -515,6 +524,7 @@ struct solver_ctx {
         printf("%4d-cycle found\n", len);
         if (len == PROOFSIZE)
           solution(us, nu, vs, nv);
+        // if (len == 2) printf("edge %x %x\n", edge.x, edge.y);
       } else if (nu < nv) {
         while (nu--)
           cuckoo->set(us[nu+1], us[nu]);
@@ -571,7 +581,7 @@ int main(int argc, char **argv) {
     switch (c) {
       case 's':
         printf("SYNOPSIS\n  cuda30 [-d device] [-h hexheader] [-k rounds [-c count]] [-m trims] [-n nonce] [-r range] [-V blocks] [-y threads] [-Z blocks] [-z threads]\n");
-        printf("DEFAULTS\n  cuda30 -d %d -h \"\" -k %d -c %d -m %d -n %d -r %d -V %d -y %d -Z %d -z %d\n", device, tp.reportrounds, tp.reportcount, tp.ntrims, nonce, range, tp.genA.blocks, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
+        printf("DEFAULTS\n  cuda30 -d %d -h \"\" -k %d -c %d -m %d -n %d -r %d -v %d -w %d -y %d -Z %d -z %d\n", device, tp.reportrounds, tp.reportcount, tp.ntrims, nonce, range, tp.genA.tpb, tp.genB.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
         exit(0);
       case 'd':
         device = atoi(optarg);
