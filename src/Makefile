@@ -3,8 +3,8 @@
 
 OPT ?= -O3
 
-GCC_ARCH_FLAGS ?= -m64
-GPP_ARCH_FLAGS ?= -march=native -m64
+GCC_ARCH_FLAGS ?= -march=native
+GPP_ARCH_FLAGS ?= -march=native
 
 # -Wno-deprecated-declarations shuts up Apple OSX clang
 FLAGS ?= -Wall -Wno-format -Wno-deprecated-declarations -D_POSIX_C_SOURCE=200112L $(OPT) -DPREFETCH -I. $(CPPFLAGS) -pthread
@@ -18,18 +18,24 @@ all : libblake2b.so test example lean28stx8 mean28x8 lean30stx8 mean30x8 lean32s
 libblake2b.so:	blake2.h blake2-impl.h blake2b-ref.c
 	$(GCC) -fPIC -shared -o libblake2b.so blake2b-ref.c
 	echo "add build dir to LD_LIBRARY_PATH (or DYLD_LIBRARY_PATH on Mac OSX) if library not found"
+	echo "or, if you have sudo rights, a better solution is to run"
+	echo "sudo echo <build dir> > /etc/ld.so.conf.d/cuckoo.conf"
+	echo "sudo ldconfig"
 
 test:	lean20 verify20 Makefile
 	./lean20 -n 38 | grep ^Sol | ./verify20 -n 38
 
-lean4:	siphash.h cuckoo.h lean_miner.hpp simple_miner.cpp Makefile
+simple4:	siphash.h cuckoo.h lean_miner.hpp simple_miner.cpp Makefile
 	$(GPP) -o $@ -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DEDGEBITS=3 simple_miner.cpp $(LIBS)
+
+simple30:	siphash.h cuckoo.h lean_miner.hpp simple_miner.cpp Makefile
+	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=29 simple_miner.cpp $(LIBS)
 
 lean6:	cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=6 -DLOGNBUCKETS=0 -DSHOWSOL -DEDGEBITS=5 lean_miner.cpp $(LIBS)
 
-example:	lean4
-	./lean4 -h 211
+example:	simple4
+	./simple4 -h 211
 
 lean10:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=9 -DPROOFSIZE=8 -DSHOWSOL lean_miner.cpp $(LIBS)
@@ -82,14 +88,14 @@ mean28sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 mean28sx1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES  -DXBITS=6 -DNSIPHASH=1 -DEDGEBITS=27 mean_miner.cpp $(LIBS)
 
+mean30x4:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+	$(GPP) -o $@ -mno-avx2 -DNSIPHASH=4 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
+
 mean30x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
 mean30x1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DNSIPHASH=1 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
-
-cutrix30:	mean_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
 
 mean30sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DSAVEEDGES -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
@@ -102,10 +108,10 @@ mean30sx1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES -DNSIPHASH=1 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
 demo30x8:	mean30sx8
-	time ./mean30sx8 -n 63
+	./mean30sx8 -n 63
 
 demo30x1:	mean30sx1
-	time ./mean30sx1 -n 63
+	./mean30sx1 -n 63
 
 mean32x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DEXPANDROUND=8 -DCOMPRESSROUND=22 -DXBITS=8 -DNSIPHASH=8 -DEDGEBITS=31 mean_miner.cpp $(LIBS)
@@ -152,6 +158,12 @@ lean30:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 lean30.1:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DPART_BITS=1 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 
+lean30x2:	siphash.h siphashxN.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+	$(GPP) -o $@ -mno-avx2 -DATOMIC -DNSIPHASH=2 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
+	
+lean30x4:	siphash.h siphashxN.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+	$(GPP) -o $@ -mno-avx2 -DATOMIC -DNSIPHASH=4 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
+	
 lean30x8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 
@@ -176,23 +188,29 @@ tomato30:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 tomato32:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=31 tomato_miner.cpp $(LIBS)
 
-cuda28:	cuda_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 cuda_miner.cu $(LIBS)
+lcuda28:	siphash.cuh lean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 lean_miner.cu $(LIBS)
 
-cuda30:	cuda_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 cuda_miner.cu $(LIBS)
+lcuda30:	siphash.cuh lean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lean_miner.cu $(LIBS)
 
-cuda32:	cuda_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 cuda_miner.cu $(LIBS)
+lcuda32:	siphash.cuh lean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 lean_miner.cu $(LIBS)
 
-mcuda28:	mean_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 mean_miner.cu $(LIBS)
+cuda28:	siphash.cuh mean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=27 -DCOMPRESSROUND=10 -DBIGEPS=1/16 -arch sm_35 mean_miner.cu $(LIBS)
 
-mcuda30s:	mean_miner.cu Makefile
-	nvcc -o $@ -DSAVEEDGES -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
+cuda30:	siphash.cuh mean_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
 
-mcuda32:	mean_miner.cu Makefile
+cuda32:	siphash.cuh mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 mean_miner.cu $(LIBS)
+
+meaner30:	siphash.cuh meaner_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 meaner_miner.cu  $(LIBS)
+
+lmeaner30:      siphash.cuh lmeaner_miner.cu Makefile
+	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lmeaner_miner.cu  $(LIBS)
 
 cycle28:	cycle_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 cycle_miner.cu $(LIBS)
@@ -215,14 +233,14 @@ lean32stx8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
 leancpubounty:	lean28stx8 lean30stx8 lean32stx8 lean28x8 lean30x8 lean32x8
 	for s in 28 30 32; do for t in 8 4 2; do time ./lean$${s}x8 -t $$t -r 10; done; time ./lean$${s}stx8 -r 10; done
 
-meancpubounty:	mean28s mean30s mean32s
-	for s in 28 30 32; do for t in 8 4 2 1; do time ./mean$${s}s -t $$t -r 10; done; done
+meancpubounty:	mean28sx8 mean30sx8 mean32sx8
+	for s in 28 30 32; do for t in 8 4 2 1; do time ./mean$${s}sx8 -t $$t -r 10; done; done
 
 tmtobounty:	tomato28 tomato30 tomato32
 	for s in 28 30 32; do for t in 8 4 2 1; do time ./tomato$$s -t $$t -r 10; done; done
 
-gpubounty:	cuda28 cuda30 cuda32
-	for s in 28 30 32; do time ./cuda$$s -r 10; done
+gpubounty:	cuda30
+	time ./cuda30 -r 100
 
 hashonly: hash_only.cpp Makefile
 	$(GPP) -o $@ hash_only.cpp $(LIBS)

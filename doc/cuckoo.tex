@@ -15,14 +15,20 @@
 We introduce the first graph-theoretic proof-of-work system,
 based on finding small cycles or other structures in large random graphs.
 Such problems are trivially verifiable and arbitrarily scalable, 
-presumably requiring memory linear in graph size to solve efficiently.
-Our cycle finding algorithm uses one bit per edge, and up to one bit per node.
-Runtime is linear in graph size and dominated by random access latency,
-ideal properties for a memory bound proof-of-work.
-We exhibit two alternative algorithms that allow for a memory-time trade-off
-(TMTO)---decreased memory usage, by a factor $k$, coupled with increased runtime, by a factor $\Omega(k)$.
-The constant implied in $\Omega()$ gives a notion of memory-hardness, which is shown to be dependent
-on cycle length, guiding the latter's choice. Our algorithms are shown to parallelize reasonably well.
+and appear to require memory linear in graph size to solve efficiently.
+We show that in random bipartite graphs with average degree 1,
+length $L$ cycles occur with frequency approximately $1/L$.
+On these graphs, algorithm "lean" finds cycles using one bit per edge, and up to one bit per node.
+Runtime is linear in graph size and dominated by random access latency.
+We exhibit two time-memory trade-off (TMTO) algorithms
+decreasing memory usage by a factor $k$ while increasing runtime by a factor $c \cdot k$.
+The constant $c$ provides a measure of memory-hardness, which is shown to be dependent
+on cycle length, guiding the latter's choice.
+Trading in the other direction, algorithm "mean" uses a few dozen bits per edge but is 4x faster
+in practice, becoming memory bandwidth bound rather than latency bound.
+We present performance figures for optimized CPU and GPU implementations,
+and discuss possible ASIC implementations.
+% Both algorithms are shown to parallelize well.
 \end{abstract}
 
 \section{Introduction}
@@ -75,11 +81,10 @@ Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and p
 
 \section{Motivation}
 Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is,
-to minimize performance-per-dollar differences across hardware architectures,
-and make mining---the process of looking for proofs---on commodity hardware cost-effective.
-This is to be achieved by making main memory latency a bottleneck, since
-DRAM latencies have remained relatively stable while cpu-speed and memory bandwidth vary highly
-across hardware architecture and process technology.
+to minimize performance-per-dollar differences across hardware architectures.
+This is to be achieved by making main memory latency or bandwidth the bottleneck, since
+DRAM latency and bandwidth vary much less across hardware architecture and process technology
+than compute power.
 
 Our aim of a memory bound PoW translates to the following desirable properties:
 

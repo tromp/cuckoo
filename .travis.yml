@@ -4,6 +4,7 @@ language: cpp
 env:
   - JOB=quick
   - JOB=demo30x1
+  - JOB=java
 matrix:
   include:
     - os: osx
@@ -16,6 +17,6 @@ before_script:
   - LIBP="$(pwd)/src"
   - echo "The library path variable value is ${LIBP:?}"
 script:
-  - ( cd src && make libblake2b.so; )
-  - if test quick = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make test example; ); fi
-  - if test demo30x1 = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make demo30x1; ); fi
+  - if test quick = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make libblake2b.so test example; ); fi
+  - if test demo30x1 = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make libblake2b.so demo30x1; ); fi
+  - if test java = "${JOB:?}"; then ( cd src && make java; ); fi

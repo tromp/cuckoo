@@ -1,3 +1,5 @@
+http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing/
+
 Beyond the Hashcash Proof-of-Work
 (there's more to mining than hashing)
 -------------------------------------
@@ -62,3 +64,14 @@ the application of randomly reading and writing billions of bits.
 When even phones charging overnight can mine without orders of magnitude loss in efficiency, not with a mindset
 of profitability but of playing the lottery, the mining hardware landscape will see vast expansion, benefiting
 adoption as well as decentralization.
+
+
+1 Comment
+
+The article is no longer accurate regarding Cuckoo Cycle being latency bound.
+Someone going by the handle of “xenoncat” demonstrated a bandwidth bound method
+of edge trimming that’s 4x faster, although it uses about 12x more memory. On
+the plus side, this allows a GPU to process a billion node graph in under a
+second, which makes Cuckoo Cycle suitable for smaller block intervals. On the
+down side, this makes the use of phones look less attractive.
+
