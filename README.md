@@ -51,6 +51,10 @@ Dynamic Sizing allows for increasing the memory required for mining simply by ra
 Since this makes new valid blocks a subset of old valid blocks, it is not a hard fork but a soft fork, and thus immensely
 easier to deploy. Miner manufacturers are incentivized to support larger sizes as being more future proof.
 
+Automatic Upgrades
+------------------
+A raise in minimum graph size could be triggered automatically if over the last so many blocks (on the scale of months), less than a certain fraction (a minority like 1/3 or 1/4) were solved at that minimum size. This locks in a new minimum which then activates within so many blocks (on the scale of weeks).
+
 Single Chip ASIC Resistant
 --------------------------
 The goal of a memory bound PoW is to make any ASICs face the same memory bottleneck that CPUs and GPUs do.
