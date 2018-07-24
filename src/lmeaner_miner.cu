@@ -1,6 +1,6 @@
 // Cuckoo Cycle, a memory-hard proof-of-work by John Tromp
-// Copyright (c) 2018 Jiri Vadura - photon
-// This CUDA part of Theta optimized miner is covered by the FAIR MINING license
+// Copyright (c) 2018 Jiri Vadura (photon) and John Tromp
+// This software is covered by the FAIR MINING license
 
 #include <stdio.h>
 #include <string.h>
@@ -18,30 +18,32 @@ typedef u32 node_t;
 typedef u64 nonce_t;
 
 #ifndef XBITS
-#define XBITS 6
+#define XBITS ((EDGEBITS-16)/2)
 #endif
 
 #define NODEBITS (EDGEBITS + 1)
 #define NNODES ((node_t)1 << NODEBITS)
 #define NODEMASK (NNODES - 1)
 
-#define YBITS XBITS
-#define ZBITS (EDGEBITS - XBITS - YBITS)
 const static u32 NX        = 1 << XBITS;
 const static u32 NX2       = NX * NX;
 const static u32 XMASK     = NX - 1;
 const static u32 X2MASK    = NX2 - 1;
+const static u32 YBITS     = XBITS;
 const static u32 NY        = 1 << YBITS;
+const static u32 YZBITS    = EDGEBITS - XBITS;
+const static u32 NYZ       = 1 << YZBITS;
+const static u32 ZBITS     = YZBITS - YBITS;
 const static u32 NZ        = 1 << ZBITS;
 
-#define DUCK_SIZE_A 133LL // 128 * (1+eps)
-#define DUCK_SIZE_B 85LL  // DUCK_SIZE_A * (1-1/e+eps)
+#define EPS_A 133/128
+#define EPS_B 85/128
 
-#define DUCK_A_EDGES (DUCK_SIZE_A * 1024LL)
-#define DUCK_A_EDGES_64 (DUCK_A_EDGES * 64LL)
+const static u32 ROW_EDGES_A = NYZ * EPS_A;
+const static u32 ROW_EDGES_B = NYZ * EPS_B;
 
-#define DUCK_B_EDGES (DUCK_SIZE_B * 1024LL)
-#define DUCK_B_EDGES_64 (DUCK_B_EDGES * 64LL)
+const static u32 EDGES_A = ROW_EDGES_A / NX;
+const static u32 EDGES_B = ROW_EDGES_B / NX;
 
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
@@ -86,9 +88,9 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
       int localIdx = min(FLUSHA2, counters[row]);
       int newCount = localIdx % FLUSHA;
       int nflush = localIdx - newCount;
-      int cnt = min((int)atomicAdd(indexes + row * NX + col, nflush), (int)(DUCK_A_EDGES - nflush));
+      int cnt = min((int)atomicAdd(indexes + row * NX + col, nflush), (int)(EDGES_A - nflush));
       for (int i = 0; i < nflush; i += TMPPERLL4)
-        buffer[((u64)(row * NX + col) * DUCK_A_EDGES + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
+        buffer[((u64)(row * NX + col) * EDGES_A + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
       for (int t = 0; t < newCount; t++) {
         tmp[row][t] = tmp[row][t + nflush];
       }
@@ -187,7 +189,7 @@ __device__ __forceinline__  void Increase2bCounter(u32 *ecounters, const int buc
 
   u32 old = atomicOr(ecounters + word, mask) & mask;
   if (old)
-    atomicOr(ecounters + word + 4096, mask);
+    atomicOr(ecounters + word + NZ/32, mask);
 }
 
 __device__ __forceinline__  bool Read2bCounter(u32 *ecounters, const int bucket) {
@@ -195,7 +197,7 @@ __device__ __forceinline__  bool Read2bCounter(u32 *ecounters, const int bucket)
   unsigned char bit = bucket & 0x1F;
   u32 mask = 1 << bit;
 
-  return (ecounters[word + 4096] & mask) != 0;
+  return (ecounters[word + NZ/32] & mask) != 0;
 }
 
 __device__ uint2 make_Edge(const u32 nonce, const uint2 dummy, const u32 node0, const u32 node1) {
@@ -242,7 +244,7 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, const EdgeIn
       EdgeIn edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node = endpoint(sipkeys, edge, round&1);
-      Increase2bCounter(ecounters, node >> 12);
+      Increase2bCounter(ecounters, node >> (2*XBITS));
     }
   }
   __syncthreads();
@@ -253,7 +255,7 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, const EdgeIn
       EdgeIn edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node0 = endpoint(sipkeys, edge, round&1);
-      if (Read2bCounter(ecounters, node0 >> 12)) {
+      if (Read2bCounter(ecounters, node0 >> (2*XBITS))) {
         u32 node1 = endpoint(sipkeys, edge, (round&1)^1);
         const int bucket = node1 & X2MASK;
         const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), maxOut - 1);
@@ -326,8 +328,6 @@ struct trimparams {
   blockstpb trim;
   blockstpb tail;
   blockstpb recover;
-  u16 reportcount;
-  u16 reportrounds;
 
   trimparams() {
     memGB               =    7;
@@ -342,8 +342,6 @@ struct trimparams {
     tail.tpb            = 1024;
     recover.blocks      = 1024;
     recover.tpb         = 1024;
-    reportcount         =    1;
-    reportrounds        =    0;
   }
 };
 
@@ -372,8 +370,8 @@ struct edgetrimmer {
     checkCudaErrors(cudaMalloc((void**)&dipkeys, sizeof(siphash_keys)));
     checkCudaErrors(cudaMalloc((void**)&indexesE, indexesSize));
     checkCudaErrors(cudaMalloc((void**)&indexesE2, indexesSize));
-    size_t sizeA = DUCK_A_EDGES_64 * NX * (tp.memGB <= 5 ? sizeof(u32) : sizeof(uint2));
-    size_t sizeB = DUCK_B_EDGES_64 * NX * (tp.memGB <  5 ? sizeof(u32) : sizeof(uint2));
+    size_t sizeA = ROW_EDGES_A * NX * (tp.memGB <= 5 ? sizeof(u32) : sizeof(uint2));
+    size_t sizeB = ROW_EDGES_B * NX * (tp.memGB <  5 ? sizeof(u32) : sizeof(uint2));
     bufferSize = sizeA + sizeB;
     checkCudaErrors(cudaMalloc((void**)&bufferA, bufferSize));
     bufferB  = (ulonglong4 *)((char *)bufferA + sizeA);
@@ -407,18 +405,18 @@ struct edgetrimmer {
     cudaEventRecord(start, NULL);
   
     if (tp.memGB == 7)
-      SeedA<DUCK_A_EDGES, uint2><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
+      SeedA<EDGES_A, uint2><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
     else
-      SeedA<DUCK_A_EDGES,   u32><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
+      SeedA<EDGES_A,   u32><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
   
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationA, start, stop);
     cudaEventRecord(start, NULL);
   
     if (tp.memGB == 7)
-      SeedB<DUCK_A_EDGES, uint2><<<tp.genB.blocks, tp.genB.tpb>>>(*dipkeys, (const uint2 *)bufferAB, bufferA, (const int *)indexesE, (int *)indexesE2);
+      SeedB<EDGES_A, uint2><<<tp.genB.blocks, tp.genB.tpb>>>(*dipkeys, (const uint2 *)bufferAB, bufferA, (const int *)indexesE, (int *)indexesE2);
     else
-      SeedB<DUCK_A_EDGES,   u32><<<tp.genB.blocks, tp.genB.tpb>>>(*dipkeys, (const   u32 *)bufferAB, bufferA, (const int *)indexesE, (int *)indexesE2);
+      SeedB<EDGES_A,   u32><<<tp.genB.blocks, tp.genB.tpb>>>(*dipkeys, (const   u32 *)bufferAB, bufferA, (const int *)indexesE, (int *)indexesE2);
 
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
@@ -427,37 +425,37 @@ struct edgetrimmer {
     cudaMemset(indexesE, 0, indexesSize);
 
     if (tp.memGB == 7)
-      Round<DUCK_A_EDGES, uint2, DUCK_B_EDGES, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
+      Round<EDGES_A, uint2, EDGES_B, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
     else if (tp.memGB == 5)
-      Round<DUCK_A_EDGES,   u32, DUCK_B_EDGES, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const   u32 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
+      Round<EDGES_A,   u32, EDGES_B, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const   u32 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
     else // tp.memGB == 4
-      Round<DUCK_A_EDGES,   u32, DUCK_B_EDGES,   u32><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const   u32 *)bufferA, (  u32 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
+      Round<EDGES_A,   u32, EDGES_B,   u32><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const   u32 *)bufferA, (  u32 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
 
     cudaMemset(indexesE2, 0, indexesSize);
 
     if (tp.memGB != 4)
-      Round<DUCK_B_EDGES, uint2, DUCK_B_EDGES/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, *dipkeys, (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .296
+      Round<EDGES_B, uint2, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, *dipkeys, (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .296
     else
-      Round<DUCK_B_EDGES,   u32, DUCK_B_EDGES/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, *dipkeys, (const   u32 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .296
+      Round<EDGES_B,   u32, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, *dipkeys, (const   u32 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .296
 
     cudaMemset(indexesE, 0, indexesSize);
-    Round<DUCK_B_EDGES/2, uint2, DUCK_A_EDGES/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(2, *dipkeys, (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .176
+    Round<EDGES_B/2, uint2, EDGES_A/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(2, *dipkeys, (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .176
     cudaMemset(indexesE2, 0, indexesSize);
-    Round<DUCK_A_EDGES/4, uint2, DUCK_B_EDGES/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(3, *dipkeys, (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .117
+    Round<EDGES_A/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(3, *dipkeys, (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .117
   
     cudaDeviceSynchronize();
   
     for (int round = 4; round < tp.ntrims; round += 2) {
       cudaMemset(indexesE, 0, indexesSize);
-      Round<DUCK_B_EDGES/4, uint2, DUCK_B_EDGES/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round, *dipkeys,  (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE);
+      Round<EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round, *dipkeys,  (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE);
       cudaMemset(indexesE2, 0, indexesSize);
-      Round<DUCK_B_EDGES/4, uint2, DUCK_B_EDGES/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round+1, *dipkeys,  (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2);
+      Round<EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round+1, *dipkeys,  (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2);
     }
     
     cudaMemset(indexesE, 0, indexesSize);
     cudaDeviceSynchronize();
   
-    Tail<DUCK_B_EDGES/4><<<tp.tail.blocks, tp.tail.tpb>>>((const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE);
+    Tail<EDGES_B/4><<<tp.tail.blocks, tp.tail.tpb>>>((const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE);
     cudaMemcpy(hostA, indexesE, NX * NY * sizeof(u32), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
     return hostA[0];
@@ -617,7 +615,10 @@ struct solver_ctx {
 
     gettimeofday(&time0, 0);
     u32 nedges = trimmer->trim();
-    assert(nedges <= MAXEDGES);
+    if (nedges > MAXEDGES) {
+      printf("OOPS; losing %d edges beyond MAXEDGES=%d\n", nedges-MAXEDGES, MAXEDGES);
+      nedges = MAXEDGES;
+    }
     cudaMemcpy(edges, trimmer->bufferB, nedges * 8, cudaMemcpyDeviceToHost);
     gettimeofday(&time1, 0);
     timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
@@ -648,8 +649,8 @@ int main(int argc, char **argv) {
   while ((c = getopt(argc, argv, "sb:c:d:G:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
     switch (c) {
       case 's':
-        printf("SYNOPSIS\n  cuda30 [-d device] [-G 4/5/7] [-h hexheader] [-k rounds [-c count]] [-m trims] [-n nonce] [-r range] [-U blocks] [-u threads] [-v threads] [-w threads] [-y threads] [-Z blocks] [-z threads]\n");
-        printf("DEFAULTS\n  cuda30 -d %d -G %d -h \"\" -k %d -c %d -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", device, tp.memGB, tp.reportrounds, tp.reportcount, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
+        printf("SYNOPSIS\n  cuda%d [-d device] [-G 4/5/7] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
+        printf("DEFAULTS\n  cuda%d -d %d -G %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.memGB, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
         exit(0);
       case 'd':
         device = atoi(optarg);
@@ -657,12 +658,6 @@ int main(int argc, char **argv) {
       case 'G':
         tp.memGB = atoi(optarg);
         assert(tp.memGB == 4 || tp.memGB == 5 || tp.memGB == 7);
-        break;
-      case 'k':
-        tp.reportrounds = atoi(optarg);
-        break;
-      case 'c':
-        tp.reportcount = atoi(optarg);
         break;
       case 'h':
         len = strlen(optarg)/2;
