@@ -97,8 +97,8 @@ I claim that siphash-2-4 is a safe choice of underlying hash function,
 that these implementations are reasonably optimal,
 that trading off (less) memory for (more) running time,
 incurs at least one order of magnitude extra slowdown,
-and finally, that meaner_miner.cu is a reasonably optimal GPU miner.
-The latter runs about 10x faster on an NVIDA 1080Ti than mean_miner on an Intel Core-i7 CPU.
+and finally, that mean_miner.cu is a reasonably optimal GPU miner.
+The latter runs about 10x faster on an NVIDA 1080Ti than mean_miner.cpp on an Intel Core-i7 CPU.
 In support of these claims, I offer the following bounties:
 
 CPU Speedup Bounties
@@ -120,7 +120,7 @@ recent gcc compiler with regular flags as in my Makefile.
 GPU Speedup Bounty
 ------------------
 $5000 for an open source implementation for a consumer GPU
-that finds 42-cycles twice as fast as meaner_miner.cu on 2^30 node graphs on comparable hardware.
+that finds 42-cycles twice as fast as mean_miner.cu on 2^30 node graphs on comparable hardware.
 
 The Makefile defines corresponding targets leancpubounty, meancpubounty, tmtobounty, and gpubounty.
 
