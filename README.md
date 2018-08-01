@@ -8,6 +8,8 @@ Cuckoo Cycle
 Cuckoo Cycle is the first graph-theoretic proof-of-work, and the most memory bound, yet with instant verification.
 Unlike Hashcash, Cuckoo Cycle is immune from quantum speedup by Grover's search algorithm.
 
+Simplest known PoW
+------------------
 With a 42-line [complete specification](doc/spec), Cuckoo Cycle is less than half the size of either
 [SHA256](https://en.wikipedia.org/wiki/SHA-2#Pseudocode),
 [Blake2b](https://en.wikipedia.org/wiki/BLAKE_%28hash_function%29#Blake2b_algorithm), or
@@ -51,29 +53,14 @@ Dynamic Sizing allows for increasing the memory required for mining simply by ra
 Since this makes new valid blocks a subset of old valid blocks, it is not a hard fork but a soft fork, and thus immensely
 easier to deploy. Miner manufacturers are incentivized to support larger sizes as being more future proof.
 
-Single Chip ASIC Resistant
---------------------------
-The goal of a memory bound PoW is to make any ASICs face the same memory bottleneck that CPUs and GPUs do.
-Just as these processing units must go off-chip to access global memory, Cuckoo Cycle aims to deter single-chip ASICs
-in favor of simpler memory-controller like ASICs that connect commodity memory chips together.
-Such ASICs only need to run efficient enough to saturate the limited memory bandwidth/latency.
-With power consumption and cost dominated by that of the memory chips,
-and the roles of ASIC design skills and fab access diminished, 
-miner manufacturers can hopefully compete on more equal terms.
+Automatic Upgrades
+------------------
+A raise in minimum graph size could be triggered automatically if over the last so many blocks (on the scale of months), less than a certain fraction (a minority like 1/3 or 1/4) were solved at that minimum size. This locks in a new minimum which then activates within so many blocks (on the scale of weeks).
 
-ASIC Commoditization
---------------------
-Adding tiny cuckoo ASICs to devices already equipped with sufficient memory could make for a
-cost effective mining platform. Integration of a Cuckoo Cycle accelerator on future CPUs/GPUs,
-obviating the need for a separate chip, would yield the ultimate form of decentralization.
-
-An indirectly useful Proof of Work
-----------------------------------
-Large scale Cuckoo Cycle mining would drive up demand for low-latency SRAM memory,
-ultimately making it more affordable as production increases in scale.
-This could benefit many applications beyond mining.
-It could also provide a market for faulty memory chips (which need to be indelibly marked as such),
-which would merely result in a slight degradation of a miner's solution rate.
+ASIC Friendly
+-------------
+The more efficient lean mining requires tons of SRAM, which is lacking on CPUs and GPUs, but easily implemented in ASICs,
+either on a single chip, or for even larger graph sizes (cuckoo33 requires well over 1 GB of SRAM), on multiple chips.
 
 Cycle finding
 --------------
@@ -97,7 +84,6 @@ is used to recognise all cycles, and recover those of the right length.
 
 Performance
 --------------
-
 The runtime of a single proof attempt for a 2^30 node graph on a 4GHz i7-4790K is 10.5 seconds
 with the single-threaded mean solver, using 2200MB (or 3200MB with faster solution recovery).
 This reduces to 3.5 seconds with 4 threads (3x speedup).
@@ -111,8 +97,8 @@ I claim that siphash-2-4 is a safe choice of underlying hash function,
 that these implementations are reasonably optimal,
 that trading off (less) memory for (more) running time,
 incurs at least one order of magnitude extra slowdown,
-and finally, that meaner_miner.cu is a reasonably optimal GPU miner.
-The latter runs about 10x faster on an NVIDA 1080Ti than mean_miner on an Intel Core-i7 CPU.
+and finally, that mean_miner.cu is a reasonably optimal GPU miner.
+The latter runs about 10x faster on an NVIDA 1080Ti than mean_miner.cpp on an Intel Core-i7 CPU.
 In support of these claims, I offer the following bounties:
 
 CPU Speedup Bounties
@@ -134,7 +120,7 @@ recent gcc compiler with regular flags as in my Makefile.
 GPU Speedup Bounty
 ------------------
 $5000 for an open source implementation for a consumer GPU
-that finds 42-cycles twice as fast as meaner_miner.cu on 2^30 node graphs on comparable hardware.
+that finds 42-cycles twice as fast as mean_miner.cu on 2^30 node graphs on comparable hardware.
 
 The Makefile defines corresponding targets leancpubounty, meancpubounty, tmtobounty, and gpubounty.
 

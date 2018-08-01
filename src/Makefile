@@ -198,19 +198,13 @@ lcuda32:	siphash.cuh lean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 lean_miner.cu $(LIBS)
 
 cuda28:	siphash.cuh mean_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=27 -DCOMPRESSROUND=10 -DBIGEPS=1/16 -arch sm_35 mean_miner.cu $(LIBS)
+	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 mean_miner.cu $(LIBS)
 
 cuda30:	siphash.cuh mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
 
 cuda32:	siphash.cuh mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 mean_miner.cu $(LIBS)
-
-meaner30:	siphash.cuh meaner_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 meaner_miner.cu  $(LIBS)
-
-lmeaner30:      siphash.cuh lmeaner_miner.cu Makefile
-	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lmeaner_miner.cu  $(LIBS)
 
 cycle28:	cycle_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 cycle_miner.cu $(LIBS)
