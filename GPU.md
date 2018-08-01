@@ -1,6 +1,10 @@
 Progress report on the Cuckoo Cycle GPU solver
 ============
 
+UPDATE
+------
+This document is obsoleted (in part) by photon's 4x faster GPU solver from early April 2018.
+
 Since completing my rewrite of xenoncat's performance quadrupling CPU solver (winning a double bounty)
 in the form of mean_miner.cpp, I've been slowly grinding away at porting that code to CUDA.
 

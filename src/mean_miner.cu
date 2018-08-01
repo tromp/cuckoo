@@ -321,7 +321,7 @@ struct blockstpb {
 };
 
 struct trimparams {
-  u16 memGB;
+  u16 expand;
   u16 ntrims;
   blockstpb genA;
   blockstpb genB;
@@ -330,7 +330,7 @@ struct trimparams {
   blockstpb recover;
 
   trimparams() {
-    memGB               =    7;
+    expand              =    0;
     ntrims              =  176;
     genA.blocks         = 4096;
     genA.tpb            =  256;
@@ -351,7 +351,7 @@ typedef u32 proof[PROOFSIZE];
 struct edgetrimmer {
   trimparams tp;
   edgetrimmer *dt;
-  size_t bufferSize;
+  size_t sizeA, sizeB;
   const size_t indexesSize = NX * NY * sizeof(u32);
   ulonglong4 *bufferA;
   ulonglong4 *bufferB;
@@ -370,15 +370,15 @@ struct edgetrimmer {
     checkCudaErrors(cudaMalloc((void**)&dipkeys, sizeof(siphash_keys)));
     checkCudaErrors(cudaMalloc((void**)&indexesE, indexesSize));
     checkCudaErrors(cudaMalloc((void**)&indexesE2, indexesSize));
-    size_t sizeA = ROW_EDGES_A * NX * (tp.memGB <= 5 ? sizeof(u32) : sizeof(uint2));
-    size_t sizeB = ROW_EDGES_B * NX * (tp.memGB <  5 ? sizeof(u32) : sizeof(uint2));
-    bufferSize = sizeA + sizeB;
+    sizeA = ROW_EDGES_A * NX * (tp.expand > 0 ? sizeof(u32) : sizeof(uint2));
+    sizeB = ROW_EDGES_B * NX * (tp.expand > 1 ? sizeof(u32) : sizeof(uint2));
+    const size_t bufferSize = sizeA + sizeB;
     checkCudaErrors(cudaMalloc((void**)&bufferA, bufferSize));
-    bufferB  = (ulonglong4 *)((char *)bufferA + sizeA);
-    bufferAB = (ulonglong4 *)((char *)bufferA + sizeB);
+    bufferB  = bufferA + sizeA / sizeof(ulonglong4);
+    bufferAB = bufferA + sizeB / sizeof(ulonglong4);
   }
   u64 globalbytes() const {
-    return bufferSize + 2 * indexesSize + sizeof(siphash_keys) + PROOFSIZE * 2 * sizeof(u32) + sizeof(edgetrimmer);
+    return (sizeA+sizeB) + 2 * indexesSize + sizeof(siphash_keys) + PROOFSIZE * 2 * sizeof(u32) + sizeof(edgetrimmer);
   }
   ~edgetrimmer() {
     cudaFree(bufferA);
@@ -404,7 +404,7 @@ struct edgetrimmer {
     float durationA, durationB;
     cudaEventRecord(start, NULL);
   
-    if (tp.memGB == 7)
+    if (tp.expand == 0)
       SeedA<EDGES_A, uint2><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
     else
       SeedA<EDGES_A,   u32><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
@@ -413,10 +413,15 @@ struct edgetrimmer {
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationA, start, stop);
     cudaEventRecord(start, NULL);
   
-    if (tp.memGB == 7)
-      SeedB<EDGES_A, uint2><<<tp.genB.blocks, tp.genB.tpb>>>(*dipkeys, (const uint2 *)bufferAB, bufferA, (const int *)indexesE, (int *)indexesE2);
-    else
-      SeedB<EDGES_A,   u32><<<tp.genB.blocks, tp.genB.tpb>>>(*dipkeys, (const   u32 *)bufferAB, bufferA, (const int *)indexesE, (int *)indexesE2);
+    const u32 halfA = sizeA/2 / sizeof(ulonglong4);
+    const u32 halfE = NX2 / 2;
+    if (tp.expand == 0) {
+      SeedB<EDGES_A, uint2><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const uint2 *)bufferAB, bufferA, (const int *)indexesE, indexesE2);
+      SeedB<EDGES_A, uint2><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const uint2 *)(bufferAB+halfA), bufferA+halfA, (const int *)(indexesE+halfE), indexesE2+halfE);
+    } else {
+      SeedB<EDGES_A,   u32><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const   u32 *)bufferAB, bufferA, (const int *)indexesE, indexesE2);
+      SeedB<EDGES_A,   u32><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const   u32 *)(bufferAB+halfA), bufferA+halfA, (const int *)(indexesE+halfE), indexesE2+halfE);
+    }
 
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
@@ -424,16 +429,16 @@ struct edgetrimmer {
   
     cudaMemset(indexesE, 0, indexesSize);
 
-    if (tp.memGB == 7)
+    if (tp.expand == 0)
       Round<EDGES_A, uint2, EDGES_B, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
-    else if (tp.memGB == 5)
+    else if (tp.expand == 1)
       Round<EDGES_A,   u32, EDGES_B, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const   u32 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
-    else // tp.memGB == 4
+    else // tp.expand == 2
       Round<EDGES_A,   u32, EDGES_B,   u32><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const   u32 *)bufferA, (  u32 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
 
     cudaMemset(indexesE2, 0, indexesSize);
 
-    if (tp.memGB != 4)
+    if (tp.expand < 2)
       Round<EDGES_B, uint2, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, *dipkeys, (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .296
     else
       Round<EDGES_B,   u32, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, *dipkeys, (const   u32 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .296
@@ -646,18 +651,18 @@ int main(int argc, char **argv) {
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt(argc, argv, "sb:c:d:G:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
+  while ((c = getopt(argc, argv, "sb:c:d:E:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
     switch (c) {
       case 's':
-        printf("SYNOPSIS\n  cuda%d [-d device] [-G 4/5/7] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
-        printf("DEFAULTS\n  cuda%d -d %d -G %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.memGB, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
+        printf("SYNOPSIS\n  cuda%d [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
+        printf("DEFAULTS\n  cuda%d -d %d -E %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.expand, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
         exit(0);
       case 'd':
         device = atoi(optarg);
         break;
-      case 'G':
-        tp.memGB = atoi(optarg);
-        assert(tp.memGB == 4 || tp.memGB == 5 || tp.memGB == 7);
+      case 'E':
+        tp.expand = atoi(optarg);
+        assert(tp.expand <= 2);
         break;
       case 'h':
         len = strlen(optarg)/2;
