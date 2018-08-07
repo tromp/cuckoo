@@ -170,10 +170,9 @@ Bounty contributors
 
 Projects using, or planning to use, Cuckoo Cycle
 --------------
-* [Minimal implementation of the MimbleWimble protocol](https://github.com/mimblewimble/grin)
+* [GRIN](https://github.com/mimblewimble/grin)
 * [æternity - the oracle machine](http://www.aeternity.com/)
 * [BIP 154: Rate Limiting via peer specified challenges; Bitcoin Peer Services](https://github.com/bitcoin/bips/blob/master/bip-0154.mediawiki)
 * [Raddi // radically decentralized discussion](http://www.raddi.net/)
-* [Bitcoin Resilience: Cuckoo Cycle PoW Bitcoin Hardfork](https://bitcointalk.org/index.php?topic=2360396)
 
 ![](img/logo.png?raw=true)

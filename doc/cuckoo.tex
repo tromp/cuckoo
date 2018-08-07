@@ -4,6 +4,8 @@
 \pgfplotsset{compat=default}
 \newcommand{\cuckoo}{{\rm cuckoo}}
 \newcommand{\hash}{{\rm siphash}}
+\newcommand{\hin}{h_{mbox{in}}
+\newcommand{\hout}{h_{mbox{out}}
 \usepackage{hyperref}
 \usepackage{listings}
 \title{Cuckoo Cycle: \protect\\ a memory bound graph-theoretic proof-of-work}
@@ -28,7 +30,6 @@ Trading in the other direction, algorithm "mean" uses a few dozen bits per edge 
 in practice, becoming memory bandwidth bound rather than latency bound.
 We present performance figures for optimized CPU and GPU implementations,
 and discuss possible ASIC implementations.
-% Both algorithms are shown to parallelize well.
 \end{abstract}
 
 \section{Introduction}
@@ -58,8 +59,10 @@ introduced by Tenebrix~\cite{tenebrix2011} (since faded into obscurity)
 and copied by Litecoin~\cite{litecoin2011}.
 Scrypt, designed as a sequential memory-hard key derivation function,
 was specifically chosen to resist the migration away from CPUs and be ``GPU-hostile''.
-However, to adapt to the efficient verifiability requirement of proof-of-work, its
-memory footprint was severely limited, and migration slowed down only slightly.
+To adapt to the efficient verifiability requirement of proof-of-work, its
+memory footprint was limited to a mere 128 KB. Before long however, the large computing power
+and memory bandwidth of GPUs were harnessed to vastly outperform CPUs, and within a few years
+scrypt ASICs came to market to in turn obliterate GPU performance.
 
 Primecoin~\cite{king2013} introduced the notion of a number-theoretic proof-of-work,
 thereby offering the first alternative to hashcash among crypto-currencies.
@@ -67,47 +70,28 @@ Primecoin identifies long chains of nearly doubled prime numbers, constrained
 by a certain relation to the block header.
 Verification of these chains, while very slow compared to bitcoin's, is much faster
 than attempting to find one.
-This asymmetry between proof attempt and verification is typical in non-hashcash proofs of work.
+This asymmetry between proof attempt and verification is characterstic in non-hashcash proofs of work.
 Recently, two other prime-number based crypto-currencies were introduced. Riecoin is based
 on finding clusters of prime numbers, and Gapcoin on finding large gaps between consecutive prime numbers.
 
 Momentum~\cite{larimer2013} proposes finding birthday collisions of hash outputs,
 in what could well be the simplest possible asymetric proof-of-work,
 combining scalable memory usage with trivial verifiability.
-In section~\ref{cycle_length_choice} we show that Momentum is in essence a special case of Cuckoo Cycle,
-one that is particularly susceptible to time-memory trade-offs.
+Unfortunately, as pointed out in \cite{equihash15}, the "golden collision" search technique of \cite{parallel99}
+allows for reducing memory consumption $q$-fold while increasing runtime only $\sqrt(q)$, effectively breaking the scheme.
+Momentum is interesting though as both Cuckoo Cycle and Equihash generalize birthday collision in different ways.
+%In section~\ref{cycle_length_choice} we show that Momentum is in essence a special case of Cuckoo Cycle,
+%one that is particularly susceptible to time-memory trade-offs.
 
 Adam Back~\cite{back2014} has a good overview of proof-of-work papers past and present.
 
 \section{Motivation}
-Cuckoo Cycle aims to be an ``egalitarian'' proof-of-work, that is,
-to minimize performance-per-dollar differences across hardware architectures.
-This is to be achieved by making main memory latency or bandwidth the bottleneck, since
-DRAM latency and bandwidth vary much less across hardware architecture and process technology
-than compute power.
-
-Our aim of a memory bound PoW translates to the following desirable properties:
-
-\begin{description}
-\item[MB1] a target memory footprint that exceeds a single memory chip
-\item[MB2] a pattern of necessarily random memory accesses
-\item[MB3] minimal computation per random memory access\footnote{Preferably less than
-the roughly $50$ nanosecond row activation delay for switching rows on a memory bank.}
-\item[MB4] no feasible trade-off of memory for time\footnote{Rather arbitrarily
-defined as incurring an order of magnitude increase
-in $\mbox{time}\times\mbox{memory}$ used per expected solution.}
-\end{description}
-
-A memory bound PoW aims to take advantage of the huge economies of scale of commodity DRAM production
-to make DRAM chips the most cost-effective vehicle for mining.
-Just as SRAM is one order of magnitude faster but two orders more expensive than DRAM,
-so it is conceivable that development and production of custom memory chips for a memory bound PoW
-will incur a sufficient cost premium to wipe out any performance gains.
-
-We thus disagree with the premise of \cite{poelstra2014} that PoWs should be compute bound
-in order to have ongoing energy costs dominate mining, which results in an expensive ASIC
-design arms race to drive up performance per Watt, rapid hardware obsolescence,
-and geographical centralization towards cheap electric power.
+Cuckoo Cycle aims to be the simplest possible proof-of-work.
+Verifying a cycle is a simple procedure, and edges are defined by a rather simple hash function.
+Meanwhile, the simplest kind of chip circuitry is SRAM memory. Its exceedingly regular nature jumps out in
+die photographs as big uniform rectangles. Cuckoo Cycle aims to be a proof of SRAM.
+As shown later, the most efficient known way of solving Cuckoo Cycles is by updating
+random 2-bit counters, a task for which SRAM is uniquely suited.
 
 We will not strive for provable lower bounds on memory usage. Such bounds appear to be
 attainable only under the so-called {\em random oracle model}, where memory tends to be used
@@ -115,8 +99,7 @@ merely as a store for chains of compute-intensive hash outputs.
 Instead, we present an efficient proof-finding algorithm
 along with our best attempts at memory-time trade-offs,
 and conjecture that these cannot be significantly improved upon.
-Lacking precise definitions and proofs of memory bound-ness, this work should be considered
-more empirical than formal.
+Lacking rigorous proofs of memory hard-ness, Cuckoo Cycle should be considered a heuristic scheme.
 
 \section{Graph-theoretic proofs-of-work}
 We propose to base proofs-of-work on finding certain subgraphs in large pseudo-random graphs.
@@ -127,28 +110,29 @@ uniformly at random. For a well-behaved hash function, these two classes of rand
 should have nearly identical properties.
 
 Formally, fix a keyed hash function
-$h: \{0,1\}^K \times \{0,1\}^{W_i} \rightarrow \{0,1\}^{W_o}$,
+$h: \{0,1\}^K \times \{0,1\}^{h_\mbox{in}} \rightarrow \{0,1\}^{h_\mbox{out}}$,
 and a small graph $H$ as a target subgraph\footnote{hash functions generally have arbitrary length inputs,
-but here we fix the input width at $W_i$ bits.}.
-Now pick a large number $N \leq 2^{W_o}$ as the number of nodes,
-and $M \leq 2^{W_i-1}$ as the number of edges.
-Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{v_0,\ldots,v_{N-1}\}$, and
+but here we fix the input width at $\hin$ bits.}.
+Now pick a large number $N \leq 2^{h_\mbox{out}}$ as the number of nodes,
+and $M \leq 2^{\hin-1}$ as the number of edges.
+Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{v_0,\ldots,v_{N-1}\}$,
+$E=\{e_0,\ldots,e_{M-1}\}$, and (with $|$ denoting catenation of bit strings)
 \begin{equation}
-E=\{(v_{h(k,2i) \bmod N},v_{h(k,2i+1) \bmod N}) | i \in [0,\ldots,M-1]\}
+e_i=(v_{h_k(i|0) \bmod N},v_{h_k(i|1) \bmod N})
 \end{equation}
-The inputs $i \in [0,\ldots,M-1]$ are also called {\em nonces}\footnote{These
-{\em micro} nonces should be distinguished from the {\em macro} nonce used to generate key $k$.}
+The inputs $i \in [0,\ldots,M-1]$ are called {\em edge indices}
+%\footnote{These {\em micro} nonces should be distinguished from the {\em macro} nonce used to generate key $k$.}
 The graph has a {\em solution} if $H$ occurs as a subgraph.
 Denote the number of edges in $H$ as $L$.
-A proof of solution is an ordered list of $L$ nonces that generate the edges
+A proof of solution is an ordered list of $L$ edge indices that generate the edges
 of $H$'s occurrence in $G_k$.
 Such a proof is verifiable in time depending only on $H$ (typically linear in $L$), independent of $N$ and $M$.
 
-A simple variation generates random bipartite graphs: $G_k = (V_0 \cup V_1,E)$ where (assuming $N$ is even)
-$V_0=\{v_0,v_2,\ldots,v_{N-2}\}$, $V_1=\{v_1,v_3,\ldots,v_{N-1}\}$, and
+A simple variation generates random bipartite graphs: $G_k = (U \cup V,E)$ where (assuming $N$ is even)
+$U=\{u_0,\ldots,u_{N-1}\}$, $V=\{v_0,\ldots,v_{N-1}\}$, and
 \begin{equation}
 \label{hash_edges}
-E=\{(v_{2(h(k,2i) \bmod \frac{N}{2})}, v_{2(h(k,2i+1) \bmod \frac{N}{2})+1}) | i \in [0,\ldots,M-1]\}
+e_i=(u_{h_k(i|0) \bmod \frac{N}{2}}, v_{h_k(i|1) \bmod \frac{N}{2}})
 \end{equation}
 
 The expected number of occurrences of $H$ as a subgraph of $G$ is a function of both $N$ and $M$,
@@ -163,9 +147,8 @@ as used in Riecoin, we leave its consideration to a future paper.
 
 \section{Cuckoo Cycle}
 In this paper we focus on what is perhaps the next-simplest possible choice, the {\em cycle}.
-Specifically, we propose the hash function \hash\ with a $K=128$ bit key, $W_i = W_o = 64$ input
-and output bits, $N \leq 2^{64}$ a 2-power, $M=N/2$, and $H$ an $L$-cycle.
-Using the lightweight \hash\-2-4 with only 6 rounds helps to attain property MB3.
+Specifically, we propose to use bipartite graphs generated by the hash function \hash\ with a $K=256$ bit key,
+$\hin = \hout = 64$ input and output bits, $N \leq 2^{64}$ a 2-power, $M=N/2$, and $H$ an $L$-cycle.
 The reason for calling the resulting proof-of-work Cuckoo Cycle is that
 inserting items in a Cuckoo hashtable naturally leads to cycle formation
 in random bipartite graphs.
@@ -311,9 +294,8 @@ There is some risk of overlooking other $L$-cycles
 through that edge, but when the expected number of cycles is low (which is what we design for),
 this ignoring of cycle forming edges hardly affects the rate of solution finding.
 
-This algorithm is available online at \url{https://github.com/tromp/cuckoo}
-as either the C-program simple\_miner.cpp or the Java program SimpleMiner.java.
-A proof verifier is available as cuckoo.c or Cuckoo.java, while the repository
+This algorithm is available online at \url{https://github.com/tromp/cuckoo} in src/simple\_miner.cpp,
+while a proof verifier is available in src/cuckoo.c. The github repository
 also has a Makefile, as well as the latest version of this paper.
 % `make test' tests everything.
 `make example' reproduces the example shown above.
@@ -399,6 +381,9 @@ In total the basic algorithm averages 3.3 reads and 1.1 writes per edge.
 \caption{Threshold nature of solution, and increasing memory usage on threshold approach}
 \label{accesses}
 \end{figure}
+
+\section{Theoretical cycle length distribution}
+
 
 \section{Difficulty control}
 The ratio $\frac{M}{N}$ determines a base level of difficulty,
