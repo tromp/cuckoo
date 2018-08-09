@@ -14,6 +14,7 @@
 #define MAXPATHLEN 8192
 
 class cuckoo_ctx {
+  static const u32 CUCKOO_NIL = ~0;
 public:
   siphash_keys sip_keys;
   edge_t easiness;
@@ -33,11 +34,12 @@ public:
   void setheadernonce(char* const headernonce, const u32 len, const u32 nonce) {
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
     setheader(headernonce, len, &sip_keys);
-    memset(cuckoo, 0, (u64)(1+NNODES) * sizeof(node_t));
+    memset(cuckoo, CUCKOO_NIL, (u64)(1+NNODES) * sizeof(node_t));
   }
+
   int path(node_t *cuckoo, node_t u, node_t *us) {
     int nu;
-    for (nu = 0; u; u = cuckoo[u]) {
+    for (nu = 0; u != CUCKOO_NIL; u = cuckoo[u]) {
       if (++nu >= MAXPATHLEN) {
         while (nu-- && us[nu] != u) ;
         if (nu < 0)
@@ -74,7 +76,7 @@ public:
     node_t us[MAXPATHLEN], vs[MAXPATHLEN];
     for (node_t nonce = 0; nonce < easiness; nonce++) {
       node_t u0 = 2*sipnode(&sip_keys, nonce, 0);
-      if (u0 == 0) continue; // reserve 0 as nil; v0 guaranteed non-zero
+      if (u0 == CUCKOO_NIL) continue;
       node_t v0 = 2*sipnode(&sip_keys, nonce, 1)+1;
       node_t u = cuckoo[u0], v = cuckoo[v0];
       us[0] = u0;
