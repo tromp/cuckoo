@@ -2,6 +2,13 @@
 // Copyright (c) 2013-2016 John Tromp
 
 #include "cuckoo.h"
+
+// assume EDGEBITS < 31
+#define NNODES (2 * NEDGES)
+#define NCUCKOO NNODES
+
+#include "cyclebase.hpp"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -9,103 +16,46 @@
 #include <sys/time.h>
 #include <set>
 
-// assume EDGEBITS < 31
-#define NNODES (2 * NEDGES)
-#define MAXPATHLEN 8192
+typedef unsigned char u8;
 
 class cuckoo_ctx {
   static const u32 CUCKOO_NIL = ~0;
 public:
   siphash_keys sip_keys;
   edge_t easiness;
-  node_t *cuckoo;
+  cyclebase cb;
 
   cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce, edge_t easy_ness) {
     easiness = easy_ness;
-    cuckoo = (node_t *)calloc(1+NNODES, sizeof(node_t));
-    assert(cuckoo != 0);
+    cb.alloc();
+    assert(cb.cuckoo != 0);
   }
+
+  ~cuckoo_ctx() {
+    cb.freemem();
+  }
+
   u64 bytes() {
     return (u64)(1+NNODES) * sizeof(node_t);
   }
-  ~cuckoo_ctx() {
-    free(cuckoo);
-  }
+
   void setheadernonce(char* const headernonce, const u32 len, const u32 nonce) {
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
     setheader(headernonce, len, &sip_keys);
-    memset(cuckoo, CUCKOO_NIL, (u64)(1+NNODES) * sizeof(node_t));
+    cb.reset();
   }
 
-  int path(node_t *cuckoo, node_t u, node_t *us) {
-    int nu;
-    for (nu = 0; u != CUCKOO_NIL; u = cuckoo[u]) {
-      if (++nu >= MAXPATHLEN) {
-        while (nu-- && us[nu] != u) ;
-        if (nu < 0)
-          printf("maximum path length exceeded\n");
-        else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
-        exit(0);
-      }
-      us[nu] = u;
-    }
-    return nu;
-  }
-  
-  typedef std::pair<node_t,node_t> edge;
-  
-  void solution(node_t *us, int nu, node_t *vs, int nv) {
-    std::set<edge> cycle;
-    unsigned n;
-    cycle.insert(edge(*us, *vs));
-    while (nu--)
-      cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
-    while (nv--)
-      cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-    printf("Solution");
-    for (edge_t nonce = n = 0; nonce < easiness; nonce++) {
-      edge e(2*sipnode(&sip_keys, nonce, 0), 2*sipnode(&sip_keys, nonce, 1)+1);
-      if (cycle.find(e) != cycle.end()) {
-        printf(" %x", nonce);
-        cycle.erase(e);
-      }
-    }
-    printf("\n");
-  }
-  void solve() {
-    node_t us[MAXPATHLEN], vs[MAXPATHLEN];
+  void cyclebase() {
     for (node_t nonce = 0; nonce < easiness; nonce++) {
-      node_t u0 = 2*sipnode(&sip_keys, nonce, 0);
-      if (u0 == CUCKOO_NIL) continue;
-      node_t v0 = 2*sipnode(&sip_keys, nonce, 1)+1;
-      node_t u = cuckoo[u0], v = cuckoo[v0];
-      us[0] = u0;
-      vs[0] = v0;
+      node_t u = sipnode(&sip_keys, nonce, 0);
+      node_t v = sipnode(&sip_keys, nonce, 1);
   #ifdef SHOW
       for (unsigned j=1; j<NNODES; j++)
-        if (!cuckoo[j]) printf("%2d:   ",j);
-        else           printf("%2d:%02d ",j,cuckoo[j]);
+        if (!cb.cuckoo[j]) printf("%2d:   ",j);
+        else               printf("%2d:%02d ",j,cb.cuckoo[j]);
       printf(" %x (%d,%d)\n", nonce,*us,*vs);
   #endif
-      int nu = path(cuckoo, u, us), nv = path(cuckoo, v, vs);
-      if (us[nu] == vs[nv]) {
-        int min = nu < nv ? nu : nv;
-        for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-        int len = nu + nv + 1;
-        printf("% 4d-cycle found at %d%%\n", len, (int)(nonce*100L/easiness));
-        if (len == PROOFSIZE)
-          solution(us, nu, vs, nv);
-        continue;
-      }
-      if (nu < nv) {
-        while (nu--)
-          cuckoo[us[nu+1]] = us[nu];
-        cuckoo[u0] = v0;
-      } else {
-        while (nv--)
-          cuckoo[vs[nv+1]] = vs[nv];
-        cuckoo[v0] = u0;
-      }
+      cb.addedge(u, v);
     }
   }
 };
@@ -148,13 +98,14 @@ int main(int argc, char **argv) {
   u64 bytes = ctx.bytes();
   int unit;
   for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
-  printf("using %d%cB memory at %lx.\n", bytes, " KMGT"[unit], (u64)ctx.cuckoo);
+  printf("using %d%cB memory at %lx.\n", bytes, " KMGT"[unit], (u64)ctx.cb.cuckoo);
 
   for (u32 r = 0; r < range; r++) {
     gettimeofday(&time0, 0);
     ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("nonce %d\n", nonce+r);
-    ctx.solve();
+    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.sip_keys.k0, ctx.sip_keys.k1, ctx.sip_keys.k2, ctx.sip_keys.k3);
+    ctx.cyclebase();
+    ctx.cb.cycles();
     gettimeofday(&time1, 0);
     timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
     printf("Time: %d ms\n", timems);
