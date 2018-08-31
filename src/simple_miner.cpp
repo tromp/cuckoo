@@ -53,7 +53,7 @@ public:
       for (unsigned j=1; j<NNODES; j++)
         if (!cb.cuckoo[j]) printf("%2d:   ",j);
         else               printf("%2d:%02d ",j,cb.cuckoo[j]);
-      printf(" %x (%d,%d)\n", nonce,*us,*vs);
+      printf(" %x (%d,%d)\n", nonce,2*u,2*v+1);
   #endif
       cb.addedge(u, v);
     }
