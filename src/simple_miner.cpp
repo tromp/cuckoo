@@ -45,7 +45,7 @@ public:
     cb.reset();
   }
 
-  void cyclebase() {
+  void cycle_base() {
     for (node_t nonce = 0; nonce < easiness; nonce++) {
       node_t u = sipnode(&sip_keys, nonce, 0);
       node_t v = sipnode(&sip_keys, nonce, 1);
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
     gettimeofday(&time0, 0);
     ctx.setheadernonce(header, sizeof(header), nonce + r);
     printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.sip_keys.k0, ctx.sip_keys.k1, ctx.sip_keys.k2, ctx.sip_keys.k3);
-    ctx.cyclebase();
+    ctx.cycle_base();
     ctx.cb.cycles();
     gettimeofday(&time1, 0);
     timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
