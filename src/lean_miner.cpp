@@ -1,10 +1,9 @@
-// Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2016 John Tromp
+// Cuckatoo Cycle, a memory-hard proof-of-work
+// Copyright (c) 2013-2019 John Tromp
 
 #include "lean_miner.hpp"
 #include <unistd.h>
 
-#define MAXSOLS 8
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
 
@@ -40,17 +39,16 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS+1, header, nonce);
+  printf("Looking for %d-cycle on cuckatoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
-  printf(") with 50%% edges, %d trims, %d threads\n", ntrims, nthreads);
+  printf(") with %d trims, %d threads\n", ntrims, nthreads);
 
-  u64 edgeBytes = NEDGES/8, nodeBytes = TWICE_ATOMS*sizeof(atwice);
-  int edgeUnit, nodeUnit;
-  for (edgeUnit=0; edgeBytes >= 1024; edgeBytes>>=10,edgeUnit++) ;
-  for (nodeUnit=0; nodeBytes >= 1024; nodeBytes>>=10,nodeUnit++) ;
-  printf("Using %d%cB edge and %d%cB node memory, %d-way siphash, and %d-byte counters\n",
-     (int)edgeBytes, " KMGT"[edgeUnit], (int)nodeBytes, " KMGT"[nodeUnit], NSIPHASH, SIZEOF_TWICE_ATOM);
+  u64 Bytes = NEDGES/8;
+  int Unit;
+  for (Unit=0; Bytes >= 1024; Bytes>>=10,Unit++) ;
+  printf("Using %d%cB edge and %d%cB node memory, and %d-way siphash\n",
+     (int)Bytes, " KMGT"[Unit], (int)Bytes, " KMGT"[Unit], NSIPHASH);
 
   thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
   assert(threads);

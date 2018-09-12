@@ -1,5 +1,5 @@
-// Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2017 John Tromp
+// Cuck(at)oo Cycle, a memory-hard proof-of-work
+// Copyright (c) 2013-2019 John Tromp
 
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset
@@ -12,8 +12,8 @@
 
 // proof-of-work parameters
 #ifndef EDGEBITS
-// the main parameter is the 2-log of the graph size,
-// which is the size in bits of the node identifiers
+// the main parameter is the number of bits in an edge index,
+// i.e. the 2-log of the number of edges
 #define EDGEBITS 29
 #endif
 #ifndef PROOFSIZE
@@ -42,8 +42,8 @@ typedef u16 node_t;
 // used to mask siphash output
 #define EDGEMASK ((edge_t)NEDGES - 1)
 
-// generate edge endpoint in cuckoo graph without partition bit
-node_t sipnode(siphash_keys *keys, edge_t edge, u32 uorv) {
+// generate edge endpoint in cuck(at)oo graph without partition bit
+edge_t sipnode(siphash_keys *keys, edge_t edge, u32 uorv) {
   return siphash24(keys, 2*edge + uorv) & EDGEMASK;
 }
 
@@ -52,8 +52,9 @@ const char *errstr[] = { "OK", "wrong header length", "edge too big", "edges not
 
 // verify that edges are ascending and form a cycle in header-generated graph
 int verify(edge_t edges[PROOFSIZE], siphash_keys *keys) {
-  node_t uvs[2*PROOFSIZE];
-  node_t xor0 = 0, xor1  =0;
+  edge_t uvs[2*PROOFSIZE], xor0, xor1;
+  xor0 = xor1 = (PROOFSIZE/2) & 1;
+
   for (u32 n = 0; n < PROOFSIZE; n++) {
     if (edges[n] > EDGEMASK)
       return POW_TOO_BIG;
@@ -67,13 +68,14 @@ int verify(edge_t edges[PROOFSIZE], siphash_keys *keys) {
   u32 n = 0, i = 0, j;
   do {                        // follow cycle
     for (u32 k = j = i; (k = (k+2) % (2*PROOFSIZE)) != i; ) {
-      if (uvs[k] == uvs[i]) { // find other edge endpoint identical to one at i
+      if (uvs[k]>>1 == uvs[i]>>1) { // find other edge endpoint matching one at i
         if (j != i)           // already found one before
           return POW_BRANCH;
         j = k;
       }
     }
-    if (j == i) return POW_DEAD_END;  // no matching endpoint
+    if (j == i || uvs[j] == uvs[i])
+      return POW_DEAD_END;  // no matching endpoint
     i = j^1;
     n++;
   } while (i != 0);           // must cycle back to start or we would have found branch
@@ -99,6 +101,6 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
 }
 
 // edge endpoint in cuckoo graph with partition bit
-edge_t sipnode_(siphash_keys *keys, edge_t edge, u32 uorv) {
-  return sipnode(keys, edge, uorv) << 1 | uorv;
+node_t sipnode_(siphash_keys *keys, edge_t edge, u32 uorv) {
+  return (node_t)sipnode(keys, edge, uorv) << 1 | uorv;
 }

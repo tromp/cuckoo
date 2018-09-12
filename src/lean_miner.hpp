@@ -1,13 +1,17 @@
-// Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2016 John Tromp
+// Cuck(at)oo Cycle, a memory-hard proof-of-work
+// Copyright (c) 2013-2019 John Tromp
 // The edge-trimming memory optimization is due to Dave Andersen
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 // The use of prefetching was suggested by Alexander Peslyak (aka Solar Designer)
 // define SINGLECYCLING to run cycle finding single threaded which runs slower
 // but avoids losing cycles to race conditions (not worth it in my testing)
 
-#include "cuckoo.h"
+#ifdef ATOMIC
+#include <atomic>
+#endif
+#include "cuckatoo.h"
 #include "siphashxN.h"
+#include "graph.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -17,28 +21,11 @@
 #include <assert.h>
 
 #ifdef ATOMIC
-#include <atomic>
 typedef std::atomic<u32> au32;
 typedef std::atomic<u64> au64;
 #else
 typedef u32 au32;
 typedef u64 au64;
-#endif
-
-#ifndef SIZEOF_TWICE_ATOM
-#define SIZEOF_TWICE_ATOM 4
-#endif
-#if SIZEOF_TWICE_ATOM == 8
-typedef au64 atwice;
-typedef u64 uatwice;
-#elif SIZEOF_TWICE_ATOM == 4
-typedef au32 atwice;
-typedef u32 uatwice;
-#elif SIZEOF_TWICE_ATOM == 1
-typedef unsigned char atwice;
-typedef unsigned char uatwice;
-#else
-#error not implemented
 #endif
 
 #if EDGEBITS <= 31
@@ -84,70 +71,25 @@ const static u32 NODEMASK = (EDGEMASK << 1) | 1;
 const static u32 MAXPATHLEN = 8 << (NODEBITS/3);
 
 const static u32 PART_MASK = (1 << PART_BITS) - 1;
-const static u64 ONCE_BITS = NEDGES >> PART_BITS;
-const static u64 TWICE_BYTES = (2 * ONCE_BITS) / 8;
-const static u64 TWICE_ATOMS = TWICE_BYTES / sizeof(atwice);
-const static u32 TWICE_PER_ATOM = sizeof(atwice) * 4;
-
-class twice_set {
-public:
-  atwice *bits;
-
-  twice_set() {
-    bits = (atwice *)calloc(TWICE_ATOMS, sizeof(atwice));
-    assert(bits != 0);
-  }
-  void clear() {
-    assert(bits);
-    memset(bits, 0, TWICE_ATOMS*sizeof(atwice));
-  }
- void prefetch(node_t u) const {
-#ifdef PREFETCH
-    __builtin_prefetch((const void *)(&bits[u/TWICE_PER_ATOM]), /*READ=*/0, /*TEMPORAL=*/0);
-#endif
-  }
-  void set(node_t u) {
-    node_t idx = u/TWICE_PER_ATOM;
-    uatwice bit = (uatwice)1 << (2 * (u%TWICE_PER_ATOM));
-#ifdef ATOMIC
-    uatwice old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
-    if (old & bit) std::atomic_fetch_or_explicit(&bits[idx], bit<<1, std::memory_order_relaxed);
-#else
-    uatwice old = bits[idx];
-    bits[idx] = old | (bit + (old & bit));
-#endif
-  }
-  bool test(node_t u) const {
-#ifdef ATOMIC
-    return ((bits[u/TWICE_PER_ATOM].load(std::memory_order_relaxed)
-            >> (2 * (u%TWICE_PER_ATOM))) & 2) != 0;
-#else
-    return (bits[u/TWICE_PER_ATOM] >> (2 * (u%TWICE_PER_ATOM)) & 2) != 0;
-#endif
-  }
-  ~twice_set() {
-    free(bits);
-  }
-};
+const static u32 NONPART_BITS = EDGEBITS - PART_BITS;
+const static u32 NONPART_MASK = (1 << NONPART_BITS) - 1;
 
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
 public:
-  u64 *bits;
+  bitmap<NEDGES, u64> bmap;
   u64 *cnt;
   u32 nthreads;
 
   shrinkingset(const u32 nt) {
-    bits = (u64 *)malloc(NEDGES/8);
     cnt  = (u64 *)malloc(nt * sizeof(u64));
     nthreads = nt;
   }
   ~shrinkingset() {
-    free(bits);
     free(cnt);
   }
   void clear() {
-    memset(bits, 0, NEDGES/8);
+    bmap.clear();
     memset(cnt, 0, nthreads * sizeof(u64));
     cnt[0] = NEDGES;
   }
@@ -158,14 +100,14 @@ public:
     return sum;
   }
   void reset(nonce_t n, u32 thread) {
-    bits[n/64] |= 1LL << (n%64);
+    bmap.set(n);
     cnt[thread]--;
   }
-  bool test(node_t n) const {
-    return !((bits[n/64] >> (n%64)) & 1LL);
+  bool test(edge_t n) const {
+    return !bmap.test(n);
   }
-  u64 block(node_t n) const {
-    return ~bits[n/64];
+  u64 block(edge_t n) const {
+    return ~bmap.block(n);
   }
 };
 
@@ -225,7 +167,7 @@ class cuckoo_ctx {
 public:
   siphash_keys sip_keys;
   shrinkingset *alive;
-  twice_set *nonleaf;
+  bitmap<NEDGES, u32> *nonleaf;
   cuckoo_hash *cuckoo;
   nonce_t (*sols)[PROOFSIZE];
   u32 nonce;
@@ -239,7 +181,7 @@ public:
     nthreads = n_threads;
     alive = new shrinkingset(nthreads);
     cuckoo = 0;
-    nonleaf = new twice_set;
+    nonleaf = new bitmap<NEDGES, u32>;
     ntrims = n_trims;
     int err = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
@@ -262,20 +204,25 @@ public:
   void prefetch(const u64 *hashes, const u32 part) const {
     for (u32 i=0; i < NSIPHASH; i++) {
       u32 u = hashes[i] & EDGEMASK;
-      if ((u & PART_MASK) == part) {
-        nonleaf->prefetch(u >> PART_MASK);
+      if ((u >> NONPART_BITS) == part) {
+        nonleaf->prefetch(u & NONPART_MASK);
       }
     }
   }
   void node_deg(const u64 *hashes, const u32 nsiphash, const u32 part) const {
     for (u32 i=0; i < nsiphash; i++) {
-#ifdef SKIPZERO
-    if (!hashes[i])
-      continue;
-#endif
       u32 u = hashes[i] & EDGEMASK;
-      if ((u & PART_MASK) == part) {
-        nonleaf->set(u >>= PART_BITS);
+      if ((u >> NONPART_BITS) == part) {
+        nonleaf->set(u & NONPART_MASK);
+      }
+    }
+  }
+  void kill(const u64 *hashes, const u64 *indices, const u32 nsiphash,
+             const u32 part, const u32 id) const {
+    for (u32 i=0; i < nsiphash; i++) {
+      u32 u = hashes[i] & EDGEMASK;
+      if ((u >> NONPART_BITS) == part && !nonleaf->test((u & NONPART_MASK) ^ 1)) {
+        alive->reset(indices[i]/2, id);
       }
     }
   }
@@ -306,24 +253,12 @@ public:
       node_deg(hashes+(nidx&-NSIPHASH), nidx%NSIPHASH, part);
     }
   }
-  void kill(const u64 *hashes, const u64 *indices, const u32 nsiphash,
-             const u32 part, const u32 id) const {
-    for (u32 i=0; i < nsiphash; i++) {
-#ifdef SKIPZERO
-    if (!hashes[i])
-      continue;
-#endif
-      u32 u = hashes[i] & EDGEMASK;
-      if ((u & PART_MASK) == part && !nonleaf->test(u >> PART_BITS)) {
-        alive->reset(indices[i]/2, id);
-      }
-    }
-  }
   void kill_leaf_edges(const u32 id, const u32 uorv, const u32 part) {
     alignas(64) u64 indices[NPREFETCH];
     alignas(64) u64 hashes[NPREFETCH];
   
-    memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->test(0) to reduce branching
+    for (int i=0; i < NPREFETCH; i++)
+      hashes[i] = 1; // allow many nonleaf->test(0) to reduce branching
     u32 nidx = 0;
     for (nonce_t block = id*64; block < NEDGES; block += nthreads*64) {
       u64 alive64 = alive->block(block);

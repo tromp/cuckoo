@@ -1,29 +1,19 @@
-Cuckoo Cycle
-============
+Cuckatoo Cycle
+==============
 
-[Blog article explaining Cuckoo Cycle](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing)
+Cuckatoo Cycle is a variation of Cuckoo Cycle that aims to simplify ASICs by reducing ternary counters to plain bits.
 
-[Whitepaper](doc/cuckoo.pdf?raw=true)
+Proofs take the form of a length 42 off-by-1-cycle in a bipartite graph with 2^N+2^N nodes and
+2^N edges, with N ranging from 10 up to 64.
 
-Cuckoo Cycle is the first graph-theoretic proof-of-work, and the most memory bound, yet with instant verification.
-Unlike Hashcash, Cuckoo Cycle is immune from quantum speedup by Grover's search algorithm.
-
-Simplest known PoW
-------------------
-With a 42-line [complete specification](doc/spec), Cuckoo Cycle is less than half the size of either
-[SHA256](https://en.wikipedia.org/wiki/SHA-2#Pseudocode),
-[Blake2b](https://en.wikipedia.org/wiki/BLAKE_%28hash_function%29#Blake2b_algorithm), or
-[SHA3 (Keccak)](https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c)
-as used in Bitcoin, Equihash and ethash. Simplicity matters.
-
-Proofs take the form of a length 42 cycle in a bipartite graph with 2^N nodes and
-2^(N-1) edges, with N ranging from 10 up to 64.
+In an off-by-1-cycle, consecutive edges are not incident on a single node, but on two nodes that differ in the last bit only.
+From now on, whenever we say cycle, we'll mean n off-by-1-cycle.
 
 The graph is defined by the siphash-2-4 keyed hash function mapping an edge index
 and partition side (0 or 1) to the edge endpoint on that side.
 This makes verification trivial: hash the header to derive the siphash key,
-then compute the 42x2 edge endpoints with 84 siphashes, check that each endpoint occurs twice,
-and that you come back to the starting point only after traversing 42 edges.
+then compute the 42x2 edge endpoints with 84 siphashes,
+and that you come back to the starting edge only after traversing 42 off-by-1 incident nodes.
 
 While trivially verifiable, finding a 42-cycle, on the other hand, is far from trivial,
 requiring considerable resources, and some luck
@@ -31,8 +21,9 @@ requiring considerable resources, and some luck
 
 Lean mining
 -----------
-The memory efficient miner uses 3 bits per edge and is bottlenecked by
-accessing random 2-bit counters, making it memory latency bound.
+The memory efficient miner uses 1 bit per edge and 1 bit per node in one partition
+(or 1 bit per 2^k nodes with linear slowdown).
+It is bottlenecked by accessing node bits completely at random, making it memory latency bound.
 The core of this miner, where over 99% of time is spent, is also [relatively simple](doc/leancore).
 
 Mean mining
@@ -44,14 +35,14 @@ Dynamic Sizing
 --------------
 Instead of fixing N, a proof-of-work system could allow miners to work on any graph size they like,
 above a certain minimum. Cycles in larger graphs are more valued as they take more effort to find.
-We propose to scale the difficulty for a graph on 2^N nodes by 2^N * (N-1),
+We propose to scale the difficulty for a graph with 2^N edges by 2^(N+1) * N,
 which is the number of bits of siphash output that define the graph.
 
 Upgrade by Soft Fork
 --------------------
 Dynamic Sizing allows for increasing the memory required for mining simply by raising the minimum allowed graph size.
-Since this makes new valid blocks a subset of old valid blocks, it is not a hard fork but a soft fork, and thus immensely
-easier to deploy. Miner manufacturers are incentivized to support larger sizes as being more future proof.
+Since this makes new valid blocks a subset of old valid blocks, it is not a hard fork but a soft fork, easily deployed
+with majority miner support. Miner manufacturers are incentivized to support larger sizes as being more future proof.
 
 Automatic Upgrades
 ------------------
@@ -60,7 +51,7 @@ A raise in minimum graph size could be triggered automatically if over the last 
 ASIC Friendly
 -------------
 The more efficient lean mining requires tons of SRAM, which is lacking on CPUs and GPUs, but easily implemented in ASICs,
-either on a single chip, or for even larger graph sizes (cuckoo33 requires well over 1 GB of SRAM), on multiple chips.
+either on a single chip, or for even larger graph sizes (cuckatoo33 requires 1 GB of SRAM), on multiple chips.
 
 Cycle finding
 --------------
@@ -72,23 +63,23 @@ The algorithm implemented in lean_miner.hpp runs in time linear in 2^N.
 (Note that running in sub-linear time is out of the question, as you could
 only compute a fraction of all edges, and the odds of all 42 edges of a cycle
 occurring in this fraction are astronomically small).
-Memory-wise, it uses 2^(N-1) bits to maintain a subset of all edges (potential
-cycle edges) and 2^N additional bits to trim the subset in a series of edge trimming rounds.
+Memory-wise, it uses an 2^N bit edge bitmap of potential cycle edges,
+and a 2^N bit node bitmap of nodes with incident edges.
 
 The bandwidth bound algorithm implemented in mean_miner.hpp
-uses (1+&Epsilon;) &times; 2^(N-1) words to maintain
-bins of edges instead of a bitmap which it sorts to do trimming.
+uses (1+&Epsilon;) &times; 2^N words to maintain bucket sorted bins of edges instead of a bitmap,
+and only uses tiny node bitmaps within a bin to trim edges.
 
-After edge trimming, an algorithm inspired by Cuckoo Hashing
-is used to recognise all cycles, and recover those of the right length.
+After edge trimming, an standard backtracking graph traversal
+is run to recognise all cycles, and report those of the right length.
 
 Performance
 --------------
-The runtime of a single proof attempt for a 2^30 node graph on a 4GHz i7-4790K is 10.5 seconds
+The runtime of a single proof attempt for a 2^29 edge graph on a 4GHz i7-4790K is 10.5 seconds
 with the single-threaded mean solver, using 2200MB (or 3200MB with faster solution recovery).
 This reduces to 3.5 seconds with 4 threads (3x speedup).
 
-Using an order of magnitude less memory (just under 200MB),
+Using an order of magnitude less memory (128MB),
 the lean solver takes 32.8 seconds per proof attempt.
 Its multi-threading performance is less impressive though,
 with 2 threads still taking 25.6 seconds and 4 taking 20.5 seconds.
@@ -113,14 +104,14 @@ Linear Time-Memory Trade-Off Bounty
 -----------------------------------
 $10000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
 
-All of these bounties require N ranging over {2^28,2^30,2^32} and #threads
+All of these bounties require N ranging over {2^27,2^29,2^31} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
 recent gcc compiler with regular flags as in my Makefile.
 
 GPU Speedup Bounty
 ------------------
 $5000 for an open source implementation for a consumer GPU
-that finds 42-cycles twice as fast as mean_miner.cu on 2^30 node graphs on comparable hardware.
+that finds 42-cycles twice as fast as mean_miner.cu on 2^29 edge graphs on comparable hardware.
 
 The Makefile defines corresponding targets leancpubounty, meancpubounty, tmtobounty, and gpubounty.
 
