@@ -31,8 +31,8 @@ simple3:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp M
 simple15:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=15 simple_miner.cpp $(LIBS)
 
-simple29:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
-	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=29 simple_miner.cpp $(LIBS)
+simple20:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
+	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=20 simple_miner.cpp $(LIBS)
 
 lean5:	cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=6 -DLOGNBUCKETS=0 -DSHOWSOL -DEDGEBITS=5 lean_miner.cpp $(LIBS)
@@ -172,7 +172,7 @@ speedup29:	cuckoo30 Makefile
 tomato19:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=19 tomato_miner.cpp $(LIBS)
 
-tomato19:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp tomato_miner.h tomato_miner.cpp Makefile
+tomato24:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=24 tomato_miner.cpp $(LIBS)
 
 tomato27:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp tomato_miner.h tomato_miner.cpp Makefile

@@ -18,16 +18,16 @@ class cuckoo_ctx {
   static const u32 CUCKOO_NIL = ~0;
 public:
   siphash_keys sip_keys;
-  edge_t easiness;
-  graph<node_t, NEDGES> cg;
+  word_t easiness;
+  graph<word_t> cg;
 
-  cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce, edge_t easy_ness) {
+  cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce, word_t easy_ness) : cg(NEDGES) {
     easiness = easy_ness;
   }
 
   ~cuckoo_ctx() { }
 
-  u64 bytes() {
+  word_t bytes() {
     return cg.bytes();
   }
 
@@ -38,19 +38,19 @@ public:
   }
 
   static int nonce_cmp(const void *a, const void *b) {
-    return *(node_t *)a - *(node_t *)b;
+    return *(word_t *)a - *(word_t *)b;
   }
 
   void find_cycles() {
-    for (node_t nonce = 0; nonce < easiness; nonce++) {
-      node_t u = sipnode(&sip_keys, nonce, 0);
-      node_t v = sipnode(&sip_keys, nonce, 1);
+    for (word_t nonce = 0; nonce < easiness; nonce++) {
+      word_t u = sipnode(&sip_keys, nonce, 0);
+      word_t v = sipnode(&sip_keys, nonce, 1);
       cg.add_edge(u, v);
   #ifdef SHOW
       printf("%d add (%d,%d)\n", nonce,u,v+NEDGES);
       for (unsigned j=0; j<NNODES; j++) {
         printf("\t%d",j);
-        for (int a=cg.adjlist[j]; a!=graph<node_t, NEDGES>::NIL; a=cg.links[a].next) printf(":%d", cg.links[a^1].to);
+        for (int a=cg.adjlist[j]; a!=graph<word_t>::NIL; a=cg.links[a].next) printf(":%d", cg.links[a^1].to);
         if ((j+1)%NEDGES == 0)
         printf("\n");
       }
@@ -59,7 +59,7 @@ public:
     u32 nsols = cg.cycles();
     for (u32 s=0; s < nsols; s++) {
       printf("Solution");
-      qsort(&cg.sols[s], PROOFSIZE, sizeof(node_t), nonce_cmp);
+      qsort(&cg.sols[s], PROOFSIZE, sizeof(word_t), nonce_cmp);
       for (u32 j=0; j < PROOFSIZE; j++)
         printf(" %x", cg.sols[s][j]);
       printf("\n");
@@ -112,9 +112,9 @@ int main(int argc, char **argv) {
   if (range > 1)
     printf("-%d", nonce+range-1);
   printf(") with %d%% edges, ", easipct);
-  u64 easiness = easipct * (u64)NNODES / 100;
+  word_t easiness = easipct * (uint64_t)NNODES / 100;
   cuckoo_ctx ctx(header, sizeof(header), nonce, easiness);
-  u64 bytes = ctx.bytes();
+  word_t bytes = ctx.bytes();
   int unit;
   for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
   printf("using %d%cB memory\n", bytes, " KMGT"[unit]);

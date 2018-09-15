@@ -7,30 +7,44 @@
 #endif
 
 // cuck(at)oo graph with given two-power limit on number of edges (and on single partition nodes)
-template <typename word_t, word_t MAXEDGES>
+template <typename word_t>
 class graph {
 public:
-  static const u64 MAXNODES = 2 * MAXEDGES;
   static const word_t NIL = ~0;
 
   struct link { // element of adjacency list
     word_t next;
     word_t to;
   };
+  // typedef word_t proof[PROOFSIZE];
 
-  u32 nlinks; // aka halfedges, twice number of edges
-  link links[MAXNODES];
-  word_t adjlist[MAXNODES]; // index into links array
-  bitmap<MAXEDGES, u32> visited;
+  word_t MAXEDGES;
+  uint64_t MAXNODES;
+  uint64_t nlinks; // aka halfedges, twice number of edges
+  link *links;
+  word_t *adjlist; // index into links array
+  bitmap<u32> visited;
   word_t sols[MAXSOLS][PROOFSIZE];
   u32 nsols;
 
-  u64 bytes() {
+  graph(word_t maxedges) : visited(maxedges) {
+    MAXEDGES = maxedges;
+    MAXNODES = 2 * MAXEDGES;
+    links = new link[MAXNODES];
+    adjlist = new word_t[MAXNODES]; // index into links array
+  }
+
+  ~graph() {
+    delete[] adjlist;
+    delete[] links;
+  }
+
+  uint64_t bytes() {
     return MAXNODES * (sizeof(link) + sizeof(word_t)) + (MAXEDGES / 32) * sizeof(u32);
   }
 
   void reset() {
-    memset(adjlist, ~0, sizeof(adjlist));
+    memset(adjlist, ~0, sizeof(word_t[MAXNODES]));
     resetcounts();
   }
 
@@ -41,6 +55,7 @@ public:
 
   void add_edge(word_t u, word_t v) {
     v |= MAXEDGES; // distinguish partitions
+    assert (u != NIL && v != NIL);
     word_t ulink = nlinks++;
     word_t vlink = nlinks++; // the two halfedges of an edge differ only in last bit
     links[ulink].next = adjlist[u];

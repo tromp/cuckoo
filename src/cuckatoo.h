@@ -6,10 +6,6 @@
 #include "blake2.h"
 #include "siphash.h"
 
-#ifdef SIPHASH_COMPAT
-#include <stdio.h>
-#endif
-
 // proof-of-work parameters
 #ifndef EDGEBITS
 // the main parameter is the number of bits in an edge index,
@@ -22,28 +18,24 @@
 #define PROOFSIZE 42
 #endif
 
-#if EDGEBITS > 32
-typedef u64 edge_t;
-#elif EDGEBITS > 16
-typedef u32 edge_t;
-#else
-typedef u16 edge_t;
-#endif
-#if EDGEBITS > 31
-typedef u64 node_t;
-#elif EDGEBITS > 15
-typedef u32 node_t;
-#else
-typedef u16 node_t;
+// save some keystrokes since i'm a lazy typer
+typedef uint32_t u32;
+
+#if EDGEBITS > 30
+typedef uint64_t word_t;
+#elif EDGEBITS > 14
+typedef u32 word_t;
+#else // if EDGEBITS <= 14
+typedef uint16_t word_t;
 #endif
 
 // number of edges
-#define NEDGES ((node_t)1 << EDGEBITS)
+#define NEDGES ((word_t)1 << EDGEBITS)
 // used to mask siphash output
-#define EDGEMASK ((edge_t)NEDGES - 1)
+#define EDGEMASK ((word_t)NEDGES - 1)
 
 // generate edge endpoint in cuck(at)oo graph without partition bit
-edge_t sipnode(siphash_keys *keys, edge_t edge, u32 uorv) {
+word_t sipnode(siphash_keys *keys, word_t edge, u32 uorv) {
   return siphash24(keys, 2*edge + uorv) & EDGEMASK;
 }
 
@@ -51,8 +43,8 @@ enum verify_code { POW_OK, POW_HEADER_LENGTH, POW_TOO_BIG, POW_TOO_SMALL, POW_NO
 const char *errstr[] = { "OK", "wrong header length", "edge too big", "edges not ascending", "endpoints don't match up", "branch in cycle", "cycle dead ends", "cycle too short"};
 
 // verify that edges are ascending and form a cycle in header-generated graph
-int verify(edge_t edges[PROOFSIZE], siphash_keys *keys) {
-  edge_t uvs[2*PROOFSIZE], xor0, xor1;
+int verify(word_t edges[PROOFSIZE], siphash_keys *keys) {
+  word_t uvs[2*PROOFSIZE], xor0, xor1;
   xor0 = xor1 = (PROOFSIZE/2) & 1;
 
   for (u32 n = 0; n < PROOFSIZE; n++) {
@@ -87,20 +79,10 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
   char hdrkey[32];
   // SHA256((unsigned char *)header, headerlen, (unsigned char *)hdrkey);
   blake2b((void *)hdrkey, sizeof(hdrkey), (const void *)header, headerlen, 0, 0);
-#ifdef SIPHASH_COMPAT
-  u64 *k = (u64 *)hdrkey;
-  u64 k0 = k[0];
-  u64 k1 = k[1];
-  printf("k0 k1 %lx %lx\n", k0, k1);
-  k[0] = k0 ^ 0x736f6d6570736575ULL;
-  k[1] = k1 ^ 0x646f72616e646f6dULL;
-  k[2] = k0 ^ 0x6c7967656e657261ULL;
-  k[3] = k1 ^ 0x7465646279746573ULL;
-#endif
   setkeys(keys, hdrkey);
 }
 
 // edge endpoint in cuckoo graph with partition bit
-node_t sipnode_(siphash_keys *keys, edge_t edge, u32 uorv) {
-  return (node_t)sipnode(keys, edge, uorv) << 1 | uorv;
+word_t sipnode_(siphash_keys *keys, word_t edge, u32 uorv) {
+  return (word_t)sipnode(keys, edge, uorv) << 1 | uorv;
 }

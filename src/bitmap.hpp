@@ -1,6 +1,8 @@
-template <u32 SIZE, typename word_t>
+template <typename word_t>
 class bitmap {
 public:
+  word_t SIZE;
+  word_t BITMAP_WORDS;
 #ifdef ATOMIC
   typedef std::atomic<word_t> aword_t;
 #else
@@ -8,11 +10,15 @@ public:
 #endif
   aword_t *bits;
   const static u32 BITS_PER_WORD = sizeof(word_t) * 8;
-  const static u32 BITMAP_WORDS = SIZE / BITS_PER_WORD;
 
-  bitmap() {
-    bits = (aword_t *)calloc(BITMAP_WORDS, sizeof(word_t));
+  bitmap(word_t size) {
+    SIZE = size;
+    BITMAP_WORDS = SIZE / BITS_PER_WORD;
+    bits = new aword_t[BITMAP_WORDS];
     assert(bits != 0);
+  }
+  ~bitmap() {
+    delete[] bits;
   }
   void clear() {
     assert(bits);
@@ -53,8 +59,5 @@ public:
   word_t block(u32 n) const {
     u32 idx = n / BITS_PER_WORD;
     return bits[idx];
-  }
-  ~bitmap() {
-    free(bits);
   }
 };
