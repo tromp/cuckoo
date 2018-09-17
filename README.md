@@ -3,6 +3,10 @@ Cuckatoo Cycle
 
 Cuckatoo Cycle is a variation of Cuckoo Cycle that aims to simplify ASICs by reducing ternary counters to plain bits.
 
+Simplest known PoW
+------------------
+With a 42-line [complete specification](doc/spec), Cuckatoo Cycle is about as simple as Cuckoo Cycle.
+
 Proofs take the form of a length 42 off-by-1-cycle in a bipartite graph with 2^N+2^N nodes and
 2^N edges, with N ranging from 10 up to 64.
 

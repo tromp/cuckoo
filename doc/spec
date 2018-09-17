@@ -29,12 +29,12 @@ int verify(edge_t edges[PROOFSIZE], siphash_keys *keys) {
   u32 n = 0, i = 0, j;
   do {
     for (u32 k = j = i; (k = (k+2) % (2*PROOFSIZE)) != i; ) {
-      if (uvs[k] == uvs[i]) {
+      if (uvs[k] >> 1 == uvs[i] >> 1) {
         if (j != i) return POW_BRANCH;
         j = k;
       }
     }
-    if (j == i) return POW_DEAD_END;
+    if (j == i || uvs[j] == uvs[i]) return POW_DEAD_END;
     i = j^1;
     n++;
   } while (i != 0);

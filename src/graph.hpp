@@ -2,9 +2,7 @@
 #include <assert.h>
 #include "bitmap.hpp"
 
-#ifndef MAXSOLS
-#define MAXSOLS 4
-#endif
+typedef word_t proof[PROOFSIZE];
 
 // cuck(at)oo graph with given two-power limit on number of edges (and on single partition nodes)
 template <typename word_t>
@@ -24,19 +22,23 @@ public:
   link *links;
   word_t *adjlist; // index into links array
   bitmap<u32> visited;
-  word_t sols[MAXSOLS][PROOFSIZE];
+  u32 MAXSOLS;
+  proof *sols;
   u32 nsols;
 
-  graph(word_t maxedges) : visited(maxedges) {
+  graph(word_t maxedges, u32 maxsols) : visited(maxedges) {
     MAXEDGES = maxedges;
     MAXNODES = 2 * MAXEDGES;
     links = new link[MAXNODES];
     adjlist = new word_t[MAXNODES]; // index into links array
+    MAXSOLS = maxsols;
+    sols = new proof[MAXSOLS];
   }
 
   ~graph() {
     delete[] adjlist;
     delete[] links;
+    delete[] sols;
   }
 
   uint64_t bytes() {

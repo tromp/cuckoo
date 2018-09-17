@@ -35,9 +35,9 @@ int main(int argc, char **argv) {
   printf("Verifying size %d proof for cuckatoo%d(\"%s\",%d)\n",
                PROOFSIZE, EDGEBITS, header, nonce);
   for (int nsols=0; scanf(" Solution") == 0; nsols++) {
-    edge_t nonces[PROOFSIZE];
+    word_t nonces[PROOFSIZE];
     for (int n = 0; n < PROOFSIZE; n++) {
-      u64 nonce;
+      uint64_t nonce;
       int nscan = scanf(" %" SCNx64, &nonce);
       assert(nscan == 1);
       nonces[n] = nonce;
