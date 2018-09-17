@@ -40,3 +40,7 @@ int verify(edge_t edges[PROOFSIZE], siphash_keys *keys) {
   } while (i != 0);                                              <' \
   return n == PROOFSIZE ? POW_OK : POW_SHORT_CYCLE;              /)  )
 }                                                             ---/'-""---
+
+
+
+(ascii art taken from http://ascii.co.uk/art/cockatoo, courtesy of 'AsH').
