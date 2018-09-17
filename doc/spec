@@ -36,7 +36,7 @@ int verify(edge_t edges[PROOFSIZE], siphash_keys *keys) {
     }
     if (j == i || uvs[j] == uvs[i]) return POW_DEAD_END;
     i = j^1;
-    n++;
-  } while (i != 0);
-  return n == PROOFSIZE ? POW_OK : POW_SHORT_CYCLE;
-}
+    n++;                                                          )/_
+  } while (i != 0);                                              <' \
+  return n == PROOFSIZE ? POW_OK : POW_SHORT_CYCLE;              /)  )
+}                                                             ---/'-""---
