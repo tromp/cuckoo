@@ -59,8 +59,7 @@ public:
       }
   #endif
     }
-    u32 nsols = cg.cycles();
-    for (u32 s=0; s < nsols; s++) {
+    for (u32 s=0; s < cg.nsols; s++) {
       printf("Solution");
       qsort(&cg.sols[s], PROOFSIZE, sizeof(word_t), nonce_cmp);
       for (u32 j=0; j < PROOFSIZE; j++)

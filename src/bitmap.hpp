@@ -18,7 +18,11 @@ public:
     assert(bits != 0);
   }
   ~bitmap() {
+    freebits();
+  }
+  void freebits() {
     delete[] bits;
+    bits = 0;
   }
   void clear() {
     assert(bits);

@@ -35,7 +35,7 @@ typedef u64 au64;
 // algorithm/performance parameters; assume EDGEBITS < 31
 
 const static u32 NODEBITS = EDGEBITS + 1;
-const static wordt_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
+const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 
 #ifndef PART_BITS
 // #bits used to partition edge set processing to save memory
@@ -142,7 +142,6 @@ public:
   siphash_keys sip_keys;
   shrinkingset alive;
   bitmap<word_t> nonleaf;
-  cuckoo_hash *cuckoo;
   graph<word_t> cg;
   u32 nonce;
   u32 maxsols;
@@ -151,9 +150,10 @@ public:
   u32 ntrims;
   pthread_barrier_t barry;
 
-  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) : alive(n_threads), nonleaf(NEDGES), cg(MAXEDGES, MAXSOLS) {
+  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) : alive(n_threads), nonleaf(NEDGES),
+      cg(MAXEDGES, MAXSOLS, (void *)nonleaf.bits) {
+    assert(cg.bytes() <= NEDGES/8); // check that graph cg can fit in share nonleaf's memory
     nthreads = n_threads;
-    cuckoo = 0;
     ntrims = n_trims;
     int err = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
@@ -167,7 +167,6 @@ public:
     nsols = 0;
   }
   ~cuckoo_ctx() {
-    delete cuckoo;
   }
   void prefetch(const u64 *hashes, const u32 part) const {
     for (u32 i=0; i < NSIPHASH; i++) {
@@ -296,7 +295,6 @@ void *worker(void *vp) {
   if (tp->id == 0) {
     u32 load = (u32)(100LL * alive.count() / CUCKOO_SIZE);
     printf("nonce %d: %d trims completed  final load %d%%\n", ctx->nonce, ctx->ntrims, load);
-    ctx->cuckoo = new cuckoo_hash(ctx->nonleaf.bits);
   }
   else pthread_exit(NULL);
   cuckoo_hash &cuckoo = *ctx->cuckoo;
