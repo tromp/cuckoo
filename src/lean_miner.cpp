@@ -3,6 +3,7 @@
 
 #include "lean_miner.hpp"
 #include <unistd.h>
+#include <sys/time.h>
 
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
@@ -15,6 +16,8 @@ int main(int argc, char **argv) {
   int range = 1;
   char header[HEADERLEN];
   unsigned len;
+  struct timeval time0, time1;
+  u32 timems;
   int c;
 
   memset(header, 0, sizeof(header));
@@ -50,13 +53,15 @@ int main(int argc, char **argv) {
   printf("Using %d%cB edge and %d%cB node memory, and %d-way siphash\n",
      (int)Bytes, " KMGT"[Unit], (int)Bytes, " KMGT"[Unit], NSIPHASH);
 
-  thread_ctx *threads = (thread_ctx *)calloc(nthreads, sizeof(thread_ctx));
+  thread_ctx *threads = new thread_ctx[nthreads];
   assert(threads);
   cuckoo_ctx ctx(nthreads, ntrims, MAXSOLS);
 
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
+    gettimeofday(&time0, 0);
     ctx.setheadernonce(header, sizeof(header), nonce + r);
+    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.sip_keys.k0, ctx.sip_keys.k1, ctx.sip_keys.k2, ctx.sip_keys.k3);
     for (int t = 0; t < nthreads; t++) {
       threads[t].id = t;
       threads[t].ctx = &ctx;
@@ -67,15 +72,18 @@ int main(int argc, char **argv) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
     }
+    gettimeofday(&time1, 0);
+    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
+    printf("Time: %d ms\n", timems);
     for (unsigned s = 0; s < ctx.nsols; s++) {
       printf("Solution");
       for (int i = 0; i < PROOFSIZE; i++)
-        printf(" %jx", (uintmax_t)ctx.sols[s][i]);
+        printf(" %jx", (uintmax_t)ctx.cg.sols[s][i]);
       printf("\n");
     }
     sumnsols += ctx.nsols;
   }
-  free(threads);
+  delete[] threads;
   printf("%d total solutions\n", sumnsols);
   return 0;
 }

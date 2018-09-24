@@ -24,7 +24,7 @@ public:
   word_t easiness;
   graph<word_t> cg;
 
-  cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce, word_t easy_ness) : cg(NEDGES, MAXSOLS) {
+  cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce, word_t easy_ness) : cg(NEDGES, NEDGES, MAXSOLS) {
     easiness = easy_ness;
   }
 
@@ -62,8 +62,11 @@ public:
     for (u32 s=0; s < cg.nsols; s++) {
       printf("Solution");
       qsort(&cg.sols[s], PROOFSIZE, sizeof(word_t), nonce_cmp);
-      for (u32 j=0; j < PROOFSIZE; j++)
-        printf(" %x", cg.sols[s][j]);
+      for (u32 j=0; j < PROOFSIZE; j++) {
+        word_t nonce = cg.sols[s][j];
+        // printf(" (%x,%x)", sipnode(&sip_keys, nonce, 0), sipnode(&sip_keys, nonce, 1));
+        printf(" %x", nonce);
+      }
       printf("\n");
       int pow_rc = verify(cg.sols[s], &sip_keys);
       if (pow_rc == POW_OK) {

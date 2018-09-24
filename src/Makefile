@@ -31,25 +31,28 @@ simple3:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp M
 simple15:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=15 simple_miner.cpp $(LIBS)
 
+simple19:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
+	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=19 simple_miner.cpp $(LIBS)
+
 simple20:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=20 simple_miner.cpp $(LIBS)
 
-lean5:	cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
+lean5:	cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=6 -DLOGNBUCKETS=0 -DSHOWSOL -DEDGEBITS=5 lean_miner.cpp $(LIBS)
 
 example:	simple3
-	./simple3 -h 193
+	./simple3 -n 193
 
-lean9:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
+lean9:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=9 -DPROOFSIZE=8 -DSHOWSOL lean_miner.cpp $(LIBS)
 
-lean14:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
+lean14:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=14 lean_miner.cpp $(LIBS)
 
-lean15:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
+lean15:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=15 lean_miner.cpp $(LIBS)
 
-lean19:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
+lean19:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=19 lean_miner.cpp $(LIBS)
 
 verify15:	siphash.h cuckatoo.h cuckatoo.c Makefile
@@ -58,7 +61,7 @@ verify15:	siphash.h cuckatoo.h cuckatoo.c Makefile
 verify19:	siphash.h cuckatoo.h cuckatoo.c Makefile
 	$(GCC) -o $@ -DEDGEBITS=19 cuckatoo.c $(LIBS)
 
-lean24:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
+lean24:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=24 lean_miner.cpp $(LIBS)
 
 mean15x8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile

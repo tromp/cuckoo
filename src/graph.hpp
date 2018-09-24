@@ -5,11 +5,11 @@
 
 typedef word_t proof[PROOFSIZE];
 
-// cuck(at)oo graph with given two-power limit on number of edges (and on single partition nodes)
+// cuck(at)oo graph with given limit on number of edges (and on single partition nodes)
 template <typename word_t>
 class graph {
 public:
-  static const word_t NIL = ~0;
+  static const word_t NIL = ~(word_t)0;
 
   struct link { // element of adjacency list
     word_t next;
@@ -18,52 +18,59 @@ public:
   // typedef word_t proof[PROOFSIZE];
 
   word_t MAXEDGES;
-  uint64_t MAXNODES;
-  uint64_t nlinks; // aka halfedges, twice number of edges
+  word_t MAXNODES;
+  word_t nlinks; // aka halfedges, twice number of edges
   link *links;
   word_t *adjlist; // index into links array
   bitmap<u32> visited;
   u32 MAXSOLS;
   proof *sols;
   u32 nsols;
-  u32 nauxremovals;
+  bool shared_mem;
 
-  graph(word_t maxedges, u32 maxsols) : visited(maxedges) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols) : visited(maxedges) {
     MAXEDGES = maxedges;
-    MAXNODES = 2 * MAXEDGES;
+    MAXNODES = maxnodes;
     MAXSOLS = maxsols;
-    links = new link[MAXNODES];
-    adjlist = new word_t[MAXNODES]; // index into links array
-    sols = new proof[MAXSOLS];
-  }
-
-  graph(word_t maxedges, u32 maxsols, void *sharemem) : visited(maxedges) {
-    MAXEDGES = maxedges;
-    MAXNODES = 2 * MAXEDGES;
-    MAXSOLS = maxsols;
-    links = new (sharemem) link[MAXNODES];
-    adjlist = new ((char*)sharemem + sizeof(link[MAXNODES])) word_t[MAXNODES]; // index into links array
-    sols = new ((char*)sharemem + sizeof(link[MAXNODES]) + sizeof(word_t[MAXNODES])) proof[MAXSOLS];
+    adjlist = new word_t[2*MAXNODES]; // index into links array
+    links   = new link[2*MAXEDGES];
+    sols    = new proof[MAXSOLS];
+    shared_mem = false;
+    visited.clear();
   }
 
   ~graph() {
-    delete[] adjlist;
-    delete[] links;
+    if (!shared_mem) {
+      delete[] adjlist;
+      delete[] links;
+    }
     delete[] sols;
   }
 
-  // total size of new-operated data, excludes visited bitmap of MAXEDGES bits
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, void *sharemem) : visited(maxedges) {
+    MAXEDGES = maxedges;
+    MAXNODES = maxnodes;
+    MAXSOLS = maxsols;
+    char *bytes = (char *)sharemem;
+    adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
+    links   = new (bytes + sizeof(word_t[2*MAXNODES])) link[2*MAXEDGES];
+    sols    = new  proof[MAXSOLS];
+    shared_mem = true;
+    visited.clear();
+  }
+
+  // total size of new-operated data, excludes sols and visited bitmap of MAXEDGES bits
   uint64_t bytes() {
-    return sizeof(link[MAXNODES]) + sizeof(word_t[MAXNODES]) + sizeof(proof[MAXSOLS]);
+    return sizeof(word_t[2*MAXNODES]) + sizeof(link[2*MAXEDGES]); //  + sizeof(proof[MAXSOLS]);
   }
 
   void reset() {
-    memset(adjlist, NIL, sizeof(word_t[MAXNODES]));
+    memset(adjlist, (char)NIL, sizeof(word_t[2*MAXNODES]));
     resetcounts();
   }
 
   void resetcounts() {
-    nlinks = nsols = nauxremovals = 0;
+    nlinks = nsols = 0;
     // visited has entries set only during cycles() call
   }
 
@@ -93,9 +100,12 @@ public:
   }
 
   void add_edge(word_t u, word_t v) {
-    v |= MAXEDGES; // distinguish partitions
+    assert(u < MAXNODES);
+    assert(v < MAXNODES);
+    v += MAXNODES; // distinguish partitions
     if (adjlist[u ^ 1] != NIL && adjlist[v ^ 1] != NIL) { // possibly part of a cycle
       sols[nsols][0] = nlinks/2;
+      assert(!visited.test(u >> 1));
       cycles_with_link(1, u, v);
     }
     word_t ulink = nlinks++;
@@ -105,5 +115,14 @@ public:
     links[vlink].next = adjlist[v];
     links[adjlist[u] = ulink].to = u;
     links[adjlist[v] = vlink].to = v;
+  }
+
+  void nodecount() {
+    word_t nu=0, nv=0;
+    for (word_t i=0; i < MAXNODES; i+=2) {
+      if (adjlist[i] != NIL || adjlist[i^1] != NIL) nu++;
+      if (adjlist[MAXNODES+i] != NIL || adjlist[MAXNODES+(i^1)] != NIL) nv++;
+    }
+    printf("%d u %d v\n", nu, nv);
   }
 };
