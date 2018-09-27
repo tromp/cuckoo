@@ -10,7 +10,6 @@
 #include "cuckatoo.h"
 #include "siphashxN.h"
 #include "graph.hpp"
-#include "compress.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -61,6 +60,8 @@ const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 #endif
 
 #ifndef IDXSHIFT
+// minimum shift that allows cycle finding data to fit in node bitmap space
+// allowing them to share the same memory
 #define IDXSHIFT (PART_BITS + 8)
 #endif
 #define MAXEDGES (NEDGES >> IDXSHIFT)
@@ -112,8 +113,6 @@ public:
   shrinkingset alive;
   bitmap<word_t> nonleaf;
   graph<word_t> cg;
-  compress<word_t> compressu;
-  compress<word_t> compressv;
   u32 nonce;
   u32 maxsols;
   au32 nsols;
@@ -121,10 +120,8 @@ public:
   u32 ntrims;
   pthread_barrier_t barry;
 
-  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) : alive(n_threads), nonleaf(NEDGES),
-      cg(MAXEDGES, MAXEDGES, MAXSOLS, (void *)nonleaf.bits),
-      compressu(EDGEBITS, IDXSHIFT),
-      compressv(EDGEBITS, IDXSHIFT) {
+  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) : alive(n_threads), nonleaf(NEDGES >> PART_BITS),
+      cg(MAXEDGES, MAXEDGES, MAXSOLS, IDXSHIFT, (char *)nonleaf.bits) {
     assert(cg.bytes() <= NEDGES/8); // check that graph cg can fit in share nonleaf's memory
     nthreads = n_threads;
     ntrims = n_trims;
@@ -247,10 +244,10 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset &alive = ctx->alive;
-  // if (tp->id == 0) printf("initial size %d\n", NEDGES);
+  if (tp->id == 0) printf("initial size %d\n", NEDGES);
   u32 round;
   for (round=1; alive.count() > MAXEDGES*REDUCE_NONCES; round++) {
-    // if (tp->id == 0) printf("round %2d partition sizes", round);
+    if (tp->id == 0) printf("round %2d partition sizes", round);
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         if (tp->id == 0)
@@ -259,26 +256,23 @@ void *worker(void *vp) {
         ctx->count_node_deg(tp->id,uorv,part);
         barrier(&ctx->barry);
         ctx->kill_leaf_edges(tp->id,uorv,part);
-        // if (tp->id == 0) printf(" %c%d %d", "UV"[uorv], part, alive.count());
+        if (tp->id == 0) printf(" %c%d %d", "UV"[uorv], part, alive.count());
         barrier(&ctx->barry);
       }
     }
-    // if (tp->id == 0) printf("\n");
+    if (tp->id == 0) printf("\n");
   }
   if (tp->id != 0)
     pthread_exit(NULL);
   printf("%d trims completed  %d edges left\n", round-1, alive.count());
   ctx->cg.reset();
-  ctx->compressu.reset();
-  ctx->compressv.reset();
   for (word_t block = 0; block < NEDGES; block += 64) {
     u64 alive64 = alive.block(block);
     for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
       word_t u=sipnode(&ctx->sip_keys, nonce, 0), v=sipnode(&ctx->sip_keys, nonce, 1);
-      ctx->cg.add_edge(ctx->compressu(u), ctx->compressv(v));
-
+      ctx->cg.add_compress_edge(u, v);
       if (ffs & 64) break; // can't shift by 64
     }
   }
@@ -315,7 +309,6 @@ uncompressed:
     }
   }
 
-  // ctx->cg.nodecount();
   pthread_exit(NULL);
   return 0;
 }

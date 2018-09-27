@@ -28,7 +28,7 @@ Lean mining
 The memory efficient miner uses 1 bit per edge and 1 bit per node in one partition
 (or 1 bit per 2^k nodes with linear slowdown).
 It is bottlenecked by accessing node bits completely at random, making it memory latency bound.
-The core of this miner, where over 99% of time is spent, is also [relatively simple](doc/leancore).
+The core of this miner, where over 99% of time is spent, is also [relatively simple](doc/simplesolve).
 
 Mean mining
 -----------

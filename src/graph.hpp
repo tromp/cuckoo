@@ -1,71 +1,76 @@
 #include <stdio.h>
 #include <assert.h>
 #include "bitmap.hpp"
+#include "compress.hpp"
 #include <new>
-
-typedef word_t proof[PROOFSIZE];
 
 // cuck(at)oo graph with given limit on number of edges (and on single partition nodes)
 template <typename word_t>
 class graph {
 public:
+  // terminates adjacency lists
   static const word_t NIL = ~(word_t)0;
 
   struct link { // element of adjacency list
     word_t next;
     word_t to;
   };
-  // typedef word_t proof[PROOFSIZE];
+  typedef word_t proof[PROOFSIZE];
 
   word_t MAXEDGES;
   word_t MAXNODES;
   word_t nlinks; // aka halfedges, twice number of edges
-  link *links;
   word_t *adjlist; // index into links array
+  link *links;
+  compressor<word_t> *compressu;
+  compressor<word_t> *compressv;
   bitmap<u32> visited;
   u32 MAXSOLS;
   proof *sols;
   u32 nsols;
-  bool shared_mem;
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols) : visited(maxedges) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols) : visited(maxnodes) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
     adjlist = new word_t[2*MAXNODES]; // index into links array
     links   = new link[2*MAXEDGES];
+    compressu = compressv = 0;
     sols    = new proof[MAXSOLS];
-    shared_mem = false;
     visited.clear();
   }
 
   ~graph() {
-    if (!shared_mem) {
+    if (!compressu) {
       delete[] adjlist;
       delete[] links;
     }
     delete[] sols;
   }
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols, void *sharemem) : visited(maxedges) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits, char *bytes) : visited(maxedges) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
-    char *bytes = (char *)sharemem;
     adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
-    links   = new (bytes + sizeof(word_t[2*MAXNODES])) link[2*MAXEDGES];
+    links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[2*MAXEDGES];
     sols    = new  proof[MAXSOLS];
-    shared_mem = true;
+    compressu = new compressor<word_t>(EDGEBITS, compressbits, bytes += sizeof(link[2*MAXEDGES]));
+    compressv = new compressor<word_t>(EDGEBITS, compressbits, bytes + compressu->bytes());
     visited.clear();
   }
 
   // total size of new-operated data, excludes sols and visited bitmap of MAXEDGES bits
   uint64_t bytes() {
-    return sizeof(word_t[2*MAXNODES]) + sizeof(link[2*MAXEDGES]); //  + sizeof(proof[MAXSOLS]);
+    return sizeof(word_t[2*MAXNODES]) + sizeof(link[2*MAXEDGES]) + (compressu ? 2 * compressu->bytes() : 0);
   }
 
   void reset() {
     memset(adjlist, (char)NIL, sizeof(word_t[2*MAXNODES]));
+    if (compressu) {
+      compressu->reset();
+      compressv->reset();
+    }
     resetcounts();
   }
 
@@ -110,19 +115,14 @@ public:
     }
     word_t ulink = nlinks++;
     word_t vlink = nlinks++; // the two halfedges of an edge differ only in last bit
-    assert (vlink != NIL);   // don't want to confuse link with NIL
+    assert(vlink != NIL);    // avoid confusing links with NIL; guaranteed if bits in word_t > EDGEBITS + 1
     links[ulink].next = adjlist[u];
     links[vlink].next = adjlist[v];
     links[adjlist[u] = ulink].to = u;
     links[adjlist[v] = vlink].to = v;
   }
 
-  void nodecount() {
-    word_t nu=0, nv=0;
-    for (word_t i=0; i < MAXNODES; i+=2) {
-      if (adjlist[i] != NIL || adjlist[i^1] != NIL) nu++;
-      if (adjlist[MAXNODES+i] != NIL || adjlist[MAXNODES+(i^1)] != NIL) nv++;
-    }
-    printf("%d u %d v\n", nu, nv);
+  void add_compress_edge(word_t u, word_t v) {
+    add_edge(compressu->compress(u), compressv->compress(v));
   }
 };

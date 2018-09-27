@@ -47,11 +47,14 @@ int main(int argc, char **argv) {
     printf("-%d", nonce+range-1);
   printf(") with %d trims, %d threads\n", ntrims, nthreads);
 
-  u64 Bytes = NEDGES/8;
-  int Unit;
-  for (Unit=0; Bytes >= 1024; Bytes>>=10,Unit++) ;
+  u64 EdgeBytes = NEDGES/8;
+  int EdgeUnit;
+  for (EdgeUnit=0; EdgeBytes >= 1024; EdgeBytes>>=10,EdgeUnit++) ;
+  u64 NodeBytes = (NEDGES >> PART_BITS)/8;
+  int NodeUnit;
+  for (NodeUnit=0; NodeBytes >= 1024; NodeBytes>>=10,NodeUnit++) ;
   printf("Using %d%cB edge and %d%cB node memory, and %d-way siphash\n",
-     (int)Bytes, " KMGT"[Unit], (int)Bytes, " KMGT"[Unit], NSIPHASH);
+     (int)EdgeBytes, " KMGT"[EdgeUnit], (int)NodeBytes, " KMGT"[NodeUnit], NSIPHASH);
 
   thread_ctx *threads = new thread_ctx[nthreads];
   assert(threads);

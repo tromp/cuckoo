@@ -1,7 +1,9 @@
+#include <new>
+
 // compressor for cuckatoo nodes where edgetrimming
 // has left at most 2^-compressbits nodes in each partition
 template <typename word_t>
-class compress {
+class compressor {
 public:
   u32 NODEBITS;
   u32 COMPRESSBITS;
@@ -14,19 +16,23 @@ public:
   const static word_t NIL = ~(word_t)0;
   word_t *nodes;
 
-  compress(u32 nodebits, u32 compressbits) {
+  compressor(u32 nodebits, u32 compressbits, char *bytes) {
     NODEBITS = nodebits;
     COMPRESSBITS = compressbits;
     SIZEBITS = NODEBITS-COMPRESSBITS;
     SIZEBITS1 = SIZEBITS-1;
     SIZE = (word_t)1 << SIZEBITS;
-    nodes = new word_t[SIZE];
+    nodes = new (bytes) word_t[SIZE];
     MASK = SIZE-1;
     MASK1 = MASK >> 1;
   }
 
-  ~compress() {
+  ~compressor() {
     delete[] nodes;
+  }
+
+  uint64_t bytes() {
+    return sizeof(word_t[SIZE]);
   }
 
   void reset() {
@@ -34,7 +40,7 @@ public:
     npairs = 0;
   }
 
-  word_t operator()(word_t u) {
+  word_t compress(word_t u) {
     u32 parity = u & 1;
     word_t ui = u >> COMPRESSBITS;
     u >>= 1;
