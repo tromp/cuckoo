@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:m:n:r:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:n:r:t:")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
@@ -34,9 +34,6 @@ int main(int argc, char **argv) {
       case 'r':
         range = atoi(optarg);
         break;
-      case 'm':
-        ntrims = atoi(optarg);
-        break;
       case 't':
         nthreads = atoi(optarg);
         break;
@@ -45,7 +42,7 @@ int main(int argc, char **argv) {
   printf("Looking for %d-cycle on cuckatoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
-  printf(") with %d trims, %d threads\n", ntrims, nthreads);
+  printf(") with trimming to %d bits, %d threads\n", EDGEBITS-IDXSHIFT, nthreads);
 
   u64 EdgeBytes = NEDGES/8;
   int EdgeUnit;
