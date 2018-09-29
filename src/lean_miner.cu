@@ -24,22 +24,23 @@
 #define PART_BITS 0
 #endif
 
+#ifndef REDUCE_NONCES
+// reduce number of edges this much under MAXEDGES
+// so that number of nodepairs will remain below MAXEDGES as well
+#define REDUCE_NONCES 7/8
+#endif
+
 #ifndef IDXSHIFT
-// we want sizeof(cuckoo_hash) == sizeof(twice_set), so
-// CUCKOO_SIZE * sizeof(u64) == TWICE_WORDS * sizeof(u32)
-// CUCKOO_SIZE * 2 == TWICE_WORDS
-// (NNODES >> IDXSHIFT) * 2 == 2 * ONCE_BITS / 32
-// NNODES >> IDXSHIFT == NEDGES >> PART_BITS >> 5
-// IDXSHIFT == 1 + PART_BITS + 5
 #define IDXSHIFT (PART_BITS + 6)
 #endif
+
+const static u32 PART_MASK = (1 << PART_BITS) - 1;
+const static u32 NONPART_BITS = EDGEBITS - PART_BITS;
+const static u32 NONPART_MASK = (1U << NONPART_BITS) - 1U;
 
 #define NODEBITS (EDGEBITS + 1)
 #define NNODES (2 * NEDGES)
 #define NODEMASK (NNODES-1)
-
-// grow with cube root of size, hardly affected by trimming
-#define MAXPATHLEN (8 << (NODEBITS/3))
 
 #define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
@@ -64,78 +65,14 @@ public:
   }
 };
 
-#define PART_MASK ((1 << PART_BITS) - 1)
-#define ONCE_BITS (NEDGES >> PART_BITS)
-#define TWICE_WORDS ((2 * ONCE_BITS) / 32)
-
-class twice_set {
+class bitmap {
 public:
   u32 *bits;
-  __device__ void reset() {
-    memset(bits, 0, TWICE_WORDS * sizeof(u32));
+  __device__ void set(edge_t n) {
+    bits[n/32] |= 1 << (n%32);
   }
-  __device__ void set(node_t u) {
-    node_t idx = u/16;
-    u32 bit = 1 << (2 * (u%16));
-    u32 old = atomicOr(&bits[idx], bit);
-    u32 bit2 = bit<<1;
-    if ((old & (bit2|bit)) == bit) atomicOr(&bits[idx], bit2);
-  }
-  __device__ u32 test(node_t u) const {
-    return (bits[u/16] >> (2 * (u%16))) & 2;
-  }
-};
-
-#define CUCKOO_SIZE (NNODES >> IDXSHIFT)
-#define CUCKOO_MASK (CUCKOO_SIZE - 1)
-// number of (least significant) key bits that survives leftshift by NODEBITS
-#define KEYBITS (64-NODEBITS)
-#define KEYMASK ((1L << KEYBITS) - 1)
-#define MAXDRIFT (1L << (KEYBITS - IDXSHIFT))
-
-class cuckoo_hash {
-public:
-  u64 *cuckoo;
-
-  cuckoo_hash() {
-    cuckoo = (u64 *)calloc(CUCKOO_SIZE, sizeof(u64));
-    assert(cuckoo != 0);
-  }
-  ~cuckoo_hash() {
-    free(cuckoo);
-  }
-  void set(node_t u, node_t v) {
-    u64 niew = (u64)u << NODEBITS | v;
-    for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-#ifdef ATOMIC
-      u64 old = 0;
-      if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
-        return;
-      if ((old >> NODEBITS) == (u & KEYMASK)) {
-        cuckoo[ui].store(niew, std::memory_order_relaxed);
-#else
-      u64 old = cuckoo[ui];
-      if (old == 0 || (old >> NODEBITS) == (u & KEYMASK)) {
-        cuckoo[ui] = niew;
-#endif
-        return;
-      }
-    }
-  }
-  node_t operator[](node_t u) const {
-    for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-#ifdef ATOMIC
-      u64 cu = cuckoo[ui].load(std::memory_order_relaxed);
-#else
-      u64 cu = cuckoo[ui];
-#endif
-      if (!cu)
-        return 0;
-      if ((cu >> NODEBITS) == (u & KEYMASK)) {
-        assert(((ui - (u >> IDXSHIFT)) & CUCKOO_MASK) < MAXDRIFT);
-        return (node_t)(cu & NODEMASK);
-      }
-    }
+  __device__ bool test(node_t n) const {
+    return ((bits[n/32] >> (n%32)) & 1);
   }
 };
 
@@ -146,7 +83,7 @@ class cuckoo_ctx {
 public:
   siphash_keys sip_keys;
   shrinkingset alive;
-  twice_set nonleaf;
+  bitmap nonleaf;
   int nthreads;
 
   cuckoo_ctx(const u32 n_threads) {
@@ -169,8 +106,8 @@ __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
       node_t u = dipnode(sip_keys, nonce, uorv);
-      if ((u & PART_MASK) == part) {
-        nonleaf.set(u >> PART_BITS);
+      if ((u >> NONPART_BITS) == part) {
+        nonleaf.set(u & NONPART_MASK);
       }
     }
   }
@@ -187,28 +124,13 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
       node_t u = dipnode(sip_keys, nonce, uorv);
-      if ((u & PART_MASK) == part) {
-        if (!nonleaf.test(u >> PART_BITS)) {
+      if ((u >> NONPART_BITS) == part) {
+        if (!nonleaf.test((u & NONPART_MASK) ^ 1)) {
           alive.reset(nonce);
         }
       }
     }
   }
-}
-
-u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
-  u32 nu;
-  for (nu = 0; u; u = cuckoo[u]) {
-    if (nu >= MAXPATHLEN) {
-      while (nu-- && us[nu] != u) ;
-      if (nu == ~0)
-        printf("maximum path length exceeded\n");
-      else printf("illegal % 4d-cycle\n", MAXPATHLEN-nu);
-      exit(0);
-    }
-    us[nu++] = u;
-  }
-  return nu-1;
 }
 
 typedef std::pair<node_t,node_t> edge;
@@ -260,7 +182,7 @@ int main(int argc, char **argv) {
   memcpy(headernonce, header, hdrlen);
   memset(headernonce+hdrlen, 0, sizeof(headernonce)-hdrlen);
 
-  u64 edgeBytes = NEDGES/8, nodeBytes = TWICE_WORDS*sizeof(u32);
+  u64 edgeBytes = NEDGES/8, nodeBytes = (NEDGES>>PART_BITS)/8:
   checkCudaErrors(cudaMalloc((void**)&ctx.alive.bits, edgeBytes));
   checkCudaErrors(cudaMalloc((void**)&ctx.nonleaf.bits, nodeBytes));
 
