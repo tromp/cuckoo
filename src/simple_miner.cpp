@@ -40,10 +40,6 @@ public:
     cg.reset();
   }
 
-  static int nonce_cmp(const void *a, const void *b) {
-    return *(word_t *)a - *(word_t *)b;
-  }
-
   void find_cycles() {
     for (word_t nonce = 0; nonce < easiness; nonce++) {
       word_t u = sipnode(&sip_keys, nonce, 0);
@@ -61,7 +57,7 @@ public:
     }
     for (u32 s=0; s < cg.nsols; s++) {
       printf("Solution");
-      qsort(&cg.sols[s], PROOFSIZE, sizeof(word_t), nonce_cmp);
+      qsort(&cg.sols[s], PROOFSIZE, sizeof(word_t), cg.nonce_cmp);
       for (u32 j=0; j < PROOFSIZE; j++) {
         word_t nonce = cg.sols[s][j];
         // printf(" (%x,%x)", sipnode(&sip_keys, nonce, 0), sipnode(&sip_keys, nonce, 1));

@@ -235,10 +235,6 @@ void barrier(pthread_barrier_t *barry) {
   }
 }
 
-static int nonce_cmp(const void *a, const void *b) {
-  return *(word_t *)a - *(word_t *)b;
-}
-
 void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
   cuckoo_ctx *ctx = tp->ctx;
@@ -278,7 +274,7 @@ void *worker(void *vp) {
   }
   for (u32 s=0; s < ctx->cg.nsols; s++) {
     printf("Solution");
-    qsort(&ctx->cg.sols[s], PROOFSIZE, sizeof(word_t), nonce_cmp);
+    qsort(&ctx->cg.sols[s], PROOFSIZE, sizeof(word_t), ctx->cg.nonce_cmp);
 
     u32 j = 0, nalive = 0;
     for (word_t block = 0; block < NEDGES; block += 64) {

@@ -22,6 +22,7 @@ public:
   word_t nlinks; // aka halfedges, twice number of edges
   word_t *adjlist; // index into links array
   link *links;
+  bool sharedmem;
   compressor<word_t> *compressu;
   compressor<word_t> *compressv;
   bitmap<u32> visited;
@@ -36,16 +37,30 @@ public:
     adjlist = new word_t[2*MAXNODES]; // index into links array
     links   = new link[2*MAXEDGES];
     compressu = compressv = 0;
+    sharedmem = false;
     sols    = new proof[MAXSOLS];
     visited.clear();
   }
 
   ~graph() {
-    if (!compressu) {
+    if (!sharedmem) {
       delete[] adjlist;
       delete[] links;
     }
     delete[] sols;
+  }
+
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits) : visited(maxedges) {
+    MAXEDGES = maxedges;
+    MAXNODES = maxnodes;
+    MAXSOLS = maxsols;
+    adjlist = new word_t[2*MAXNODES]; // index into links array
+    links   = new link[2*MAXEDGES];
+    compressu = new compressor<word_t>(EDGEBITS, compressbits);
+    compressv = new compressor<word_t>(EDGEBITS, compressbits);
+    sharedmem = false;
+    sols    = new  proof[MAXSOLS];
+    visited.clear();
   }
 
   graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits, char *bytes) : visited(maxedges) {
@@ -54,9 +69,10 @@ public:
     MAXSOLS = maxsols;
     adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
     links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[2*MAXEDGES];
-    sols    = new  proof[MAXSOLS];
     compressu = new compressor<word_t>(EDGEBITS, compressbits, bytes += sizeof(link[2*MAXEDGES]));
     compressv = new compressor<word_t>(EDGEBITS, compressbits, bytes + compressu->bytes());
+    sharedmem = true;
+    sols    = new  proof[MAXSOLS];
     visited.clear();
   }
 
@@ -125,4 +141,9 @@ public:
   void add_compress_edge(word_t u, word_t v) {
     add_edge(compressu->compress(u), compressv->compress(v));
   }
+
+  static int nonce_cmp(const void *a, const void *b) {
+    return *(word_t *)a - *(word_t *)b;
+  }
+
 };

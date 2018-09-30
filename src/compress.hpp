@@ -15,6 +15,7 @@ public:
   word_t npairs;
   const static word_t NIL = ~(word_t)0;
   word_t *nodes;
+  bool sharedmem;
 
   compressor(u32 nodebits, u32 compressbits, char *bytes) {
     NODEBITS = nodebits;
@@ -23,12 +24,26 @@ public:
     SIZEBITS1 = SIZEBITS-1;
     SIZE = (word_t)1 << SIZEBITS;
     nodes = new (bytes) word_t[SIZE];
+    sharedmem = true;
+    MASK = SIZE-1;
+    MASK1 = MASK >> 1;
+  }
+
+  compressor(u32 nodebits, u32 compressbits) {
+    NODEBITS = nodebits;
+    COMPRESSBITS = compressbits;
+    SIZEBITS = NODEBITS-COMPRESSBITS;
+    SIZEBITS1 = SIZEBITS-1;
+    SIZE = (word_t)1 << SIZEBITS;
+    nodes = new word_t[SIZE];
+    sharedmem = false;
     MASK = SIZE-1;
     MASK1 = MASK >> 1;
   }
 
   ~compressor() {
-    delete[] nodes;
+    if (!sharedmem)
+      delete[] nodes;
   }
 
   uint64_t bytes() {

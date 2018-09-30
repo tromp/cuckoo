@@ -6,20 +6,26 @@
 
 #include <stdint.h>
 #include <string.h>
-#include "cuckoo.h"
+#include "cuckatoo.h"
 #include "siphash.cuh"
+#include "graph.hpp"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <set>
 
+#ifndef MAXSOLS
+#define MAXSOLS 4
+#endif
+
+typedef uint64_t u64; // save some typing
+
 // algorithm parameters
 #ifndef PART_BITS
 // #bits used to partition edge set processing to save memory
 // a value of 0 does no partitioning and is fastest
-// a value of 1 partitions in two, making twice_set the
-// same size as shrinkingset at about 33% slowdown
+// a value of 1 partitions in two at about 33% slowdown
 // higher values are not that interesting
 #define PART_BITS 0
 #endif
@@ -31,8 +37,9 @@
 #endif
 
 #ifndef IDXSHIFT
-#define IDXSHIFT (PART_BITS + 6)
+#define IDXSHIFT (PART_BITS + 8)
 #endif
+#define MAXEDGES (NEDGES >> IDXSHIFT)
 
 const static u32 PART_MASK = (1 << PART_BITS) - 1;
 const static u32 NONPART_BITS = EDGEBITS - PART_BITS;
@@ -54,25 +61,25 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 class shrinkingset {
 public:
   u32 *bits;
-  __device__ void reset(edge_t n) {
+  __device__ void reset(word_t n) {
     bits[n/32] |= 1 << (n%32);
   }
-  __device__ bool test(node_t n) const {
+  __device__ bool test(word_t n) const {
     return !((bits[n/32] >> (n%32)) & 1);
   }
-  __device__ u32 block(node_t n) const {
+  __device__ u32 block(word_t n) const {
     return ~bits[n/32];
   }
 };
 
-class bitmap {
+class biitmap {
 public:
   u32 *bits;
-  __device__ void set(edge_t n) {
-    bits[n/32] |= 1 << (n%32);
+  __device__ void set(word_t n) {
+    atomicOr(&bits[n/32], 1 << (n%32));
   }
-  __device__ bool test(node_t n) const {
-    return ((bits[n/32] >> (n%32)) & 1);
+  __device__ bool test(word_t n) const {
+    return (bits[n/32] >> (n%32)) & 1;
   }
 };
 
@@ -83,10 +90,11 @@ class cuckoo_ctx {
 public:
   siphash_keys sip_keys;
   shrinkingset alive;
-  bitmap nonleaf;
+  biitmap nonleaf;
+  graph<word_t> cg;
   int nthreads;
 
-  cuckoo_ctx(const u32 n_threads) {
+  cuckoo_ctx(const u32 n_threads) : cg(MAXEDGES, MAXEDGES, MAXSOLS, IDXSHIFT) {
     nthreads = n_threads;
   }
   void setheadernonce(char* headernonce, const u32 nonce) {
@@ -97,15 +105,15 @@ public:
 
 __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
-  twice_set &nonleaf = ctx->nonleaf;
+  biitmap &nonleaf = ctx->nonleaf;
   siphash_keys sip_keys = ctx->sip_keys; // local copy sip context; 2.5% speed gain
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  for (edge_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
+  for (word_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
-    for (edge_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+    for (word_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
-      node_t u = dipnode(sip_keys, nonce, uorv);
+      word_t u = dipnode(sip_keys, nonce, uorv);
       if ((u >> NONPART_BITS) == part) {
         nonleaf.set(u & NONPART_MASK);
       }
@@ -115,25 +123,23 @@ __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
 
 __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   shrinkingset &alive = ctx->alive;
-  twice_set &nonleaf = ctx->nonleaf;
+  biitmap &nonleaf = ctx->nonleaf;
   siphash_keys sip_keys = ctx->sip_keys;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  for (edge_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
+  for (word_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
-    for (edge_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+    for (word_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
-      node_t u = dipnode(sip_keys, nonce, uorv);
-      if ((u >> NONPART_BITS) == part) {
-        if (!nonleaf.test((u & NONPART_MASK) ^ 1)) {
-          alive.reset(nonce);
-        }
+      word_t u = dipnode(sip_keys, nonce, uorv);
+      if ((u >> NONPART_BITS) == part && !nonleaf.test((u & NONPART_MASK) ^ 1)) {
+        alive.reset(nonce);
       }
     }
   }
 }
 
-typedef std::pair<node_t,node_t> edge;
+typedef std::pair<word_t,word_t> edge;
 
 #include <unistd.h>
 
@@ -170,7 +176,7 @@ int main(int argc, char **argv) {
   if (!tpb) // if not set, then default threads per block to roughly square root of threads
     for (tpb = 1; tpb*tpb < nthreads; tpb *= 2) ;
 
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
+  printf("Looking for %d-cycle on cuckatoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges, %d trims, %d threads %d per block\n", trims, nthreads, tpb);
@@ -182,7 +188,7 @@ int main(int argc, char **argv) {
   memcpy(headernonce, header, hdrlen);
   memset(headernonce+hdrlen, 0, sizeof(headernonce)-hdrlen);
 
-  u64 edgeBytes = NEDGES/8, nodeBytes = (NEDGES>>PART_BITS)/8:
+  u64 edgeBytes = NEDGES/8, nodeBytes = (NEDGES>>PART_BITS)/8;
   checkCudaErrors(cudaMalloc((void**)&ctx.alive.bits, edgeBytes));
   checkCudaErrors(cudaMalloc((void**)&ctx.nonleaf.bits, nodeBytes));
 
@@ -203,6 +209,7 @@ int main(int argc, char **argv) {
     cudaEventRecord(start, NULL);
     checkCudaErrors(cudaMemset(ctx.alive.bits, 0, edgeBytes));
     ctx.setheadernonce(headernonce, nonce + r);
+    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.sip_keys.k0, ctx.sip_keys.k1, ctx.sip_keys.k2, ctx.sip_keys.k3);
     cudaMemcpy(device_ctx, &ctx, sizeof(cuckoo_ctx), cudaMemcpyHostToDevice);
     for (u32 round=0; round < trims; round++) {
       for (u32 uorv = 0; uorv < 2; uorv++) {
@@ -223,71 +230,57 @@ int main(int argc, char **argv) {
     cudaEventSynchronize(stop);
     float duration;
     cudaEventElapsedTime(&duration, start, stop);
-    u32 cnt = 0;
+    u32 size = 0;
     for (int i = 0; i < NEDGES/64; i++)
-      cnt += __builtin_popcountll(~bits[i]);
-    u32 load = (u32)(100L * cnt / CUCKOO_SIZE);
-    printf("nonce %d: %d trims completed in %.3f seconds final load %d%%\n",
-            nonce+r, trims, duration / 1000.0f, load);
+      size += __builtin_popcountll(~bits[i]);
+    printf("%d trims completed in %.3f seconds final size %d\n", trims, duration / 1000.0f, size);
   
-    if (load >= 90) {
+    if (size >= MAXEDGES) {
       printf("overloaded! exiting...");
       exit(0);
     }
   
-    cuckoo_hash &cuckoo = *(new cuckoo_hash());
-    node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-    for (edge_t block = 0; block < NEDGES; block += 64) {
+    ctx.cg.reset();
+    for (word_t block = 0; block < NEDGES; block += 64) {
       u64 alive64 = ~bits[block/64];
-      for (edge_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        node_t u0=sipnode_(&ctx.sip_keys, nonce, 0), v0=sipnode_(&ctx.sip_keys, nonce, 1);
-        if (u0) {
-          u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
-          if (us[nu] == vs[nv]) {
-            u32 min = nu < nv ? nu : nv;
-            for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-            u32 len = nu + nv + 1;
-            printf("%4d-cycle found at %d:%d%%\n", len, 0, (u32)(nonce*100L/NEDGES));
-            if (len == PROOFSIZE) {
-              printf("Solution");
-              std::set<edge> cycle;
-              u32 n = 0;
-              cycle.insert(edge(*us, *vs));
-              while (nu--)
-                cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
-              while (nv--)
-                cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-              for (edge_t blk = 0; blk < NEDGES; blk += 64) {
-                u64 alv64 = ~bits[blk/64];
-                for (edge_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
-                  u32 ffs = __builtin_ffsll(alv64);
-                  nce += ffs; alv64 >>= ffs;
-                  edge e(sipnode_(&ctx.sip_keys, nce, 0), sipnode_(&ctx.sip_keys, nce, 1));
-                  if (cycle.find(e) != cycle.end()) {
-                    printf(" %jx", (uintmax_t)nce);
-                    if (PROOFSIZE > 2)
-                      cycle.erase(e);
-                    n++;
-                  }
-                  if (ffs & 64) break; // can't shift by 64
-                }
-              }
-              assert(n==PROOFSIZE);
-              printf("\n");
-            }
-          } else if (nu < nv) {
-            while (nu--)
-              cuckoo.set(us[nu+1], us[nu]);
-            cuckoo.set(u0, v0);
-          } else {
-            while (nv--)
-              cuckoo.set(vs[nv+1], vs[nv]);
-            cuckoo.set(v0, u0);
-          }
-        }
+        word_t u=sipnode(&ctx.sip_keys, nonce, 0), v=sipnode(&ctx.sip_keys, nonce, 1);
+	ctx.cg.add_compress_edge(u, v);
         if (ffs & 64) break; // can't shift by 64
+      }
+    }
+    for (u32 s=0; s < ctx.cg.nsols; s++) {
+      printf("Solution");
+      qsort(&ctx.cg.sols[s], PROOFSIZE, sizeof(word_t), ctx.cg.nonce_cmp);
+  
+      u32 j = 0, nalive = 0;
+      for (word_t block = 0; block < NEDGES; block += 64) {
+        u64 alive64 = ~bits[block/64];
+        for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+          u32 ffs = __builtin_ffsll(alive64);
+          nonce += ffs; alive64 >>= ffs;
+          if (nalive++ == ctx.cg.sols[s][j]) {
+            printf(" %x", ctx.cg.sols[s][j] = nonce);
+            if (++j == PROOFSIZE)
+              goto uncompressed;
+          }
+          if (ffs & 64) break; // can't shift by 64
+        }
+      }
+  uncompressed:
+      printf("\n");
+      int pow_rc = verify(ctx.cg.sols[s], &ctx.sip_keys);
+      if (pow_rc == POW_OK) {
+        printf("Verified with cyclehash ");
+        unsigned char cyclehash[32];
+        blake2b((void *)cyclehash, sizeof(cyclehash), (const void *)ctx.cg.sols[s], sizeof(ctx.cg.sols[0]), 0, 0);
+        for (int i=0; i<32; i++)
+          printf("%02x", cyclehash[i]);
+        printf("\n");
+      } else {
+        printf("FAILED due to %s\n", errstr[pow_rc]);
       }
     }
   }
