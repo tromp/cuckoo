@@ -2,21 +2,21 @@ dist: trusty
 sudo: false
 language: cpp
 env:
-  - JOB=quick
-  - JOB=demo29x1
+  - JOB=cuckoo
+  - JOB=cuckatoo
   - JOB=java
 matrix:
   include:
     - os: osx
       osx_image: xcode8.3 # [`xcode8.3` is Xcode 8.3.3 on OS X 10.12](https://docs.travis-ci.com/user/reference/osx#OS-X-Version)
       language: generic
-      env: JOB=quick
+      env: JOB=java
 before_script:
   - case "${TRAVIS_OS_NAME:?}" in linux) LIBV=LD_LIBRARY_PATH;; osx) LIBV=DYLD_LIBRARY_PATH;; esac
   - echo "The library path variable name is ${LIBV:?}"
   - LIBP="$(pwd)/src"
   - echo "The library path variable value is ${LIBP:?}"
 script:
-  - if test quick = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make libblake2b.so test example; ); fi
-  - if test demo29x1 = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make libblake2b.so demo29x1; ); fi
-  - if test java = "${JOB:?}"; then ( cd src && make java; ); fi
+  - if test cuckoo = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make libblake2b.so && cd cuckoo && make all; ); fi
+  - if test cuckatoo = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make libblake2b.so && cd cuckatoo && make all; ); fi
+  - if test java = "${JOB:?}"; then ( cd src/java && make all; ); fi

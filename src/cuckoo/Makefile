@@ -21,10 +21,10 @@ simpletest:     simple19
 leantest:       lean19
 	./lean19 -n 38
 
-simple19:	../crypto/siphash.h cuckoo.h  simple.cpp Makefile
+simple19:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=19 simple.cpp $(LIBS)
 
-simple29:	../crypto/siphash.h cuckoo.h  simple.cpp Makefile
+simple29:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=29 simple.cpp $(LIBS)
 
 lean19:		../crypto/siphash.h cuckoo.h  lean.cpp Makefile

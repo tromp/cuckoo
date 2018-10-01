@@ -1,4 +1,4 @@
-SUBDIRS := crypto cuckoo cuckatoo
+SUBDIRS := crypto cuckoo cuckatoo java
 
 all: $(SUBDIRS)
 $(SUBDIRS):
