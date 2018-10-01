@@ -17,6 +17,6 @@ before_script:
   - LIBP="$(pwd)/src"
   - echo "The library path variable value is ${LIBP:?}"
 script:
-  - if test cuckoo = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make libblake2b.so && cd cuckoo && make all; ); fi
-  - if test cuckatoo = "${JOB:?}"; then ( cd src && env ${LIBV:?}="${LIBP:?}" make libblake2b.so && cd cuckatoo && make all; ); fi
-  - if test java = "${JOB:?}"; then ( cd src/java && make all; ); fi
+  - if test cuckoo = "${JOB:?}"; then ( cd src/crypto && env ${LIBV:?}="${LIBP:?}" make && cd ../cuckoo && make; ); fi
+  - if test cuckatoo = "${JOB:?}"; then ( cd src/crypto && env ${LIBV:?}="${LIBP:?}" make && cd ../cuckatoo && make; ); fi
+  - if test java = "${JOB:?}"; then ( cd src/java && make; ); fi
