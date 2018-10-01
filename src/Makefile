@@ -13,231 +13,227 @@ CFLAGS ?= -Wall -Wno-format -fomit-frame-pointer $(OPT)
 GCC ?= gcc $(GCC_ARCH_FLAGS) -std=gnu11 $(CFLAGS)
 LIBS ?= -L. -lblake2b
 
-all : libblake2b.so test example lean28stx8 mean28x8 lean30stx8 mean30x8 lean32stx8 mean32x8 verify28 verify30 verify32 demo30x8
+all : libblake2b.so test example lean27stx8 mean27x8 lean29stx8 mean29x8 lean31stx8 mean31x8 verify27 verify29 verify31 demo29x8
 
 libblake2b.so:	blake2.h blake2-impl.h blake2b-ref.c
 	$(GCC) -fPIC -shared -o libblake2b.so blake2b-ref.c
 	echo "add build dir to LD_LIBRARY_PATH (or DYLD_LIBRARY_PATH on Mac OSX) if library not found"
 	echo "or, if you have sudo rights, a better solution is to run"
-	echo "sudo echo <build dir> > /etc/ld.so.conf.d/cuckoo.conf"
+	echo "sudo echo <build dir> > /etc/ld.so.conf.d/cuckatoo.conf"
 	echo "sudo ldconfig"
 
-test:	lean20 verify20 Makefile
-	./lean20 -n 38 | grep ^Sol | ./verify20 -n 38
+test:	lean19 verify19 Makefile
+	./lean19 -n 38 | grep ^Sol | ./verify19 -n 38
 
-simple4:	siphash.h cuckoo.h cyclebase.hpp simple_miner.cpp Makefile
+simple3:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
 	$(GPP) -o $@ -DSHOW -DIDXSHIFT=0 -DPROOFSIZE=6 -DEDGEBITS=3 simple_miner.cpp $(LIBS)
 
-simple16:	siphash.h cuckoo.h cyclebase.hpp simple_miner.cpp Makefile
+simple15:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=15 simple_miner.cpp $(LIBS)
 
-simple30:	siphash.h cuckoo.h cyclebase.hpp simple_miner.cpp Makefile
-	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=29 simple_miner.cpp $(LIBS)
+simple19:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
+	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=19 simple_miner.cpp $(LIBS)
 
-lean6:	cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+simple20:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp graph.hpp simple_miner.cpp Makefile
+	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=20 simple_miner.cpp $(LIBS)
+
+lean5:	cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=6 -DLOGNBUCKETS=0 -DSHOWSOL -DEDGEBITS=5 lean_miner.cpp $(LIBS)
 
-example:	simple4
-	./simple4 -h 211
+example:	simple3
+	./simple3 -n 193
 
-lean10:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean9:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=9 -DPROOFSIZE=8 -DSHOWSOL lean_miner.cpp $(LIBS)
 
-lean15:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean14:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=14 lean_miner.cpp $(LIBS)
 
-lean16:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean15:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=15 lean_miner.cpp $(LIBS)
 
-lean20:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean19:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=19 lean_miner.cpp $(LIBS)
 
-verify16:	siphash.h cuckoo.h cuckoo.c Makefile
-	$(GCC) -o $@ -DEDGEBITS=15 cuckoo.c $(LIBS)
+verify15:	siphash.h cuckatoo.h cuckatoo.c Makefile
+	$(GCC) -o $@ -DEDGEBITS=15 cuckatoo.c $(LIBS)
 
-verify20:	siphash.h cuckoo.h cuckoo.c Makefile
-	$(GCC) -o $@ -DEDGEBITS=19 cuckoo.c $(LIBS)
+verify19:	siphash.h cuckatoo.h cuckatoo.c Makefile
+	$(GCC) -o $@ -DEDGEBITS=19 cuckatoo.c $(LIBS)
 
-lean25:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean24:	siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=24 lean_miner.cpp $(LIBS)
 
-mean16x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean15x8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DXBITS=0 -DNSIPHASH=8 -DEDGEBITS=15 mean_miner.cpp $(LIBS)
 
-mean16x1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean15x1:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DXBITS=0 -DNSIPHASH=1 -DEDGEBITS=15 mean_miner.cpp $(LIBS)
 
-mean16sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean15sx8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES -mavx2 -DXBITS=0 -DNSIPHASH=8 -DEDGEBITS=15 mean_miner.cpp $(LIBS)
 
-mean16sx1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean15sx1:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES -DXBITS=0 -DNSIPHASH=1 -DEDGEBITS=15 mean_miner.cpp $(LIBS)
 
-mean20x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean19x8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DXBITS=2 -DNSIPHASH=8 -DEDGEBITS=19 mean_miner.cpp $(LIBS)
 
-mean25x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean24x8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DXBITS=5 -DNSIPHASH=8 -DEDGEBITS=24 mean_miner.cpp $(LIBS)
 
-mean28x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean27x8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DXBITS=6 -DCOMPRESSROUND=10 -DNSIPHASH=8 -DEDGEBITS=27 mean_miner.cpp $(LIBS)
 
-mean28x1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean27x1:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DXBITS=6 -DCOMPRESSROUND=10 -DNSIPHASH=1 -DEDGEBITS=27 mean_miner.cpp $(LIBS)
 
-mean28sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean27sx8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DSAVEEDGES -DXBITS=6 -DCOMPRESSROUND=10 -DNSIPHASH=8 -DEDGEBITS=27 mean_miner.cpp $(LIBS)
 
-mean28sx1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean27sx1:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES  -DXBITS=6 -DNSIPHASH=1 -DEDGEBITS=27 mean_miner.cpp $(LIBS)
 
-mean30x4:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean29x4:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mno-avx2 -DNSIPHASH=4 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
-mean30x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean29x8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
-mean30x1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean29x1:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DNSIPHASH=1 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
-mean30sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean29sx8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DSAVEEDGES -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
-# compatible with original siphash eg for reproducing xenoncat results
-mean30sx8c:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
-	$(GPP) -o $@ -mavx2 -DSIPHASH_COMPAT -DSAVEEDGES -DNSIPHASH=8 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
-
-mean30sx1:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean29sx1:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -DSAVEEDGES -DNSIPHASH=1 -DEDGEBITS=29 mean_miner.cpp $(LIBS)
 
-demo30x8:	mean30sx8
-	./mean30sx8 -n 63
+demo29x8:	mean29sx8
+	./mean29sx8 -n 63
 
-demo30x1:	mean30sx1
-	./mean30sx1 -n 63
+demo29x1:	mean29sx1
+	./mean29sx1 -n 63
 
-mean32x8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean31x8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DEXPANDROUND=8 -DCOMPRESSROUND=22 -DXBITS=8 -DNSIPHASH=8 -DEDGEBITS=31 mean_miner.cpp $(LIBS)
 
-mean32sx8:	cuckoo.h siphash.h mean_miner.hpp mean_miner.cpp Makefile
+mean31sx8:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h mean_miner.hpp mean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DSAVEEDGES -DEXPANDROUND=8 -DCOMPRESSROUND=22 -DXBITS=8 -DNSIPHASH=8 -DEDGEBITS=31 mean_miner.cpp $(LIBS)
 
-lean28:	cuckoo.h siphash.h lean_miner.hpp lean_miner.cpp Makefile
+lean27:	cuckatoo.h  bitmap.hpp graph.hpp siphash.h lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=27 lean_miner.cpp $(LIBS)
 
-lean28x8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean27x8:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=27 lean_miner.cpp $(LIBS)
 
-lean28.1:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean27.1:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DPART_BITS=1 -DEDGEBITS=27 lean_miner.cpp $(LIBS)
 
-lean28st:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean27st:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DEDGEBITS=27 lean_miner.cpp $(LIBS)
 
-lean28stx4:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean27stx4:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=4 -DEDGEBITS=27 lean_miner.cpp $(LIBS)
 
-lean28stx8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean27stx8:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=27 lean_miner.cpp $(LIBS)
 
-lean28stx16:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean27stx16:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=16 -DEDGEBITS=27 lean_miner.cpp $(LIBS)
 
-lean28sc:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean27sc:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DSINGLECYCLING -DEDGEBITS=27 lean_miner.cpp $(LIBS)
 
-lean28.2:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean27.2:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DPART_BITS=2 -DEDGEBITS=27 lean_miner.cpp $(LIBS)
 
-speedup28:	mean28 Makefile
-	for t in 1 2 4 6 8 12 16; do echo $$i; time ./mean28 -t $$t -r 10 2>&1; done > speedup28
+speedup27:	mean27 Makefile
+	for t in 1 2 4 6 8 12 16; do echo $$i; time ./mean27 -t $$t -r 10 2>&1; done > speedup27
 
-cudaspeedup28:	cuda28 Makefile
-	for t in 65536 32768 16384 8192 4096 2048 1024; do echo $$t; time ./cuda28 -t $$t -r 10; done;
-
-lean30:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean29:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 
-lean30.1:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean29.1:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DPART_BITS=1 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 
-lean30x2:	siphash.h siphashxN.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean29x2:	siphash.h siphashxN.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mno-avx2 -DATOMIC -DNSIPHASH=2 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 	
-lean30x4:	siphash.h siphashxN.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean29x4:	siphash.h siphashxN.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mno-avx2 -DATOMIC -DNSIPHASH=4 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 	
-lean30x8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean29x8:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 
-lean30stx8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean29stx8:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 lean_miner.cpp $(LIBS)
 
-speedup30:	cuckoo30 Makefile
-	for t in 1 2 4 6 8; do echo $$i; do ./cuckoo30 -t $$t -r 10 2>&1; done > speedup30
+speedup29:	cuckoo30 Makefile
+	for t in 1 2 4 6 8; do echo $$i; do ./cuckoo29 -t $$t -r 10 2>&1; done > speedup29
 
-tomato20:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
+tomato19:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=19 tomato_miner.cpp $(LIBS)
 
-tomato25:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
+tomato24:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=24 tomato_miner.cpp $(LIBS)
 
-tomato28:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
+tomato27:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=27 tomato_miner.cpp $(LIBS)
 
-tomato30:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
+tomato29:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=29 tomato_miner.cpp $(LIBS)
 
-tomato32:	siphash.h cuckoo.h tomato_miner.h tomato_miner.cpp Makefile
+tomato31:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp tomato_miner.h tomato_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=31 tomato_miner.cpp $(LIBS)
 
-lcuda28:	siphash.cuh lean_miner.cu Makefile
+lcuda27:	siphash.cuh lean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 lean_miner.cu $(LIBS)
 
-lcuda30:	siphash.cuh lean_miner.cu Makefile
+lcuda29:	siphash.cuh lean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lean_miner.cu $(LIBS)
 
-lcuda32:	siphash.cuh lean_miner.cu Makefile
+lcuda31:	siphash.cuh lean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 lean_miner.cu $(LIBS)
 
-cuda28:	siphash.cuh mean_miner.cu Makefile
+cuda27:	siphash.cuh mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 mean_miner.cu $(LIBS)
 
-cuda30:	siphash.cuh mean_miner.cu Makefile
+cuda29:	siphash.cuh mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean_miner.cu $(LIBS)
 
-cuda32:	siphash.cuh mean_miner.cu Makefile
+cuda31:	siphash.cuh mean_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=31 -arch sm_35 mean_miner.cu $(LIBS)
 
-cycle28:	cycle_miner.cu Makefile
+cycle27:	cycle_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=27 -arch sm_35 cycle_miner.cu $(LIBS)
 
-cycle30:	cycle_miner.cu Makefile
+cycle29:	cycle_miner.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 cycle_miner.cu $(LIBS)
 
-lean32:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean31:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DEDGEBITS=31 lean_miner.cpp $(LIBS)
 
-lean32.1:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean31.1:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DPART_BITS=1 -DEDGEBITS=31 lean_miner.cpp $(LIBS)
 
-lean32x8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean31x8:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=31 lean_miner.cpp $(LIBS)
 
-lean32stx8:	siphash.h cuckoo.h lean_miner.hpp lean_miner.cpp Makefile
+lean31stx8:	siphash.h cuckatoo.h  bitmap.hpp graph.hpp lean_miner.hpp lean_miner.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=31 lean_miner.cpp $(LIBS)
 
-leancpubounty:	lean28stx8 lean30stx8 lean32stx8 lean28x8 lean30x8 lean32x8
-	for s in 28 30 32; do for t in 8 4 2; do time ./lean$${s}x8 -t $$t -r 10; done; time ./lean$${s}stx8 -r 10; done
+leancpubounty:	lean27stx8 lean29stx8 lean31stx8 lean27x8 lean29x8 lean31x8
+	for s in 27 29 31; do for t in 8 4 2; do time ./lean$${s}x8 -t $$t -r 10; done; time ./lean$${s}stx8 -r 10; done
 
-meancpubounty:	mean28sx8 mean30sx8 mean32sx8
+meancpubounty:	mean28sx7 mean29sx8 mean31sx8
 	for s in 28 30 32; do for t in 8 4 2 1; do time ./mean$${s}sx8 -t $$t -r 10; done; done
 
-tmtobounty:	tomato28 tomato30 tomato32
+tmtobounty:	tomato27 tomato29 tomato31
 	for s in 28 30 32; do for t in 8 4 2 1; do time ./tomato$$s -t $$t -r 10; done; done
 
-gpubounty:	cuda30
-	time ./cuda30 -r 100
+gpubounty:	cuda29
+	time ./cuda29 -r 100
 
 hashonly: hash_only.cpp Makefile
 	$(GPP) -o $@ hash_only.cpp $(LIBS)
@@ -251,14 +247,14 @@ hashonlyx8: hash_only.cpp Makefile
 hashonlyx16: hash_only.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=16 hash_only.cpp $(LIBS)
 
-verify28:	siphash.h cuckoo.h cuckoo.c Makefile
-	$(GCC) -o $@ -DEDGEBITS=27 cuckoo.c $(LIBS)
+verify27:	siphash.h cuckatoo.h cuckatoo.c Makefile
+	$(GCC) -o $@ -DEDGEBITS=27 cuckatoo.c $(LIBS)
 
-verify30:	siphash.h cuckoo.h cuckoo.c Makefile
-	$(GCC) -o $@ -DEDGEBITS=29 cuckoo.c $(LIBS)
+verify29:	siphash.h cuckatoo.h cuckatoo.c Makefile
+	$(GCC) -o $@ -DEDGEBITS=29 cuckatoo.c $(LIBS)
 
-verify32:	siphash.h cuckoo.h cuckoo.c Makefile
-	$(GCC) -o $@ -DEDGEBITS=31 cuckoo.c $(LIBS)
+verify31:	siphash.h cuckatoo.h cuckatoo.c Makefile
+	$(GCC) -o $@ -DEDGEBITS=31 cuckatoo.c $(LIBS)
 
 Cuckoo.class:	Cuckoo.java Makefile
 	javac -O Cuckoo.java

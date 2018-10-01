@@ -1,30 +1,16 @@
-struct twice_set {
+struct bitmap {
   u32 *bits;
   __device__ void reset() {
-    memset(bits, 0, TWICE_WORDS * sizeof(u32));
+    memset(bits, 0, BITMAP_WORDS * sizeof(u32));
   }
-  __device__ void set(node_t u) {
-    node_t idx = u/16;
-    u32 bit = 1 << (2 * (u%16));
-    u32 old = atomicOr(&bits[idx], bit);
-    u32 bit2 = bit<<1;
-    if ((old & (bit2|bit)) == bit) atomicOr(&bits[idx], bit2);
-  }
-  __device__ u32 test(node_t u) const {
-    return (bits[u/16] >> (2 * (u%16))) & 2;
-  }
-};
-
-struct shrinkingset {
-  u32 *bits;
-  __device__ void reset(edge_t n) {
+  __device__ void set(edge_t n) {
     bits[n/32] |= 1 << (n%32);
   }
   __device__ bool test(node_t n) const {
-    return !((bits[n/32] >> (n%32)) & 1);
+    return (bits[n/32] >> (n%32)) & 1;
   }
   __device__ u32 block(node_t n) const {
-    return ~bits[n/32];
+    return bits[n/32];
   }
 };
 
@@ -49,7 +35,7 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
     for (edge_t nonce = block-1; alive32; ) {
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
-      node_t u = dipnode(ctx->sip_keys, nonce, uorv);
+      node_t u = dipnode(ctx->sip_keys, nonce, uorv) ^ 1;
       if ((u & PART_MASK) == part && !ctx->nonleaf.test(u >> PART_BITS))
         ctx->alive.reset(nonce);
     }

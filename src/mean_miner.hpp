@@ -7,7 +7,7 @@
 // my own cycle finding is run single threaded to avoid losing cycles
 // to race conditions (typically takes under 1% of runtime)
 
-#include "cuckoo.h"
+#include "cuckatoo.h"
 #include "siphashxN.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -84,6 +84,8 @@
 
 typedef uint8_t u8;
 typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
 
 #if EDGEBITS >= 30
 typedef u64 offset_t;
@@ -1037,7 +1039,7 @@ int nonce_cmp(const void *a, const void *b) {
   return *(u32 *)a - *(u32 *)b;
 }
 
-typedef u32 proof[PROOFSIZE];
+typedef word_t proof[PROOFSIZE];
 
 // break circular reference with forward declaration
 class solver_ctx;
@@ -1056,7 +1058,7 @@ public:
   proof cycleus;
   proof cyclevs;
   std::bitset<NXY> uxymap;
-  std::vector<u32> sols; // concatanation of all proof's indices
+  std::vector<word_t> sols; // concatanation of all proof's indices
 
   solver_ctx(const u32 n_threads, const u32 n_trims, bool allrounds, bool show_cycle) {
     trimmer = new edgetrimmer(n_threads, n_trims, allrounds);

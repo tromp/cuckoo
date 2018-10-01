@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 
     for (unsigned s = 0; s < nsols; s++) {
       printf("Solution");
-      u32* prf = &ctx.sols[s * PROOFSIZE];
+      word_t *prf = &ctx.sols[s * PROOFSIZE];
       for (u32 i = 0; i < PROOFSIZE; i++)
         printf(" %jx", (uintmax_t)prf[i]);
       printf("\n");
