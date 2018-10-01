@@ -3,8 +3,8 @@
 
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset
-#include "blake2.h"
-#include "siphash.h"
+#include "../crypto/blake2.h"
+#include "../crypto/siphash.h"
 
 #ifdef SIPHASH_COMPAT
 #include <stdio.h>
@@ -22,28 +22,24 @@
 #define PROOFSIZE 42
 #endif
 
-#if EDGEBITS > 32
-typedef u64 edge_t;
-#elif EDGEBITS > 16
-typedef u32 edge_t;
-#else
-typedef u16 edge_t;
-#endif
-#if EDGEBITS > 31
-typedef u64 node_t;
-#elif EDGEBITS > 15
-typedef u32 node_t;
-#else
-typedef u16 node_t;
+// save some keystrokes since i'm a lazy typer
+typedef uint32_t u32;
+
+#if EDGEBITS > 30
+typedef uint64_t word_t;
+#elif EDGEBITS > 14
+typedef u32 word_t;
+#else // if EDGEBITS <= 14
+typedef uint16_t word_t;
 #endif
 
 // number of edges
-#define NEDGES ((node_t)1 << EDGEBITS)
+#define NEDGES ((word_t)1 << EDGEBITS)
 // used to mask siphash output
-#define EDGEMASK ((edge_t)NEDGES - 1)
+#define EDGEMASK ((word_t)NEDGES - 1)
 
 // generate edge endpoint in cuckoo graph without partition bit
-node_t sipnode(siphash_keys *keys, edge_t edge, u32 uorv) {
+word_t sipnode(siphash_keys *keys, word_t edge, u32 uorv) {
   return siphash24(keys, 2*edge + uorv) & EDGEMASK;
 }
 
@@ -51,9 +47,9 @@ enum verify_code { POW_OK, POW_HEADER_LENGTH, POW_TOO_BIG, POW_TOO_SMALL, POW_NO
 const char *errstr[] = { "OK", "wrong header length", "edge too big", "edges not ascending", "endpoints don't match up", "branch in cycle", "cycle dead ends", "cycle too short"};
 
 // verify that edges are ascending and form a cycle in header-generated graph
-int verify(edge_t edges[PROOFSIZE], siphash_keys *keys) {
-  node_t uvs[2*PROOFSIZE];
-  node_t xor0 = 0, xor1  =0;
+int verify(word_t edges[PROOFSIZE], siphash_keys *keys) {
+  word_t uvs[2*PROOFSIZE];
+  word_t xor0 = 0, xor1  =0;
   for (u32 n = 0; n < PROOFSIZE; n++) {
     if (edges[n] > EDGEMASK)
       return POW_TOO_BIG;
@@ -99,6 +95,6 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
 }
 
 // edge endpoint in cuckoo graph with partition bit
-edge_t sipnode_(siphash_keys *keys, edge_t edge, u32 uorv) {
+word_t sipnode_(siphash_keys *keys, word_t edge, u32 uorv) {
   return sipnode(keys, edge, uorv) << 1 | uorv;
 }

@@ -1,13 +1,26 @@
-Cuckatoo Cycle
-==============
+Cuck(at)oo Cycle
+================
 
+THIS REPO IS UNDERGOING CONSTRUCTION WHILE ADDING CUCKATOO SOLVERS AND CHANGING DIRECTORY STRUCTURE.
+PLEASE BEAR WITH US...
+
+[Blog article explaining Cuckoo Cycle](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing)
+
+[Whitepaper](doc/cuckoo.pdf?raw=true)
+
+Cuckoo Cycle is the first graph-theoretic proof-of-work, and the most memory bound, yet with instant verification.
+Unlike Hashcash, Cuckoo Cycle is immune from quantum speedup by Grover's search algorithm.
 Cuckatoo Cycle is a variation of Cuckoo Cycle that aims to simplify ASICs by reducing ternary counters to plain bits.
 
 Simplest known PoW
 ------------------
-With a 42-line [complete specification](doc/spec), Cuckatoo Cycle is about as simple as Cuckoo Cycle.
+With a 42-line [complete specification](doc/spec), Cuckatoo Cycle is less than half the size of either
+[SHA256](https://en.wikipedia.org/wiki/SHA-2#Pseudocode),
+[Blake2b](https://en.wikipedia.org/wiki/BLAKE_%28hash_function%29#Blake2b_algorithm), or
+[SHA3 (Keccak)](https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c)
+as used in Bitcoin, Equihash and ethash. Simplicity matters.
 
-Proofs take the form of a length 42 off-by-1-cycle in a bipartite graph with 2^N+2^N nodes and
+Cuckatoo proofs take the form of a length 42 off-by-1-cycle in a bipartite graph with 2^N+2^N nodes and
 2^N edges, with N ranging from 10 up to 64.
 
 In an off-by-1-cycle, consecutive edges are not incident on a single node, but on two nodes that differ in the last bit only.

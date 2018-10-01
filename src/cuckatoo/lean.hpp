@@ -8,13 +8,12 @@
 #include <atomic>
 #endif
 #include "cuckatoo.h"
-#include "../siphashxN.h"
+#include "../crypto/siphashxN.h"
 #include "graph.hpp"
 #include <stdio.h>
-#include <stdlib.h>
 #include <pthread.h>
 #ifdef __APPLE__
-#include "../osx_barrier.h"
+#include "../apple/osx_barrier.h"
 #endif
 #include <assert.h>
 
@@ -114,19 +113,20 @@ public:
   bitmap<word_t> nonleaf;
   graph<word_t> cg;
   u32 nonce;
-  u32 maxsols;
-  au32 nsols;
+  proof *sols;
+  u32 nsols;
   u32 nthreads;
   u32 ntrims;
   pthread_barrier_t barry;
 
   cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) : alive(n_threads), nonleaf(NEDGES >> PART_BITS),
-      cg(MAXEDGES, MAXEDGES, MAXSOLS, IDXSHIFT, (char *)nonleaf.bits) {
+      cg(MAXEDGES, MAXEDGES, max_sols, IDXSHIFT, (char *)nonleaf.bits) {
     assert(cg.bytes() <= NEDGES/8); // check that graph cg can fit in share nonleaf's memory
     nthreads = n_threads;
     ntrims = n_trims;
     int err = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
+    sols = new proof[max_sols];
     nsols = 0;
   }
   void setheadernonce(char* headernonce, const u32 len, const u32 nce) {
@@ -137,6 +137,7 @@ public:
     nsols = 0;
   }
   ~cuckoo_ctx() {
+    delete[] sols;
   }
   void prefetch(const u64 *hashes, const u32 part) const {
     for (u32 i=0; i < NSIPHASH; i++) {
@@ -273,38 +274,21 @@ void *worker(void *vp) {
     }
   }
   for (u32 s=0; s < ctx->cg.nsols; s++) {
-    printf("Solution");
-    qsort(&ctx->cg.sols[s], PROOFSIZE, sizeof(word_t), ctx->cg.nonce_cmp);
-
     u32 j = 0, nalive = 0;
     for (word_t block = 0; block < NEDGES; block += 64) {
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        if (nalive++ == ctx->cg.sols[s][j]) {
-          printf(" %x", ctx->cg.sols[s][j] = nonce);
-          if (++j == PROOFSIZE)
-            goto uncompressed;
+        if (j < PROOFSIZE && nalive++ == ctx->cg.sols[s][j]) {
+          ctx->sols[s][j++] = nonce;
         }
         if (ffs & 64) break; // can't shift by 64
       }
     }
-uncompressed:
-    printf("\n");
-    int pow_rc = verify(ctx->cg.sols[s], &ctx->sip_keys);
-    if (pow_rc == POW_OK) {
-      printf("Verified with cyclehash ");
-      unsigned char cyclehash[32];
-      blake2b((void *)cyclehash, sizeof(cyclehash), (const void *)ctx->cg.sols[s], sizeof(ctx->cg.sols[0]), 0, 0);
-      for (int i=0; i<32; i++)
-        printf("%02x", cyclehash[i]);
-      printf("\n");
-    } else {
-      printf("FAILED due to %s\n", errstr[pow_rc]);
-    }
+    assert (j == PROOFSIZE);
   }
-
+  ctx->nsols = ctx->cg.nsols;
   pthread_exit(NULL);
   return 0;
 }

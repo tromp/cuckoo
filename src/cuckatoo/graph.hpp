@@ -1,8 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
-#include "../bitmap.hpp"
+#include "bitmap.hpp"
 #include "compress.hpp"
 #include <new>
+
+typedef word_t proof[PROOFSIZE];
 
 // cuck(at)oo graph with given limit on number of edges (and on single partition nodes)
 template <typename word_t>
@@ -15,7 +18,6 @@ public:
     word_t next;
     word_t to;
   };
-  typedef word_t proof[PROOFSIZE];
 
   word_t MAXEDGES;
   word_t MAXNODES;
@@ -38,7 +40,7 @@ public:
     links   = new link[2*MAXEDGES];
     compressu = compressv = 0;
     sharedmem = false;
-    sols    = new proof[MAXSOLS];
+    sols    = new proof[MAXSOLS+1]; // extra one for current path
     visited.clear();
   }
 
@@ -95,15 +97,18 @@ public:
     // visited has entries set only during cycles() call
   }
 
+  static int nonce_cmp(const void *a, const void *b) {
+    return *(word_t *)a - *(word_t *)b;
+  }
+
   void cycles_with_link(u32 len, word_t u, word_t dest) {
     if (visited.test(u >> 1))
       return;
     if ((u ^ 1) == dest) {
       printf("  %d-cycle found\n", len);
-      if (len == PROOFSIZE) {
-        if (++nsols < MAXSOLS)
-          memcpy(sols[nsols], sols[nsols-1], sizeof(sols[0]));
-        else nsols--;
+      if (len == PROOFSIZE && nsols < MAXSOLS) {
+        qsort(sols[nsols++], PROOFSIZE, sizeof(word_t), nonce_cmp);
+        memcpy(sols[nsols], sols[nsols-1], sizeof(sols[0]));
       }
       return;
     }
@@ -141,9 +146,4 @@ public:
   void add_compress_edge(word_t u, word_t v) {
     add_edge(compressu->compress(u), compressv->compress(v));
   }
-
-  static int nonce_cmp(const void *a, const void *b) {
-    return *(word_t *)a - *(word_t *)b;
-  }
-
 };

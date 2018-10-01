@@ -8,7 +8,7 @@
 // to race conditions (typically takes under 1% of runtime)
 
 #include "cuckatoo.h"
-#include "siphashxN.h"
+#include "../crypto/siphashxN.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -17,7 +17,7 @@
 #include <vector>
 #include <bitset>
 #ifdef __APPLE__
-#include "osx_barrier.h"
+#include "../apple/osx_barrier.h"
 #endif
 
 // algorithm/performance parameters
