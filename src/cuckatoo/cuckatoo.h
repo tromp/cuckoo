@@ -3,8 +3,8 @@
 
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset
-#include "blake2.h"
-#include "siphash.h"
+#include "../blake2.h"
+#include "../siphash.h"
 
 // proof-of-work parameters
 #ifndef EDGEBITS

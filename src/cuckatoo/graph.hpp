@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
-#include "bitmap.hpp"
+#include "../bitmap.hpp"
 #include "compress.hpp"
 #include <new>
 

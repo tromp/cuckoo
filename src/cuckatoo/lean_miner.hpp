@@ -8,13 +8,13 @@
 #include <atomic>
 #endif
 #include "cuckatoo.h"
-#include "siphashxN.h"
+#include "../siphashxN.h"
 #include "graph.hpp"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #ifdef __APPLE__
-#include "osx_barrier.h"
+#include "../osx_barrier.h"
 #endif
 #include <assert.h>
 
@@ -240,10 +240,10 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset &alive = ctx->alive;
-  if (tp->id == 0) printf("initial size %d\n", NEDGES);
+  // if (tp->id == 0) printf("initial size %d\n", NEDGES);
   u32 round;
   for (round=1; alive.count() > MAXEDGES*REDUCE_NONCES; round++) {
-    if (tp->id == 0) printf("round %2d partition sizes", round);
+    // if (tp->id == 0) printf("round %2d partition sizes", round);
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         if (tp->id == 0)
@@ -252,11 +252,11 @@ void *worker(void *vp) {
         ctx->count_node_deg(tp->id,uorv,part);
         barrier(&ctx->barry);
         ctx->kill_leaf_edges(tp->id,uorv,part);
-        if (tp->id == 0) printf(" %c%d %d", "UV"[uorv], part, alive.count());
+        // if (tp->id == 0) printf(" %c%d %d", "UV"[uorv], part, alive.count());
         barrier(&ctx->barry);
       }
     }
-    if (tp->id == 0) printf("\n");
+    // if (tp->id == 0) printf("\n");
   }
   if (tp->id != 0)
     pthread_exit(NULL);
