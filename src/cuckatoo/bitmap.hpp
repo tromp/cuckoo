@@ -26,7 +26,7 @@ public:
   }
   void clear() {
     assert(bits);
-    memset(bits, 0, BITMAP_WORDS*sizeof(word_t));
+    memset((word_t *)bits, 0, BITMAP_WORDS*sizeof(word_t));
   }
  void prefetch(u32 u) const {
 #ifdef PREFETCH

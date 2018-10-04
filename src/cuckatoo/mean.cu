@@ -1,5 +1,5 @@
-// Cuckoo Cycle, a memory-hard proof-of-work by John Tromp
-// Copyright (c) 2018 Jiri Vadura (photon) and John Tromp
+// Cuckatoo Cycle, a memory-hard proof-of-work by John Tromp
+// Copyright (c) 2018-2019 Jiri Vadura (photon) and John Tromp
 // This software is covered by the FAIR MINING license
 
 #include <stdio.h>
@@ -7,34 +7,46 @@
 #include <vector>
 #include <assert.h>
 #include <sys/time.h> // gettimeofday
-#include "cuckoo.h"
-#include "siphash.cuh"
-#include "blake2.h"
+#include "cuckatoo.h"
+#include "graph.hpp"
+#include "../crypto/siphash.cuh"
+#include "../crypto/blake2.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;
 
-typedef u32 node_t;
-typedef u64 nonce_t;
+#ifndef MAXSOLS
+#define MAXSOLS 4
+#endif
+
+#ifndef IDXSHIFT
+// number of bits of compression of surviving edge endpoints
+// reduces space used in cycle finding, but too high a value
+// results in NODE OVERFLOW warnings and fake cycles
+#define IDXSHIFT 12
+#endif
+
+const static u32 MAXEDGES = NEDGES >> IDXSHIFT;
+
+typedef uint64_t u64; // save some typing
 
 #ifndef XBITS
-#define XBITS ((EDGEBITS-16)/2)
+// assumes at least 2^18 bits of shared mem (32 KB) on thread block
+#define XBITS ((EDGEBITS-18+1)/2)
 #endif
 
 #define NODEBITS (EDGEBITS + 1)
-#define NNODES ((node_t)1 << NODEBITS)
-#define NODEMASK (NNODES - 1)
 
 const static u32 NX        = 1 << XBITS;
-const static u32 NX2       = NX * NX;
 const static u32 XMASK     = NX - 1;
-const static u32 X2MASK    = NX2 - 1;
+const static u32 NX2       = NX * NX;
 const static u32 YBITS     = XBITS;
 const static u32 NY        = 1 << YBITS;
 const static u32 YZBITS    = EDGEBITS - XBITS;
 const static u32 NYZ       = 1 << YZBITS;
 const static u32 ZBITS     = YZBITS - YBITS;
 const static u32 NZ        = 1 << ZBITS;
+const static u32 ZMASK     = NZ - 1;
 
 #define EPS_A 133/128
 #define EPS_B 85/128
@@ -80,7 +92,7 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
     u32 node1, node0 = dipnode(sipkeys, (u64)nonce, 0);
     if (sizeof(EdgeOut) == sizeof(uint2))
       node1 = dipnode(sipkeys, (u64)nonce, 1);
-    int row = node0 & XMASK;
+    int row = node0 >> YZBITS;
     int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1));
     tmp[row][counter] = make_Edge(nonce, tmp[0][0], node0, node1);
     __syncthreads();
@@ -151,7 +163,7 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
       EdgeOut edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node1 = endpoint(sipkeys, edge, 0);
-      col = (node1 >> XBITS) & XMASK;
+      col = (node1 >> ZBITS) & XMASK;
       counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1));
       tmp[col][counter] = edge;
     }
@@ -182,22 +194,17 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
   }
 }
 
-__device__ __forceinline__  void Increase2bCounter(u32 *ecounters, const int bucket) {
+__device__ __forceinline__  void bitmapset(u32 *ebitmap, const int bucket) {
   int word = bucket >> 5;
   unsigned char bit = bucket & 0x1F;
   u32 mask = 1 << bit;
-
-  u32 old = atomicOr(ecounters + word, mask) & mask;
-  if (old)
-    atomicOr(ecounters + word + NZ/32, mask);
+  atomicOr(ebitmap + word, mask);
 }
 
-__device__ __forceinline__  bool Read2bCounter(u32 *ecounters, const int bucket) {
+__device__ __forceinline__  bool bitmaptest(u32 *ebitmap, const int bucket) {
   int word = bucket >> 5;
   unsigned char bit = bucket & 0x1F;
-  u32 mask = 1 << bit;
-
-  return (ecounters[word + NZ/32] & mask) != 0;
+  return (ebitmap[word] >> bit) & 1;
 }
 
 __device__ uint2 make_Edge(const u32 nonce, const uint2 dummy, const u32 node0, const u32 node1) {
@@ -227,12 +234,12 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, const EdgeIn
   const int group = blockIdx.x;
   const int dim = blockDim.x;
   const int lid = threadIdx.x;
-  const static int COUNTERWORDS = NZ / 16; // 16 2-bit counters per 32-bit word
+  const static int BITMAPWORDS = NZ / 32; // 32-bit words in bitmap
 
-  __shared__ u32 ecounters[COUNTERWORDS];
+  __shared__ u32 ebitmap[BITMAPWORDS];
 
-  for (int i = lid; i < COUNTERWORDS; i += dim)
-    ecounters[i] = 0;
+  for (int i = lid; i < BITMAPWORDS; i += dim)
+    ebitmap[i] = 0;
   __syncthreads();
   const int edgesInBucket = min(sourceIndexes[group], maxIn);
   const int loops = (edgesInBucket + dim-1) / dim;
@@ -244,7 +251,7 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, const EdgeIn
       EdgeIn edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node = endpoint(sipkeys, edge, round&1);
-      Increase2bCounter(ecounters, node >> (2*XBITS));
+      bitmapset(ebitmap, node & ZMASK);
     }
   }
   __syncthreads();
@@ -255,9 +262,9 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, const EdgeIn
       EdgeIn edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node0 = endpoint(sipkeys, edge, round&1);
-      if (Read2bCounter(ecounters, node0 >> (2*XBITS))) {
+      if (bitmaptest(ebitmap, (node0 & ZMASK) ^ 1)) {
         u32 node1 = endpoint(sipkeys, edge, (round&1)^1);
-        const int bucket = node1 & X2MASK;
+        const int bucket = node1 >> ZBITS;
         const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), maxOut - 1);
         destination[bucket * maxOut + bktIdx] = (round&1) ? make_Edge(edge, *destination, node1, node0)
                                                           : make_Edge(edge, *destination, node0, node1);
@@ -467,151 +474,45 @@ struct edgetrimmer {
   }
 };
 
-#define IDXSHIFT 10
-#define CUCKOO_SIZE (NNODES >> IDXSHIFT)
-#define CUCKOO_MASK (CUCKOO_SIZE - 1)
-// number of (least significant) key bits that survives leftshift by NODEBITS
-#define KEYBITS (64-NODEBITS)
-#define KEYMASK ((1L << KEYBITS) - 1)
-#define MAXDRIFT (1L << (KEYBITS - IDXSHIFT))
-
-class cuckoo_hash {
-public:
-  u64 *cuckoo;
-
-  cuckoo_hash() {
-    cuckoo = new u64[CUCKOO_SIZE];
-  }
-  ~cuckoo_hash() {
-    delete[] cuckoo;
-  }
-  void set(node_t u, node_t v) {
-    u64 niew = (u64)u << NODEBITS | v;
-    for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-      u64 old = cuckoo[ui];
-      if (old == 0 || (old >> NODEBITS) == (u & KEYMASK)) {
-        cuckoo[ui] = niew;
-        return;
-      }
-    }
-  }
-  node_t operator[](node_t u) const {
-    for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
-      u64 cu = cuckoo[ui];
-      if (!cu)
-        return 0;
-      if ((cu >> NODEBITS) == (u & KEYMASK)) {
-        assert(((ui - (u >> IDXSHIFT)) & CUCKOO_MASK) < MAXDRIFT);
-        return (node_t)(cu & NODEMASK);
-      }
-    }
-  }
-};
-
-const static u32 MAXPATHLEN = 8 << ((NODEBITS+2)/3);
-
-int nonce_cmp(const void *a, const void *b) {
-  return *(u32 *)a - *(u32 *)b;
-}
-
-const static u32 MAXEDGES = 0x20000;
-
 struct solver_ctx {
-  edgetrimmer *trimmer;
+  edgetrimmer trimmer;
   uint2 *edges;
-  cuckoo_hash *cuckoo;
+  graph<word_t> cg;
   uint2 soledges[PROOFSIZE];
   std::vector<u32> sols; // concatenation of all proof's indices
-  u32 us[MAXPATHLEN];
-  u32 vs[MAXPATHLEN];
 
-  solver_ctx(const trimparams tp) {
-    trimmer = new edgetrimmer(tp);
+  solver_ctx(const trimparams tp) : trimmer(tp), cg(MAXEDGES, MAXEDGES, MAXSOLS, IDXSHIFT) {
     edges   = new uint2[MAXEDGES];
-    cuckoo  = new cuckoo_hash();
   }
 
   void setheadernonce(char * const headernonce, const u32 len, const u32 nonce) {
     ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
-    setheader(headernonce, len, &trimmer->sipkeys);
+    setheader(headernonce, len, &trimmer.sipkeys);
     sols.clear();
   }
   ~solver_ctx() {
-    delete cuckoo;
     delete[] edges;
-    delete trimmer;
-  }
-
-  void recordedge(const u32 i, const u32 u2, const u32 v2) {
-    soledges[i].x = u2/2;
-    soledges[i].y = v2/2;
-  }
-
-  void solution(const u32 *us, u32 nu, const u32 *vs, u32 nv) {
-    u32 ni = 0;
-    recordedge(ni++, *us, *vs);
-    while (nu--)
-      recordedge(ni++, us[(nu+1)&~1], us[nu|1]); // u's in even position; v's in odd
-    while (nv--)
-    recordedge(ni++, vs[nv|1], vs[(nv+1)&~1]); // u's in odd position; v's in even
-    assert(ni == PROOFSIZE);
-    sols.resize(sols.size() + PROOFSIZE);
-    cudaMemcpyToSymbol(recoveredges, soledges, sizeof(soledges));
-    cudaMemset(trimmer->indexesE2, 0, trimmer->indexesSize);
-    Recovery<<<trimmer->tp.recover.blocks, trimmer->tp.recover.tpb>>>(*trimmer->dipkeys, trimmer->bufferA, (int *)trimmer->indexesE2);
-    cudaMemcpy(&sols[sols.size()-PROOFSIZE], trimmer->indexesE2, PROOFSIZE * sizeof(u32), cudaMemcpyDeviceToHost);
-    checkCudaErrors(cudaDeviceSynchronize());
-    qsort(&sols[sols.size()-PROOFSIZE], PROOFSIZE, sizeof(u32), nonce_cmp);
-  }
-
-  u32 path(u32 u, u32 *us) {
-    u32 nu, u0 = u;
-    for (nu = 0; u; u = (*cuckoo)[u]) {
-      if (nu >= MAXPATHLEN) {
-        while (nu-- && us[nu] != u) ;
-        if (~nu) {
-          printf("illegal %4d-cycle from node %d\n", MAXPATHLEN-nu, u0);
-          exit(0);
-        }
-        printf("maximum path length exceeded\n");
-        return 0; // happens once in a million runs or so; signal trouble
-      }
-      us[nu++] = u;
-    }
-    return nu;
-  }
-
-  void addedge(uint2 edge) {
-    const u32 u0 = edge.x << 1, v0 = (edge.y << 1) | 1;
-    if (u0) {
-      u32 nu = path(u0, us), nv = path(v0, vs);
-      if (!nu-- || !nv--)
-        return; // drop edge causing trouble
-      // printf("vx %02x ux %02x e %08x uxyz %06x vxyz %06x u0 %x v0 %x nu %d nv %d\n", vx, ux, e, uxyz, vxyz, u0, v0, nu, nv);
-      if (us[nu] == vs[nv]) {
-        const u32 min = nu < nv ? nu : nv;
-        for (nu -= min, nv -= min; us[nu] != vs[nv]; nu++, nv++) ;
-        const u32 len = nu + nv + 1;
-        printf("%4d-cycle found\n", len);
-        if (len == PROOFSIZE)
-          solution(us, nu, vs, nv);
-        // if (len == 2) printf("edge %x %x\n", edge.x, edge.y);
-      } else if (nu < nv) {
-        while (nu--)
-          cuckoo->set(us[nu+1], us[nu]);
-        cuckoo->set(u0, v0);
-      } else {
-        while (nv--)
-          cuckoo->set(vs[nv+1], vs[nv]);
-        cuckoo->set(v0, u0);
-      }
-    }
   }
 
   void findcycles(uint2 *edges, u32 nedges) {
-    memset(cuckoo->cuckoo, 0, CUCKOO_SIZE * sizeof(u64));
+    cg.reset();
     for (u32 i = 0; i < nedges; i++)
-      addedge(edges[i]);
+      cg.add_compress_edge(edges[i].x, edges[i].y);
+    for (u32 s = 0 ;s < cg.nsols; s++) {
+      // printf("Solution");
+      for (u32 j = 0; j < PROOFSIZE; j++) {
+        soledges[j] = edges[cg.sols[s][j]];
+	// printf(" (%x, %x)", soledges[j].x, soledges[j].y);
+      }
+      // printf("\n");
+      sols.resize(sols.size() + PROOFSIZE);
+      cudaMemcpyToSymbol(recoveredges, soledges, sizeof(soledges));
+      cudaMemset(trimmer.indexesE2, 0, trimmer.indexesSize);
+      Recovery<<<trimmer.tp.recover.blocks, trimmer.tp.recover.tpb>>>(*trimmer.dipkeys, trimmer.bufferA, (int *)trimmer.indexesE2);
+      cudaMemcpy(&sols[sols.size()-PROOFSIZE], trimmer.indexesE2, PROOFSIZE * sizeof(u32), cudaMemcpyDeviceToHost);
+      checkCudaErrors(cudaDeviceSynchronize());
+      qsort(&sols[sols.size()-PROOFSIZE], PROOFSIZE, sizeof(u32), cg.nonce_cmp);
+    }    
   }
 
   int solve() {
@@ -619,12 +520,12 @@ struct solver_ctx {
     struct timeval time0, time1;
 
     gettimeofday(&time0, 0);
-    u32 nedges = trimmer->trim();
+    u32 nedges = trimmer.trim();
     if (nedges > MAXEDGES) {
       printf("OOPS; losing %d edges beyond MAXEDGES=%d\n", nedges-MAXEDGES, MAXEDGES);
       nedges = MAXEDGES;
     }
-    cudaMemcpy(edges, trimmer->bufferB, nedges * 8, cudaMemcpyDeviceToHost);
+    cudaMemcpy(edges, trimmer.bufferB, nedges * 8, cudaMemcpyDeviceToHost);
     gettimeofday(&time1, 0);
     timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
     gettimeofday(&time0, 0);
@@ -726,7 +627,7 @@ int main(int argc, char **argv) {
 
   solver_ctx ctx(tp);
 
-  u64 bytes = ctx.trimmer->globalbytes();
+  u64 bytes = ctx.trimmer.globalbytes();
   int unit;
   for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
   printf("Using %d%cB of global memory.\n", (u32)bytes, " KMGT"[unit]);
@@ -735,7 +636,7 @@ int main(int argc, char **argv) {
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
     ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.trimmer->sipkeys.k0, ctx.trimmer->sipkeys.k1, ctx.trimmer->sipkeys.k2, ctx.trimmer->sipkeys.k3);
+    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.trimmer.sipkeys.k0, ctx.trimmer.sipkeys.k1, ctx.trimmer.sipkeys.k2, ctx.trimmer.sipkeys.k3);
     u32 nsols = ctx.solve();
     for (unsigned s = 0; s < nsols; s++) {
       printf("Solution");
@@ -743,7 +644,7 @@ int main(int argc, char **argv) {
       for (u32 i = 0; i < PROOFSIZE; i++)
         printf(" %jx", (uintmax_t)prf[i]);
       printf("\n");
-      int pow_rc = verify(prf, &ctx.trimmer->sipkeys);
+      int pow_rc = verify(prf, &ctx.trimmer.sipkeys);
       if (pow_rc == POW_OK) {
         printf("Verified with cyclehash ");
         unsigned char cyclehash[32];

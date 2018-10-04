@@ -8,11 +8,12 @@
 #include <assert.h>
 #include <sys/time.h> // gettimeofday
 #include "cuckoo.h"
-#include "siphash.cuh"
-#include "blake2.h"
+#include "../crypto/siphash.cuh"
+#include "../crypto/blake2.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;
+typedef uint64_t u64;
 
 typedef u32 node_t;
 typedef u64 nonce_t;

@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "cuckatoo.h"
-#include "siphash.cuh"
+#include "../crypto/siphash.cuh"
 #include "graph.hpp"
 
 #include <stdio.h>
@@ -253,8 +253,6 @@ int main(int argc, char **argv) {
     }
     for (u32 s=0; s < ctx.cg.nsols; s++) {
       printf("Solution");
-      qsort(&ctx.cg.sols[s], PROOFSIZE, sizeof(word_t), ctx.cg.nonce_cmp);
-  
       u32 j = 0, nalive = 0;
       for (word_t block = 0; block < NEDGES; block += 64) {
         u64 alive64 = ~bits[block/64];

@@ -45,5 +45,14 @@ mean29x8:	cuckatoo.h  bitmap.hpp graph.hpp crypto/siphash.h mean.hpp mean.cpp Ma
 mean29x1:	cuckatoo.h  bitmap.hpp graph.hpp crypto/siphash.h mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -DNSIPHASH=1 -DEDGEBITS=29 mean.cpp $(LIBS)
 
-lcuda29:	../siphash.cuh lean.cu Makefile
+lcuda19:	../crypto/siphash.cuh lean.cu Makefile
+	nvcc -o $@ -DEDGEBITS=19 -arch sm_35 lean.cu $(LIBS)
+
+lcuda29:	../crypto/siphash.cuh lean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lean.cu $(LIBS)
+
+cuda19:		../crypto/siphash.cuh mean.cu Makefile
+	nvcc -o $@ -DEDGEBITS=19 -arch sm_35 mean.cu $(LIBS)
+
+cuda29:		../crypto/siphash.cuh mean.cu Makefile
+	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean.cu $(LIBS)

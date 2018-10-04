@@ -51,7 +51,7 @@ struct cyclebase {
     for (u32 u = us[nu = 0] = u0; pathcount[u]; ) {
       pathcount[u]++;
       u = cuckoo[u];
-      if (++nu >= MAXPATHLEN) {
+      if (++nu >= (int)MAXPATHLEN) {
         while (nu-- && us[nu] != u) ;
         if (nu < 0)
           printf("maximum path length exceeded\n");
@@ -134,7 +134,7 @@ struct cyclebase {
     for (int i=0; i < ncycles; i++) {
       word_t u = cycleedges[i].u, v = cycleedges[i].v;
       int   nu = path(u, us),    nv = path(v, vs);
-      int root = us[nu]; assert(root == vs[nv]);
+      word_t root = us[nu]; assert(root == vs[nv]);
       int i2 = prevcycle[i] = cuckoo[root];
       cuckoo[root] = i;
       if (i2 < 0) continue;
@@ -143,7 +143,7 @@ struct cyclebase {
         printf("chord found at cycleids %d %d\n", i2, i);
         word_t u2 = cycleedges[i2].u, v2 = cycleedges[i2].v;
         int nu2 = path(u2, us2), nv2 = path(v2, vs2);
-        int root2 = us2[nu2]; assert(root2 == vs2[nv2] && root == root2);
+        word_t root2 = us2[nu2]; assert(root2 == vs2[nv2] && root == root2);
         int rootdist2 = pathjoin(us2, &nu2, vs2, &nv2);
         if (us[nu] == us2[nu2]) {
           len  = sharedlen(us,nu,us2,nu2) + sharedlen(us,nu,vs2,nv2);

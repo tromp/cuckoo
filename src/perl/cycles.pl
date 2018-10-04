@@ -9,7 +9,7 @@ while (<>) {
   if (/^nonce (\d+)/) {
     $nonce = $1;
     $nnonces += 1;
-  } elsif (/^Time/) {
+  } elsif (/^Time/ || /^findcycles/) {
     if ($ncycles > $maxcycles) {
       $maxnonce = $nonce;
       $maxcycles = $ncycles;
