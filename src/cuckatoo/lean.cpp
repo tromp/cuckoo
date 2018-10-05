@@ -11,7 +11,7 @@
 
 int main(int argc, char **argv) {
   int nthreads = 1;
-  int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
+  int ntrims   = 2 * (PART_BITS+3) * (PART_BITS+4);
   int nonce = 0;
   int range = 1;
   char header[HEADERLEN];
@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:n:r:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:r:t:")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
@@ -33,6 +33,9 @@ int main(int argc, char **argv) {
         break;
       case 'r':
         range = atoi(optarg);
+        break;
+      case 'm':
+        ntrims = atoi(optarg);
         break;
       case 't':
         nthreads = atoi(optarg);
@@ -84,7 +87,7 @@ int main(int argc, char **argv) {
       if (pow_rc == POW_OK) {
         printf("Verified with cyclehash ");
         unsigned char cyclehash[32];
-        blake2b((void *)cyclehash, sizeof(cyclehash), (const void *)ctx.cg.sols[s], sizeof(ctx.sols[0]), 0, 0);
+        blake2b((void *)cyclehash, sizeof(cyclehash), (const void *)ctx.sols[s], sizeof(ctx.sols[0]), 0, 0);
         for (int i=0; i<32; i++)
           printf("%02x", cyclehash[i]);
         printf("\n");

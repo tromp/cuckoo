@@ -30,12 +30,6 @@ typedef uint64_t u64; // save some typing
 #define PART_BITS 0
 #endif
 
-#ifndef REDUCE_NONCES
-// reduce number of edges this much under MAXEDGES
-// so that number of nodepairs will remain below MAXEDGES as well
-#define REDUCE_NONCES 7/8
-#endif
-
 #ifndef IDXSHIFT
 #define IDXSHIFT (PART_BITS + 8)
 #endif

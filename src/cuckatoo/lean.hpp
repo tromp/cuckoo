@@ -45,12 +45,6 @@ const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 #define PART_BITS 0
 #endif
 
-#ifndef REDUCE_NONCES
-// reduce number of edges this much under MAXEDGES
-// so that number of nodepairs will remain below MAXEDGES as well
-#define REDUCE_NONCES 7/8
-#endif
-
 #ifndef NPREFETCH
 // how many prefetches to queue up
 // before accessing the memory
@@ -243,7 +237,7 @@ void *worker(void *vp) {
   shrinkingset &alive = ctx->alive;
   // if (tp->id == 0) printf("initial size %d\n", NEDGES);
   u32 round;
-  for (round=1; alive.count() > MAXEDGES*REDUCE_NONCES; round++) {
+  for (round=1; round < ctx->ntrims; round++) {
     // if (tp->id == 0) printf("round %2d partition sizes", round);
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
