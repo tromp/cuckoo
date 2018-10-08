@@ -7,7 +7,7 @@
 // my own cycle finding is run single threaded to avoid losing cycles
 // to race conditions (typically takes under 1% of runtime)
 
-#include "cuckatoo.h"
+#include "cuckoo.h"
 #include "../crypto/siphashxN.h"
 #include <stdlib.h>
 #include <stdio.h>

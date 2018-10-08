@@ -33,16 +33,16 @@ lean19:		../crypto/siphash.h cuckoo.h  lean.cpp Makefile
 lean29x8:	../crypto/siphash.h cuckoo.h  lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean.cpp $(LIBS)
 
-mean19x8:	cuckoo.h  crypto/siphash.h mean.hpp mean.cpp Makefile
+mean19x8:	cuckoo.h ../crypto/siphash.h mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DXBITS=2 -DNSIPHASH=8 -DEDGEBITS=19 mean.cpp $(LIBS)
 
-mean29x4:	cuckoo.h  crypto/siphash.h mean.hpp mean.cpp Makefile
+mean29x4:	cuckoo.h ../crypto/siphash.h mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -mno-avx2 -DNSIPHASH=4 -DEDGEBITS=29 mean.cpp $(LIBS)
 
-mean29x8:	cuckoo.h  crypto/siphash.h mean.hpp mean.cpp Makefile
+mean29x8:	cuckoo.h ../crypto/siphash.h mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean.cpp $(LIBS)
 
-mean29x1:	cuckoo.h  crypto/siphash.h mean.hpp mean.cpp Makefile
+mean29x1:	cuckoo.h ../crypto/siphash.h mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -DNSIPHASH=1 -DEDGEBITS=29 mean.cpp $(LIBS)
 
 lcuda29:	../crypto/siphash.cuh lean.cu Makefile

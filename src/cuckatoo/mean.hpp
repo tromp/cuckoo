@@ -1,5 +1,5 @@
-// Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2018 John Tromp
+// Cuckatoo Cycle, a memory-hard proof-of-work
+// Copyright (c) 2013-2019 John Tromp
 // The edge-trimming memory optimization is due to Dave Andersen
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 // xenoncat demonstrated at https://github.com/xenoncat/cuckoo_pow
@@ -548,11 +548,11 @@ public:
       small.storeu(tbuckets+id, 0);
       dst.matrixu(ux);
       for (u32 uy = 0 ; uy < NY; uy++) {
-        memset(degs, 0xff, NZ);
+        memset(degs, 0, NZ);
         u8 *readsmall = tbuckets[id][uy].bytes, *endreadsmall = readsmall + tbuckets[id][uy].size;
 // if (id==1) printf("id %d ux %d y %d size %u sumsize %u\n", id, ux, uy, tbuckets[id][uy].size/BIGSIZE, sumsize);
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALLSIZE)
-          degs[*(u32 *)rdsmall & ZMASK]++;
+          degs[*(u32 *)rdsmall & ZMASK] = 1;
         u16 *zs = tzs[id];
 #ifdef SAVEEDGES
         u32 *edges0 = buckets[ux][uy].edges;
@@ -569,7 +569,7 @@ public:
           *edges = edge;
           const u32 z = e & ZMASK;
           *zs = z;
-          const u32 delta = degs[z] ? 1 : 0;
+          const u32 delta = degs[z ^ 1];
           edges += delta;
           zs    += delta;
         }
@@ -719,11 +719,11 @@ public:
       TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
       for (u32 vy = 0 ; vy < NY; vy++) {
         const u64 vy34 = (u64)vy << YZZBITS;
-        memset(degs, 0xff, NZ);
+        memset(degs, 0, NZ);
         u8    *readsmall = tbuckets[id][vy].bytes, *endreadsmall = readsmall + tbuckets[id][vy].size;
 // printf("id %d vx %d vy %d size %u sumsize %u\n", id, vx, vy, tbuckets[id][vx].size/BIGSIZE, sumsize);
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall += DSTSIZE)
-          degs[*(u32 *)rdsmall & ZMASK]++;
+          degs[*(u32 *)rdsmall & ZMASK] = DSTSIZE;
         u32 ux = 0;
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall += DSTSIZE) {
 // bit     41/39..34    33..26     25..13     12..0
@@ -736,7 +736,7 @@ public:
 // bit    41/39..34    33..21     20..13     12..0
 // write     VYYYYY    VZZZZZ     UYYYYY     UZZZZ   within UX partition
           *(u64 *)(base+dst.index[ux]) = vy34 | ((e & ZMASK) << YZBITS) | ((e >> ZBITS) & YZMASK);
-          dst.index[ux] += degs[e & ZMASK] ? DSTSIZE : 0;
+          dst.index[ux] += degs[(e & ZMASK) ^ 1];
         }
         if (unlikely(ux >> DSTPREFBITS != XMASK >> DSTPREFBITS))
         { printf("OOPS4: id %d vx %x ux %x vs %x\n", id, vx, ux, XMASK); }
@@ -804,11 +804,11 @@ public:
       u32 *renames = TRIMONV ? buckets[0][vx].renamev : buckets[vx][0].renameu;
       u32 *endrenames = renames + NZ1;
       for (u32 vy = 0 ; vy < NY; vy++) {
-        memset(degs, 0xff, 2*NZ);
+        memset(degs, 0, 2*NZ);
         u8    *readsmall = tbuckets[id][vy].bytes, *endreadsmall = readsmall + tbuckets[id][vy].size;
 // printf("id %d vx %d vy %d size %u sumsize %u\n", id, vx, vy, tbuckets[id][vx].size/BIGSIZE, sumsize);
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall += SRCSIZE)
-          degs[*(u32 *)rdsmall & ZMASK]++;
+          degs[*(u32 *)rdsmall & ZMASK] = 1;
         u32 ux = 0;
         u32 nrenames = 0;
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall += SRCSIZE) {
@@ -821,27 +821,28 @@ public:
             ux += ((u32)(e >> YZZBITS) - ux) & SRCPREFMASK2;
           else ux = e >> YZZ1BITS;
           const u32 vz = e & ZMASK;
-          u16 vdeg = degs[vz];
+          u16 vdeg = degs[vz ^ 1];
 // if (TRIMONV&&vx==75&&vy==83) printf("id %d vx %d vy %d e %010lx e37 %x ux %x vdeg %d nrenames %d\n", id, vx, vy, e, e>>YZZBITS, ux, vdeg, nrenames);
           if (vdeg) {
-            if (vdeg < 32) {
-              degs[vz] = vdeg = 32 + nrenames++;
-              *renames++ = vy << ZBITS | vz;
+            if (vdeg < 2) {
+              degs[vz] = degs[vz ^ 1] = vdeg = 2 + nrenames++;
+              *renames++ = vy << ZBITS | (vz & ~1);  // neutralize parity, to be restored upon use
               if (renames == endrenames) {
                 endrenames += (TRIMONV ? sizeof(yzbucket<ZBUCKETSIZE>) : sizeof(zbucket<ZBUCKETSIZE>)) / sizeof(u32);
                 renames = endrenames - NZ1;
               }
             }
+            vdeg = ((vdeg-2) << 1) | (vz & 1); // preserve parity
 // bit       36..22     21..15     14..0
 // write     VYYZZ'     UYYYYY     UZZZZ   within UX partition  if TRIMONV
             if (TRIMONV)
-                 *(u64 *)(base+dst.index[ux]) = ((u64)(newnodeid + vdeg-32) << YZBITS ) | ((e >> ZBITS) & YZMASK);
-            else *(u32 *)(base+dst.index[ux]) = ((newnodeid + vdeg-32) << YZ1BITS) | ((e >> ZBITS) & YZ1MASK);
+                 *(u64 *)(base+dst.index[ux]) = ((u64)(newnodeid + vdeg) << YZBITS ) | ((e >> ZBITS) & YZMASK);
+            else *(u32 *)(base+dst.index[ux]) = (     (newnodeid + vdeg) << YZ1BITS) | ((e >> ZBITS) & YZ1MASK);
 // if (vx==44&&vy==58) printf("  id %d vx %d vy %d newe %010lx\n", id, vx, vy, vy28 | ((vdeg) << YZBITS) | ((e >> ZBITS) & YZMASK));
             dst.index[ux] += DSTSIZE;
           }
         }
-        newnodeid += nrenames;
+        newnodeid += 2 * nrenames;
         if (TRIMONV && unlikely(ux >> SRCPREFBITS2 != XMASK >> SRCPREFBITS2))
         { printf("OOPS6: id %d vx %d vy %d ux %x vs %x\n", id, vx, vy, ux, XMASK); exit(0); }
       }
@@ -851,6 +852,7 @@ public:
     }
     rdtsc1 = __rdtsc();
     if (showall || !id) printf("trimrename id %d round %2d size %u rdtsc: %lu maxnnid %d\n", id, round, sumsize/DSTSIZE, rdtsc1-rdtsc0, maxnnid);
+    if (maxnnid >= NYZ1) printf("maxnnid %d >= NYZ1 %d\n", maxnnid, NYZ1);
     assert(maxnnid < NYZ1);
     tcounts[id] = sumsize/DSTSIZE;
   }
@@ -868,13 +870,13 @@ public:
     const u32   endvx = NY * (id+1) / nthreads;
     for (u32 vx = startvx; vx < endvx; vx++) {
       TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
-      memset(degs, 0xff, NYZ1);
+      memset(degs, 0, NYZ1);
       for (u32 ux = 0 ; ux < NX; ux++) {
         zbucket<ZBUCKETSIZE> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
         u32 *readbig = zb.words, *endreadbig = readbig + zb.size/sizeof(u32);
         // printf("id %d vx %d ux %d size %d\n", id, vx, ux, zb.size/SRCSIZE);
         for (; readbig < endreadbig; readbig++)
-          degs[*readbig & YZ1MASK]++;
+          degs[*readbig & YZ1MASK] = sizeof(u32);
       }
       for (u32 ux = 0 ; ux < NX; ux++) {
         zbucket<ZBUCKETSIZE> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
@@ -888,7 +890,7 @@ public:
 // bit       29..22    21..15     14..7     6..0
 // write     VYYYYY    VZZZZ'     UYYYY     UZZ'   within UX partition
           *(u32 *)(base+dst.index[ux]) = (vyz << YZ1BITS) | (e >> YZ1BITS);
-          dst.index[ux] += degs[vyz] ? sizeof(u32) : 0;
+          dst.index[ux] += degs[vyz ^ 1];
         }
       }
       sumsize += TRIMONV ? dst.storev(buckets, vx) : dst.storeu(buckets, vx);

@@ -1,7 +1,7 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2018 John Tromp
 
-#include "mean_miner.hpp"
+#include "mean.hpp"
 #include <unistd.h>
 #include <sys/time.h>
 
