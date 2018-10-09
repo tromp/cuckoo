@@ -65,6 +65,18 @@ public:
     visited.clear();
   }
 
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, char *bytes) : visited(maxedges) {
+    MAXEDGES = maxedges;
+    MAXNODES = maxnodes;
+    MAXSOLS = maxsols;
+    adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
+    links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[2*MAXEDGES];
+    compressu = compressv = 0;
+    sharedmem = true;
+    sols    = new  proof[MAXSOLS];
+    visited.clear();
+  }
+
   graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits, char *bytes) : visited(maxedges) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
