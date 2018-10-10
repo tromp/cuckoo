@@ -1091,26 +1091,18 @@ public:
     return sizeof(thread_ctx) + sizeof(yzbucket<TBUCKETSIZE>) + sizeof(zbucket8) + sizeof(zbucket16) + sizeof(zbucket32);
   }
   void recordedge(const u32 i, const u32 u1, const u32 v2) {
-    assert(u1 < MAXEDGES);
     const u32 ux = u1 >> YZ2BITS;
-    assert(ux < NX);
     u32 uyz = trimmer.buckets[ux][(u1 >> Z2BITS) & YMASK].renameu1[(u1 & Z2MASK) >> 1] | (u1 & 1);
-    assert(uyz < NYZ1);
-    assert(v2 >= MAXEDGES);
     const u32 v1 = v2 - MAXEDGES;
-    assert(v1 < MAXEDGES);
     const u32 vx = v1 >> YZ2BITS;
-    assert(vx < NX);
     u32 vyz = trimmer.buckets[(v1 >> Z2BITS) & YMASK][vx].renamev1[(v1 & Z2MASK) >> 1] | (v1 & 1);
-    assert(vyz < NYZ1);
 #if COMPRESSROUND > 0
-    uyz = trimmer.buckets[ux][uyz >> Z1BITS].renameu[(uyz & Z1MASK) >> 1] | (uyz & 1);
-    vyz = trimmer.buckets[vyz >> Z1BITS][vx].renamev[(vyz & Z1MASK) >> 1] | (vyz & 1);
+    uyz = trimmer.buckets[ux][uyz >> Z1BITS].renameu[(uyz & Z1MASK) >> 1] | (u1 & 1);
+    vyz = trimmer.buckets[vyz >> Z1BITS][vx].renamev[(vyz & Z1MASK) >> 1] | (v1 & 1);
 #endif
     const u32 u = cycleus[i] = (ux << YZBITS) | uyz;
-    const u32 v = cyclevs[i] = (vx << YZBITS) | vyz;
-    // printf(" (%x,%x)", u, v);
-    printf(" (%x,%x)", ux << YZBITS | uyz, vx << YZBITS | vyz);
+    cyclevs[i] = (vx << YZBITS) | vyz;
+    // printf(" (%x,%x)", u, cyclevs[i]);
 #ifdef SAVEEDGES
     u32 *readedges = trimmer.buckets[ux][uyz >> ZBITS].edges, *endreadedges = readedges + NTRIMMEDZ;
     for (; readedges < endreadedges; readedges++) {
@@ -1127,10 +1119,10 @@ public:
   }
 
   void solution(const proof sol) {
-    printf("Nodes");
+    // printf("Nodes");
     for (u32 i = 0; i < PROOFSIZE; i++)
       recordedge(i, cg.links[2*sol[i]].to, cg.links[2*sol[i]+1].to);
-    printf("\n");
+    // printf("\n");
     if (showcycle) {
 #ifndef SAVEEDGES
       void *matchworker(void *vp);
