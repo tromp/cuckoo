@@ -1104,6 +1104,7 @@ public:
     cyclevs[i] = (vx << YZBITS) | vyz;
     // printf(" (%x,%x)", u, cyclevs[i]);
 #ifdef SAVEEDGES
+    u32 v = cyclevs[i];
     u32 *readedges = trimmer.buckets[ux][uyz >> ZBITS].edges, *endreadedges = readedges + NTRIMMEDZ;
     for (; readedges < endreadedges; readedges++) {
       u32 edge = *readedges;
