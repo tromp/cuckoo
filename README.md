@@ -1,9 +1,6 @@
 Cuck(at)oo Cycle
 ================
 
-THIS REPO IS UNDERGOING CONSTRUCTION WHILE ADDING CUCKATOO SOLVERS AND CHANGING DIRECTORY STRUCTURE.
-PLEASE BEAR WITH US...
-
 [Blog article explaining Cuckoo Cycle](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing)
 
 [Whitepaper](doc/cuckoo.pdf?raw=true)
