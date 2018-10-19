@@ -8,11 +8,20 @@
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
 
+void test_sol_cb(u64 nonce, word_t* nonces){
+	printf("CALLBACK FOR NONCE: %lld\n", nonce);
+   for (u32 i = 0; i < PROOFSIZE; i++)
+       printf(" %jx", (uintmax_t)nonces[i]);
+}
+
 CALL_CONVENTION int run_solver(char* header,
                                int header_length,
-                               u32* sol_nonces[PROOFSIZE],
-                               int* n_solutions,
-                               ParamMap params)
+                               ParamMap params,
+                               // Solution callback: header nonce, solution nonces
+                               void (*sol_cb)(u64, word_t* nonces),
+                               // Stat collection callback, TODO: Define struct that gets sent
+                               void (*stat_cb)(int)
+                               )
 {
   u32 nthreads = params.get("nthreads");
   u32 ntrims = params.get("ntrims");
@@ -40,6 +49,7 @@ CALL_CONVENTION int run_solver(char* header,
   printf("%d-way siphash, and %d buckets.\n", NSIPHASH, NX);
 
   u32 sumnsols = 0;
+
   for (u32 r = 0; r < range; r++) {
     gettimeofday(&time0, 0);
     ctx.setheadernonce(header, header_length, nonce + r);
@@ -55,6 +65,9 @@ CALL_CONVENTION int run_solver(char* header,
       for (u32 i = 0; i < PROOFSIZE; i++)
         printf(" %jx", (uintmax_t)prf[i]);
       printf("\n");
+      if (sol_cb != NULL){
+        sol_cb(nonce + r, prf);
+      }
       int pow_rc = verify(prf, &ctx.trimmer.sip_keys);
       if (pow_rc == POW_OK) {
         printf("Verified with cyclehash ");
@@ -72,8 +85,6 @@ CALL_CONVENTION int run_solver(char* header,
   printf("%d total solutions\n", sumnsols);
   return 0;
 }
-
-
 
 int main(int argc, char **argv) {
   u32 nthreads = 1;
@@ -133,7 +144,5 @@ int main(int argc, char **argv) {
 	params.set("showcycle", showcycle);
 	params.set("nthreads", nthreads);
 
-	u32* sols[PROOFSIZE];
-	int n_sols;
-	run_solver(header, sizeof(header), sols, &n_sols, params);
+	run_solver(header, sizeof(header), params, &test_sol_cb, NULL);
 }

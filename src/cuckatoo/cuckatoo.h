@@ -26,9 +26,6 @@ CALL_CONVENTION void stop_solver() {
 	SHOULD_STOP = true;
 }
 
-// Maximum number of PROOFSIZE-length cycles to return to caller
-#define MAX_SOLS 10
-
 // Ability to squash printf output at compile time, if desired
 #ifndef SQUASH_OUTPUT
 #define SQUASH_OUTPUT 0
