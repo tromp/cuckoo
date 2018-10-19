@@ -35,9 +35,9 @@ typedef uint64_t u64; // save some typing
 #endif
 #define MAXEDGES (NEDGES >> IDXSHIFT)
 
-const static u32 PART_MASK = (1 << PART_BITS) - 1;
-const static u32 NONPART_BITS = EDGEBITS - PART_BITS;
-const static u32 NONPART_MASK = (1U << NONPART_BITS) - 1U;
+const static word_t PART_MASK = (1 << PART_BITS) - 1;
+const static word_t NONPART_BITS = EDGEBITS - PART_BITS;
+const static word_t NONPART_MASK = ((word_t)1 << NONPART_BITS) - 1;
 
 #define NODEBITS (EDGEBITS + 1)
 #define NNODES (2 * NEDGES)

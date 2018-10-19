@@ -59,9 +59,9 @@ const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 #endif
 #define MAXEDGES (NEDGES >> IDXSHIFT)
 
-const static u32 PART_MASK = (1 << PART_BITS) - 1;
-const static u32 NONPART_BITS = EDGEBITS - PART_BITS;
-const static u32 NONPART_MASK = (1U << NONPART_BITS) - 1U;
+const static word_t PART_MASK = (1 << PART_BITS) - 1;
+const static word_t NONPART_BITS = EDGEBITS - PART_BITS;
+const static word_t NONPART_MASK = ((word_t)1 << NONPART_BITS) - 1;
 
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
@@ -115,6 +115,7 @@ public:
 
   cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) : alive(n_threads), nonleaf(NEDGES >> PART_BITS),
       cg(MAXEDGES, MAXEDGES, max_sols, IDXSHIFT, (char *)nonleaf.bits) {
+    printf("cg.bytes %llu NEDGES/8 %llu\n", cg.bytes(), NEDGES/8);
     assert(cg.bytes() <= NEDGES/8); // check that graph cg can fit in share nonleaf's memory
     nthreads = n_threads;
     ntrims = n_trims;
@@ -135,7 +136,7 @@ public:
   }
   void prefetch(const u64 *hashes, const u32 part) const {
     for (u32 i=0; i < NSIPHASH; i++) {
-      u32 u = hashes[i] & EDGEMASK;
+      u64 u = hashes[i] & EDGEMASK;
       if ((u >> NONPART_BITS) == part) {
         nonleaf.prefetch(u & NONPART_MASK);
       }
@@ -143,7 +144,7 @@ public:
   }
   void node_deg(const u64 *hashes, const u32 nsiphash, const u32 part) {
     for (u32 i=0; i < nsiphash; i++) {
-      u32 u = hashes[i] & EDGEMASK;
+      u64 u = hashes[i] & EDGEMASK;
       if ((u >> NONPART_BITS) == part) {
         nonleaf.set(u & NONPART_MASK);
       }
@@ -151,7 +152,7 @@ public:
   }
   void kill(const u64 *hashes, const u64 *indices, const u32 nsiphash, const u32 part, const u32 id) {
     for (u32 i=0; i < nsiphash; i++) {
-      u32 u = hashes[i] & EDGEMASK;
+      u64 u = hashes[i] & EDGEMASK;
       if ((u >> NONPART_BITS) == part && !nonleaf.test((u & NONPART_MASK) ^ 1)) {
         alive.reset(indices[i]/2, id);
       }
