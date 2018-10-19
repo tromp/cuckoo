@@ -8,19 +8,25 @@
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
 
-void test_sol_cb(u64 nonce, word_t* nonces){
-	printf("CALLBACK FOR NONCE: %lld\n", nonce);
-   for (u32 i = 0; i < PROOFSIZE; i++)
-       printf(" %jx", (uintmax_t)nonces[i]);
-}
+/*
+ int device id
+ int edge_bits
+ string device_name
+ bool has_errored
+ int last_start_time
+ int last_end_time
+ int last_solution time
+*/
 
 CALL_CONVENTION int run_solver(char* header,
                                int header_length,
                                ParamMap params,
                                // Solution callback: header nonce, solution nonces
                                void (*sol_cb)(u64, word_t* nonces),
-                               // Stat collection callback, TODO: Define struct that gets sent
-                               void (*stat_cb)(int)
+                               // Stat collection callback
+                               // device_id, edge_bits, device_name, device_name_len, has_errored
+                               // last_start_time, last_end_time, last_solution time
+                               void (*stat_cb)(u32, u32, char*, u32, bool, u64, u64, u64)
                                )
 {
   u32 nthreads = params.get("nthreads");
@@ -81,6 +87,11 @@ CALL_CONVENTION int run_solver(char* header,
       }
     }
     sumnsols += nsols;
+    if (stat_cb != NULL) {
+        /// TODO: better timer resolution
+        char device_name[3] = {'C', 'P', 'U'};
+        stat_cb(0, EDGEBITS, device_name, 3, false, time0.tv_usec, time1.tv_usec, time1.tv_usec-time0.tv_usec);
+    }
   }
   printf("%d total solutions\n", sumnsols);
   return 0;
@@ -144,5 +155,5 @@ int main(int argc, char **argv) {
 	params.set("showcycle", showcycle);
 	params.set("nthreads", nthreads);
 
-	run_solver(header, sizeof(header), params, &test_sol_cb, NULL);
+	run_solver(header, sizeof(header), params, NULL, NULL);
 }

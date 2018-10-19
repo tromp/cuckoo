@@ -10,9 +10,6 @@ class ParamMap {
 	public:
 		void set(string name, int value);
 		int get(string name);
-		// call above in a more linker-friendly way
-		CALL_CONVENTION void set_param(const char* name, unsigned int name_len, int value);
-		CALL_CONVENTION int get_param(const char* name, unsigned int name_len);
 	private:
 		unordered_map<string, int> pmap;
 };
@@ -28,11 +25,11 @@ int ParamMap::get(string name){
 }
 
 // intended for linkage
-CALL_CONVENTION void ParamMap::set_param(const char* name, unsigned int name_len, int value) {
-	set(string(name, name_len), value);
+CALL_CONVENTION void set_param(ParamMap* map, const char* name, unsigned int name_len, int value) {
+	map->set(string(name, name_len), value);
 }
 
 // intended for linkage
-CALL_CONVENTION int ParamMap::get_param(const char* name, unsigned int name_len){
-	return get(string(name, name_len));
+CALL_CONVENTION int get_param(ParamMap* map, const char* name, unsigned int name_len){
+	return map->get(string(name, name_len));
 }
