@@ -1,10 +1,46 @@
 // Cuck(at)oo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2019 John Tromp
-
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset
+#include <atomic>   // for atomic bool
 #include "../crypto/blake2.h"
 #include "../crypto/siphash.h"
+#include "param_map.h"
+
+/////////////////////////////////////////////////////////////////
+// Declarations to make it easier for callers to link as required
+/////////////////////////////////////////////////////////////////
+
+// convention to prepend to called functions
+#ifndef CALL_CONVENTION
+#define CALL_CONVENTION
+#endif
+
+// if this is set, immediately stop all solvers and return to caller gracefully
+std::atomic_bool SHOULD_STOP(false);
+
+// All solver functions should check for SHOULD_STOP
+// as appropriate, the idea being solvers should stop and exit
+// gracefully from the run_solver function
+CALL_CONVENTION void stop_solver() {
+	SHOULD_STOP = true;
+}
+
+// Maximum number of PROOFSIZE-length cycles to return to caller
+#define MAX_SOLS 10
+
+// Ability to squash printf output at compile time, if desired
+#ifndef SQUASH_OUTPUT
+#define SQUASH_OUTPUT 0
+#endif
+
+#if SQUASH_OUTPUT
+#define printf(fmt, ...) (0)
+#endif
+
+//////////////////////////////////////////////////////////////////
+// END caller QOL
+//////////////////////////////////////////////////////////////////
 
 // proof-of-work parameters
 #ifndef EDGEBITS
