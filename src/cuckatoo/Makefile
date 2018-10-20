@@ -54,6 +54,9 @@ lcuda19:	../crypto/siphash.cuh lean.cu Makefile
 lcuda29:	../crypto/siphash.cuh lean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lean.cu $(LIBS)
 
+lcuda32:	../crypto/siphash.cuh lean.cu Makefile
+	nvcc -o $@ -DEDGEBITS=32 -arch sm_35 lean.cu $(LIBS)
+
 cuda19:		../crypto/siphash.cuh mean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=19 -arch sm_35 mean.cu $(LIBS)
 

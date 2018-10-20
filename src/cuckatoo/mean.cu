@@ -367,11 +367,9 @@ struct edgetrimmer {
   int *indexesE2;
   u32 hostA[NX * NY];
   u32 *uvnodes;
-  proof sol;
   siphash_keys sipkeys, *dipkeys;
 
-  edgetrimmer(const trimparams _tp) {
-    tp = _tp;
+  edgetrimmer(const trimparams _tp) : tp(_tp) {
     checkCudaErrors(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
     checkCudaErrors(cudaMalloc((void**)&uvnodes, PROOFSIZE * 2 * sizeof(u32)));
     checkCudaErrors(cudaMalloc((void**)&dipkeys, sizeof(siphash_keys)));
@@ -383,24 +381,22 @@ struct edgetrimmer {
     checkCudaErrors(cudaMalloc((void**)&bufferA, bufferSize));
     bufferB  = bufferA + sizeA / sizeof(ulonglong4);
     bufferAB = bufferA + sizeB / sizeof(ulonglong4);
+    cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
   }
   u64 globalbytes() const {
     return (sizeA+sizeB) + 2 * indexesSize + sizeof(siphash_keys) + PROOFSIZE * 2 * sizeof(u32) + sizeof(edgetrimmer);
   }
   ~edgetrimmer() {
-    cudaFree(bufferA);
-    cudaFree(indexesE2);
-    cudaFree(indexesE);
-    cudaFree(dipkeys);
-    cudaFree(uvnodes);
-    cudaFree(dt);
+    checkCudaErrors(cudaFree(bufferA));
+    checkCudaErrors(cudaFree(indexesE2));
+    checkCudaErrors(cudaFree(indexesE));
+    checkCudaErrors(cudaFree(dipkeys));
+    checkCudaErrors(cudaFree(uvnodes));
+    checkCudaErrors(cudaFree(dt));
     cudaDeviceReset();
   }
   u32 trim() {
-    cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
     cudaEvent_t start, stop;
-    cudaEvent_t startall, stopall;
-    checkCudaErrors(cudaEventCreate(&startall)); checkCudaErrors(cudaEventCreate(&stopall));
     checkCudaErrors(cudaEventCreate(&start)); checkCudaErrors(cudaEventCreate(&stop));
   
     cudaMemset(indexesE, 0, indexesSize);
@@ -532,7 +528,7 @@ struct solver_ctx {
     findcycles(edges, nedges);
     gettimeofday(&time1, 0);
     timems2 = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
-    printf("findcycles edges %d time %d ms total %d ms\n", nedges, timems2, timems+timems2);
+    printf("%d trims %d ms %d edges %d ms total %d ms\n", trimmer.tp.ntrims, timems, nedges, timems2, timems+timems2);
     return sols.size() / PROOFSIZE;
   }
 };
@@ -552,7 +548,7 @@ int main(int argc, char **argv) {
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt(argc, argv, "sb:c:d:E:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
+  while ((c = getopt(argc, argv, "sb:d:E:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
     switch (c) {
       case 's':
         printf("SYNOPSIS\n  cuda%d [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
@@ -632,7 +628,6 @@ int main(int argc, char **argv) {
   for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
   printf("Using %d%cB of global memory.\n", (u32)bytes, " KMGT"[unit]);
 
-  cudaSetDevice(device);
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
     ctx.setheadernonce(header, sizeof(header), nonce + r);
