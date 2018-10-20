@@ -42,17 +42,26 @@ mean29x4:	cuckatoo.h  bitmap.hpp graph.hpp ../crypto/siphash.h mean.hpp mean.cpp
 mean29x8:	cuckatoo.h  bitmap.hpp graph.hpp ../crypto/siphash.h mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean.cpp $(LIBS)
 
+mean30x8:	cuckatoo.h  bitmap.hpp graph.hpp ../crypto/siphash.h mean.hpp mean.cpp Makefile
+	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEXPANDROUND=10 -DCOMPRESSROUND=22 -DEDGEBITS=30 mean.cpp $(LIBS)
+
 mean29x8s:	cuckatoo.h  bitmap.hpp graph.hpp ../crypto/siphash.h mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DSAVEEDGES -DNSIPHASH=8 -DEDGEBITS=29 mean.cpp $(LIBS)
 
 mean29x1:	cuckatoo.h  bitmap.hpp graph.hpp ../crypto/siphash.h mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -DNSIPHASH=1 -DEDGEBITS=29 mean.cpp $(LIBS)
 
+mean30x1:	cuckatoo.h  bitmap.hpp graph.hpp ../crypto/siphash.h mean.hpp mean.cpp Makefile
+	$(GPP) -o $@ -DNSIPHASH=1 -DEXPANDROUND=10 -DCOMPRESSROUND=22 -DEDGEBITS=30 mean.cpp $(LIBS)
+
 lcuda19:	../crypto/siphash.cuh lean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=19 -arch sm_35 lean.cu $(LIBS)
 
 lcuda29:	../crypto/siphash.cuh lean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lean.cu $(LIBS)
+
+lcuda30:	../crypto/siphash.cuh lean.cu Makefile
+	nvcc -o $@ -DEDGEBITS=30 -arch sm_35 lean.cu $(LIBS)
 
 lcuda32:	../crypto/siphash.cuh lean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=32 -arch sm_35 lean.cu $(LIBS)
