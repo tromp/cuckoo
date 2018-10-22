@@ -117,7 +117,7 @@ public:
     if (visited.test(u >> 1))
       return;
     if ((u ^ 1) == dest) {
-      printf("  %d-cycle found\n", len);
+      print_log("  %d-cycle found\n", len);
       if (len == PROOFSIZE && nsols < MAXSOLS) {
         qsort(sols[nsols++], PROOFSIZE, sizeof(word_t), nonce_cmp);
         memcpy(sols[nsols], sols[nsols-1], sizeof(sols[0]));

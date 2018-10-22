@@ -3,6 +3,8 @@
 
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset
+#include <stdarg.h>
+#include <stdio.h> 
 #include <chrono>
 #include <ctime>
 #include "../crypto/blake2.h"
@@ -165,10 +167,13 @@ CALL_CONVENTION void stop_solver() {
 #define SQUASH_OUTPUT 0
 #endif
 
-#if SQUASH_OUTPUT
-#define printf(fmt, ...) (0)
-#endif
-
+void print_log(const char *fmt, ...) {
+	if (SQUASH_OUTPUT) return;
+	va_list args;
+	va_start(args, fmt);
+	vprintf(fmt, args);
+	va_end(args);
+}
 //////////////////////////////////////////////////////////////////
 // END caller QOL
 //////////////////////////////////////////////////////////////////
