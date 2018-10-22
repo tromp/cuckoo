@@ -37,6 +37,40 @@ typedef uint16_t word_t;
 // used to mask siphash output
 #define EDGEMASK ((word_t)NEDGES - 1)
 
+// Common Solver parameters, to return to caller
+struct SolverParams {
+	u32 nthreads = 0;
+	u32 ntrims = 0;
+	bool showcycle;
+	bool allrounds;
+};
+
+// Solutions result structs to be instantiated by caller,
+// and filled by solver if desired
+struct Solution {
+ u64 nonce = 0;
+ u64 proof[PROOFSIZE];
+};
+
+struct SolverSolutions {
+ u32 edge_bits = 0;
+ u32 num_sols = 0;
+ Solution sols[MAX_SOLS];
+};
+
+#define MAX_DEVICE_NAME_LEN 256
+
+// Solver statistics, to be instantiated by caller
+// and filled by solver if desired
+struct SolverStats {
+	u32 device_id = 0;
+	u32 edge_bits = 0;
+	char device_name[256];
+	u64 last_start_time = 0;
+	u64 last_end_time = 0;
+	u64 last_solution_time = 0;
+};
+
 // generate edge endpoint in cuck(at)oo graph without partition bit
 word_t sipnode(siphash_keys *keys, word_t edge, u32 uorv) {
   return siphash24(keys, 2*edge + uorv) & EDGEMASK;
@@ -134,38 +168,6 @@ CALL_CONVENTION void stop_solver() {
 #if SQUASH_OUTPUT
 #define printf(fmt, ...) (0)
 #endif
-
-// Common Solver Parameters
-struct SolverParams {
-	u32 nthreads = 0;
-	u32 ntrims = 0;
-	bool showcycle;
-	bool allrounds;
-};
-
-// Solutions
-struct Solution {
- u64 nonce = 0;
- u64 proof[PROOFSIZE];
-};
-
-struct SolverSolutions {
- u32 edge_bits = 0;
- u32 num_sols = 0;
- Solution sols[MAX_SOLS];
-};
-
-#define MAX_DEVICE_NAME_LEN 256
-
-// Common solver statistics
-struct SolverStats {
-	u32 device_id = 0;
-	u32 edge_bits = 0;
-	char device_name[256];
-	u64 last_start_time = 0;
-	u64 last_end_time = 0;
-	u64 last_solution_time = 0;
-};
 
 //////////////////////////////////////////////////////////////////
 // END caller QOL
