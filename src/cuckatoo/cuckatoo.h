@@ -3,8 +3,14 @@
 
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset
+#include <chrono>
+#include <ctime>
 #include "../crypto/blake2.h"
 #include "../crypto/siphash.h"
+
+// save some keystrokes since i'm a lazy typer
+typedef uint32_t u32;
+typedef uint64_t u64;
 
 // proof-of-work parameters
 #ifndef EDGEBITS
@@ -17,9 +23,6 @@
 // of the cycle to be found. a minimum of 12 is recommended
 #define PROOFSIZE 42
 #endif
-
-// save some keystrokes since i'm a lazy typer
-typedef uint32_t u32;
 
 #if EDGEBITS > 30
 typedef uint64_t word_t;
@@ -86,3 +89,85 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
 word_t sipnode_(siphash_keys *keys, word_t edge, u32 uorv) {
   return (word_t)sipnode(keys, edge, uorv) << 1 | uorv;
 }
+
+u64 timestamp() {
+	using namespace std::chrono;
+	high_resolution_clock::time_point now = high_resolution_clock::now();
+	auto dn = now.time_since_epoch();
+	return dn.count();
+}
+
+/////////////////////////////////////////////////////////////////
+// Declarations to make it easier for callers to link as required
+/////////////////////////////////////////////////////////////////
+
+#ifndef C_CALL_CONVENTION
+#define C_CALL_CONVENTION 0
+#endif
+
+// convention to prepend to called functions
+#if C_CALL_CONVENTION
+#define CALL_CONVENTION extern "C"
+#else
+#define CALL_CONVENTION
+#endif
+
+#ifndef MAX_SOLS
+#define MAX_SOLS 4
+#endif
+
+// if this is set, immediately stop all solvers and return to caller gracefully
+bool SHOULD_STOP = false;
+
+// All solver functions should check for SHOULD_STOP
+// as appropriate, the idea being solvers should stop and exit
+// gracefully from the run_solver function
+CALL_CONVENTION void stop_solver() {
+	SHOULD_STOP = true;
+}
+
+// Ability to squash printf output at compile time, if desired
+#ifndef SQUASH_OUTPUT
+#define SQUASH_OUTPUT 0
+#endif
+
+#if SQUASH_OUTPUT
+#define printf(fmt, ...) (0)
+#endif
+
+// Common Solver Parameters
+struct SolverParams {
+	u32 nthreads = 0;
+	u32 ntrims = 0;
+	bool showcycle;
+	bool allrounds;
+};
+
+// Solutions
+struct Solution {
+ u64 nonce = 0;
+ u64 proof[PROOFSIZE];
+};
+
+struct SolverSolutions {
+ u32 edge_bits = 0;
+ u32 num_sols = 0;
+ Solution sols[MAX_SOLS];
+};
+
+#define MAX_DEVICE_NAME_LEN 256
+
+// Common solver statistics
+struct SolverStats {
+	u32 device_id = 0;
+	u32 edge_bits = 0;
+	char device_name[256];
+	u64 last_start_time = 0;
+	u64 last_end_time = 0;
+	u64 last_solution_time = 0;
+};
+
+//////////////////////////////////////////////////////////////////
+// END caller QOL
+//////////////////////////////////////////////////////////////////
+

@@ -8,9 +8,89 @@
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
 
+typedef solver_ctx SolverCtx;
+
+CALL_CONVENTION int run_solver(SolverCtx* ctx,
+                               char* header,
+                               int header_length,
+                               u64 nonce,
+                               u32 range,
+                               SolverSolutions *solutions,
+                               SolverStats *stats
+                               )
+{
+
+  u64 time0, time1;
+  u32 timems;
+  u32 sumnsols = 0;
+
+  for (u32 r = 0; r < range; r++) {
+    time0 = timestamp();
+    ctx->setheadernonce(header, header_length, nonce + r);
+    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx->trimmer.sip_keys.k0, ctx->trimmer.sip_keys.k1, ctx->trimmer.sip_keys.k2, ctx->trimmer.sip_keys.k3);
+    u32 nsols = ctx->solve();
+    time1 = timestamp();
+    timems = (time1 - time0) / 1000000;
+    printf("Time: %d ms\n", timems);
+
+    for (unsigned s = 0; s < nsols; s++) {
+      printf("Solution");
+      word_t *prf = &ctx->sols[s * PROOFSIZE];
+      for (u32 i = 0; i < PROOFSIZE; i++)
+        printf(" %jx", (uintmax_t)prf[i]);
+      printf("\n");
+      if (solutions != NULL){
+        solutions->edge_bits = EDGEBITS;
+        solutions->num_sols++;
+        solutions->sols[sumnsols+s].nonce = nonce + r;
+        for (u32 i = 0; i < PROOFSIZE; i++) 
+          solutions->sols[sumnsols+s].proof[i] = (u64) prf[i];
+      }
+      int pow_rc = verify(prf, &ctx->trimmer.sip_keys);
+      if (pow_rc == POW_OK) {
+        printf("Verified with cyclehash ");
+        unsigned char cyclehash[32];
+        blake2b((void *)cyclehash, sizeof(cyclehash), (const void *)prf, sizeof(proof), 0, 0);
+        for (int i=0; i<32; i++)
+          printf("%02x", cyclehash[i]);
+        printf("\n");
+      } else {
+        printf("FAILED due to %s\n", errstr[pow_rc]);
+      }
+    }
+    sumnsols += nsols;
+    if (stats != NULL) {
+        /// TODO: better timer resolution
+        stats->device_id = 0;
+        stats->edge_bits = EDGEBITS;
+        strncpy(stats->device_name, "CPU\0", MAX_DEVICE_NAME_LEN);
+        stats->last_start_time = time0;
+        stats->last_end_time = time1;
+        stats->last_solution_time = time1 - time0;
+    }
+  }
+  printf("%d total solutions\n", sumnsols);
+  return sumnsols > 0;
+}
+
+CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
+  if (params->nthreads == 0) params->nthreads = 1;
+  if (params->ntrims == 0) params->ntrims = EDGEBITS > 30 ? 96 : 68;
+
+  SolverCtx* ctx = new SolverCtx(params->nthreads,
+                                 params->ntrims,
+                                 params->allrounds,
+                                 params->showcycle);
+  return ctx;
+}
+
+CALL_CONVENTION void destroy_solver_ctx(SolverCtx* ctx) {
+  delete ctx;
+}
+
 int main(int argc, char **argv) {
-  u32 nthreads = 1;
-  u32 ntrims = EDGEBITS > 30 ? 192 : 136;
+  u32 nthreads = 0;
+  u32 ntrims = 0;
   u32 nonce = 0;
   u32 range = 1;
 #ifdef SAVEEDGES
@@ -18,8 +98,6 @@ int main(int argc, char **argv) {
 #else
   bool showcycle = 0;
 #endif
-  struct timeval time0, time1;
-  u32 timems;
   char header[HEADERLEN];
   u32 len;
   bool allrounds = false;
@@ -59,52 +137,30 @@ int main(int argc, char **argv) {
         break;
     }
   }
-  printf("Looking for %d-cycle on cuckatoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
+
+	SolverParams params;
+	params.nthreads = nthreads;
+	params.ntrims = ntrims;
+	params.showcycle = showcycle;
+	params.allrounds = allrounds;
+
+  SolverCtx* ctx = create_solver_ctx(&params);
+
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
   printf(") with 50%% edges\n");
 
-  solver_ctx ctx(nthreads, ntrims, allrounds, showcycle);
-
-  u64 sbytes = ctx.sharedbytes();
-  u32 tbytes = ctx.threadbytes();
+  u64 sbytes = ctx->sharedbytes();
+  u32 tbytes = ctx->threadbytes();
   int sunit,tunit;
   for (sunit=0; sbytes >= 10240; sbytes>>=10,sunit++) ;
   for (tunit=0; tbytes >= 10240; tbytes>>=10,tunit++) ;
-  printf("Using %d%cB bucket memory at %lx,\n", sbytes, " KMGT"[sunit], (u64)ctx.trimmer.buckets);
-  printf("%dx%d%cB thread memory at %lx,\n", nthreads, tbytes, " KMGT"[tunit], (u64)ctx.trimmer.tbuckets);
+  printf("Using %d%cB bucket memory at %lx,\n", sbytes, " KMGT"[sunit], (u64)ctx->trimmer.buckets);
+  printf("%dx%d%cB thread memory at %lx,\n", params.nthreads, tbytes, " KMGT"[tunit], (u64)ctx->trimmer.tbuckets);
   printf("%d-way siphash, and %d buckets.\n", NSIPHASH, NX);
 
-  u32 sumnsols = 0;
-  for (u32 r = 0; r < range; r++) {
-    gettimeofday(&time0, 0);
-    ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.trimmer.sip_keys.k0, ctx.trimmer.sip_keys.k1, ctx.trimmer.sip_keys.k2, ctx.trimmer.sip_keys.k3);
-    u32 nsols = ctx.solve();
-    gettimeofday(&time1, 0);
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
-    printf("Time: %d ms\n", timems);
+	run_solver(ctx, header, sizeof(header), nonce, range, NULL, NULL);
 
-    for (unsigned s = 0; s < nsols; s++) {
-      printf("Solution");
-      word_t *prf = &ctx.sols[s * PROOFSIZE];
-      for (u32 i = 0; i < PROOFSIZE; i++)
-        printf(" %jx", (uintmax_t)prf[i]);
-      printf("\n");
-      int pow_rc = verify(prf, &ctx.trimmer.sip_keys);
-      if (pow_rc == POW_OK) {
-        printf("Verified with cyclehash ");
-        unsigned char cyclehash[32];
-        blake2b((void *)cyclehash, sizeof(cyclehash), (const void *)prf, sizeof(proof), 0, 0);
-        for (int i=0; i<32; i++)
-          printf("%02x", cyclehash[i]);
-        printf("\n");
-      } else {
-        printf("FAILED due to %s\n", errstr[pow_rc]);
-      }
-    }
-    sumnsols += nsols;
-  }
-  printf("%d total solutions\n", sumnsols);
-  return 0;
+	destroy_solver_ctx(ctx);
 }
