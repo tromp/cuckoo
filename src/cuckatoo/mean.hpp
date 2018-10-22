@@ -1076,8 +1076,8 @@ public:
     assert(cg.bytes() <= sizeof(yzbucket<TBUCKETSIZE>[nthreads])); // check that graph cg can fit in tbucket's memory
     showcycle = show_cycle;
   }
-  void setheadernonce(char* const headernonce, const u32 len, const u32 nonce) {
-    ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+  void setheadernonce(char* const headernonce, const u32 len, const u64 nonce) {
+    ((u64 *)headernonce)[len/sizeof(u64)-1] = htole64(nonce); // place nonce at end
     setheader(headernonce, len, &trimmer.sip_keys);
     sols.clear();
   }
