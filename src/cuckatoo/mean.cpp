@@ -13,7 +13,7 @@ typedef solver_ctx SolverCtx;
 CALL_CONVENTION int run_solver(SolverCtx* ctx,
                                char* header,
                                int header_length,
-                               u64 nonce,
+                               u32 nonce,
                                u32 range,
                                SolverSolutions *solutions,
                                SolverStats *stats
@@ -79,7 +79,8 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
   SolverCtx* ctx = new SolverCtx(params->nthreads,
                                  params->ntrims,
                                  params->allrounds,
-                                 params->showcycle);
+                                 params->showcycle,
+                                 params->mutate_nonce);
   return ctx;
 }
 
@@ -142,6 +143,7 @@ int main(int argc, char **argv) {
 	params.ntrims = ntrims;
 	params.showcycle = showcycle;
 	params.allrounds = allrounds;
+	params.mutate_nonce = true;
 
   SolverCtx* ctx = create_solver_ctx(&params);
 

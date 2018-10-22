@@ -49,6 +49,7 @@ struct SolverParams {
 	u32 ntrims = 0;
 	bool showcycle;
 	bool allrounds;
+	bool mutate_nonce;
 };
 
 // Solutions result structs to be instantiated by caller,

@@ -1065,19 +1065,23 @@ public:
   edgetrimmer trimmer;
   graph<word_t> cg;
   bool showcycle;
+  bool mutate_nonce;
   proof cycleus;
   proof cyclevs;
   std::bitset<NXY> uxymap;
   std::vector<word_t> sols; // concatanation of all proof's indices
 
-  solver_ctx(const u32 nthreads, const u32 n_trims, bool allrounds, bool show_cycle)
+  solver_ctx(const u32 nthreads, const u32 n_trims, bool allrounds, bool show_cycle, bool mutate_nonce)
     : trimmer(nthreads, n_trims, allrounds), 
       cg(MAXEDGES, MAXEDGES, MAXSOLS, (char *)trimmer.tbuckets) {
     assert(cg.bytes() <= sizeof(yzbucket<TBUCKETSIZE>[nthreads])); // check that graph cg can fit in tbucket's memory
     showcycle = show_cycle;
+    mutate_nonce = mutate_nonce;
   }
-  void setheadernonce(char* const headernonce, const u32 len, const u64 nonce) {
-    ((u64 *)headernonce)[len/sizeof(u64)-1] = htole64(nonce); // place nonce at end
+  void setheadernonce(char* const headernonce, const u32 len, const u32 nonce) {
+    if (mutate_nonce) {
+      ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+    }
     setheader(headernonce, len, &trimmer.sip_keys);
     sols.clear();
   }
