@@ -143,7 +143,6 @@ int main(int argc, char **argv) {
 	params.ntrims = ntrims;
 	params.showcycle = showcycle;
 	params.allrounds = allrounds;
-	params.mutate_nonce = true;
 
   SolverCtx* ctx = create_solver_ctx(&params);
 
