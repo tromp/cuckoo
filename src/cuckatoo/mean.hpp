@@ -1065,7 +1065,7 @@ public:
   edgetrimmer trimmer;
   graph<word_t> cg;
   bool showcycle;
-  bool mutate_nonce;
+  bool mutatenonce;
   proof cycleus;
   proof cyclevs;
   std::bitset<NXY> uxymap;
@@ -1076,10 +1076,10 @@ public:
       cg(MAXEDGES, MAXEDGES, MAXSOLS, (char *)trimmer.tbuckets) {
     assert(cg.bytes() <= sizeof(yzbucket<TBUCKETSIZE>[nthreads])); // check that graph cg can fit in tbucket's memory
     showcycle = show_cycle;
-    mutate_nonce = mutate_nonce;
+    mutatenonce = mutate_nonce;
   }
   void setheadernonce(char* const headernonce, const u32 len, const u32 nonce) {
-    if (mutate_nonce) {
+    if (mutatenonce) {
       ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
     }
     setheader(headernonce, len, &trimmer.sip_keys);

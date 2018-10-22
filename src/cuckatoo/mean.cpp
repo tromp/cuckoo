@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
 
   SolverCtx* ctx = create_solver_ctx(&params);
 
-  print_log("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
+  print_log("Looking for %d-cycle on cuckatoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
   if (range > 1)
     print_log("-%d", nonce+range-1);
   print_log(") with 50%% edges\n");
