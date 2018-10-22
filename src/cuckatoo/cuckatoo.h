@@ -12,6 +12,10 @@
 typedef uint32_t u32;
 typedef uint64_t u64;
 
+#ifndef MAX_SOLS
+#define MAX_SOLS 4
+#endif
+
 // proof-of-work parameters
 #ifndef EDGEBITS
 // the main parameter is the number of bits in an edge index,
@@ -144,10 +148,6 @@ u64 timestamp() {
 #define CALL_CONVENTION extern "C"
 #else
 #define CALL_CONVENTION
-#endif
-
-#ifndef MAX_SOLS
-#define MAX_SOLS 4
 #endif
 
 // if this is set, immediately stop all solvers and return to caller gracefully
