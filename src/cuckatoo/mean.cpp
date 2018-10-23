@@ -19,6 +19,7 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
                                SolverStats *stats
                                )
 {
+  SHOULD_STOP = false;
   u64 time0, time1;
   u32 timems;
   u32 sumnsols = 0;
