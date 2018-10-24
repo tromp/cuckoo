@@ -88,6 +88,10 @@ CALL_CONVENTION void destroy_solver_ctx(SolverCtx* ctx) {
   delete ctx;
 }
 
+CALL_CONVENTION void fill_default_params(SolverParams* params) {
+	// not required in this solver
+}
+
 int main(int argc, char **argv) {
   u32 nthreads = 0;
   u32 ntrims = 0;

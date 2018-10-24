@@ -147,7 +147,7 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
   const int TMPPERLL4 = sizeof(ulonglong4) / sizeof(EdgeOut);
   __shared__ int counters[NX];
 
-  // if (group>=0&&lid==0) printf("group  %d  -\n", group);
+  // if (group>=0&&lid==0) print_log("group  %d  -\n", group);
   for (int col = lid; col < NX; col += dim)
     counters[col] = 0;
   __syncthreads();
@@ -271,7 +271,7 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, const EdgeIn
       }
     }
   }
-  // if (group==0&&lid==0) printf("round %d cnt(0,0) %d\n", round, sourceIndexes[0]);
+  // if (group==0&&lid==0) print_log("round %d cnt(0,0) %d\n", round, sourceIndexes[0]);
 }
 
 template<int maxIn>
@@ -428,7 +428,7 @@ struct edgetrimmer {
 
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
-    printf("Seeding completed in %.0f + %.0f ms\n", durationA, durationB);
+    print_log("Seeding completed in %.0f + %.0f ms\n", durationA, durationB);
   
     cudaMemset(indexesE, 0, indexesSize);
 
@@ -499,12 +499,12 @@ struct solver_ctx {
     for (u32 i = 0; i < nedges; i++)
       cg.add_compress_edge(edges[i].x, edges[i].y);
     for (u32 s = 0 ;s < cg.nsols; s++) {
-      // printf("Solution");
+      // print_log("Solution");
       for (u32 j = 0; j < PROOFSIZE; j++) {
         soledges[j] = edges[cg.sols[s][j]];
-	// printf(" (%x, %x)", soledges[j].x, soledges[j].y);
+	// print_log(" (%x, %x)", soledges[j].x, soledges[j].y);
       }
-      // printf("\n");
+      // print_log("\n");
       sols.resize(sols.size() + PROOFSIZE);
       cudaMemcpyToSymbol(recoveredges, soledges, sizeof(soledges));
       cudaMemset(trimmer.indexesE2, 0, trimmer.indexesSize);
@@ -522,7 +522,7 @@ struct solver_ctx {
     gettimeofday(&time0, 0);
     u32 nedges = trimmer.trim();
     if (nedges > MAXEDGES) {
-      printf("OOPS; losing %d edges beyond MAXEDGES=%d\n", nedges-MAXEDGES, MAXEDGES);
+      print_log("OOPS; losing %d edges beyond MAXEDGES=%d\n", nedges-MAXEDGES, MAXEDGES);
       nedges = MAXEDGES;
     }
     cudaMemcpy(edges, trimmer.bufferB, nedges * 8, cudaMemcpyDeviceToHost);
@@ -532,7 +532,7 @@ struct solver_ctx {
     findcycles(edges, nedges);
     gettimeofday(&time1, 0);
     timems2 = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
-    printf("%d trims %d ms %d edges %d ms total %d ms\n", trimmer.tp.ntrims, timems, nedges, timems2, timems+timems2);
+    print_log("%d trims %d ms %d edges %d ms total %d ms\n", trimmer.tp.ntrims, timems, nedges, timems2, timems+timems2);
     return sols.size() / PROOFSIZE;
   }
 };
@@ -557,20 +557,20 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
   u64 time0, time1;
   u32 timems;
   u32 sumnsols = 0;
-  for (int r = 0; r < range; r++) {
+  for (u32 r = 0; r < range; r++) {
     time0 = timestamp();
-    ctx->setheadernonce(header, sizeof(header), nonce + r);
-    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx->trimmer.sipkeys.k0, ctx->trimmer.sipkeys.k1, ctx->trimmer.sipkeys.k2, ctx->trimmer.sipkeys.k3);
+    ctx->setheadernonce(header, header_length, nonce + r);
+    print_log("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx->trimmer.sipkeys.k0, ctx->trimmer.sipkeys.k1, ctx->trimmer.sipkeys.k2, ctx->trimmer.sipkeys.k3);
     u32 nsols = ctx->solve();
     time1 = timestamp();
     timems = (time1 - time0) / 1000000;
     print_log("Time: %d ms\n", timems);
 for (unsigned s = 0; s < nsols; s++) {
-      printf("Solution");
+      print_log("Solution");
       u32* prf = &ctx->sols[s * PROOFSIZE];
       for (u32 i = 0; i < PROOFSIZE; i++)
-        printf(" %jx", (uintmax_t)prf[i]);
-      printf("\n");
+        print_log(" %jx", (uintmax_t)prf[i]);
+      print_log("\n");
       if (solutions != NULL){
         solutions->edge_bits = EDGEBITS;
         solutions->num_sols++;
@@ -580,27 +580,31 @@ for (unsigned s = 0; s < nsols; s++) {
       }
       int pow_rc = verify(prf, &ctx->trimmer.sipkeys);
       if (pow_rc == POW_OK) {
-        printf("Verified with cyclehash ");
+        print_log("Verified with cyclehash ");
         unsigned char cyclehash[32];
         blake2b((void *)cyclehash, sizeof(cyclehash), (const void *)prf, sizeof(proof), 0, 0);
         for (int i=0; i<32; i++)
-          printf("%02x", cyclehash[i]);
-        printf("\n");
+          print_log("%02x", cyclehash[i]);
+        print_log("\n");
       } else {
-        printf("FAILED due to %s\n", errstr[pow_rc]);
+        print_log("FAILED due to %s\n", errstr[pow_rc]);
       }
     }
     sumnsols += nsols;
     if (stats != NULL) {
-        stats->device_id = 0;
+        int device_id;
+        cudaGetDevice(&device_id);
+        stats->device_id = device_id;
         stats->edge_bits = EDGEBITS;
-        strncpy(stats->device_name, "CPU\0", MAX_NAME_LEN);
+        cudaDeviceProp props;
+        cudaGetDeviceProperties(&props, stats->device_id);
+        strncpy(stats->device_name, props.name, MAX_NAME_LEN);
         stats->last_start_time = time0;
         stats->last_end_time = time1;
         stats->last_solution_time = time1 - time0;
     }
   }
-  printf("%d total solutions\n", sumnsols);
+  print_log("%d total solutions\n", sumnsols);
   return sumnsols > 0;
 }
 
@@ -636,6 +640,21 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
 CALL_CONVENTION void destroy_solver_ctx(SolverCtx* ctx) {
   delete ctx;
 }
+
+CALL_CONVENTION void fill_default_params(SolverParams* params) {
+  trimparams tp;
+  params->device = 0;
+  params->ntrims = tp.ntrims;
+  params->expand = tp.expand;
+  params->genablocks = tp.genA.blocks;
+  params->genatpb = tp.genA.tpb;
+  params->genbtpb = tp.genB.tpb;
+  params->trimtpb = tp.trim.tpb;
+  params->tailtpb = tp.tail.tpb;
+  params->recoverblocks = tp.recover.blocks;
+  params->recovertpb = tp.recover.tpb;
+}
+
 int main(int argc, char **argv) {
   trimparams tp;
   u32 nonce = 0;
@@ -647,22 +666,14 @@ int main(int argc, char **argv) {
 
   // set defaults
   SolverParams params;
-  params.ntrims = tp.ntrims;
-  params.expand = tp.expand;
-  params.genablocks = tp.genA.blocks;
-  params.genatpb = tp.genA.tpb;
-  params.genbtpb = tp.genB.tpb;
-  params.trimtpb = tp.trim.tpb;
-  params.tailtpb = tp.tail.tpb;
-  params.recoverblocks = tp.recover.blocks;
-  params.recovertpb = tp.recover.tpb;
+  fill_default_params(&params);
 
   memset(header, 0, sizeof(header));
   while ((c = getopt(argc, argv, "sb:d:E:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
     switch (c) {
       case 's':
-        printf("SYNOPSIS\n  cuda%d [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
-        printf("DEFAULTS\n  cuda%d -d %d -E %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.expand, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
+        print_log("SYNOPSIS\n  cuda%d [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
+        print_log("DEFAULTS\n  cuda%d -d %d -E %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.expand, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
         exit(0);
       case 'd':
         params.device = atoi(optarg);
@@ -718,19 +729,19 @@ int main(int argc, char **argv) {
   u64 dbytes = prop.totalGlobalMem;
   int dunit;
   for (dunit=0; dbytes >= 10240; dbytes>>=10,dunit++) ;
-  printf("%s with %d%cB @ %d bits x %dMHz\n", prop.name, (u32)dbytes, " KMGT"[dunit], prop.memoryBusWidth, prop.memoryClockRate/1000);
+  print_log("%s with %d%cB @ %d bits x %dMHz\n", prop.name, (u32)dbytes, " KMGT"[dunit], prop.memoryBusWidth, prop.memoryClockRate/1000);
 
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
+  print_log("Looking for %d-cycle on cuckatoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
   if (range > 1)
-    printf("-%d", nonce+range-1);
-  printf(") with 50%% edges, %d*%d buckets, %d trims, and %d thread blocks.\n", NX, NY, tp.ntrims, NX);
+    print_log("-%d", nonce+range-1);
+  print_log(") with 50%% edges, %d*%d buckets, %d trims, and %d thread blocks.\n", NX, NY, tp.ntrims, NX);
 
   SolverCtx* ctx = create_solver_ctx(&params);
 
   u64 bytes = ctx->trimmer.globalbytes();
   int unit;
   for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
-  printf("Using %d%cB of global memory.\n", (u32)bytes, " KMGT"[unit]);
+  print_log("Using %d%cB of global memory.\n", (u32)bytes, " KMGT"[unit]);
 
   run_solver(ctx, header, sizeof(header), nonce, range, NULL, NULL);
 
