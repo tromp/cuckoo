@@ -60,7 +60,6 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
     }
     sumnsols += nsols;
     if (stats != NULL) {
-        /// TODO: better timer resolution
         stats->device_id = 0;
         stats->edge_bits = EDGEBITS;
         strncpy(stats->device_name, "CPU\0", MAX_NAME_LEN);

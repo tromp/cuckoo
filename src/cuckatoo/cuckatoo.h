@@ -50,6 +50,17 @@ struct SolverParams {
 	bool showcycle;
 	bool allrounds;
 	bool mutate_nonce = 1;
+
+	// Cuda-mean specific params
+	u32 device = 0;
+	u32 expand = 0;
+	u32 genablocks = 0;
+	u32 genatpb = 0;
+	u32 genbtpb = 0;
+	u32 trimtpb = 0;
+	u32 tailtpb = 0;
+	u32 recoverblocks = 0;
+	u32 recovertpb = 0;
 };
 
 // Solutions result structs to be instantiated by caller,

@@ -472,17 +472,21 @@ struct edgetrimmer {
 
 struct solver_ctx {
   edgetrimmer trimmer;
+  bool mutatenonce;
   uint2 *edges;
   graph<word_t> cg;
   uint2 soledges[PROOFSIZE];
   std::vector<u32> sols; // concatenation of all proof's indices
 
-  solver_ctx(const trimparams tp) : trimmer(tp), cg(MAXEDGES, MAXEDGES, MAXSOLS, IDXSHIFT) {
+  solver_ctx(const trimparams tp, bool mutate_nonce) : trimmer(tp), cg(MAXEDGES, MAXEDGES, MAXSOLS, IDXSHIFT) {
     edges   = new uint2[MAXEDGES];
+    mutatenonce = mutate_nonce;
   }
 
   void setheadernonce(char * const headernonce, const u32 len, const u32 nonce) {
-    ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+    if (mutatenonce) {
+      ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+    }
     setheader(headernonce, len, &trimmer.sipkeys);
     sols.clear();
   }
@@ -538,108 +542,43 @@ struct solver_ctx {
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
 
-int main(int argc, char **argv) {
-  trimparams tp;
-  u32 nonce = 0;
-  u32 range = 1;
-  u32 device = 0;
-  char header[HEADERLEN];
-  u32 len;
-  int c;
+typedef solver_ctx SolverCtx;
 
-  memset(header, 0, sizeof(header));
-  while ((c = getopt(argc, argv, "sb:d:E:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
-    switch (c) {
-      case 's':
-        printf("SYNOPSIS\n  cuda%d [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
-        printf("DEFAULTS\n  cuda%d -d %d -E %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.expand, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
-        exit(0);
-      case 'd':
-        device = atoi(optarg);
-        break;
-      case 'E':
-        tp.expand = atoi(optarg);
-        assert(tp.expand <= 2);
-        break;
-      case 'h':
-        len = strlen(optarg)/2;
-        assert(len <= sizeof(header));
-        for (u32 i=0; i<len; i++)
-          sscanf(optarg+2*i, "%2hhx", header+i); // hh specifies storage of a single byte
-        break;
-      case 'n':
-        nonce = atoi(optarg);
-        break;
-      case 'm':
-        tp.ntrims = atoi(optarg) & -2; // make even as required by solve()
-        break;
-      case 'r':
-        range = atoi(optarg);
-        break;
-      case 'U':
-        tp.genA.blocks = atoi(optarg);
-        break;
-      case 'u':
-        tp.genA.tpb = atoi(optarg);
-        break;
-      case 'v':
-        tp.genB.tpb = atoi(optarg);
-        break;
-      case 'w':
-        tp.trim.tpb = atoi(optarg);
-        break;
-      case 'y':
-        tp.tail.tpb = atoi(optarg);
-        break;
-      case 'Z':
-        tp.recover.blocks = atoi(optarg);
-        break;
-      case 'z':
-        tp.recover.tpb = atoi(optarg);
-        break;
-    }
-  }
-  int nDevices;
-  checkCudaErrors(cudaGetDeviceCount(&nDevices));
-  assert(device < nDevices);
-  cudaDeviceProp prop;
-  checkCudaErrors(cudaGetDeviceProperties(&prop, device));
-  assert(tp.genA.tpb <= prop.maxThreadsPerBlock);
-  assert(tp.genB.tpb <= prop.maxThreadsPerBlock);
-  assert(tp.trim.tpb <= prop.maxThreadsPerBlock);
-  // assert(tp.tailblocks <= prop.threadDims[0]);
-  assert(tp.tail.tpb <= prop.maxThreadsPerBlock);
-  assert(tp.recover.tpb <= prop.maxThreadsPerBlock);
-  u64 dbytes = prop.totalGlobalMem;
-  int dunit;
-  for (dunit=0; dbytes >= 10240; dbytes>>=10,dunit++) ;
-  printf("%s with %d%cB @ %d bits x %dMHz\n", prop.name, (u32)dbytes, " KMGT"[dunit], prop.memoryBusWidth, prop.memoryClockRate/1000);
-  cudaSetDevice(device);
-
-  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
-  if (range > 1)
-    printf("-%d", nonce+range-1);
-  printf(") with 50%% edges, %d*%d buckets, %d trims, and %d thread blocks.\n", NX, NY, tp.ntrims, NX);
-
-  solver_ctx ctx(tp);
-
-  u64 bytes = ctx.trimmer.globalbytes();
-  int unit;
-  for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
-  printf("Using %d%cB of global memory.\n", (u32)bytes, " KMGT"[unit]);
-
+CALL_CONVENTION int run_solver(SolverCtx* ctx,
+                               char* header,
+                               int header_length,
+                               u32 nonce,
+                               u32 range,
+                               SolverSolutions *solutions,
+                               SolverStats *stats
+                               )
+{
+  SHOULD_STOP = false;
+  u64 time0, time1;
+  u32 timems;
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
-    ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.trimmer.sipkeys.k0, ctx.trimmer.sipkeys.k1, ctx.trimmer.sipkeys.k2, ctx.trimmer.sipkeys.k3);
-    u32 nsols = ctx.solve();
-    for (unsigned s = 0; s < nsols; s++) {
+    time0 = timestamp();
+    ctx->setheadernonce(header, sizeof(header), nonce + r);
+    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx->trimmer.sipkeys.k0, ctx->trimmer.sipkeys.k1, ctx->trimmer.sipkeys.k2, ctx->trimmer.sipkeys.k3);
+    u32 nsols = ctx->solve();
+    time1 = timestamp();
+    timems = (time1 - time0) / 1000000;
+    print_log("Time: %d ms\n", timems);
+for (unsigned s = 0; s < nsols; s++) {
       printf("Solution");
-      u32* prf = &ctx.sols[s * PROOFSIZE];
+      u32* prf = &ctx->sols[s * PROOFSIZE];
       for (u32 i = 0; i < PROOFSIZE; i++)
         printf(" %jx", (uintmax_t)prf[i]);
       printf("\n");
-      int pow_rc = verify(prf, &ctx.trimmer.sipkeys);
+      if (solutions != NULL){
+        solutions->edge_bits = EDGEBITS;
+        solutions->num_sols++;
+        solutions->sols[sumnsols+s].nonce = nonce + r;
+        for (u32 i = 0; i < PROOFSIZE; i++) 
+          solutions->sols[sumnsols+s].proof[i] = (u64) prf[i];
+      }
+      int pow_rc = verify(prf, &ctx->trimmer.sipkeys);
       if (pow_rc == POW_OK) {
         printf("Verified with cyclehash ");
         unsigned char cyclehash[32];
@@ -652,7 +591,148 @@ int main(int argc, char **argv) {
       }
     }
     sumnsols += nsols;
+    if (stats != NULL) {
+        stats->device_id = 0;
+        stats->edge_bits = EDGEBITS;
+        strncpy(stats->device_name, "CPU\0", MAX_NAME_LEN);
+        stats->last_start_time = time0;
+        stats->last_end_time = time1;
+        stats->last_solution_time = time1 - time0;
+    }
   }
   printf("%d total solutions\n", sumnsols);
+  return sumnsols > 0;
+}
+
+CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
+  trimparams tp;
+  tp.ntrims = params->ntrims;
+  tp.expand = params->expand;
+  tp.genA.blocks = params->genablocks;
+  tp.genA.tpb = params->genatpb;
+  tp.genB.tpb = params->genbtpb;
+  tp.trim.tpb = params->trimtpb;
+  tp.tail.tpb = params->tailtpb;
+  tp.recover.blocks = params->recoverblocks;
+  tp.recover.tpb = params->recovertpb;
+
+  cudaDeviceProp prop;
+  checkCudaErrors(cudaGetDeviceProperties(&prop, params->device));
+
+  assert(tp.genA.tpb <= prop.maxThreadsPerBlock);
+  assert(tp.genB.tpb <= prop.maxThreadsPerBlock);
+  assert(tp.trim.tpb <= prop.maxThreadsPerBlock);
+  // assert(tp.tailblocks <= prop.threadDims[0]);
+  assert(tp.tail.tpb <= prop.maxThreadsPerBlock);
+  assert(tp.recover.tpb <= prop.maxThreadsPerBlock);
+
+  cudaSetDevice(params->device);
+
+  SolverCtx* ctx = new SolverCtx(tp, params->mutate_nonce);
+
+  return ctx;
+}
+
+CALL_CONVENTION void destroy_solver_ctx(SolverCtx* ctx) {
+  delete ctx;
+}
+int main(int argc, char **argv) {
+  trimparams tp;
+  u32 nonce = 0;
+  u32 range = 1;
+  u32 device = 0;
+  char header[HEADERLEN];
+  u32 len;
+  int c;
+
+  // set defaults
+  SolverParams params;
+  params.ntrims = tp.ntrims;
+  params.expand = tp.expand;
+  params.genablocks = tp.genA.blocks;
+  params.genatpb = tp.genA.tpb;
+  params.genbtpb = tp.genB.tpb;
+  params.trimtpb = tp.trim.tpb;
+  params.tailtpb = tp.tail.tpb;
+  params.recoverblocks = tp.recover.blocks;
+  params.recovertpb = tp.recover.tpb;
+
+  memset(header, 0, sizeof(header));
+  while ((c = getopt(argc, argv, "sb:d:E:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
+    switch (c) {
+      case 's':
+        printf("SYNOPSIS\n  cuda%d [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
+        printf("DEFAULTS\n  cuda%d -d %d -E %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.expand, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
+        exit(0);
+      case 'd':
+        params.device = atoi(optarg);
+        break;
+      case 'E':
+        params.expand = atoi(optarg);
+        assert(tp.expand <= 2);
+        break;
+      case 'h':
+        len = strlen(optarg)/2;
+        assert(len <= sizeof(header));
+        for (u32 i=0; i<len; i++)
+          sscanf(optarg+2*i, "%2hhx", header+i); // hh specifies storage of a single byte
+        break;
+      case 'n':
+        nonce = atoi(optarg);
+        break;
+      case 'm':
+        params.ntrims = atoi(optarg) & -2; // make even as required by solve()
+        break;
+      case 'r':
+        range = atoi(optarg);
+        break;
+      case 'U':
+        params.genablocks = atoi(optarg);
+        break;
+      case 'u':
+        params.genatpb = atoi(optarg);
+        break;
+      case 'v':
+        params.genbtpb = atoi(optarg);
+        break;
+      case 'w':
+        params.trimtpb = atoi(optarg);
+        break;
+      case 'y':
+        params.tailtpb = atoi(optarg);
+        break;
+      case 'Z':
+        params.recoverblocks = atoi(optarg);
+        break;
+      case 'z':
+        params.recovertpb = atoi(optarg);
+        break;
+    }
+  }
+
+  int nDevices;
+  checkCudaErrors(cudaGetDeviceCount(&nDevices));
+  assert(device < nDevices);
+  cudaDeviceProp prop;
+  checkCudaErrors(cudaGetDeviceProperties(&prop, device));
+  u64 dbytes = prop.totalGlobalMem;
+  int dunit;
+  for (dunit=0; dbytes >= 10240; dbytes>>=10,dunit++) ;
+  printf("%s with %d%cB @ %d bits x %dMHz\n", prop.name, (u32)dbytes, " KMGT"[dunit], prop.memoryBusWidth, prop.memoryClockRate/1000);
+
+  printf("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
+  if (range > 1)
+    printf("-%d", nonce+range-1);
+  printf(") with 50%% edges, %d*%d buckets, %d trims, and %d thread blocks.\n", NX, NY, tp.ntrims, NX);
+
+  SolverCtx* ctx = create_solver_ctx(&params);
+
+  u64 bytes = ctx->trimmer.globalbytes();
+  int unit;
+  for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
+  printf("Using %d%cB of global memory.\n", (u32)bytes, " KMGT"[unit]);
+
+  run_solver(ctx, header, sizeof(header), nonce, range, NULL, NULL);
+
   return 0;
 }
