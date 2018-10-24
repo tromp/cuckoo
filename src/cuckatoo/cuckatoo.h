@@ -65,14 +65,15 @@ struct SolverSolutions {
  Solution sols[MAX_SOLS];
 };
 
-#define MAX_DEVICE_NAME_LEN 256
+#define MAX_NAME_LEN 256
 
 // Solver statistics, to be instantiated by caller
 // and filled by solver if desired
 struct SolverStats {
 	u32 device_id = 0;
 	u32 edge_bits = 0;
-	char device_name[256];
+	char plugin_name[MAX_NAME_LEN]; // will be filled in caller-side
+	char device_name[MAX_NAME_LEN];
 	bool has_errored = false;
 	u32 iterations = 0;
 	u64 last_start_time = 0;

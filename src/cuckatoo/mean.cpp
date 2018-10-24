@@ -63,7 +63,7 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
         /// TODO: better timer resolution
         stats->device_id = 0;
         stats->edge_bits = EDGEBITS;
-        strncpy(stats->device_name, "CPU\0", MAX_DEVICE_NAME_LEN);
+        strncpy(stats->device_name, "CPU\0", MAX_NAME_LEN);
         stats->last_start_time = time0;
         stats->last_end_time = time1;
         stats->last_solution_time = time1 - time0;
