@@ -73,6 +73,8 @@ struct SolverStats {
 	u32 device_id = 0;
 	u32 edge_bits = 0;
 	char device_name[256];
+	bool has_errored = false;
+	u32 iterations = 0;
 	u64 last_start_time = 0;
 	u64 last_end_time = 0;
 	u64 last_solution_time = 0;
