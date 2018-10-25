@@ -51,8 +51,14 @@ struct SolverParams {
 	bool allrounds;
 	bool mutate_nonce = 1;
 
-	// Cuda-mean specific params
+	// Common cuda params
 	u32 device = 0;
+
+	// Cuda-lean specific params
+	u32 blocks = 0;
+	u32 tpb = 0;
+
+	// Cuda-mean specific params
 	u32 expand = 0;
 	u32 genablocks = 0;
 	u32 genatpb = 0;

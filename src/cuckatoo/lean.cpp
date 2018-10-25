@@ -44,8 +44,8 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
     print_log("Time: %d ms\n", timems);
     for (unsigned s = 0; s < ctx->nsols; s++) {
       print_log("Solution");
-      for (int i = 0; i < PROOFSIZE; i++)
-        print_log(" %jx", (uintmax_t)ctx->sols[s][i]);
+      for (int j = 0; j < PROOFSIZE; j++)
+        print_log(" %jx", (uintmax_t)ctx->sols[s][j]);
       print_log("\n");
       if (solutions != NULL){
         solutions->edge_bits = EDGEBITS;
@@ -66,14 +66,14 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
         print_log("FAILED due to %s\n", errstr[pow_rc]);
       }
       sumnsols += ctx->nsols;
-      if (stats != NULL) {
-          stats->device_id = 0;
-          stats->edge_bits = EDGEBITS;
-          strncpy(stats->device_name, "CPU\0", MAX_NAME_LEN);
-          stats->last_start_time = time0;
-          stats->last_end_time = time1;
-          stats->last_solution_time = time1 - time0;
-      }
+    }
+    if (stats != NULL) {
+      stats->device_id = 0;
+      stats->edge_bits = EDGEBITS;
+      strncpy(stats->device_name, "CPU\0", MAX_NAME_LEN);
+      stats->last_start_time = time0;
+      stats->last_end_time = time1;
+      stats->last_solution_time = time1 - time0;
     }
   }
   delete[] threads;
