@@ -142,11 +142,11 @@ int main(int argc, char **argv) {
     }
   }
 
-	SolverParams params;
-	params.nthreads = nthreads;
-	params.ntrims = ntrims;
-	params.showcycle = showcycle;
-	params.allrounds = allrounds;
+  SolverParams params;
+  params.nthreads = nthreads;
+  params.ntrims = ntrims;
+  params.showcycle = showcycle;
+  params.allrounds = allrounds;
 
   SolverCtx* ctx = create_solver_ctx(&params);
 

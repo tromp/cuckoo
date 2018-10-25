@@ -111,9 +111,10 @@ public:
   u32 nsols;
   u32 nthreads;
   u32 ntrims;
+  bool mutatenonce;
   pthread_barrier_t barry;
 
-  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols) : alive(n_threads), nonleaf(NEDGES >> PART_BITS),
+  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols, bool mutate_nonce) : alive(n_threads), nonleaf(NEDGES >> PART_BITS),
       cg(MAXEDGES, MAXEDGES, max_sols, IDXSHIFT, (char *)nonleaf.bits) {
     printf("cg.bytes %llu NEDGES/8 %llu\n", cg.bytes(), NEDGES/8);
     assert(cg.bytes() <= NEDGES/8); // check that graph cg can fit in share nonleaf's memory
@@ -123,10 +124,13 @@ public:
     assert(err == 0);
     sols = new proof[max_sols];
     nsols = 0;
+    mutatenonce = mutate_nonce;
   }
   void setheadernonce(char* headernonce, const u32 len, const u32 nce) {
     nonce = nce;
-    ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+    if (mutatenonce) {
+      ((u32 *)headernonce)[len/sizeof(u32)-1] = htole32(nonce); // place nonce at end
+    }
     setheader(headernonce, len, &sip_keys);
     alive.clear(); // set all edges to be alive
     nsols = 0;
