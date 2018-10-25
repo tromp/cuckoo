@@ -116,7 +116,7 @@ public:
 
   cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols, bool mutate_nonce) : alive(n_threads), nonleaf(NEDGES >> PART_BITS),
       cg(MAXEDGES, MAXEDGES, max_sols, IDXSHIFT, (char *)nonleaf.bits) {
-    printf("cg.bytes %llu NEDGES/8 %llu\n", cg.bytes(), NEDGES/8);
+    print_log("cg.bytes %llu NEDGES/8 %llu\n", cg.bytes(), NEDGES/8);
     assert(cg.bytes() <= NEDGES/8); // check that graph cg can fit in share nonleaf's memory
     nthreads = n_threads;
     ntrims = n_trims;
@@ -230,7 +230,7 @@ typedef struct {
 void barrier(pthread_barrier_t *barry) {
   int rc = pthread_barrier_wait(barry);
   if (rc != 0 && rc != PTHREAD_BARRIER_SERIAL_THREAD) {
-    printf("Could not wait on barrier\n");
+    print_log("Could not wait on barrier\n");
     pthread_exit(NULL);
   }
 }
@@ -240,10 +240,10 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset &alive = ctx->alive;
-  // if (tp->id == 0) printf("initial size %d\n", NEDGES);
+  // if (tp->id == 0) print_log("initial size %d\n", NEDGES);
   u32 round;
   for (round=1; round < ctx->ntrims; round++) {
-    // if (tp->id == 0) printf("round %2d partition sizes", round);
+    // if (tp->id == 0) print_log("round %2d partition sizes", round);
     for (u32 uorv = 0; uorv < 2; uorv++) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         if (tp->id == 0)
@@ -252,15 +252,15 @@ void *worker(void *vp) {
         ctx->count_node_deg(tp->id,uorv,part);
         barrier(&ctx->barry);
         ctx->kill_leaf_edges(tp->id,uorv,part);
-        // if (tp->id == 0) printf(" %c%d %d", "UV"[uorv], part, alive.count());
+        // if (tp->id == 0) print_log(" %c%d %d", "UV"[uorv], part, alive.count());
         barrier(&ctx->barry);
       }
     }
-    // if (tp->id == 0) printf("\n");
+    // if (tp->id == 0) print_log("\n");
   }
   if (tp->id != 0)
     pthread_exit(NULL);
-  printf("%d trims completed  %d edges left\n", round-1, alive.count());
+  print_log("%d trims completed  %d edges left\n", round-1, alive.count());
   ctx->cg.reset();
   for (word_t block = 0; block < NEDGES; block += 64) {
     u64 alive64 = alive.block(block);
