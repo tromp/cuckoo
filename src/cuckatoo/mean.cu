@@ -289,12 +289,19 @@ __global__ void Tail(const uint2 *source, uint2 *destination, const int *sourceI
     destination[destIdx + lid] = source[group * maxIn + lid];
 }
 
-#define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
+#define checkCudaErrors_V(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return;})
+#define checkCudaErrors_N(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return NULL;})
+#define checkCudaErrors(ans) ({int retval = gpuAssert((ans), __FILE__, __LINE__); if (retval != cudaSuccess) return retval;})
+
+inline int gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
+  int device_id;
+  cudaGetDevice(&device_id);
   if (code != cudaSuccess) {
-    fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-    if (abort) exit(code);
+    snprintf(LAST_ERROR_REASON, MAX_NAME_LEN, "Device %d GPUassert: %s %s %d\0", device_id, cudaGetErrorString(code), file, line);
+    cudaDeviceReset();
+    if (abort) return code;
   }
+  return code;
 }
 
 __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *indexes) {
@@ -368,31 +375,33 @@ struct edgetrimmer {
   u32 hostA[NX * NY];
   u32 *uvnodes;
   siphash_keys sipkeys, *dipkeys;
+  bool initsuccess = false;
 
   edgetrimmer(const trimparams _tp) : tp(_tp) {
-    checkCudaErrors(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
-    checkCudaErrors(cudaMalloc((void**)&uvnodes, PROOFSIZE * 2 * sizeof(u32)));
-    checkCudaErrors(cudaMalloc((void**)&dipkeys, sizeof(siphash_keys)));
-    checkCudaErrors(cudaMalloc((void**)&indexesE, indexesSize));
-    checkCudaErrors(cudaMalloc((void**)&indexesE2, indexesSize));
+    checkCudaErrors_V(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
+    checkCudaErrors_V(cudaMalloc((void**)&uvnodes, PROOFSIZE * 2 * sizeof(u32)));
+    checkCudaErrors_V(cudaMalloc((void**)&dipkeys, sizeof(siphash_keys)));
+    checkCudaErrors_V(cudaMalloc((void**)&indexesE, indexesSize));
+    checkCudaErrors_V(cudaMalloc((void**)&indexesE2, indexesSize));
     sizeA = ROW_EDGES_A * NX * (tp.expand > 0 ? sizeof(u32) : sizeof(uint2));
     sizeB = ROW_EDGES_B * NX * (tp.expand > 1 ? sizeof(u32) : sizeof(uint2));
     const size_t bufferSize = sizeA + sizeB;
-    checkCudaErrors(cudaMalloc((void**)&bufferA, bufferSize));
+    checkCudaErrors_V(cudaMalloc((void**)&bufferA, bufferSize));
     bufferB  = bufferA + sizeA / sizeof(ulonglong4);
     bufferAB = bufferA + sizeB / sizeof(ulonglong4);
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
+    initsuccess = true;
   }
   u64 globalbytes() const {
     return (sizeA+sizeB) + 2 * indexesSize + sizeof(siphash_keys) + PROOFSIZE * 2 * sizeof(u32) + sizeof(edgetrimmer);
   }
   ~edgetrimmer() {
-    checkCudaErrors(cudaFree(bufferA));
-    checkCudaErrors(cudaFree(indexesE2));
-    checkCudaErrors(cudaFree(indexesE));
-    checkCudaErrors(cudaFree(dipkeys));
-    checkCudaErrors(cudaFree(uvnodes));
-    checkCudaErrors(cudaFree(dt));
+    checkCudaErrors_V(cudaFree(bufferA));
+    checkCudaErrors_V(cudaFree(indexesE2));
+    checkCudaErrors_V(cudaFree(indexesE));
+    checkCudaErrors_V(cudaFree(dipkeys));
+    checkCudaErrors_V(cudaFree(uvnodes));
+    checkCudaErrors_V(cudaFree(dt));
     cudaDeviceReset();
   }
   u32 trim() {
@@ -494,7 +503,7 @@ struct solver_ctx {
     delete[] edges;
   }
 
-  void findcycles(uint2 *edges, u32 nedges) {
+  int findcycles(uint2 *edges, u32 nedges) {
     cg.reset();
     for (u32 i = 0; i < nedges; i++)
       cg.add_compress_edge(edges[i].x, edges[i].y);
@@ -512,7 +521,8 @@ struct solver_ctx {
       cudaMemcpy(&sols[sols.size()-PROOFSIZE], trimmer.indexesE2, PROOFSIZE * sizeof(u32), cudaMemcpyDeviceToHost);
       checkCudaErrors(cudaDeviceSynchronize());
       qsort(&sols[sols.size()-PROOFSIZE], PROOFSIZE, sizeof(u32), cg.nonce_cmp);
-    }    
+    }
+    return 0;
   }
 
   int solve() {
@@ -557,6 +567,26 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
   u64 time0, time1;
   u32 timems;
   u32 sumnsols = 0;
+  int device_id;
+  if (stats != NULL) {
+    cudaGetDevice(&device_id);
+    cudaDeviceProp props;
+    cudaGetDeviceProperties(&props, stats->device_id);
+    stats->device_id = device_id;
+    stats->edge_bits = EDGEBITS;
+    strncpy(stats->device_name, props.name, MAX_NAME_LEN);
+  }
+
+  if (ctx == NULL || !ctx->trimmer.initsuccess){
+    print_log("Error initialising trimmer. Aborting.\n");
+    print_log("Reason: %s\n", LAST_ERROR_REASON);
+    if (stats != NULL) {
+       stats->has_errored = true;
+       strncpy(stats->error_reason, LAST_ERROR_REASON, MAX_NAME_LEN);
+    }
+    return 0;
+  }
+
   for (u32 r = 0; r < range; r++) {
     time0 = timestamp();
     ctx->setheadernonce(header, header_length, nonce + r);
@@ -565,7 +595,7 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
     time1 = timestamp();
     timems = (time1 - time0) / 1000000;
     print_log("Time: %d ms\n", timems);
-for (unsigned s = 0; s < nsols; s++) {
+    for (unsigned s = 0; s < nsols; s++) {
       print_log("Solution");
       u32* prf = &ctx->sols[s * PROOFSIZE];
       for (u32 i = 0; i < PROOFSIZE; i++)
@@ -592,16 +622,9 @@ for (unsigned s = 0; s < nsols; s++) {
     }
     sumnsols += nsols;
     if (stats != NULL) {
-        int device_id;
-        cudaGetDevice(&device_id);
-        stats->device_id = device_id;
-        stats->edge_bits = EDGEBITS;
-        cudaDeviceProp props;
-        cudaGetDeviceProperties(&props, stats->device_id);
-        strncpy(stats->device_name, props.name, MAX_NAME_LEN);
-        stats->last_start_time = time0;
-        stats->last_end_time = time1;
-        stats->last_solution_time = time1 - time0;
+      stats->last_start_time = time0;
+      stats->last_end_time = time1;
+      stats->last_solution_time = time1 - time0;
     }
   }
   print_log("%d total solutions\n", sumnsols);
@@ -621,7 +644,7 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
   tp.recover.tpb = params->recovertpb;
 
   cudaDeviceProp prop;
-  checkCudaErrors(cudaGetDeviceProperties(&prop, params->device));
+  checkCudaErrors_N(cudaGetDeviceProperties(&prop, params->device));
 
   assert(tp.genA.tpb <= prop.maxThreadsPerBlock);
   assert(tp.genB.tpb <= prop.maxThreadsPerBlock);
