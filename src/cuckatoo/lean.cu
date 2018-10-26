@@ -48,12 +48,19 @@ const static word_t NONPART_MASK = ((word_t)1 << NONPART_BITS) - 1;
 #define NNODES (2 * NEDGES)
 #define NODEMASK (NNODES-1)
 
-#define checkCudaErrors(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
+#define checkCudaErrors_V(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return;})
+#define checkCudaErrors_N(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return NULL;})
+#define checkCudaErrors(ans) ({int retval = gpuAssert((ans), __FILE__, __LINE__); if (retval != cudaSuccess) return retval;})
+
+inline int gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
+  int device_id;
+  cudaGetDevice(&device_id);
   if (code != cudaSuccess) {
-    fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-    if (abort) exit(code);
+    snprintf(LAST_ERROR_REASON, MAX_NAME_LEN, "Device %d GPUassert: %s %s %d\0", device_id, cudaGetErrorString(code), file, line);
+    cudaDeviceReset();
+    if (abort) return code;
   }
+  return code;
 }
 
 // set that starts out full and gets reset by threads on disjoint words
@@ -133,22 +140,24 @@ struct edgetrimmer {
   shrinkingset alive;
   biitmap nonleaf;
   siphash_keys sipkeys, *dipkeys;
+  bool initsuccess = false;
 
   edgetrimmer(const trimparams _tp) : tp(_tp) {
-    checkCudaErrors(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
-    checkCudaErrors(cudaMalloc((void**)&dipkeys, sizeof(siphash_keys)));
-    checkCudaErrors(cudaMalloc((void**)&alive.bits, edgeBytes));
-    checkCudaErrors(cudaMalloc((void**)&nonleaf.bits, nodeBytes));
+    checkCudaErrors_V(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
+    checkCudaErrors_V(cudaMalloc((void**)&dipkeys, sizeof(siphash_keys)));
+    checkCudaErrors_V(cudaMalloc((void**)&alive.bits, edgeBytes));
+    checkCudaErrors_V(cudaMalloc((void**)&nonleaf.bits, nodeBytes));
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
+    initsuccess = true;
   }
   ~edgetrimmer() {
-    checkCudaErrors(cudaFree(nonleaf.bits));
-    checkCudaErrors(cudaFree(alive.bits));
-    checkCudaErrors(cudaFree(dipkeys));
-    checkCudaErrors(cudaFree(dt));
+    checkCudaErrors_V(cudaFree(nonleaf.bits));
+    checkCudaErrors_V(cudaFree(alive.bits));
+    checkCudaErrors_V(cudaFree(dipkeys));
+    checkCudaErrors_V(cudaFree(dt));
     cudaDeviceReset();
   }
-  void trim() {
+  int trim() {
     cudaMemcpy(dipkeys, &sipkeys, sizeof(sipkeys), cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
     checkCudaErrors(cudaMemset(alive.bits, 0, edgeBytes));
@@ -159,6 +168,7 @@ struct edgetrimmer {
         kill_leaf_edges<<<tp.blocks,tp.tpb>>>(*dipkeys, dt->alive, dt->nonleaf, round&1, part);
       }
     }
+    return 0;
   }
 };
 
@@ -267,6 +277,25 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
   u64 time0, time1;
   u32 timems;
   u32 sumnsols = 0;
+  int device_id;
+  if (stats != NULL) {
+    cudaGetDevice(&device_id);
+    cudaDeviceProp props;
+    cudaGetDeviceProperties(&props, stats->device_id);
+    stats->device_id = device_id;
+    stats->edge_bits = EDGEBITS;
+    strncpy(stats->device_name, props.name, MAX_NAME_LEN);
+  }
+
+  if (ctx == NULL || !ctx->trimmer.initsuccess){
+    print_log("Error initialising trimmer. Aborting.\n");
+    print_log("Reason: %s\n", LAST_ERROR_REASON);
+    if (stats != NULL) {
+       stats->has_errored = true;
+       strncpy(stats->error_reason, LAST_ERROR_REASON, MAX_NAME_LEN);
+    }
+    return 0;
+  }
 
   for (u32 r = 0; r < range; r++) {
     time0 = timestamp();
@@ -302,13 +331,6 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
     }
     sumnsols += nsols;
     if (stats != NULL) {
-        int device_id;
-        cudaGetDevice(&device_id);
-        stats->device_id = device_id;
-        stats->edge_bits = EDGEBITS;
-        cudaDeviceProp props;
-        cudaGetDeviceProperties(&props, stats->device_id);
-        strncpy(stats->device_name, props.name, MAX_NAME_LEN);
         stats->last_start_time = time0;
         stats->last_end_time = time1;
         stats->last_solution_time = time1 - time0;
@@ -325,7 +347,7 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
 	tp.tpb = params->tpb;
 
   cudaDeviceProp prop;
-  checkCudaErrors(cudaGetDeviceProperties(&prop, params->device));
+  checkCudaErrors_N(cudaGetDeviceProperties(&prop, params->device));
 
   assert(tp.tpb <= prop.maxThreadsPerBlock);
 
