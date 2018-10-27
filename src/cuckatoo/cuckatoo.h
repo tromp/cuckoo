@@ -173,16 +173,6 @@ u64 timestamp() {
 #define CALL_CONVENTION
 #endif
 
-// if this is set, immediately stop all solvers and return to caller gracefully
-bool SHOULD_STOP = false;
-
-// All solver functions should check for SHOULD_STOP
-// as appropriate, the idea being solvers should stop and exit
-// gracefully from the run_solver function
-CALL_CONVENTION void stop_solver() {
-	SHOULD_STOP = true;
-}
-
 // Ability to squash printf output at compile time, if desired
 #ifndef SQUASH_OUTPUT
 #define SQUASH_OUTPUT 0

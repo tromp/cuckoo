@@ -12,9 +12,7 @@
 #include "graph.hpp"
 #include <stdio.h>
 #include <pthread.h>
-#ifdef __APPLE__
-#include "../apple/osx_barrier.h"
-#endif
+#include "../threads/barrier.hpp"
 #include <assert.h>
 
 #ifndef MAXSOLS
@@ -112,16 +110,14 @@ public:
   u32 nthreads;
   u32 ntrims;
   bool mutatenonce;
-  pthread_barrier_t barry;
+  trim_barrier barry;
 
   cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols, bool mutate_nonce) : alive(n_threads), nonleaf(NEDGES >> PART_BITS),
-      cg(MAXEDGES, MAXEDGES, max_sols, IDXSHIFT, (char *)nonleaf.bits) {
+      cg(MAXEDGES, MAXEDGES, max_sols, IDXSHIFT, (char *)nonleaf.bits), barry(n_threads) {
     print_log("cg.bytes %llu NEDGES/8 %llu\n", cg.bytes(), NEDGES/8);
     assert(cg.bytes() <= NEDGES/8); // check that graph cg can fit in share nonleaf's memory
     nthreads = n_threads;
     ntrims = n_trims;
-    int err = pthread_barrier_init(&barry, NULL, nthreads);
-    assert(err == 0);
     sols = new proof[max_sols];
     nsols = 0;
     mutatenonce = mutate_nonce;
@@ -137,6 +133,12 @@ public:
   }
   ~cuckoo_ctx() {
     delete[] sols;
+  }
+  void barrier() {
+    barry.wait();
+  }
+  void abort() {
+    barry.abort();
   }
   void prefetch(const u64 *hashes, const u32 part) const {
     for (u32 i=0; i < NSIPHASH; i++) {
@@ -227,36 +229,26 @@ typedef struct {
   cuckoo_ctx *ctx;
 } thread_ctx;
 
-void barrier(pthread_barrier_t *barry) {
-  int rc = pthread_barrier_wait(barry);
-  if (rc != 0 && rc != PTHREAD_BARRIER_SERIAL_THREAD) {
-    print_log("Could not wait on barrier\n");
-    pthread_exit(NULL);
-  }
-}
-
 void *worker(void *vp) {
   thread_ctx *tp = (thread_ctx *)vp;
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset &alive = ctx->alive;
-  // if (tp->id == 0) print_log("initial size %d\n", NEDGES);
+  if (tp->id == 0) print_log("initial size %d\n", NEDGES);
   u32 round;
-  for (round=1; round < ctx->ntrims; round++) {
-    // if (tp->id == 0) print_log("round %2d partition sizes", round);
-    for (u32 uorv = 0; uorv < 2; uorv++) {
-      for (u32 part = 0; part <= PART_MASK; part++) {
-        if (tp->id == 0)
-          ctx->nonleaf.clear(); // clear all counts
-        barrier(&ctx->barry);
-        ctx->count_node_deg(tp->id,uorv,part);
-        barrier(&ctx->barry);
-        ctx->kill_leaf_edges(tp->id,uorv,part);
-        // if (tp->id == 0) print_log(" %c%d %d", "UV"[uorv], part, alive.count());
-        barrier(&ctx->barry);
-      }
+  for (round=0; round < ctx->ntrims; round++) {
+    if (tp->id == 0) print_log("round %2d partition sizes", round);
+    for (u32 part = 0; part <= PART_MASK; part++) {
+      if (tp->id == 0)
+        ctx->nonleaf.clear(); // clear all counts
+      ctx->barrier();
+      ctx->count_node_deg(tp->id,round&1,part);
+      ctx->barrier();
+      ctx->kill_leaf_edges(tp->id,round&1,part);
+      if (tp->id == 0) print_log(" %c%d %d", "UV"[round&1], part, alive.count());
+      ctx->barrier();
     }
-    // if (tp->id == 0) print_log("\n");
+    if (tp->id == 0) print_log("\n");
   }
   if (tp->id != 0)
     pthread_exit(NULL);

@@ -16,9 +16,7 @@
 #include <assert.h>
 #include <vector>
 #include <bitset>
-#ifdef __APPLE__
-#include "../apple/osx_barrier.h"
-#endif
+#include "../threads/barrier.h"
 
 // algorithm/performance parameters
 

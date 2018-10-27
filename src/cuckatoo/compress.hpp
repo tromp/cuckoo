@@ -63,7 +63,7 @@ public:
       word_t cu = nodes[ui];
       if (cu == NIL) {
         if (npairs >= SIZE/2) {
-          printf("NODE OVERFLOW at %x; LOWER REDUCE_NONCES\n", u << 1 | parity);
+          print_log("NODE OVERFLOW at %x\n", u << 1 | parity);
           return parity;
         }
         nodes[ui] = u << SIZEBITS1 | npairs;

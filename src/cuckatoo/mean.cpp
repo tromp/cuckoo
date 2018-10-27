@@ -19,7 +19,6 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
                                SolverStats *stats
                                )
 {
-  SHOULD_STOP = false;
   u64 time0, time1;
   u32 timems;
   u32 sumnsols = 0;
@@ -86,6 +85,10 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
 
 CALL_CONVENTION void destroy_solver_ctx(SolverCtx* ctx) {
   delete ctx;
+}
+
+CALL_CONVENTION void stop_solver(SolverCtx* ctx) {
+  ctx->abort();
 }
 
 CALL_CONVENTION void fill_default_params(SolverParams* params) {

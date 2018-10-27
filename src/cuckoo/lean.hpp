@@ -11,9 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
-#ifdef __APPLE__
-#include "../apple/osx_barrier.h"
-#endif
+#include "../threads/barrier.h"
 #include <assert.h>
 
 typedef uint64_t u64; // save some typing

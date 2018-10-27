@@ -19,7 +19,6 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
                                SolverStats *stats
                                )
 {
-  SHOULD_STOP = false;
   u64 time0, time1;
   u32 timems;
   u32 sumnsols = 0;
@@ -29,12 +28,14 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
     time0 = timestamp();
     ctx->setheadernonce(header, header_length, nonce + r);
     print_log("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx->sip_keys.k0, ctx->sip_keys.k1, ctx->sip_keys.k2, ctx->sip_keys.k3);
+    ctx->barry.clear();
     for (u32 t = 0; t < ctx->nthreads; t++) {
       threads[t].id = t;
       threads[t].ctx = ctx;
       int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
       assert(err == 0);
     }
+    // sleep(16); abort();
     for (u32 t = 0; t < ctx->nthreads; t++) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
@@ -96,14 +97,18 @@ CALL_CONVENTION void destroy_solver_ctx(SolverCtx* ctx) {
   delete ctx;
 }
 
+CALL_CONVENTION void stop_solver(SolverCtx* ctx) {
+  ctx->abort();
+}
+
 CALL_CONVENTION void fill_default_params(SolverParams* params) {
   params->nthreads = 1;
-  params->ntrims   = 2 * (PART_BITS+3) * (PART_BITS+4);
+  params->ntrims   = 8 * (PART_BITS+3) * (PART_BITS+4);
 }
 
 int main(int argc, char **argv) {
   int nthreads = 1;
-  int ntrims   = 2 * (PART_BITS+3) * (PART_BITS+4);
+  int ntrims   = 8 * (PART_BITS+3) * (PART_BITS+4);
   int nonce = 0;
   int range = 1;
   char header[HEADERLEN];

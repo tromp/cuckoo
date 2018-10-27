@@ -11,14 +11,13 @@
 #include "../crypto/siphashxN.h"
 #include <stdlib.h>
 #include <pthread.h>
+#include <unistd.h> // sleep
 #include <x86intrin.h>
 #include <assert.h>
 #include <vector>
 #include <bitset>
 #include "graph.hpp"
-#ifdef __APPLE__
-#include "../apple/osx_barrier.h"
-#endif
+#include "../threads/barrier.hpp"
 
 // algorithm/performance parameters
 
@@ -259,7 +258,8 @@ public:
   u32 ntrims;
   u32 nthreads;
   bool showall;
-  pthread_barrier_t barry;
+  thread_ctx *threads;
+  trim_barrier barry;
 
 #if NSIPHASH > 4
 
@@ -280,7 +280,7 @@ public:
     for (offset_t i=0; i<n; i+=4096)
       *(u32 *)(p+i) = 0;
   }
-  edgetrimmer(const u32 n_threads, const u32 n_trims, const bool show_all) {
+  edgetrimmer(const u32 n_threads, const u32 n_trims, const bool show_all) : barry(n_threads) {
     assert(sizeof(matrix<ZBUCKETSIZE>) == NX * sizeof(yzbucket<ZBUCKETSIZE>));
     assert(sizeof(matrix<TBUCKETSIZE>) == NX * sizeof(yzbucket<TBUCKETSIZE>));
     nthreads = n_threads;
@@ -298,10 +298,10 @@ public:
     tdegs   = new zbucket8[nthreads];
     tzs     = new zbucket16[nthreads];
     tcounts = new offset_t[nthreads];
-    int err = pthread_barrier_init(&barry, NULL, nthreads);
-    assert(err == 0);
+    threads = new thread_ctx[nthreads];
   }
   ~edgetrimmer() {
+    delete[] threads;
     delete[] buckets;
     delete[] tbuckets;
     delete[] tedges;
@@ -356,6 +356,7 @@ public:
 #endif
     offset_t sumsize = 0;
     for (u32 my = starty; my < endy; my++, endedge += NYZ) {
+      barrier();
       dst.matrixv(my);
 #ifdef NEEDSYNC
       for (u32 x=0; x < NX; x++)
@@ -523,6 +524,7 @@ public:
     const u32 startux = NX *  id    / nthreads;
     const u32   endux = NX * (id+1) / nthreads;
     for (u32 ux = startux; ux < endux; ux++) { // matrix x == ux
+      barrier();
       small.matrixu(0);
       for (u32 my = 0 ; my < NY; my++) {
         u32 edge = my << YZBITS;
@@ -698,6 +700,7 @@ public:
     const u32 startvx = NY *  id    / nthreads;
     const u32   endvx = NY * (id+1) / nthreads;
     for (u32 vx = startvx; vx < endvx; vx++) {
+      barrier();
       small.matrixu(0);
       for (u32 ux = 0 ; ux < NX; ux++) {
         u32 uxyz = ux << YZBITS;
@@ -970,27 +973,28 @@ public:
   }
 
   void trim() {
-    if (nthreads == 1) {
-      trimmer(0);
-      return;
-    }
     void *etworker(void *vp);
-    thread_ctx *threads = new thread_ctx[nthreads];
+    barry.clear();
     for (u32 t = 0; t < nthreads; t++) {
       threads[t].id = t;
       threads[t].et = this;
       int err = pthread_create(&threads[t].thread, NULL, etworker, (void *)&threads[t]);
       assert(err == 0);
     }
+  // } void endtrim() {
     for (u32 t = 0; t < nthreads; t++) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
     }
-    delete[] threads;
+  }
+  void abort() {
+    barry.abort();
+  }
+  bool aborted() {
+    return barry.aborted();
   }
   void barrier() {
-    int rc = pthread_barrier_wait(&barry);
-    assert(rc == 0 || rc == PTHREAD_BARRIER_SERIAL_THREAD);
+    barry.wait();
   }
 #ifdef EXPANDROUND
 #define BIGGERSIZE BIGSIZE+1
@@ -1042,8 +1046,6 @@ void *etworker(void *vp) {
 
 // grow with cube root of size, hardly affected by trimming
 const static u32 MAXPATHLEN = 16 << (EDGEBITS/3);
-
-const static u32 CUCKOO_SIZE = 2 * NX * NYZ2;
 
 int nonce_cmp(const void *a, const void *b) {
   return *(u32 *)a - *(u32 *)b;
@@ -1176,10 +1178,15 @@ public:
     print_log("findcycles rdtsc: %lu\n", rdtsc1-rdtsc0);
   }
 
+  void abort() {
+    trimmer.abort();
+  }
+
   int solve() {
-    assert((u64)CUCKOO_SIZE * sizeof(u32) <= trimmer.nthreads * sizeof(yzbucket<TBUCKETSIZE>));
     trimmer.trim();
-    findcycles();
+    // sleep(2); abort(); trimmer.endtrim();
+    if (!trimmer.aborted())
+      findcycles();
     return sols.size() / PROOFSIZE;
   }
 
