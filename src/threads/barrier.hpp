@@ -2,8 +2,9 @@
 #include <pthread.h>
 #include <errno.h>
 
+#ifdef __APPLE__
 typedef int pthread_barrierattr_t;
-#define PTHREAD_BARRIER_SERIAL_THREAD 1
+#endif
 
 class trim_barrier {
   pthread_mutex_t mutex;
