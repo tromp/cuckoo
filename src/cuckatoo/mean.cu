@@ -414,21 +414,25 @@ struct edgetrimmer {
   
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationA, start, stop);
+    if (abort) return false;
     cudaEventRecord(start, NULL);
   
     const u32 halfA = sizeA/2 / sizeof(ulonglong4);
     const u32 halfE = NX2 / 2;
     if (tp.expand == 0) {
       SeedB<EDGES_A, uint2><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const uint2 *)bufferAB, bufferA, (const int *)indexesE, indexesE2);
+      if (abort) return false;
       SeedB<EDGES_A, uint2><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const uint2 *)(bufferAB+halfA), bufferA+halfA, (const int *)(indexesE+halfE), indexesE2+halfE);
     } else {
       SeedB<EDGES_A,   u32><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const   u32 *)bufferAB, bufferA, (const int *)indexesE, indexesE2);
+      if (abort) return false;
       SeedB<EDGES_A,   u32><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const   u32 *)(bufferAB+halfA), bufferA+halfA, (const int *)(indexesE+halfE), indexesE2+halfE);
     }
 
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
     print_log("Seeding completed in %.0f + %.0f ms\n", durationA, durationB);
+    if (abort) return false;
   
     cudaMemset(indexesE, 0, indexesSize);
 
@@ -438,6 +442,7 @@ struct edgetrimmer {
       Round<EDGES_A,   u32, EDGES_B, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const   u32 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
     else // tp.expand == 2
       Round<EDGES_A,   u32, EDGES_B,   u32><<<tp.trim.blocks, tp.trim.tpb>>>(0, *dipkeys, (const   u32 *)bufferA, (  u32 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
+    if (abort) return false;
 
     cudaMemset(indexesE2, 0, indexesSize);
 
@@ -446,20 +451,25 @@ struct edgetrimmer {
     else
       Round<EDGES_B,   u32, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, *dipkeys, (const   u32 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .296
 
+    if (abort) return false;
     cudaMemset(indexesE, 0, indexesSize);
     Round<EDGES_B/2, uint2, EDGES_A/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(2, *dipkeys, (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .176
+    if (abort) return false;
     cudaMemset(indexesE2, 0, indexesSize);
     Round<EDGES_A/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(3, *dipkeys, (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .117
   
     cudaDeviceSynchronize();
   
     for (int round = 4; round < tp.ntrims; round += 2) {
+      if (abort) return false;
       cudaMemset(indexesE, 0, indexesSize);
       Round<EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round, *dipkeys,  (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE);
+      if (abort) return false;
       cudaMemset(indexesE2, 0, indexesSize);
       Round<EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round+1, *dipkeys,  (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2);
     }
     
+    if (abort) return false;
     cudaMemset(indexesE, 0, indexesSize);
     cudaDeviceSynchronize();
   
@@ -477,6 +487,7 @@ struct solver_ctx {
   graph<word_t> cg;
   uint2 soledges[PROOFSIZE];
   std::vector<u32> sols; // concatenation of all proof's indices
+  bool abort;
 
   solver_ctx(const trimparams tp, bool mutate_nonce) : trimmer(tp), cg(MAXEDGES, MAXEDGES, MAXSOLS, IDXSHIFT) {
     edges   = new uint2[MAXEDGES];
@@ -519,8 +530,11 @@ struct solver_ctx {
     u32 timems,timems2;
     struct timeval time0, time1;
 
+    trimmer.abort = false;
     gettimeofday(&time0, 0);
     u32 nedges = trimmer.trim();
+    if (!nedges)
+      return 0;
     if (nedges > MAXEDGES) {
       print_log("OOPS; losing %d edges beyond MAXEDGES=%d\n", nedges-MAXEDGES, MAXEDGES);
       nedges = MAXEDGES;
@@ -535,6 +549,11 @@ struct solver_ctx {
     print_log("%d trims %d ms %d edges %d ms total %d ms\n", trimmer.tp.ntrims, timems, nedges, timems2, timems+timems2);
     return sols.size() / PROOFSIZE;
   }
+
+  void abort() {
+    trimmer->abort = true;
+  }
+
 };
 
 #include <unistd.h>
@@ -553,7 +572,6 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
                                SolverStats *stats
                                )
 {
-  SHOULD_STOP = false;
   u64 time0, time1;
   u32 timems;
   u32 sumnsols = 0;
@@ -639,6 +657,10 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
 
 CALL_CONVENTION void destroy_solver_ctx(SolverCtx* ctx) {
   delete ctx;
+}
+
+CALL_CONVENTION void stop_solver(SolverCtx* ctx) {
+  ctx->abort();
 }
 
 CALL_CONVENTION void fill_default_params(SolverParams* params) {

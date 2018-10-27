@@ -234,10 +234,10 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset &alive = ctx->alive;
-  if (tp->id == 0) print_log("initial size %d\n", NEDGES);
+  // if (tp->id == 0) print_log("initial size %d\n", NEDGES);
   u32 round;
   for (round=0; round < ctx->ntrims; round++) {
-    if (tp->id == 0) print_log("round %2d partition sizes", round);
+    // if (tp->id == 0) print_log("round %2d partition sizes", round);
     for (u32 part = 0; part <= PART_MASK; part++) {
       if (tp->id == 0)
         ctx->nonleaf.clear(); // clear all counts
@@ -245,10 +245,10 @@ void *worker(void *vp) {
       ctx->count_node_deg(tp->id,round&1,part);
       ctx->barrier();
       ctx->kill_leaf_edges(tp->id,round&1,part);
-      if (tp->id == 0) print_log(" %c%d %d", "UV"[round&1], part, alive.count());
+      // if (tp->id == 0) print_log(" %c%d %d", "UV"[round&1], part, alive.count());
       ctx->barrier();
     }
-    if (tp->id == 0) print_log("\n");
+    // if (tp->id == 0) print_log("\n");
   }
   if (tp->id != 0)
     pthread_exit(NULL);

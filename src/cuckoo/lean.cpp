@@ -14,7 +14,7 @@
 
 int main(int argc, char **argv) {
   int nthreads = 1;
-  int ntrims   = 1 + (PART_BITS+3)*(PART_BITS+4)/2;
+  int ntrims   = 2 + (PART_BITS+3)*(PART_BITS+4);
   int nonce = 0;
   int range = 1;
   char header[HEADERLEN];
@@ -71,12 +71,14 @@ int main(int argc, char **argv) {
   for (int r = 0; r < range; r++) {
     gettimeofday(&time0, 0);
     ctx.setheadernonce(header, sizeof(header), nonce + r);
+    ctx.barry.clear();
     for (int t = 0; t < nthreads; t++) {
       threads[t].id = t;
       threads[t].ctx = &ctx;
       int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
       assert(err == 0);
     }
+    // sleep(33); ctx.abort();
     for (int t = 0; t < nthreads; t++) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);

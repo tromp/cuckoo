@@ -16,7 +16,7 @@
 #include <assert.h>
 #include <vector>
 #include <bitset>
-#include "../threads/barrier.h"
+#include "../threads/barrier.hpp"
 
 // algorithm/performance parameters
 

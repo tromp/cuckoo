@@ -35,7 +35,7 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
       int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
       assert(err == 0);
     }
-    // sleep(16); abort();
+    // sleep(39); ctx->abort();
     for (u32 t = 0; t < ctx->nthreads; t++) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);

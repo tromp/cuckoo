@@ -981,7 +981,7 @@ public:
       int err = pthread_create(&threads[t].thread, NULL, etworker, (void *)&threads[t]);
       assert(err == 0);
     }
-  // } void endtrim() {
+    // sleep(7); abort();
     for (u32 t = 0; t < nthreads; t++) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
@@ -1184,7 +1184,6 @@ public:
 
   int solve() {
     trimmer.trim();
-    // sleep(2); abort(); trimmer.endtrim();
     if (!trimmer.aborted())
       findcycles();
     return sols.size() / PROOFSIZE;
