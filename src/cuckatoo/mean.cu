@@ -368,6 +368,7 @@ struct edgetrimmer {
   u32 hostA[NX * NY];
   u32 *uvnodes;
   siphash_keys sipkeys, *dipkeys;
+  bool abort;
 
   edgetrimmer(const trimparams _tp) : tp(_tp) {
     checkCudaErrors(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
@@ -487,7 +488,6 @@ struct solver_ctx {
   graph<word_t> cg;
   uint2 soledges[PROOFSIZE];
   std::vector<u32> sols; // concatenation of all proof's indices
-  bool abort;
 
   solver_ctx(const trimparams tp, bool mutate_nonce) : trimmer(tp), cg(MAXEDGES, MAXEDGES, MAXSOLS, IDXSHIFT) {
     edges   = new uint2[MAXEDGES];
@@ -551,7 +551,7 @@ struct solver_ctx {
   }
 
   void abort() {
-    trimmer->abort = true;
+    trimmer.abort = true;
   }
 
 };

@@ -209,7 +209,7 @@ public:
     struct timeval time0, time1;
     gettimeofday(&time0, 0);
 
-    trimmer->abort = false;
+    trimmer.abort = false;
     if (!trimmer.trim()) // trimmer aborted
       return 0;
 
@@ -252,7 +252,7 @@ public:
   }
 
   void abort() {
-    trimmer->abort = true;
+    trimmer.abort = true;
   }
 };
 
