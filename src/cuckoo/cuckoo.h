@@ -49,7 +49,7 @@ const char *errstr[] = { "OK", "wrong header length", "edge too big", "edges not
 // verify that edges are ascending and form a cycle in header-generated graph
 int verify(word_t edges[PROOFSIZE], siphash_keys *keys) {
   word_t uvs[2*PROOFSIZE];
-  word_t xor0 = 0, xor1  =0;
+  word_t xor0 = 0, xor1 = 0;
   for (u32 n = 0; n < PROOFSIZE; n++) {
     if (edges[n] > EDGEMASK)
       return POW_TOO_BIG;
