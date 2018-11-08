@@ -388,8 +388,8 @@ public:
         v2 = XOR(v2, _mm_set1_epi64x(0xffLL));
         v6 = XOR(v6, _mm_set1_epi64x(0xffLL));
         SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-        v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-        v4 = XOR(XOR(v4,v5),XOR(v6,v7));
+        v0 = ROT17(XOR(XOR(v0,v1),XOR(v2,v3)));
+        v4 = ROT17(XOR(XOR(v4,v5),XOR(v6,v7)));
 
         vpacket0 = _mm_add_epi64(vpacket0, vpacketinc);
         vpacket1 = _mm_add_epi64(vpacket1, vpacketinc);
@@ -438,8 +438,8 @@ public:
         v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
         v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
         SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-        v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-        v4 = XOR(XOR(v4,v5),XOR(v6,v7));
+        v0 = ROT17(XOR(XOR(v0,v1),XOR(v2,v3)));
+        v4 = ROT17(XOR(XOR(v4,v5),XOR(v6,v7)));
 
         vpacket0 = _mm256_add_epi64(vpacket0, vpacketinc);
         vpacket1 = _mm256_add_epi64(vpacket1, vpacketinc);
@@ -599,8 +599,8 @@ public:
           v2 = XOR(v2,ff);
           v6 = XOR(v6,ff);
           SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-          v4 = XOR(XOR(v4,v5),XOR(v6,v7));
+          v0 = ROT17(XOR(XOR(v0,v1),XOR(v2,v3)));
+          v4 = ROT17(XOR(XOR(v4,v5),XOR(v6,v7)));
 
           v1 = _mm_srli_epi64(v0, YZBITS) & vxmask;
           v5 = _mm_srli_epi64(v4, YZBITS) & vxmask;
@@ -635,9 +635,9 @@ public:
           v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
           v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
           SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-          v4 = XOR(XOR(v4,v5),XOR(v6,v7));
-    
+          v0 = ROT17(XOR(XOR(v0,v1),XOR(v2,v3)));
+          v4 = ROT17(XOR(XOR(v4,v5),XOR(v6,v7)));
+
           v1 = _mm256_srli_epi64(v0, YZBITS) & vxmask;
           v5 = _mm256_srli_epi64(v4, YZBITS) & vxmask;
           v0 = vhi0 | (v0 & vyzmask);
@@ -1261,8 +1261,8 @@ public:
         v2 = XOR(v2, _mm_set1_epi64x(0xffLL));
         v6 = XOR(v6, _mm_set1_epi64x(0xffLL));
         SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-        v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-        v4 = XOR(XOR(v4,v5),XOR(v6,v7));
+        v0 = ROT17(XOR(XOR(v0,v1),XOR(v2,v3)));
+        v4 = ROT17(XOR(XOR(v4,v5),XOR(v6,v7)));
 
         vpacket0 = _mm_add_epi64(vpacket0, vpacketinc);
         vpacket1 = _mm_add_epi64(vpacket1, vpacketinc);
@@ -1296,16 +1296,16 @@ public:
         v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
         v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
         SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-        v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-        v4 = XOR(XOR(v4,v5),XOR(v6,v7));
-  
+        v0 = ROT17(XOR(XOR(v0,v1),XOR(v2,v3)));
+        v4 = ROT17(XOR(XOR(v4,v5),XOR(v6,v7)));
+
         vpacket0 = _mm256_add_epi64(vpacket0, vpacketinc);
         vpacket1 = _mm256_add_epi64(vpacket1, vpacketinc);
         v0 = v0 & vnodemask;
         v4 = v4 & vnodemask;
         v1 = _mm256_srli_epi64(v0, ZBITS);
         v5 = _mm256_srli_epi64(v4, ZBITS);
-  
+
         u32 uxy;
   #define MATCH(i,v,x,w) \
   uxy = _mm256_extract_epi32(v,x);\

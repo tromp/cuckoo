@@ -85,7 +85,7 @@ void siphash24x4(const siphash_keys *keys, const uint64_t *indices, uint64_t *ha
   v0 = XOR(v0,packet);
   v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
   SIPROUNDXN; SIPROUNDXN; SIPROUNDXN; SIPROUNDXN;
-  _mm256_store_si256((__m256i *)hashes, XOR(XOR(v0,v1),XOR(v2,v3)));
+  _mm256_store_si256((__m256i *)hashes, ROT17(XOR(XOR(v0,v1),XOR(v2,v3))));
 }
 
 // 8-way sipHash-2-4 specialized to precomputed key and 8 byte nonces
@@ -104,8 +104,8 @@ void siphash24x8(const siphash_keys *keys, const uint64_t *indices, uint64_t *ha
   v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
   v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
   SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-  _mm256_store_si256((__m256i *)hashes, XOR(XOR(v0,v1),XOR(v2,v3)));
-  _mm256_store_si256((__m256i *)(hashes+4), XOR(XOR(v4,v5),XOR(v6,v7)));
+  _mm256_store_si256((__m256i *)hashes,     ROT17(XOR(XOR(v0,v1),XOR(v2,v3))));
+  _mm256_store_si256((__m256i *)(hashes+4), ROT17(XOR(XOR(v4,v5),XOR(v6,v7))));
 }
 
 // 16-way sipHash-2-4 specialized to precomputed key and 8 byte nonces
@@ -144,15 +144,15 @@ void siphash24x2(const siphash_keys *keys, const uint64_t *indices, uint64_t *ha
   v2 = _mm_set1_epi64x(keys->k2);
   v3 = _mm_set1_epi64x(keys->k3);
   mi = _mm_load_si128((__m128i *)indices);
-	
+
   v3 = XOR (v3, mi);
   SIPROUNDXN; SIPROUNDXN;
   v0 = XOR (v0, mi);
-  
+
   v2 = XOR (v2, _mm_set1_epi64x(0xffLL));
   SIPROUNDXN; SIPROUNDXN; SIPROUNDXN; SIPROUNDXN;
-  mi = XOR(XOR(v0,v1),XOR(v2,v3));
-  
+  mi = ROT17(XOR(XOR(v0,v1),XOR(v2,v3)));
+
   _mm_store_si128((__m128i *)hashes, mi);
 }
 
@@ -176,11 +176,11 @@ void siphash24x4(const siphash_keys *keys, const uint64_t *indices, uint64_t *ha
   v2 = XOR (v2, _mm_set1_epi64x(0xffLL));
   v6 = XOR (v6, _mm_set1_epi64x(0xffLL));
   SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-  mi = XOR(XOR(v0,v1),XOR(v2,v3));
-  m2 = XOR(XOR(v4,v5),XOR(v6,v7));
-  
-  _mm_store_si128((__m128i *)hashes,		mi);
-  _mm_store_si128((__m128i *)(hashes + 2),m2);
+  mi = ROT17(XOR(XOR(v0,v1),XOR(v2,v3)));
+  m2 = ROT17(XOR(XOR(v4,v5),XOR(v6,v7)));
+
+  _mm_store_si128((__m128i *)hashes,	   mi);
+  _mm_store_si128((__m128i *)(hashes + 2), m2);
 }
 #endif
 
@@ -195,8 +195,8 @@ void siphash24x4(const siphash_keys *keys, const uint64_t *indices, uint64_t *ha
 void siphash24xN(const siphash_keys *keys, const uint64_t *indices, uint64_t * hashes) {
 #if NSIPHASH == 1
   *hashes = siphash24(keys, *indices);
-#elif NSIPHASH == 2  
-  siphash24x2(keys, indices, hashes); 
+#elif NSIPHASH == 2
+  siphash24x2(keys, indices, hashes);
 #elif NSIPHASH == 4
   siphash24x4(keys, indices, hashes);
 #elif NSIPHASH == 8

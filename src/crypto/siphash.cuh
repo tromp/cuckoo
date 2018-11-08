@@ -42,7 +42,7 @@ __device__ word_t dipnode(const siphash_keys &keys, word_t nce, u32 uorv) {
   v0 ^= nonce;
   v2 ^= vectorize(0xff);
   SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return devectorize(v0 ^ v1 ^ v2  ^ v3) & EDGEMASK;
+  return devectorize(ROTL((v0 ^ v1 ^ v2  ^ v3), 17)) & EDGEMASK;
 }
 
 #else
@@ -54,7 +54,7 @@ __device__ word_t dipnode(const siphash_keys &keys, word_t nce, u32 uorv) {
   v0 ^= nonce;
   v2 ^= 0xff;
   SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return (v0 ^ v1 ^ v2  ^ v3) & EDGEMASK;
+  return ROTL((v0 ^ v1 ^ v2  ^ v3), 17) & EDGEMASK;
 }
 
 #endif

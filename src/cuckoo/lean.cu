@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "cuckoo.h"
-#include "siphash.cuh"
+#include "../crypto/siphash.cuh"
 
 #include <stdio.h>
 #include <stdlib.h>
