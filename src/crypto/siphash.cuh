@@ -86,7 +86,7 @@ public:
     dip_round(); dip_round(); dip_round(); dip_round();
   }
 };
- 
+
 __device__ uint64_t dipnode(const siphash_keys &sip_keys, const uint32_t nonce, const int uorv) {
   diphash_state v(sip_keys);
   v.hash24((nonce << 1) | uorv);
