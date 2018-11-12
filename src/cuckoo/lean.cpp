@@ -1,12 +1,15 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2016 John Tromp
 
-#include "lean_miner.hpp"
+#include "lean.hpp"
 #include <unistd.h>
+#include <sys/time.h>
 
 #define MAXSOLS 8
 // arbitrary length of header hashed into siphash key
+#ifndef HEADERLEN
 #define HEADERLEN 80
+#endif
 
 
 int main(int argc, char **argv) {
@@ -16,15 +19,23 @@ int main(int argc, char **argv) {
   int range = 1;
   char header[HEADERLEN];
   unsigned len;
+  struct timeval time0, time1;
+  u32 timems;
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:m:n:r:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:r:t:x:")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
         assert(len <= sizeof(header));
         memcpy(header, optarg, len);
+        break;
+      case 'x':
+        len = strlen(optarg)/2;
+        assert(len <= sizeof(header));
+        for (u32 i=0; i<len; i++)
+          sscanf(optarg+2*i, "%2hhx", header+i);
         break;
       case 'n':
         nonce = atoi(optarg);
@@ -58,6 +69,7 @@ int main(int argc, char **argv) {
 
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
+    gettimeofday(&time0, 0);
     ctx.setheadernonce(header, sizeof(header), nonce + r);
     for (int t = 0; t < nthreads; t++) {
       threads[t].id = t;
@@ -69,6 +81,9 @@ int main(int argc, char **argv) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
     }
+    gettimeofday(&time1, 0);
+    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
+    printf("Time: %d ms\n", timems);
     for (unsigned s = 0; s < ctx.nsols; s++) {
       printf("Solution");
       for (int i = 0; i < PROOFSIZE; i++)

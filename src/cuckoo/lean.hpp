@@ -1,5 +1,5 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2016 John Tromp
+// Copyright (c) 2013-2019 John Tromp
 // The edge-trimming memory optimization is due to Dave Andersen
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
 // The use of prefetching was suggested by Alexander Peslyak (aka Solar Designer)
@@ -7,14 +7,16 @@
 // but avoids losing cycles to race conditions (not worth it in my testing)
 
 #include "cuckoo.h"
-#include "siphashxN.h"
+#include "../crypto/siphashxN.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #ifdef __APPLE__
-#include "osx_barrier.h"
+#include "../apple/osx_barrier.h"
 #endif
 #include <assert.h>
+
+typedef uint64_t u64; // save some typing
 
 #ifdef ATOMIC
 #include <atomic>
@@ -41,19 +43,12 @@ typedef unsigned char uatwice;
 #error not implemented
 #endif
 
-#if EDGEBITS <= 31
-typedef u32 nonce_t;
-typedef u32 node_t;
-#else
-typedef u64 nonce_t;
-typedef u64 node_t;
-#endif
 #include <set>
 
 // algorithm/performance parameters; assume EDGEBITS < 31
 
 const static u32 NODEBITS = EDGEBITS + 1;
-const static u32 NODEMASK = (EDGEMASK << 1) | 1;
+const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 
 #ifndef PART_BITS
 // #bits used to partition edge set processing to save memory
@@ -101,13 +96,13 @@ public:
     assert(bits);
     memset(bits, 0, TWICE_ATOMS*sizeof(atwice));
   }
- void prefetch(node_t u) const {
+ void prefetch(word_t u) const {
 #ifdef PREFETCH
     __builtin_prefetch((const void *)(&bits[u/TWICE_PER_ATOM]), /*READ=*/0, /*TEMPORAL=*/0);
 #endif
   }
-  void set(node_t u) {
-    node_t idx = u/TWICE_PER_ATOM;
+  void set(word_t u) {
+    word_t idx = u/TWICE_PER_ATOM;
     uatwice bit = (uatwice)1 << (2 * (u%TWICE_PER_ATOM));
 #ifdef ATOMIC
     uatwice old = std::atomic_fetch_or_explicit(&bits[idx], bit, std::memory_order_relaxed);
@@ -117,7 +112,7 @@ public:
     bits[idx] = old | (bit + (old & bit));
 #endif
   }
-  bool test(node_t u) const {
+  bool test(word_t u) const {
 #ifdef ATOMIC
     return ((bits[u/TWICE_PER_ATOM].load(std::memory_order_relaxed)
             >> (2 * (u%TWICE_PER_ATOM))) & 2) != 0;
@@ -157,14 +152,14 @@ public:
       sum += cnt[i];
     return sum;
   }
-  void reset(nonce_t n, u32 thread) {
+  void reset(word_t n, u32 thread) {
     bits[n/64] |= 1LL << (n%64);
     cnt[thread]--;
   }
-  bool test(node_t n) const {
+  bool test(word_t n) const {
     return !((bits[n/64] >> (n%64)) & 1LL);
   }
-  u64 block(node_t n) const {
+  u64 block(word_t n) const {
     return ~bits[n/64];
   }
 };
@@ -184,9 +179,9 @@ public:
     cuckoo = (au64 *)recycle;
     memset(cuckoo, 0, CUCKOO_SIZE*sizeof(au64));
   }
-  void set(node_t u, node_t v) {
+  void set(word_t u, word_t v) {
     u64 niew = (u64)u << NODEBITS | v;
-    for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
+    for (word_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
 #if !defined(SINGLECYCLING) && defined(ATOMIC)
       u64 old = 0;
       if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
@@ -204,8 +199,8 @@ public:
 #endif
     }
   }
-  node_t operator[](node_t u) const {
-    for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
+  word_t operator[](word_t u) const {
+    for (word_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
 #if !defined(SINGLECYCLING) && defined(ATOMIC)
       u64 cu = cuckoo[ui].load(std::memory_order_relaxed);
 #else
@@ -215,7 +210,7 @@ public:
         return 0;
       if ((cu >> NODEBITS) == (u & KEYMASK)) {
         assert(((ui - (u >> IDXSHIFT)) & CUCKOO_MASK) < MAXDRIFT);
-        return (node_t)(cu & NODEMASK);
+        return (word_t)(cu & NODEMASK);
       }
     }
   }
@@ -227,7 +222,7 @@ public:
   shrinkingset *alive;
   twice_set *nonleaf;
   cuckoo_hash *cuckoo;
-  nonce_t (*sols)[PROOFSIZE];
+  word_t (*sols)[PROOFSIZE];
   u32 nonce;
   u32 maxsols;
   au32 nsols;
@@ -243,7 +238,7 @@ public:
     ntrims = n_trims;
     int err = pthread_barrier_init(&barry, NULL, nthreads);
     assert(err == 0);
-    sols = (nonce_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(nonce_t));
+    sols = (word_t (*)[PROOFSIZE])calloc(maxsols = max_sols, PROOFSIZE*sizeof(word_t));
     assert(sols != 0);
     nsols = 0;
   }
@@ -285,9 +280,9 @@ public:
   
     memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->set(0) to reduce branching
     u32 nidx = 0;
-    for (nonce_t block = id*64; block < NEDGES; block += nthreads*64) {
+    for (word_t block = id*64; block < NEDGES; block += nthreads*64) {
       u64 alive64 = alive->block(block);
-      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
         indices[nidx++ % NSIPHASH] = 2*nonce + uorv;
@@ -325,9 +320,9 @@ public:
   
     memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf->test(0) to reduce branching
     u32 nidx = 0;
-    for (nonce_t block = id*64; block < NEDGES; block += nthreads*64) {
+    for (word_t block = id*64; block < NEDGES; block += nthreads*64) {
       u64 alive64 = alive->block(block);
-      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
         indices[nidx++] = 2*nonce + uorv;
@@ -348,8 +343,8 @@ public:
     const u32 nnsip = pnsip + NSIPHASH;
     kill(hashes+nnsip, indices+nnsip, NPREFETCH-nnsip, part, id);
   }
-  void solution(node_t *us, u32 nu, node_t *vs, u32 nv) {
-    typedef std::pair<node_t,node_t> edge;
+  void solution(word_t *us, u32 nu, word_t *vs, u32 nv) {
+    typedef std::pair<word_t,word_t> edge;
     std::set<edge> cycle;
     u32 n = 0;
     cycle.insert(edge(*us, *vs));
@@ -362,9 +357,9 @@ public:
   #else
     u32 soli = nsols++;
   #endif
-    for (nonce_t block = 0; block < NEDGES; block += 64) {
+    for (word_t block = 0; block < NEDGES; block += 64) {
       u64 alive64 = alive->block(block);
-      for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
         edge e(sipnode_(&sip_keys, nonce, 0), sipnode_(&sip_keys, nonce, 1));
@@ -397,7 +392,7 @@ void barrier(pthread_barrier_t *barry) {
   }
 }
 
-u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
+u32 path(cuckoo_hash &cuckoo, word_t u, word_t *us) {
   u32 nu;
   for (nu = 0; u; u = cuckoo[u]) {
     if (nu >= MAXPATHLEN) {
@@ -453,17 +448,17 @@ void *worker(void *vp) {
   barrier(&ctx->barry);
 #endif
   cuckoo_hash &cuckoo = *ctx->cuckoo;
-  node_t us[MAXPATHLEN], vs[MAXPATHLEN];
+  word_t us[MAXPATHLEN], vs[MAXPATHLEN];
 #ifdef SINGLECYCLING
-  for (nonce_t block = 0; block < NEDGES; block += 64) {
+  for (word_t block = 0; block < NEDGES; block += 64) {
 #else
-  for (nonce_t block = tp->id*64; block < NEDGES; block += ctx->nthreads*64) {
+  for (word_t block = tp->id*64; block < NEDGES; block += ctx->nthreads*64) {
 #endif
     u64 alive64 = alive->block(block);
-    for (nonce_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+    for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
       nonce += ffs; alive64 >>= ffs;
-      node_t u0=sipnode_(&ctx->sip_keys, nonce, 0), v0=sipnode_(&ctx->sip_keys, nonce, 1);
+      word_t u0=sipnode_(&ctx->sip_keys, nonce, 0), v0=sipnode_(&ctx->sip_keys, nonce, 1);
       if (u0) {// ignore vertex 0 so it can be used as nil for cuckoo[]
         u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
         if (us[nu] == vs[nv]) {

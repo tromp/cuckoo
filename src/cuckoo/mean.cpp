@@ -1,7 +1,7 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2018 John Tromp
 
-#include "mean_miner.hpp"
+#include "mean.hpp"
 #include <unistd.h>
 #include <sys/time.h>
 
@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
   for (u32 r = 0; r < range; r++) {
     gettimeofday(&time0, 0);
     ctx.setheadernonce(header, sizeof(header), nonce + r);
-    printf("nonce %d\n", nonce+r);
+    printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.trimmer->sip_keys.k0, ctx.trimmer->sip_keys.k1, ctx.trimmer->sip_keys.k2, ctx.trimmer->sip_keys.k3);
     u32 nsols = ctx.solve();
     gettimeofday(&time1, 0);
     timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 
     for (unsigned s = 0; s < nsols; s++) {
       printf("Solution");
-      u32* prf = &ctx.sols[s * PROOFSIZE];
+      word_t *prf = &ctx.sols[s * PROOFSIZE];
       for (u32 i = 0; i < PROOFSIZE; i++)
         printf(" %jx", (uintmax_t)prf[i]);
       printf("\n");
