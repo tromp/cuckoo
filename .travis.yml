@@ -28,3 +28,9 @@ script:
   - if test cuckatoo = "${JOB:?}"; then ( cd src/crypto && env ${LIBV:?}="${LIBP:?}" make && cd ../cuckatoo && make; ); fi
   - if test java = "${JOB:?}"; then ( cd src/java && make; ); fi
   - if test doc = "${JOB:?}"; then ( cd doc && make cuckoo.pdf; ); fi
+after_success:
+  - |
+    if test doc = "${JOB:?}"; then
+      echo "Below is the generated PDF encoded as base64. You can decode it using 'openssl base64 -d'."
+      cat doc/cuckoo.pdf | openssl base64
+    fi
