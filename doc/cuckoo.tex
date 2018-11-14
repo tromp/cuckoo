@@ -4,8 +4,8 @@
 \pgfplotsset{compat=default}
 \newcommand{\cuckoo}{{\rm cuckoo}}
 \newcommand{\hash}{{\rm siphash}}
-\newcommand{\hin}{h_{mbox{in}}
-\newcommand{\hout}{h_{mbox{out}}
+\newcommand{\hin}{h_{\mbox{in}}}
+\newcommand{\hout}{h_{\mbox{out}}}
 \usepackage{hyperref}
 \usepackage{listings}
 \title{Cuckoo Cycle: \protect\\ a memory bound graph-theoretic proof-of-work}
@@ -110,10 +110,10 @@ uniformly at random. For a well-behaved hash function, these two classes of rand
 should have nearly identical properties.
 
 Formally, fix a keyed hash function
-$h: \{0,1\}^K \times \{0,1\}^{h_\mbox{in}} \rightarrow \{0,1\}^{h_\mbox{out}}$,
+$h: \{0,1\}^K \times \{0,1\}^{h_{\mbox{in}}} \rightarrow \{0,1\}^{h_{\mbox{out}}}$,
 and a small graph $H$ as a target subgraph\footnote{hash functions generally have arbitrary length inputs,
 but here we fix the input width at $\hin$ bits.}.
-Now pick a large number $N \leq 2^{h_\mbox{out}}$ as the number of nodes,
+Now pick a large number $N \leq 2^{h_{\mbox{out}}}$ as the number of nodes,
 and $M \leq 2^{\hin-1}$ as the number of edges.
 Each key $k \in \{0,1\}^K$ generates a graph $G_k = (V,E)$ where $V=\{v_0,\ldots,v_{N-1}\}$,
 $E=\{e_0,\ldots,e_{M-1}\}$, and (with $|$ denoting catenation of bit strings)
@@ -798,7 +798,7 @@ whose cost effectiveness on commodity hardware could greatly benefit decentraliz
 
 \lstset{language=C,basicstyle=\footnotesize}
 \section{Appendix A: cuckoo.h}
-\lstinputlisting{../src/cuckoo.h}
+\lstinputlisting{../src/cuckoo/cuckoo.h}
 
 %\section{Appendix B: cuckoo\_miner.h}
 %\lstinputlisting{cuckoo_miner.h}
