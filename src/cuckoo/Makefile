@@ -19,7 +19,7 @@ simpletest:     simple19
 	./simple19 -n 38
 
 leantest:       lean19x1
-	./lean19 -n 38
+	./lean19x1 -n 38
 
 simple19:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=19 simple.cpp $(BLAKE_2B_SRC)
