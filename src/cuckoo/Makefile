@@ -18,7 +18,7 @@ all : simpletest leantest
 simpletest:     simple19
 	./simple19 -n 38
 
-leantest:       lean19
+leantest:       lean19x1
 	./lean19 -n 38
 
 simple19:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
@@ -27,8 +27,8 @@ simple19:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
 simple29:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=29 simple.cpp $(BLAKE_2B_SRC)
 
-lean19:		../crypto/siphash.h cuckoo.h  lean.cpp Makefile
-	$(GPP) -o $@ -DATOMIC -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
+lean19x1:	../crypto/siphash.h cuckoo.h  lean.cpp Makefile
+	$(GPP) -o $@ -DNSIPHASH=1 -DATOMIC -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
 
 lean29x8:	../crypto/siphash.h cuckoo.h  lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean.cpp $(BLAKE_2B_SRC)
