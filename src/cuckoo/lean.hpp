@@ -406,10 +406,9 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset *alive = ctx->alive;
-  if (tp->id == 0)
-    printf("initial size %d\n", NEDGES);
+  // if (tp->id == 0) printf("initial size %d\n", NEDGES);
   for (u32 round=0; round < ctx->ntrims; round++) {
-    if (tp->id == 0) printf("round %2d partition sizes", round);
+    // if (tp->id == 0) printf("round %2d partition sizes", round);
     for (u32 part = 0; part <= PART_MASK; part++) {
       if (tp->id == 0)
         ctx->nonleaf->clear(); // clear all counts
@@ -418,12 +417,9 @@ void *worker(void *vp) {
       ctx->barrier();
       ctx->kill_leaf_edges(tp->id,round&1,part);
       ctx->barrier();
-      if (tp->id == 0) {
-        u32 size = alive->count();
-        printf(" %c%d %d", "UV"[round&1], part, size);
-      }
+      // if (tp->id == 0) printf(" %c%d %d", "UV"[round&1], part, alive->count());
     }
-    if (tp->id == 0) printf("\n");
+    // if (tp->id == 0) printf("\n");
   }
   if (tp->id == 0) {
     u32 load = (u32)(100LL * alive->count() / CUCKOO_SIZE);

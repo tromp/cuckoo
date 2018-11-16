@@ -1,5 +1,5 @@
-#ifndef INCLUDE_SIPHASH_H
-#define INCLUDE_SIPHASH_H
+#pragma once
+
 #include <stdint.h>    // for types uint32_t,uint64_t
 #include <immintrin.h> // for _mm256_* intrinsics
 #ifndef __APPLE__
@@ -11,9 +11,21 @@
 #define htole64(x) OSSwapHostToLittleInt64(x)
 #endif
 
-class siphash_keys;
+// generalize siphash by using a quadruple of 64-bit keys,
+class siphash_keys {
+public:
+  uint64_t k0;
+  uint64_t k1;
+  uint64_t k2;
+  uint64_t k3;
+
+  void setkeys(const char *keybuf);
+
+  uint64_t siphash24(const uint64_t nonce);
+};
 
 class siphash_state {
+public:
   uint64_t v0;
   uint64_t v1;
   uint64_t v2;
@@ -25,7 +37,13 @@ class siphash_state {
   uint64_t xor_lanes() {
     return (v0 ^ v1) ^ (v2  ^ v3);
   }
-  static uint64_t rotl(x,b) {
+  void xor_with(const siphash_state &x) {
+    v0 ^= x.v0;
+    v1 ^= x.v1;
+    v2 ^= x.v2;
+    v3 ^= x.v3;
+  }
+  static uint64_t rotl(uint64_t x, uint64_t b) {
     return (x << b) | (x >> (64 - b));
   }
   void sip_round() {
@@ -43,41 +61,16 @@ class siphash_state {
   }
 };
  
-// generalize siphash by using a quadruple of 64-bit keys,
-class siphash_keys {
-  uint64_t k0;
-  uint64_t k1;
-  uint64_t k2;
-  uint64_t k3;
-
-  // set siphash keys from 32 byte char array
-  void setkeys(const char *keybuf) {
-    k0 = htole64(((uint64_t *)keybuf)[0]);
-    k1 = htole64(((uint64_t *)keybuf)[1]);
-    k2 = htole64(((uint64_t *)keybuf)[2]);
-    k3 = htole64(((uint64_t *)keybuf)[3]);
-  }
-
-  uint64_t siphash24(const uint64_t nonce) {
-    siphash_state v(*this);
-    v.hash24(nonce);
-    return v.xor_lanes();
-  }
-};
-
-#define U8TO64_LE(p) ((p))
-
-// SipHash-2-4 without standard IV xor and specialized to precomputed key and 8 byte nonces
-uint64_t siphash24(const siphash_keys *keys, const uint64_t nonce) {
-  uint64_t v0 = keys->k0, v1 = keys->k1, v2 = keys->k2, v3 = keys->k3 ^ nonce;
-  SIPROUND; SIPROUND;
-  v0 ^= nonce;
-  v2 ^= 0xff;
-  SIPROUND; SIPROUND; SIPROUND; SIPROUND;
-  return (v0 ^ v1) ^ (v2  ^ v3);
+// set siphash keys from 32 byte char array
+void siphash_keys::setkeys(const char *keybuf) {
+  k0 = htole64(((uint64_t *)keybuf)[0]);
+  k1 = htole64(((uint64_t *)keybuf)[1]);
+  k2 = htole64(((uint64_t *)keybuf)[2]);
+  k3 = htole64(((uint64_t *)keybuf)[3]);
 }
-// standard siphash24 definition can be recovered by calling setkeys with
-// k0 ^ 0x736f6d6570736575ULL, k1 ^ 0x646f72616e646f6dULL,
-// k2 ^ 0x6c7967656e657261ULL, and k1 ^ 0x7465646279746573ULL
 
-#endif // ifdef INCLUDE_SIPHASH_H
+uint64_t siphash_keys::siphash24(const uint64_t nonce) {
+  siphash_state v(*this);
+  v.hash24(nonce);
+  return v.xor_lanes();
+}

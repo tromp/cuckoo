@@ -151,7 +151,7 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
   setkeys(keys, hdrkey);
 }
 
-// edge endpoint in cuckoo graph with partition bit
+// edge endpoint in cuckatoo graph with partition bit
 word_t sipnode_(siphash_keys *keys, word_t edge, u32 uorv) {
   return (word_t)sipnode(keys, edge, uorv) << 1 | uorv;
 }
