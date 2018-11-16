@@ -251,7 +251,7 @@ public:
   u32 ntrims;
   u32 nthreads;
   bool showall;
-  pthread_barrier_t barry;
+  trim_barrier barry;
 
 #if NSIPHASH > 4
 
@@ -272,7 +272,7 @@ public:
     for (offset_t i=0; i<n; i+=4096)
       *(u32 *)(p+i) = 0;
   }
-  edgetrimmer(const u32 n_threads, const u32 n_trims, const bool show_all) {
+  edgetrimmer(const u32 n_threads, const u32 n_trims, const bool show_all) : barry(n_threads) {
     assert(sizeof(matrix<ZBUCKETSIZE>) == NX * sizeof(yzbucket<ZBUCKETSIZE>));
     assert(sizeof(matrix<TBUCKETSIZE>) == NX * sizeof(yzbucket<TBUCKETSIZE>));
     nthreads = n_threads;
@@ -290,8 +290,6 @@ public:
     tdegs   = new zbucket8[nthreads];
     tzs     = new zbucket16[nthreads];
     tcounts = new offset_t[nthreads];
-    int err = pthread_barrier_init(&barry, NULL, nthreads);
-    assert(err == 0);
   }
   ~edgetrimmer() {
     delete[] buckets;
@@ -958,11 +956,8 @@ public:
   }
 
   void trim() {
-    if (nthreads == 1) {
-      trimmer(0);
-      return;
-    }
     void *etworker(void *vp);
+    barry.clear();
     thread_ctx *threads = new thread_ctx[nthreads];
     for (u32 t = 0; t < nthreads; t++) {
       threads[t].id = t;
@@ -977,8 +972,7 @@ public:
     delete[] threads;
   }
   void barrier() {
-    int rc = pthread_barrier_wait(&barry);
-    assert(rc == 0 || rc == PTHREAD_BARRIER_SERIAL_THREAD);
+    barry.wait();
   }
 #ifdef EXPANDROUND
 #define BIGGERSIZE BIGSIZE+1
