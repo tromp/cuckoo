@@ -54,6 +54,7 @@ public:
     v1 ^= v2; v3 ^= v0; v2 = rotl(v2,32);
   }
   void hash24(const uint64_t nonce) {
+    v3 ^= nonce;
     sip_round(); sip_round();
     v0 ^= nonce;
     v2 ^= 0xff;

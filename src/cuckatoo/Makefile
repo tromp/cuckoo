@@ -15,20 +15,26 @@ BLAKE_2B_SRC ?= ../crypto/blake2b-ref.c
 
 all : simpletest leantest
 
-simpletest:     simple19
-	./simple19 -n 68
+simpletest:     simple19x1
+	./simple19x1 -n 68
 
-leantest:       lean19
-	./lean19 -n 68
+leantest:       lean19x1
+	./lean19x1 -n 68
 
-simple19:	../crypto/siphash.h cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Makefile
-	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=19 simple.cpp $(BLAKE_2B_SRC)
+simple19x1:	../crypto/siphash.h cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Makefile
+	$(GPP) -o $@ -DNSIPHASH=1 -DPROOFSIZE=42 -DEDGEBITS=19 simple.cpp $(BLAKE_2B_SRC)
 
-simple29:	../crypto/siphash.h cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Makefile
-	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=29 simple.cpp $(BLAKE_2B_SRC)
+simple19x8:	../crypto/siphash.h cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Makefile
+	$(GPP) -o $@ -DNSIPHASH=8 -DPROOFSIZE=42 -DEDGEBITS=19 simple.cpp $(BLAKE_2B_SRC)
 
-lean19:		../crypto/siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
-	$(GPP) -o $@ -DATOMIC -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
+simple29x1:	../crypto/siphash.h cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Makefile
+	$(GPP) -o $@ -DNSIPHASH=1 -DPROOFSIZE=42 -DEDGEBITS=29 simple.cpp $(BLAKE_2B_SRC)
+
+simple29x8:	../crypto/siphash.h cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Makefile
+	$(GPP) -o $@ -DNSIPHASH=8 -DPROOFSIZE=42 -DEDGEBITS=29 simple.cpp $(BLAKE_2B_SRC)
+
+lean19x1:		../crypto/siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -DNSIPHASH=1 -DATOMIC -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
 
 lean29x8:	../threads/barrier.hpp ../crypto/siphash.h cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean.cpp $(BLAKE_2B_SRC)
