@@ -64,6 +64,19 @@ __device__ __forceinline__ ulonglong4 Pack8(const u32 e0, const u32 e1, const u3
   return make_ulonglong4((u64)e0<<32|e1, (u64)e2<<32|e3, (u64)e4<<32|e5, (u64)e6<<32|e7);
 }
 
+__device__ u64 dipblock(siphash_keys &keys, const word_t edge, u64 *buf) {
+  siphash_state shs(keys);
+  word_t edge0 = edge & ~EDGE_BLOCK_MASK;
+  for (u32 i=0; i < EDGE_BLOCK_SIZE; i++) {
+    shs.hash24(edge0 + i);
+    buf[i] = shs.xor_lanes();
+  }
+  const u64 last = buf[EDGE_BLOCK_MASK];
+  for (u32 i=0; i < EDGE_BLOCK_MASK; i++)
+    buf[i] ^= last;
+  return buf[edge & EDGE_BLOCK_MASK];
+}
+
 #ifndef FLUSHA // should perhaps be in trimparams and passed as template parameter
 #define FLUSHA 16
 #endif
@@ -76,6 +89,7 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
   const int gid = group * dim + lid;
   const int nthreads = gridDim.x * dim;
   const int FLUSHA2 = 2*FLUSHA;
+  u64 buf[EDBGE_BLOCK_SIZE];
 
   __shared__ EdgeOut tmp[NX][FLUSHA2]; // needs to be ulonglong4 aligned
   const int TMPPERLL4 = sizeof(ulonglong4) / sizeof(EdgeOut);
@@ -87,28 +101,31 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
 
   const int col = group % NX;
   const int loops = NEDGES / nthreads;
-  for (int i = 0; i < loops; i++) {
-    u32 nonce = gid * loops + i;
-    u32 node1, node0 = dipnode(sipkeys, (u64)nonce, 0);
-    if (sizeof(EdgeOut) == sizeof(uint2))
-      node1 = dipnode(sipkeys, (u64)nonce, 1);
-    int row = node0 >> YZBITS;
-    int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1));
-    tmp[row][counter] = make_Edge(nonce, tmp[0][0], node0, node1);
-    __syncthreads();
-    if (counter == FLUSHA-1) {
-      int localIdx = min(FLUSHA2, counters[row]);
-      int newCount = localIdx % FLUSHA;
-      int nflush = localIdx - newCount;
-      int cnt = min((int)atomicAdd(indexes + row * NX + col, nflush), (int)(maxOut - nflush));
-      for (int i = 0; i < nflush; i += TMPPERLL4)
-        buffer[((u64)(row * NX + col) * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
-      for (int t = 0; t < newCount; t++) {
-        tmp[row][t] = tmp[row][t + nflush];
+  for (int blk = 0; blk < loops; blk += BLOCK_EDGE_SIZE) {
+    u32 nonce = gid * loops + blk;
+    dipblock(sipkeys, nonce, buf);
+    for (int i = 0; i < BLOCK_EDGE_SIZE; i++) {
+      u64 edge = buf[i];
+      u32 node0 = edge & EDGEMASK;
+      u32 node1 = (edge >> 32) & EDGEMASK;
+      int row = node0 >> YZBITS;
+      int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1));
+      tmp[row][counter] = make_Edge(nonce, tmp[0][0], node0, node1);
+      __syncthreads();
+      if (counter == FLUSHA-1) {
+        int localIdx = min(FLUSHA2, counters[row]);
+        int newCount = localIdx % FLUSHA;
+        int nflush = localIdx - newCount;
+        int cnt = min((int)atomicAdd(indexes + row * NX + col, nflush), (int)(maxOut - nflush));
+        for (int i = 0; i < nflush; i += TMPPERLL4)
+          buffer[((u64)(row * NX + col) * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
+        for (int t = 0; t < newCount; t++) {
+          tmp[row][t] = tmp[row][t + nflush];
+        }
+        counters[row] = newCount;
       }
-      counters[row] = newCount;
+      __syncthreads();
     }
-    __syncthreads();
   }
   EdgeOut zero = make_Edge(0, tmp[0][0], 0, 0);
   for (int row = lid; row < NX; row += dim) {
@@ -142,6 +159,7 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
   const int dim = blockDim.x;
   const int lid = threadIdx.x;
   const int FLUSHB2 = 2 * FLUSHB;
+  u64 buf[EDBGE_BLOCK_SIZE];
 
   __shared__ EdgeOut tmp[NX][FLUSHB2];
   const int TMPPERLL4 = sizeof(ulonglong4) / sizeof(EdgeOut);
@@ -222,7 +240,9 @@ __device__ u32 make_Edge(const u32 nonce, const u32 dummy, const u32 node0, cons
 template <typename Edge> u32 __device__ endpoint(const siphash_keys &sipkeys, Edge e, int uorv);
 
 __device__ u32 endpoint(const siphash_keys &sipkeys, u32 nonce, int uorv) {
-  return dipnode(sipkeys, nonce, uorv);
+  u64 buf[EDBGE_BLOCK_SIZE];
+  u64 edge = dipblock(sipkeys, nonce, buf);
+  return (uorv ? edge >> 32 : edge) & EDGEMASK;
 }
 
 __device__ u32 endpoint(const siphash_keys &sipkeys, uint2 nodes, int uorv) {
@@ -310,16 +330,21 @@ __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *i
   const int nthreads = blockDim.x * gridDim.x;
   const int loops = NEDGES / nthreads;
   __shared__ u32 nonces[PROOFSIZE];
+  u64 buf[EDBGE_BLOCK_SIZE];
   
   if (lid < PROOFSIZE) nonces[lid] = 0;
   __syncthreads();
-  for (int i = 0; i < loops; i++) {
-    u64 nonce = gid * loops + i;
-    u64 u = dipnode(sipkeys, nonce, 0);
-    u64 v = dipnode(sipkeys, nonce, 1);
-    for (int i = 0; i < PROOFSIZE; i++) {
-      if (recoveredges[i].x == u && recoveredges[i].y == v)
-        nonces[i] = nonce;
+  for (int blk = 0; blk < loops; blk += BLOCK_EDGE_SIZE) {
+    u32 nonce = gid * loops + blk;
+    dipblock(sipkeys, nonce, buf);
+    for (int nce = 0; i < BLOCK_EDGE_SIZE; i++) {
+      u64 edge = buf[i];
+      u32 u = edge & EDGEMASK;
+      u32 v = (edge >> 32) & EDGEMASK;
+      for (int p = 0; p < PROOFSIZE; p++) {
+        if (recoveredges[p].x == u && recoveredges[p].y == v)
+          nonces[p] = nonce + i;
+      }
     }
   }
   __syncthreads();

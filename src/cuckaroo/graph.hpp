@@ -32,7 +32,7 @@ public:
   proof *sols;
   u32 nsols;
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols) : visited(maxnodes) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols) : visited(2*maxnodes) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
@@ -52,7 +52,7 @@ public:
     delete[] sols;
   }
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits) : visited(maxnodes) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits) : visited(2*maxnodes) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
@@ -65,7 +65,7 @@ public:
     visited.clear();
   }
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols, char *bytes) : visited(maxnodes) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, char *bytes) : visited(2*maxnodes) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
@@ -77,7 +77,7 @@ public:
     visited.clear();
   }
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits, char *bytes) : visited(maxnodes) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits, char *bytes) : visited(2*maxnodes) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;

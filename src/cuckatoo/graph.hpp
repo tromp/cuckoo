@@ -114,6 +114,7 @@ public:
   }
 
   void cycles_with_link(u32 len, word_t u, word_t dest) {
+    // assert((u>>1) < MAXEDGES);
     if (visited.test(u >> 1))
       return;
     if ((u ^ 1) == dest) {
