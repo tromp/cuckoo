@@ -725,7 +725,7 @@ int main(int argc, char **argv) {
         break;
       case 'E':
         params.expand = atoi(optarg);
-        assert(tp.expand <= 2);
+        assert(params.expand <= 2);
         break;
       case 'h':
         len = strlen(optarg)/2;

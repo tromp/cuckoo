@@ -66,8 +66,8 @@ lcuda30:	../crypto/siphash.cuh lean.cu Makefile
 lcuda32:	../crypto/siphash.cuh lean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=32 -arch sm_35 lean.cu $(BLAKE_2B_SRC)
 
-cuda19:		../crypto/siphash.cuh mean.cu Makefile
+cuda19:		../crypto/siphash.cuh compress.hpp graph.hpp mean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=19 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
 
-cuda29:		../crypto/siphash.cuh mean.cu Makefile
+cuda29:		../crypto/siphash.cuh compress.hpp graph.hpp mean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean.cu $(BLAKE_2B_SRC)

@@ -1,7 +1,7 @@
 #include <new>
 
 // compressor for cuckaroo nodes where edgetrimming
-// has left at most 2^-compressbits nodes in each partition
+// has left at most a fraction 2^-compressbits nodes in each partition
 template <typename word_t>
 class compressor {
 public:
@@ -19,7 +19,7 @@ public:
 
   compressor(u32 nodebits, u32 compressbits, char *bytes) {
     NODEBITS = nodebits;
-    SHIFTBITS = compressbits - 1;
+    SHIFTBITS = compressbits;
     SIZEBITS = NODEBITS-compressbits;
     SIZE = (word_t)1 << SIZEBITS;
     SIZE2 = (word_t)2 << SIZEBITS;
@@ -31,7 +31,7 @@ public:
 
   compressor(u32 nodebits, u32 compressbits) {
     NODEBITS = nodebits;
-    SHIFTBITS = compressbits - 1;
+    SHIFTBITS = compressbits;
     SIZEBITS = NODEBITS-compressbits;
     SIZE = (word_t)1 << SIZEBITS;
     SIZE2 = (word_t)2 << SIZEBITS;
@@ -65,7 +65,7 @@ public:
           return 0;
         }
         nodes[ui] = u << SIZEBITS | nnodes;
-        return nnodes;
+        return nnodes++;
       }
       if ((cu & ~MASK) == u << SIZEBITS) {
         return cu & MASK;
