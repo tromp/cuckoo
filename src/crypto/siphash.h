@@ -2,7 +2,10 @@
 #define INCLUDE_SIPHASH_H
 #include <stdint.h>    // for types uint32_t,uint64_t
 #include <immintrin.h> // for _mm256_* intrinsics
-#ifndef __APPLE__
+#ifdef _WIN32  // we assume windows on x86/x64
+#define htole32(x) (x)
+#define htole64(x) (x)
+#elif  __APPLE__
 #include <endian.h>    // for htole32/64
 #else
 #include <machine/endian.h>
