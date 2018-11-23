@@ -6,12 +6,12 @@
 #define htole32(x) (x)
 #define htole64(x) (x)
 #elif  __APPLE__
-#include <endian.h>    // for htole32/64
-#else
 #include <machine/endian.h>
 #include <libkern/OSByteOrder.h>
 #define htole32(x) OSSwapHostToLittleInt32(x)
 #define htole64(x) OSSwapHostToLittleInt64(x)
+#else
+#include <endian.h>    // for htole32/64
 #endif
 
 // siphash uses a pair of 64-bit keys,
