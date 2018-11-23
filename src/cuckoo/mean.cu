@@ -6,7 +6,14 @@
 #include <string.h>
 #include <vector>
 #include <assert.h>
-#include <sys/time.h> // gettimeofday
+#include <chrono>
+
+#ifdef _WIN32
+#include "../windows/getopt.h"
+#else
+#include <unistd.h>
+#endif
+
 #include "cuckoo.h"
 #include "../crypto/siphash.cuh"
 #include "../crypto/blake2.h"
@@ -16,6 +23,8 @@ typedef uint16_t u16;
 
 typedef u32 node_t;
 typedef u64 nonce_t;
+
+typedef std::chrono::milliseconds ms;
 
 #ifndef XBITS
 #define XBITS ((EDGEBITS-16)/2)
@@ -168,7 +177,7 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
       }
       counters[col] = newCount;
     }
-    __syncthreads(); 
+    __syncthreads();
   }
   EdgeOut zero = make_Edge(0, tmp[0][0], 0, 0);
   for (int col = lid; col < NX; col += dim) {
@@ -303,7 +312,7 @@ __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *i
   const int nthreads = blockDim.x * gridDim.x;
   const int loops = NEDGES / nthreads;
   __shared__ u32 nonces[PROOFSIZE];
-  
+
   if (lid < PROOFSIZE) nonces[lid] = 0;
   __syncthreads();
   for (int i = 0; i < loops; i++) {
@@ -405,25 +414,25 @@ struct edgetrimmer {
     cudaEvent_t startall, stopall;
     checkCudaErrors(cudaEventCreate(&startall)); checkCudaErrors(cudaEventCreate(&stopall));
     checkCudaErrors(cudaEventCreate(&start)); checkCudaErrors(cudaEventCreate(&stop));
-  
+
     cudaMemset(indexesE, 0, indexesSize);
     cudaMemset(indexesE2, 0, indexesSize);
     cudaMemcpy(dipkeys, &sipkeys, sizeof(sipkeys), cudaMemcpyHostToDevice);
-  
+
     cudaDeviceSynchronize();
     float durationA, durationB;
     cudaEventRecord(start, NULL);
-  
+
     if (tp.expand == 0)
       SeedA<EDGES_A, uint2><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
     else
       SeedA<EDGES_A,   u32><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
-  
+
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationA, start, stop);
     if (abort) return false;
     cudaEventRecord(start, NULL);
-  
+
     const u32 halfA = sizeA/2 / sizeof(ulonglong4);
     const u32 halfE = NX2 / 2;
     if (tp.expand == 0) {
@@ -438,7 +447,7 @@ struct edgetrimmer {
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
     print_log("Seeding completed in %.0f + %.0f ms\n", durationA, durationB);
     if (abort) return false;
-  
+
     cudaMemset(indexesE, 0, indexesSize);
 
     if (tp.expand == 0)
@@ -462,9 +471,9 @@ struct edgetrimmer {
     if (abort) return false;
     cudaMemset(indexesE2, 0, indexesSize);
     Round<EDGES_A/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(3, *dipkeys, (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2); // to .117
-  
+
     cudaDeviceSynchronize();
-  
+
     for (int round = 4; round < tp.ntrims; round += 2) {
       if (abort) return false;
       cudaMemset(indexesE, 0, indexesSize);
@@ -473,11 +482,11 @@ struct edgetrimmer {
       cudaMemset(indexesE2, 0, indexesSize);
       Round<EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round+1, *dipkeys,  (const uint2 *)bufferB, (uint2 *)bufferA, (const int *)indexesE, (int *)indexesE2);
     }
-    
+
     if (abort) return false;
     cudaMemset(indexesE, 0, indexesSize);
     cudaDeviceSynchronize();
-  
+
     Tail<EDGES_B/4><<<tp.tail.blocks, tp.tail.tpb>>>((const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE);
     cudaMemcpy(hostA, indexesE, NX * NY * sizeof(u32), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
@@ -636,10 +645,9 @@ struct solver_ctx {
 
   int solve() {
     u32 timems,timems2;
-    struct timeval time0, time1;
+    auto time0 = std::chrono::high_resolution_clock::now();
 
     trimmer.abort = false;
-    gettimeofday(&time0, 0);
     u32 nedges = trimmer.trim();
     if (!nedges)
       return 0;
@@ -648,12 +656,14 @@ struct solver_ctx {
       nedges = MAXEDGES;
     }
     cudaMemcpy(edges, trimmer.bufferB, nedges * 8, cudaMemcpyDeviceToHost);
-    gettimeofday(&time1, 0);
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
-    gettimeofday(&time0, 0);
+    auto time1 = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<ms>(time1 - time0);
+    timems = duration.count();
+    time0 = std::chrono::high_resolution_clock::now();
     findcycles(edges, nedges);
-    gettimeofday(&time1, 0);
-    timems2 = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
+    time1 = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<ms>(time1 - time0);
+    timems2 = duration.count();
     print_log("findcycles edges %d time %d ms total %d ms\n", nedges, timems2, timems+timems2);
     return sols.size() / PROOFSIZE;
   }
@@ -662,8 +672,6 @@ struct solver_ctx {
     trimmer.abort = true;
   }
 };
-
-#include <unistd.h>
 
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
@@ -720,7 +728,7 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
         solutions->edge_bits = EDGEBITS;
         solutions->num_sols++;
         solutions->sols[sumnsols+s].nonce = nonce + r;
-        for (u32 i = 0; i < PROOFSIZE; i++) 
+        for (u32 i = 0; i < PROOFSIZE; i++)
           solutions->sols[sumnsols+s].proof[i] = (u64) prf[i];
       }
       int pow_rc = verify(prf, &ctx->trimmer.sipkeys);
