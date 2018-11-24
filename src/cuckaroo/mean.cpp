@@ -1,4 +1,4 @@
-// Cuckatoo Cycle, a memory-hard proof-of-work
+// Cuckaroo Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2019 John Tromp
 
 #include "mean.hpp"

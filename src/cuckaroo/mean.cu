@@ -62,14 +62,14 @@ __constant__ uint2 e0 = {0,0};
 __device__ u64 dipblock(const siphash_keys &keys, const word_t edge, u64 *buf) {
   diphash_state shs(keys);
   word_t edge0 = edge & ~EDGE_BLOCK_MASK;
-  for (u32 i=0; i < EDGE_BLOCK_SIZE; i++) {
+  u32 i;
+  for (i=0; i < EDGE_BLOCK_MASK; i++) {
     shs.hash24(edge0 + i);
     buf[i] = shs.xor_lanes();
   }
-  const u64 last = buf[EDGE_BLOCK_MASK];
-  for (u32 i=0; i < EDGE_BLOCK_MASK; i++)
-    buf[i] ^= last;
-  return buf[edge & EDGE_BLOCK_MASK];
+  shs.hash24(edge0 + i);
+  buf[i] = 0;
+  return shs.xor_lanes();
 }
 
 __device__ u32 endpoint(uint2 nodes, int uorv) {
@@ -102,9 +102,9 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
   const int loops = NEDGES / nthreads;
   for (int blk = 0; blk < loops; blk += EDGE_BLOCK_SIZE) {
     u32 nonce0 = gid * loops + blk;
-    dipblock(sipkeys, nonce0, buf);
+    const u64 last = dipblock(sipkeys, nonce0, buf);
     for (u32 e = 0; e < EDGE_BLOCK_SIZE; e++) {
-      u64 edge = buf[e];
+      u64 edge = buf[e] ^ last;
       u32 node0 = edge & EDGEMASK;
       u32 node1 = (edge >> 32) & EDGEMASK;
       int row = node0 & XMASK;
@@ -312,15 +312,15 @@ __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *i
   if (lid < PROOFSIZE) nonces[lid] = 0;
   __syncthreads();
   for (int blk = 0; blk < loops; blk += EDGE_BLOCK_SIZE) {
-    u32 nonce = gid * loops + blk;
-    dipblock(sipkeys, nonce, buf);
+    u32 nonce0 = gid * loops + blk;
+    const u64 last = dipblock(sipkeys, nonce0, buf);
     for (int i = 0; i < EDGE_BLOCK_SIZE; i++) {
-      u64 edge = buf[i];
+      u64 edge = buf[i] ^ last;
       u32 u = edge & EDGEMASK;
       u32 v = (edge >> 32) & EDGEMASK;
       for (int p = 0; p < PROOFSIZE; p++) {
         if (recoveredges[p].x == u && recoveredges[p].y == v)
-          nonces[p] = nonce + i;
+          nonces[p] = nonce0 + i;
       }
     }
   }
