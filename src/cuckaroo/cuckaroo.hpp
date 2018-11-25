@@ -8,7 +8,7 @@
 #include <chrono>
 #include <ctime>
 #include "../crypto/blake2.h"
-#include "../crypto/siphash.h"
+#include "../crypto/siphash.hpp"
 
 // save some keystrokes since i'm a lazy typer
 typedef uint32_t u32;
@@ -17,6 +17,12 @@ typedef uint64_t u64;
 #ifndef MAX_SOLS
 #define MAX_SOLS 4
 #endif
+
+#ifndef EDGE_BLOCK_BITS
+#define EDGE_BLOCK_BITS 6
+#endif
+#define EDGE_BLOCK_SIZE (1 << EDGE_BLOCK_BITS)
+#define EDGE_BLOCK_MASK (EDGE_BLOCK_SIZE - 1)
 
 // proof-of-work parameters
 #ifndef EDGEBITS
@@ -103,40 +109,51 @@ struct SolverStats {
 	u64 last_solution_time = 0;
 };
 
-// generate edge endpoint in cuck(at)oo graph without partition bit
-word_t sipnode(siphash_keys *keys, word_t edge, u32 uorv) {
-  return siphash24(keys, 2*edge + uorv) & EDGEMASK;
-}
-
 enum verify_code { POW_OK, POW_HEADER_LENGTH, POW_TOO_BIG, POW_TOO_SMALL, POW_NON_MATCHING, POW_BRANCH, POW_DEAD_END, POW_SHORT_CYCLE};
 const char *errstr[] = { "OK", "wrong header length", "edge too big", "edges not ascending", "endpoints don't match up", "branch in cycle", "cycle dead ends", "cycle too short"};
 
+// fills buffer with EDGE_BLOCK_SIZE siphash outputs for block containing edge in cuckaroo graph
+// return siphash output for given edge
+u64 sipblock(siphash_keys &keys, const word_t edge, u64 *buf) {
+  siphash_state shs(keys);
+  word_t edge0 = edge & ~EDGE_BLOCK_MASK;
+  for (u32 i=0; i < EDGE_BLOCK_SIZE; i++) {
+    shs.hash24(edge0 + i);
+    buf[i] = shs.xor_lanes();
+  }
+  const u64 last = buf[EDGE_BLOCK_MASK];
+  for (u32 i=0; i < EDGE_BLOCK_MASK; i++)
+    buf[i] ^= last;
+  return buf[edge & EDGE_BLOCK_MASK];
+}
+
 // verify that edges are ascending and form a cycle in header-generated graph
-int verify(word_t edges[PROOFSIZE], siphash_keys *keys) {
-  word_t uvs[2*PROOFSIZE], xor0, xor1;
-  xor0 = xor1 = (PROOFSIZE/2) & 1;
+int verify(word_t edges[PROOFSIZE], siphash_keys &keys) {
+  word_t xor0 = 0, xor1 = 0;
+  u64 sips[EDGE_BLOCK_SIZE];
+  word_t uvs[2*PROOFSIZE];
 
   for (u32 n = 0; n < PROOFSIZE; n++) {
     if (edges[n] > EDGEMASK)
       return POW_TOO_BIG;
     if (n && edges[n] <= edges[n-1])
       return POW_TOO_SMALL;
-    xor0 ^= uvs[2*n  ] = sipnode(keys, edges[n], 0);
-    xor1 ^= uvs[2*n+1] = sipnode(keys, edges[n], 1);
+    u64 edge = sipblock(keys, edges[n], sips);
+    xor0 ^= uvs[2*n  ] = edge & EDGEMASK;
+    xor1 ^= uvs[2*n+1] = (edge >> 32) & EDGEMASK;
   }
-  if (xor0|xor1)              // optional check for obviously bad proofs
+  if (xor0 | xor1)              // optional check for obviously bad proofs
     return POW_NON_MATCHING;
   u32 n = 0, i = 0, j;
   do {                        // follow cycle
     for (u32 k = j = i; (k = (k+2) % (2*PROOFSIZE)) != i; ) {
-      if (uvs[k]>>1 == uvs[i]>>1) { // find other edge endpoint matching one at i
+      if (uvs[k] == uvs[i]) { // find other edge endpoint identical to one at i
         if (j != i)           // already found one before
           return POW_BRANCH;
         j = k;
       }
     }
-    if (j == i || uvs[j] == uvs[i])
-      return POW_DEAD_END;  // no matching endpoint
+    if (j == i) return POW_DEAD_END;  // no matching endpoint
     i = j^1;
     n++;
   } while (i != 0);           // must cycle back to start or we would have found branch
@@ -148,12 +165,7 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
   char hdrkey[32];
   // SHA256((unsigned char *)header, headerlen, (unsigned char *)hdrkey);
   blake2b((void *)hdrkey, sizeof(hdrkey), (const void *)header, headerlen, 0, 0);
-  setkeys(keys, hdrkey);
-}
-
-// edge endpoint in cuckatoo graph with partition bit
-word_t sipnode_(siphash_keys *keys, word_t edge, u32 uorv) {
-  return (word_t)sipnode(keys, edge, uorv) << 1 | uorv;
+  keys->setkeys(hdrkey);
 }
 
 u64 timestamp() {

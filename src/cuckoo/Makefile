@@ -21,16 +21,25 @@ simpletest:     simple19
 leantest:       lean19x1
 	./lean19x1 -n 38
 
+verifytest:     lean19x1 verify19
+	./lean19x1 -n 38 | grep ^Sol | ./verify19 -n 38
+
 simple19:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=19 simple.cpp $(BLAKE_2B_SRC)
+
+verify19:	../crypto/siphash.h cuckoo.h cuckoo.c simple.cpp Makefile
+	$(GPP) -o $@ -DPROOFSIZE=42 -DEDGEBITS=19 cuckoo.c $(BLAKE_2B_SRC)
 
 simple29:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=29 simple.cpp $(BLAKE_2B_SRC)
 
-lean19x1:	../crypto/siphash.h cuckoo.h  lean.cpp Makefile
-	$(GPP) -o $@ -DNSIPHASH=1 -DATOMIC -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
+lean19x1:	../crypto/siphash.h cuckoo.h  lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -DATOMIC -DNSIPHASH=1 -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
 
-lean29x8:	../crypto/siphash.h cuckoo.h  lean.cpp Makefile
+lean19x8:	../crypto/siphash.h cuckoo.h  lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -DATOMIC -DNSIPHASH=8 -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
+
+lean29x8:	../crypto/siphash.h cuckoo.h  lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean.cpp $(BLAKE_2B_SRC)
 
 mean19x8:	cuckoo.h ../crypto/siphash.h mean.hpp mean.cpp Makefile
