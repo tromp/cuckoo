@@ -21,8 +21,14 @@ simpletest:     simple19
 leantest:       lean19x1
 	./lean19x1 -n 38
 
+verifytest:     lean19x1 verify19
+	./lean19x1 -n 38 | grep ^Sol | ./verify19 -n 38
+
 simple19:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=19 simple.cpp $(BLAKE_2B_SRC)
+
+verify19:	../crypto/siphash.h cuckoo.h cuckoo.c simple.cpp Makefile
+	$(GPP) -o $@ -DPROOFSIZE=42 -DEDGEBITS=19 cuckoo.c $(BLAKE_2B_SRC)
 
 simple29:	../crypto/siphash.h cuckoo.h cyclebase.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DIDXSHIFT=0 -DPROOFSIZE=42 -DEDGEBITS=29 simple.cpp $(BLAKE_2B_SRC)
