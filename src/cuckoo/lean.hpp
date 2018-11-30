@@ -87,12 +87,13 @@ public:
   atwice *bits;
 
   twice_set() {
-    bits = (atwice *)calloc(TWICE_ATOMS, sizeof(atwice));
+    bits = new atwice[TWICE_ATOMS];
     assert(bits != 0);
   }
   void clear() {
     assert(bits);
-    memset(bits, 0, TWICE_ATOMS*sizeof(atwice));
+    for (u32 i=0; i < TWICE_ATOMS; i++)
+      bits[i] = 0;
   }
  void prefetch(word_t u) const {
 #ifdef PREFETCH
@@ -119,7 +120,7 @@ public:
 #endif
   }
   ~twice_set() {
-    free(bits);
+    delete[] bits;
   }
 };
 
@@ -175,7 +176,8 @@ public:
 
   cuckoo_hash(void *recycle) {
     cuckoo = (au64 *)recycle;
-    memset(cuckoo, 0, CUCKOO_SIZE*sizeof(au64));
+    for (u32 i=0; i < CUCKOO_SIZE; i++)
+      cuckoo[i] = 0;
   }
   void set(word_t u, word_t v) {
     u64 niew = (u64)u << NODEBITS | v;

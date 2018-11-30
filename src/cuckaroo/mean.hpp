@@ -316,12 +316,13 @@ public:
     return cnt;
   }
 
-  void genUnodes(const u32 id, const u32 uorv) {
+  void genUnodes(const u32 id) {
     u64 rdtsc0, rdtsc1;
 #ifdef NEEDSYNC
     u32 last[NX];;
 #endif
-    u64 buf[EDGE_BLOCK_SIZE];
+    const u32 NEBS = NSIPHASH * EDGE_BLOCK_SIZE;
+    u64 buf[NEBS];
   
     rdtsc0 = __rdtsc();
     u8 const *base = (u8 *)buckets;
@@ -330,30 +331,17 @@ public:
     const u32   endy = NY * (id+1) / nthreads;
     u32 edge0 = starty << YZBITS, endedge0 = edge0 + NYZ;
     const u64 e1 = edge0;
-    const u32 e2 = 2 * edge0 + uorv;
-#if NSIPHASH == 1
-    siphash_state shs;
-#elif NSIPHASH == 4
-    static const __m128i vxmask = {XMASK, XMASK};
-    static const __m128i vyzmask = {YZMASK, YZMASK};
+#if NSIPHASH == 4
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
-    __m128i vpacket0 = _mm_set_epi64x(e2+2, e2+0);
-    __m128i vpacket1 = _mm_set_epi64x(e2+6, e2+4);
-    static const __m128i vpacketinc = {8, 8};
-    __m128i vhi0 = _mm_set_epi64x((e1+1)<<YZBITS, (e1+0)<<YZBITS);
-    __m128i vhi1 = _mm_set_epi64x((e1+3)<<YZBITS, (e1+2)<<YZBITS);
-    static const __m128i vhiinc = {4<<YZBITS, 4<<YZBITS};
+    __m128i vpacket0 = _mm_set_epi64x(e1+EDGE_BLOCK_SIZE, e1+0);
+    __m128i vpacket1 = _mm_set_epi64x(e1+3*EDGE_BLOCK_SIZE, e1+2*EDGE_BLOCK_SIZE);
+    static const __m128i vpacketinc = {NEBS, NEBS};
 #elif NSIPHASH == 8
-    static const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
-    static const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
     const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
-    __m256i vpacket0 = _mm256_set_epi64x(e2+6, e2+4, e2+2, e2+0);
-    __m256i vpacket1 = _mm256_set_epi64x(e2+14, e2+12, e2+10, e2+8);
-    static const __m256i vpacketinc = {16, 16, 16, 16};
-    __m256i vhi0 = _mm256_set_epi64x((e1+3)<<YZBITS, (e1+2)<<YZBITS, (e1+1)<<YZBITS, (e1+0)<<YZBITS);
-    __m256i vhi1 = _mm256_set_epi64x((e1+7)<<YZBITS, (e1+6)<<YZBITS, (e1+5)<<YZBITS, (e1+4)<<YZBITS);
-    static const __m256i vhiinc = {8<<YZBITS, 8<<YZBITS, 8<<YZBITS, 8<<YZBITS};
+    __m256i vpacket0 = _mm256_set_epi64x(e1+3*EDGE_BLOCK_SIZE, e1+2*EDGE_BLOCK_SIZE, e1+EDGE_BLOCK_SIZE, e1+0);
+    __m256i vpacket1 = _mm256_set_epi64x(e1+7*EDGE_BLOCK_SIZE, e1+6*EDGE_BLOCK_SIZE, e1+5*EDGE_BLOCK_SIZE, e1+4*EDGE_BLOCK_SIZE);
+    static const __m256i vpacketinc = {NEBS, NEBS, NEBS, NEBS};
 #endif
     offset_t sumsize = 0;
     for (u32 my = starty; my < endy; my++, endedge0 += NYZ) {
@@ -363,93 +351,57 @@ public:
       for (u32 x=0; x < NX; x++)
         last[x] = edge0;
 #endif
-      for (; edge0 < endedge0; edge0 += EDGE_BLOCK_SIZE) {
-        for (e = 0; e < EDGE_BLOCK_SIZE; e += NSIPHASH) {
+      for (; edge0 < endedge0; edge0 += NEBS) {
 #if NSIPHASH == 1
+        siphash_state shs(keys);
+        for (e = 0; e < NEBS; e += NSIPHASH) {
           shs.hash24(edge0 + e);
           buf[e] = shs.xor_lanes();
+        }
 #elif NSIPHASH == 4
-          v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
-          v4 = v0 = _mm_set1_epi64x(sip_keys.k0);
-          v5 = v1 = _mm_set1_epi64x(sip_keys.k1);
-          v6 = v2 = _mm_set1_epi64x(sip_keys.k2);
-  
+        v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
+        v4 = v0 = _mm_set1_epi64x(sip_keys.k0);
+        v5 = v1 = _mm_set1_epi64x(sip_keys.k1);
+        v6 = v2 = _mm_set1_epi64x(sip_keys.k2);
+        for (u32 e = 0; e < NEBS; e += NSIPHASH) {
           v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
           SIPROUNDX2N; SIPROUNDX2N;
           v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
           v2 = XOR(v2, _mm_set1_epi64x(0xffLL));
           v6 = XOR(v6, _mm_set1_epi64x(0xffLL));
           SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-          v4 = XOR(XOR(v4,v5),XOR(v6,v7));
-  
           vpacket0 = _mm_add_epi64(vpacket0, vpacketinc);
           vpacket1 = _mm_add_epi64(vpacket1, vpacketinc);
-          v1 = _mm_srli_epi64(v0, YZBITS) & vxmask;
-          v5 = _mm_srli_epi64(v4, YZBITS) & vxmask;
-          v0 = (v0 & vyzmask) | vhi0;
-          v4 = (v4 & vyzmask) | vhi1;
-          vhi0 = _mm_add_epi64(vhi0, vhiinc);
-          vhi1 = _mm_add_epi64(vhi1, vhiinc);
-  
-          u32 ux;
-#ifndef __SSE41__
-#define extract32(x, imm) _mm_cvtsi128_si32(_mm_srli_si128((x), 4 * (imm)))
-#else
-#define extract32(x, imm) _mm_extract_epi32(x, imm)
-#endif
-#ifndef NEEDSYNC
-#define STORE0(i,v,x,w) \
-  ux = extract32(v,x);\
-  *(u64 *)(base+dst.index[ux]) = _mm_extract_epi64(w,i%2);\
-  dst.index[ux] += BIGSIZE0;
-#else
-          u32 zz;
-#define STORE0(i,v,x,w) \
-  zz = extract32(w,x);\
-  if (i || likely(zz)) {\
-    ux = extract32(v,x);\
-    for (; unlikely(last[ux] + NNONYZ <= edge+i); last[ux] += NNONYZ, dst.index[ux] += BIGSIZE0)\
-      *(u32 *)(base+dst.index[ux]) = 0;\
-    *(u32 *)(base+dst.index[ux]) = zz;\
-    dst.index[ux] += BIGSIZE0;\
-    last[ux] = edge+i;\
-  }
-#endif
-          STORE0(0,v1,0,v0); STORE0(1,v1,2,v0);
-          STORE0(2,v5,0,v4); STORE0(3,v5,2,v4);
+          _mm_store_si128((__m128i *)(buf + e),     XOR(XOR(v0,v1),XOR(v2,v3)));
+          _mm_store_si128((__m128i *)(buf + e + 2), XOR(XOR(v4,v5),XOR(v6,v7)));
+        }
 #elif NSIPHASH == 8
-          v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-          v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-          v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-          v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
-  
+        v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
+        v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
+        v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
+        v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
+        for (u32 e = 0; e < NEBS; e += NSIPHASH) {
           v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
           SIPROUNDX2N; SIPROUNDX2N;
           v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
           v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
           v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
           SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-          v4 = XOR(XOR(v4,v5),XOR(v6,v7));
-  
           vpacket0 = _mm256_add_epi64(vpacket0, vpacketinc);
           vpacket1 = _mm256_add_epi64(vpacket1, vpacketinc);
-          v1 = _mm256_srli_epi64(v0, YZBITS) & vxmask;
-          v5 = _mm256_srli_epi64(v4, YZBITS) & vxmask;
-          v0 = (v0 & vyzmask) | vhi0;
-          v4 = (v4 & vyzmask) | vhi1;
-          vhi0 = _mm256_add_epi64(vhi0, vhiinc);
-          vhi1 = _mm256_add_epi64(vhi1, vhiinc);
+          _mm256_store_si256((__m256i *)(buf + e),     XOR(XOR(v0,v1),XOR(v2,v3)));
+          _mm256_store_si256((__m256i *)(buf + e + 4), XOR(XOR(v4,v5),XOR(v6,v7)));
         }
-
-        for (e = 0; e < EDGE_BLOCK_SIZE; e += NSIPHASH) {
+#endif
+        const u64 buflast = buf[EDGE_BLOCK_MASK];
+        for (u32 e = 0; e < NEBS; e++) {
 // bit        28..21     20..13    12..0
 // node       XXXXXX     YYYYYY    ZZZZZ
-#if NSIPHASH == 1
-          const u32 node = sipnode(&sip_keys, edge, uorv);
-          const u32 ux = node >> YZBITS;
-          const BIGTYPE0 zz = (BIGTYPE0)edge << YZBITS | (node & YZMASK);
+          const u32 nodes = buf[e] ^ buflast;
+          const u32 node0 = nodes & EDGEMASK;
+          const u32 node1 = (nodes >> 32) & EDGEMASK;
+          const u32 ux = node0 >> YZBITS;
+          const BIGTYPE0 zz = (BIGTYPE0)node1 << YZBITS | (node & YZMASK);
 #ifndef NEEDSYNC
 // bit        39..21     20..13    12..0
 // write        edge     YYYYYY    ZZZZZ
@@ -463,104 +415,6 @@ public:
             dst.index[ux] += BIGSIZE0;
             last[ux] = edge;
           }
-#endif
-#elif NSIPHASH == 4
-          v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
-          v4 = v0 = _mm_set1_epi64x(sip_keys.k0);
-          v5 = v1 = _mm_set1_epi64x(sip_keys.k1);
-          v6 = v2 = _mm_set1_epi64x(sip_keys.k2);
-  
-          v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
-          SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-          v2 = XOR(v2, _mm_set1_epi64x(0xffLL));
-          v6 = XOR(v6, _mm_set1_epi64x(0xffLL));
-          SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-          v4 = XOR(XOR(v4,v5),XOR(v6,v7));
-  
-          vpacket0 = _mm_add_epi64(vpacket0, vpacketinc);
-          vpacket1 = _mm_add_epi64(vpacket1, vpacketinc);
-          v1 = _mm_srli_epi64(v0, YZBITS) & vxmask;
-          v5 = _mm_srli_epi64(v4, YZBITS) & vxmask;
-          v0 = (v0 & vyzmask) | vhi0;
-          v4 = (v4 & vyzmask) | vhi1;
-          vhi0 = _mm_add_epi64(vhi0, vhiinc);
-          vhi1 = _mm_add_epi64(vhi1, vhiinc);
-  
-          u32 ux;
-#ifndef __SSE41__
-#define extract32(x, imm) _mm_cvtsi128_si32(_mm_srli_si128((x), 4 * (imm)))
-#else
-#define extract32(x, imm) _mm_extract_epi32(x, imm)
-#endif
-#ifndef NEEDSYNC
-#define STORE0(i,v,x,w) \
-  ux = extract32(v,x);\
-  *(u64 *)(base+dst.index[ux]) = _mm_extract_epi64(w,i%2);\
-  dst.index[ux] += BIGSIZE0;
-#else
-          u32 zz;
-#define STORE0(i,v,x,w) \
-  zz = extract32(w,x);\
-  if (i || likely(zz)) {\
-    ux = extract32(v,x);\
-    for (; unlikely(last[ux] + NNONYZ <= edge+i); last[ux] += NNONYZ, dst.index[ux] += BIGSIZE0)\
-      *(u32 *)(base+dst.index[ux]) = 0;\
-    *(u32 *)(base+dst.index[ux]) = zz;\
-    dst.index[ux] += BIGSIZE0;\
-    last[ux] = edge+i;\
-  }
-#endif
-          STORE0(0,v1,0,v0); STORE0(1,v1,2,v0);
-          STORE0(2,v5,0,v4); STORE0(3,v5,2,v4);
-#elif NSIPHASH == 8
-          v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-          v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-          v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-          v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
-  
-          v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
-          SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-          v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
-          v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
-          SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-          v4 = XOR(XOR(v4,v5),XOR(v6,v7));
-  
-          vpacket0 = _mm256_add_epi64(vpacket0, vpacketinc);
-          vpacket1 = _mm256_add_epi64(vpacket1, vpacketinc);
-          v1 = _mm256_srli_epi64(v0, YZBITS) & vxmask;
-          v5 = _mm256_srli_epi64(v4, YZBITS) & vxmask;
-          v0 = (v0 & vyzmask) | vhi0;
-          v4 = (v4 & vyzmask) | vhi1;
-          vhi0 = _mm256_add_epi64(vhi0, vhiinc);
-          vhi1 = _mm256_add_epi64(vhi1, vhiinc);
-  
-          u32 ux;
-#ifndef NEEDSYNC
-#define STORE0(i,v,x,w) \
-  ux = _mm256_extract_epi32(v,x);\
-  *(u64 *)(base+dst.index[ux]) = _mm256_extract_epi64(w,i%4);\
-  dst.index[ux] += BIGSIZE0;
-#else
-          u32 zz;
-#define STORE0(i,v,x,w) \
-  zz = _mm256_extract_epi32(w,x);\
-  if (i || likely(zz)) {\
-    ux = _mm256_extract_epi32(v,x);\
-    for (; unlikely(last[ux] + NNONYZ <= edge+i); last[ux] += NNONYZ, dst.index[ux] += BIGSIZE0)\
-      *(u32 *)(base+dst.index[ux]) = 0;\
-    *(u32 *)(base+dst.index[ux]) = zz;\
-    dst.index[ux] += BIGSIZE0;\
-    last[ux] = edge+i;\
-  }
-#endif
-          STORE0(0,v1,0,v0); STORE0(1,v1,2,v0); STORE0(2,v1,4,v0); STORE0(3,v1,6,v0);
-          STORE0(4,v5,0,v4); STORE0(5,v5,2,v4); STORE0(6,v5,4,v4); STORE0(7,v5,6,v4);
-#else
-#error not implemented
 #endif
         }
       }
