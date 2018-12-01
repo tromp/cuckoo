@@ -175,10 +175,11 @@ Bounty contributors
 * [Claymore](https://bitcointalk.org/index.php?topic=1670733.0)
 * [Aeternity developers](http://www.aeternity.com/)
 
-Projects using, or planning to use, Cuckoo Cycle
+Projects using Cuckoo Cycle
 --------------
 * [GRIN](https://github.com/mimblewimble/grin)
 * [æternity - the oracle machine](http://www.aeternity.com/)
+* [CodeChain](https://codechain.io/)
 * [BitCash](https://www.choosebitcash.com/)
 * [Veres One](https://veres.one)
 * [BIP 154: Rate Limiting via peer specified challenges; Bitcoin Peer Services](https://github.com/bitcoin/bips/blob/master/bip-0154.mediawiki)
