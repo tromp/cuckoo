@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "cuckoo.h"
-#include "siphash.cuh"
+#include "../crypto/siphash.cuh"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,13 +53,13 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 class shrinkingset {
 public:
   u32 *bits;
-  __device__ void reset(edge_t n) {
+  __device__ void reset(word_t n) {
     bits[n/32] |= 1 << (n%32);
   }
-  __device__ bool test(node_t n) const {
+  __device__ bool test(word_t n) const {
     return !((bits[n/32] >> (n%32)) & 1);
   }
-  __device__ u32 block(node_t n) const {
+  __device__ u32 block(word_t n) const {
     return ~bits[n/32];
   }
 };
@@ -74,14 +74,14 @@ public:
   __device__ void reset() {
     memset(bits, 0, TWICE_WORDS * sizeof(u32));
   }
-  __device__ void set(node_t u) {
-    node_t idx = u/16;
+  __device__ void set(word_t u) {
+    word_t idx = u/16;
     u32 bit = 1 << (2 * (u%16));
     u32 old = atomicOr(&bits[idx], bit);
     u32 bit2 = bit<<1;
     if ((old & (bit2|bit)) == bit) atomicOr(&bits[idx], bit2);
   }
-  __device__ u32 test(node_t u) const {
+  __device__ u32 test(word_t u) const {
     return (bits[u/16] >> (2 * (u%16))) & 2;
   }
 };
@@ -104,9 +104,9 @@ public:
   ~cuckoo_hash() {
     free(cuckoo);
   }
-  void set(node_t u, node_t v) {
+  void set(word_t u, word_t v) {
     u64 niew = (u64)u << NODEBITS | v;
-    for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
+    for (word_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
 #ifdef ATOMIC
       u64 old = 0;
       if (cuckoo[ui].compare_exchange_strong(old, niew, std::memory_order_relaxed))
@@ -122,8 +122,8 @@ public:
       }
     }
   }
-  node_t operator[](node_t u) const {
-    for (node_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
+  word_t operator[](word_t u) const {
+    for (word_t ui = u >> IDXSHIFT; ; ui = (ui+1) & CUCKOO_MASK) {
 #ifdef ATOMIC
       u64 cu = cuckoo[ui].load(std::memory_order_relaxed);
 #else
@@ -133,7 +133,7 @@ public:
         return 0;
       if ((cu >> NODEBITS) == (u & KEYMASK)) {
         assert(((ui - (u >> IDXSHIFT)) & CUCKOO_MASK) < MAXDRIFT);
-        return (node_t)(cu & NODEMASK);
+        return (word_t)(cu & NODEMASK);
       }
     }
   }
@@ -163,12 +163,12 @@ __global__ void count_node_deg(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   twice_set &nonleaf = ctx->nonleaf;
   siphash_keys sip_keys = ctx->sip_keys; // local copy sip context; 2.5% speed gain
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  for (edge_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
+  for (word_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
-    for (edge_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+    for (word_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
-      node_t u = dipnode(sip_keys, nonce, uorv);
+      word_t u = dipnode(sip_keys, nonce, uorv);
       if ((u & PART_MASK) == part) {
         nonleaf.set(u >> PART_BITS);
       }
@@ -181,12 +181,12 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   twice_set &nonleaf = ctx->nonleaf;
   siphash_keys sip_keys = ctx->sip_keys;
   int id = blockIdx.x * blockDim.x + threadIdx.x;
-  for (edge_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
+  for (word_t block = id*32; block < NEDGES; block += ctx->nthreads*32) {
     u32 alive32 = alive.block(block);
-    for (edge_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
+    for (word_t nonce = block-1; alive32; ) { // -1 compensates for 1-based ffs
       u32 ffs = __ffs(alive32);
       nonce += ffs; alive32 >>= ffs;
-      node_t u = dipnode(sip_keys, nonce, uorv);
+      word_t u = dipnode(sip_keys, nonce, uorv);
       if ((u & PART_MASK) == part) {
         if (!nonleaf.test(u >> PART_BITS)) {
           alive.reset(nonce);
@@ -196,7 +196,7 @@ __global__ void kill_leaf_edges(cuckoo_ctx *ctx, u32 uorv, u32 part) {
   }
 }
 
-u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
+u32 path(cuckoo_hash &cuckoo, word_t u, word_t *us) {
   u32 nu;
   for (nu = 0; u; u = cuckoo[u]) {
     if (nu >= MAXPATHLEN) {
@@ -211,7 +211,7 @@ u32 path(cuckoo_hash &cuckoo, node_t u, node_t *us) {
   return nu-1;
 }
 
-typedef std::pair<node_t,node_t> edge;
+typedef std::pair<word_t,word_t> edge;
 
 #include <unistd.h>
 
@@ -314,13 +314,13 @@ int main(int argc, char **argv) {
     }
   
     cuckoo_hash &cuckoo = *(new cuckoo_hash());
-    node_t us[MAXPATHLEN], vs[MAXPATHLEN];
-    for (edge_t block = 0; block < NEDGES; block += 64) {
+    word_t us[MAXPATHLEN], vs[MAXPATHLEN];
+    for (word_t block = 0; block < NEDGES; block += 64) {
       u64 alive64 = ~bits[block/64];
-      for (edge_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
+      for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        node_t u0=sipnode_(&ctx.sip_keys, nonce, 0), v0=sipnode_(&ctx.sip_keys, nonce, 1);
+        word_t u0=sipnode_(&ctx.sip_keys, nonce, 0), v0=sipnode_(&ctx.sip_keys, nonce, 1);
         if (u0) {
           u32 nu = path(cuckoo, u0, us), nv = path(cuckoo, v0, vs);
           if (us[nu] == vs[nv]) {
@@ -337,9 +337,9 @@ int main(int argc, char **argv) {
                 cycle.insert(edge(us[(nu+1)&~1], us[nu|1])); // u's in even position; v's in odd
               while (nv--)
                 cycle.insert(edge(vs[nv|1], vs[(nv+1)&~1])); // u's in odd position; v's in even
-              for (edge_t blk = 0; blk < NEDGES; blk += 64) {
+              for (word_t blk = 0; blk < NEDGES; blk += 64) {
                 u64 alv64 = ~bits[blk/64];
-                for (edge_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
+                for (word_t nce = blk-1; alv64; ) { // -1 compensates for 1-based ffs
                   u32 ffs = __builtin_ffsll(alv64);
                   nce += ffs; alv64 >>= ffs;
                   edge e(sipnode_(&ctx.sip_keys, nce, 0), sipnode_(&ctx.sip_keys, nce, 1));
