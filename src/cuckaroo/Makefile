@@ -46,7 +46,7 @@ mean30x1:	cuckaroo.hpp  bitmap.hpp graph.hpp ../threads/barrier.hpp ../crypto/si
 	$(GPP) -o $@ -DNSIPHASH=1 -DEXPANDROUND=10 -DCOMPRESSROUND=22 -DEDGEBITS=30 mean.cpp $(BLAKE_2B_SRC)
 
 cuda19:		../crypto/siphash.cuh compress.hpp graph.hpp mean.cu Makefile
-	nvcc -o $@ -DEDGEBITS=19 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
+	nvcc -o $@ -DEPS_A=4 -DEPS_B=3 -DIDXSHIFT=2 -DEDGEBITS=19 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
 
 cuda29:		../crypto/siphash.cuh compress.hpp graph.hpp mean.cu Makefile
 	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean.cu $(BLAKE_2B_SRC)

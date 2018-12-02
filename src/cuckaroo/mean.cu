@@ -31,7 +31,9 @@ const static u32 MAXEDGES = NEDGES >> IDXSHIFT;
 
 #ifndef XBITS
 // assumes at least 2^17 bitpairs of shared mem (32 KB) on thread block
-#define XBITS ((EDGEBITS-17+1)/2)
+// #define XBITS ((EDGEBITS-17+1)/2)
+// scrap that; too few buckets inhibits parallellism
+#define XBITS 6
 #endif
 
 #define NODEBITS (EDGEBITS + 1)
@@ -43,18 +45,21 @@ const static u32 X2MASK    = NX2 - 1;
 const static u32 YBITS     = XBITS;
 const static u32 NY        = 1 << YBITS;
 const static u32 YZBITS    = EDGEBITS - XBITS;
-const static u32 NYZ       = 1 << YZBITS;
 const static u32 ZBITS     = YZBITS - YBITS;
 const static u32 NZ        = 1 << ZBITS;
 
+#ifndef EPS_A
 #define EPS_A 133/128
+#endif
+#ifndef EPS_B
 #define EPS_B 85/128
+#endif
 
-const static u32 ROW_EDGES_A = NYZ * EPS_A;
-const static u32 ROW_EDGES_B = NYZ * EPS_B;
-
-const static u32 EDGES_A = ROW_EDGES_A / NX;
-const static u32 EDGES_B = ROW_EDGES_B / NX;
+const static u32 EDGES_A = NZ * EPS_A;
+const static u32 EDGES_B = NZ * EPS_B;
+ 
+const static u32 ROW_EDGES_A = EDGES_A * NY;
+const static u32 ROW_EDGES_B = EDGES_B * NX;
 
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
@@ -99,7 +104,7 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
   __syncthreads();
 
   const int col = group % NX;
-  const int loops = NEDGES / nthreads;
+  const int loops = NEDGES / nthreads; // assuming THREADS_HAVE_EDGES checked
   for (int blk = 0; blk < loops; blk += EDGE_BLOCK_SIZE) {
     u32 nonce0 = gid * loops + blk;
     const u64 last = dipblock(sipkeys, nonce0, buf);
@@ -108,7 +113,7 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
       u32 node0 = edge & EDGEMASK;
       u32 node1 = (edge >> 32) & EDGEMASK;
       int row = node0 & XMASK;
-      int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1));
+      int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1)); // assuming ROWS_LIMIT_LOSSES checked
       tmp[row][counter] = make_uint2(node0, node1);
       __syncthreads();
       if (counter == FLUSHA-1) {
@@ -180,7 +185,7 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
       if (null(edge)) continue;
       u32 node1 = endpoint(edge, 0);
       col = (node1 >> XBITS) & XMASK;
-      counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1));
+      counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1)); // assuming COLS_LIMIT_LOSSES checked
       tmp[col][counter] = edge;
     }
     __syncthreads();
@@ -224,7 +229,7 @@ __device__ __forceinline__  bool Read2bCounter(u32 *ecounters, const int bucket)
   int word = bucket >> 5;
   unsigned char bit = bucket & 0x1F;
 
-  return ecounters[word + NZ/32] >> bit & 1;
+  return (ecounters[word + NZ/32] >> bit) & 1;
 }
 
 template<int maxIn, int maxOut>
@@ -417,6 +422,8 @@ struct edgetrimmer {
     float durationA, durationB;
     cudaEventRecord(start, NULL);
   
+    assert(tp.genA.blocks * tp.genA.tpb * EDGE_BLOCK_SIZE <= NEDGES); // check THREADS_HAVE_EDGES
+    assert(tp.genA.tpb / NX <= FLUSHA); // check ROWS_LIMIT_LOSSES
     SeedA<EDGES_A><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
   
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
@@ -426,6 +433,7 @@ struct edgetrimmer {
   
     const u32 halfA = sizeA/2 / sizeof(ulonglong4);
     const u32 halfE = NX2 / 2;
+    assert(tp.genB.tpb / NX <= FLUSHB); // check COLS_LIMIT_LOSSES
     SeedB<EDGES_A><<<tp.genB.blocks/2, tp.genB.tpb>>>((const uint2 *)bufferAB, bufferA, (const int *)indexesE, indexesE2);
     if (abort) return false;
     SeedB<EDGES_A><<<tp.genB.blocks/2, tp.genB.tpb>>>((const uint2 *)(bufferAB+halfA), bufferA+halfA, (const int *)(indexesE+halfE), indexesE2+halfE);
@@ -531,6 +539,7 @@ struct solver_ctx {
     if (nedges > MAXEDGES) {
       print_log("OOPS; losing %d edges beyond MAXEDGES=%d\n", nedges-MAXEDGES, MAXEDGES);
       nedges = MAXEDGES;
+      return 0;
     }
     cudaMemcpy(edges, trimmer.bufferB, sizeof(uint2[nedges]), cudaMemcpyDeviceToHost);
     gettimeofday(&time1, 0);

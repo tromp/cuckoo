@@ -32,7 +32,9 @@ typedef uint64_t u64; // save some typing
 
 #ifndef XBITS
 // assumes at least 2^18 bits of shared mem (32 KB) on thread block
-#define XBITS ((EDGEBITS-18+1)/2)
+// #define XBITS ((EDGEBITS-18+1)/2)
+// scrap that; too few buckets inhibits parallellism
+#define XBITS 6
 #endif
 
 #define NODEBITS (EDGEBITS + 1)
@@ -43,19 +45,22 @@ const static u32 NX2       = NX * NX;
 const static u32 YBITS     = XBITS;
 const static u32 NY        = 1 << YBITS;
 const static u32 YZBITS    = EDGEBITS - XBITS;
-const static u32 NYZ       = 1 << YZBITS;
 const static u32 ZBITS     = YZBITS - YBITS;
 const static u32 NZ        = 1 << ZBITS;
 const static u32 ZMASK     = NZ - 1;
 
+#ifndef EPS_A
 #define EPS_A 133/128
+#endif
+#ifndef EPS_B
 #define EPS_B 85/128
+#endif
 
-const static u32 ROW_EDGES_A = NYZ * EPS_A;
-const static u32 ROW_EDGES_B = NYZ * EPS_B;
+const static u32 EDGES_A = NZ * EPS_A;
+const static u32 EDGES_B = NZ * EPS_B;
 
-const static u32 EDGES_A = ROW_EDGES_A / NX;
-const static u32 EDGES_B = ROW_EDGES_B / NX;
+const static u32 ROW_EDGES_A = EDGES_A * NY;
+const static u32 ROW_EDGES_B = EDGES_B * NX;
 
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
@@ -86,14 +91,15 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
   __syncthreads();
 
   const int col = group % NX;
-  const int loops = NEDGES / nthreads;
+  const int loops = NEDGES / nthreads; // assuming THREADS_HAVE_EDGES checked
   for (int i = 0; i < loops; i++) {
     u32 nonce = gid * loops + i;
     u32 node1, node0 = dipnode(sipkeys, (u64)nonce, 0);
-    if (sizeof(EdgeOut) == sizeof(uint2))
+    if (sizeof(EdgeOut) == sizeof(uint2)) {
       node1 = dipnode(sipkeys, (u64)nonce, 1);
+    }
     int row = node0 >> YZBITS;
-    int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1));
+    int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1)); // assuming ROWS_LIMIT_LOSSES checked
     tmp[row][counter] = make_Edge(nonce, tmp[0][0], node0, node1);
     __syncthreads();
     if (counter == FLUSHA-1) {
@@ -101,8 +107,9 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
       int newCount = localIdx % FLUSHA;
       int nflush = localIdx - newCount;
       int cnt = min((int)atomicAdd(indexes + row * NX + col, nflush), (int)(maxOut - nflush));
-      for (int i = 0; i < nflush; i += TMPPERLL4)
+      for (int i = 0; i < nflush; i += TMPPERLL4) {
         buffer[((u64)(row * NX + col) * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
+      }
       for (int t = 0; t < newCount; t++) {
         tmp[row][t] = tmp[row][t + nflush];
       }
@@ -147,7 +154,6 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
   const int TMPPERLL4 = sizeof(ulonglong4) / sizeof(EdgeOut);
   __shared__ int counters[NX];
 
-  // if (group>=0&&lid==0) print_log("group  %d  -\n", group);
   for (int col = lid; col < NX; col += dim)
     counters[col] = 0;
   __syncthreads();
@@ -162,9 +168,9 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
       const int index = group * maxOut + edgeIndex;
       EdgeOut edge = __ldg(&source[index]);
       if (null(edge)) continue;
-      u32 node1 = endpoint(sipkeys, edge, 0);
-      col = (node1 >> ZBITS) & XMASK;
-      counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1));
+      u32 node0 = endpoint(sipkeys, edge, 0);
+      col = (node0 >> ZBITS) & XMASK;
+      counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1)); // assuming COLS_LIMIT_LOSSES checked
       tmp[col][counter] = edge;
     }
     __syncthreads();
@@ -271,7 +277,6 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, const EdgeIn
       }
     }
   }
-  // if (group==0&&lid==0) print_log("round %d cnt(0,0) %d\n", round, sourceIndexes[0]);
 }
 
 template<int maxIn>
@@ -417,9 +422,11 @@ struct edgetrimmer {
     float durationA, durationB;
     cudaEventRecord(start, NULL);
   
-    if (tp.expand == 0)
+    assert(tp.genA.blocks * tp.genA.tpb <= NEDGES); // check THREADS_HAVE_EDGES
+    assert(tp.genA.tpb / NX <= FLUSHA); // check ROWS_LIMIT_LOSSES
+    if (tp.expand == 0) {
       SeedA<EDGES_A, uint2><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
-    else
+    } else
       SeedA<EDGES_A,   u32><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
   
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
@@ -429,6 +436,7 @@ struct edgetrimmer {
   
     const u32 halfA = sizeA/2 / sizeof(ulonglong4);
     const u32 halfE = NX2 / 2;
+    assert(tp.genA.tpb / NX <= FLUSHA); // check COLS_LIMIT_LOSSES
     if (tp.expand == 0) {
       SeedB<EDGES_A, uint2><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const uint2 *)bufferAB, bufferA, (const int *)indexesE, indexesE2);
       if (abort) return false;
