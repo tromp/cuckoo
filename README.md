@@ -177,7 +177,7 @@ Bounty contributors
 
 Projects using Cuckoo Cycle
 --------------
-* [GRIN](https://github.com/mimblewimble/grin)
+* [Grin](https://grin-hub.org/)
 * [æternity - the oracle machine](http://www.aeternity.com/)
 * [CodeChain](https://codechain.io/)
 * [BitCash](https://www.choosebitcash.com/)
