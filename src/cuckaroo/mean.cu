@@ -120,9 +120,10 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
         int localIdx = min(FLUSHA2, counters[row]);
         int newCount = localIdx % FLUSHA;
         int nflush = localIdx - newCount;
-        int cnt = min((int)atomicAdd(indexes + row * NX + col, nflush), (int)(maxOut - nflush));
+        u32 grp = row * NX + col;
+        int cnt = min((int)atomicAdd(indexes + grp, nflush), (int)(maxOut - nflush));
         for (int i = 0; i < nflush; i += TMPPERLL4)
-          buffer[((u64)(row * NX + col) * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
+          buffer[((u64)grp * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
         for (int t = 0; t < newCount; t++) {
           tmp[row][t] = tmp[row][t + nflush];
         }
@@ -134,11 +135,12 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
   uint2 zero = make_uint2(0, 0);
   for (int row = lid; row < NX; row += dim) {
     int localIdx = min(FLUSHA2, counters[row]);
+    u32 grp = row * NX + col;
     for (int j = localIdx; j % TMPPERLL4; j++)
       tmp[row][j] = zero;
     for (int i = 0; i < localIdx; i += TMPPERLL4) {
-      int cnt = min((int)atomicAdd(indexes + row * NX + col, TMPPERLL4), (int)(maxOut - TMPPERLL4));
-      buffer[((u64)(row * NX + col) * maxOut + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
+      int cnt = min((int)atomicAdd(indexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
+      buffer[((u64)grp * maxOut + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
     }
   }
 }
@@ -168,12 +170,14 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
   const int TMPPERLL4 = sizeof(ulonglong4) / sizeof(uint2);
   __shared__ int counters[NX];
 
-  // if (group>=0&&lid==0) print_log("group  %d  -\n", group);
   for (int col = lid; col < NX; col += dim)
     counters[col] = 0;
   __syncthreads();
   const int row = group / NX;
   const int bucketEdges = min((int)sourceIndexes[group], (int)maxOut);
+#ifdef SYNCBUG
+  if (group==0x2f2 && lid==0) printf("group %03x size %d\n", group, bucketEdges);
+#endif
   const int loops = (bucketEdges + dim-1) / dim;
   for (int loop = 0; loop < loops; loop++) {
     int col;
@@ -193,9 +197,13 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
       int localIdx = min(FLUSHB2, counters[col]);
       int newCount = localIdx % FLUSHB;
       int nflush = localIdx - newCount;
-      int cnt = min((int)atomicAdd(destinationIndexes + row * NX + col, nflush), (int)(maxOut - nflush));
+      u32 grp = row * NX + col;
+#ifdef SYNCBUG
+      if (grp==0x2d6) printf("group %x size %d lid %d nflush %d\n", group, bucketEdges, lid, nflush);
+#endif
+      int cnt = min((int)atomicAdd(destinationIndexes + grp, nflush), (int)(maxOut - nflush));
       for (int i = 0; i < nflush; i += TMPPERLL4)
-        destination[((u64)(row * NX + col) * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
+        destination[((u64)grp * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
       for (int t = 0; t < newCount; t++) {
         tmp[col][t] = tmp[col][t + nflush];
       }
@@ -206,11 +214,15 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
   uint2 zero = make_uint2(0, 0);
   for (int col = lid; col < NX; col += dim) {
     int localIdx = min(FLUSHB2, counters[col]);
+    u32 grp = row * NX + col;
+#ifdef SYNCBUG
+    if (group==0x2f2 && grp==0x2d6) printf("group %x bktsz %d lid %d localIdx %d\n", group, bucketEdges, lid, localIdx);
+#endif
     for (int j = localIdx; j % TMPPERLL4; j++)
       tmp[col][j] = zero;
     for (int i = 0; i < localIdx; i += TMPPERLL4) {
-      int cnt = min((int)atomicAdd(destinationIndexes + row * NX + col, TMPPERLL4), (int)(maxOut - TMPPERLL4));
-      destination[((u64)(row * NX + col) * maxOut + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
+      int cnt = min((int)atomicAdd(destinationIndexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
+      destination[((u64)grp * maxOut + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
     }
   }
 }
@@ -245,6 +257,9 @@ __global__ void Round(const int round, const uint2 * __restrict__ source, uint2 
     ecounters[i] = 0;
   __syncthreads();
   const int edgesInBucket = min(sourceIndexes[group], maxIn);
+#ifdef SYNCBUG
+  if (group==0xad6 && lid==0) printf("round %d group %03x edges %d\n", round, group, edgesInBucket);
+#endif
   const int loops = (edgesInBucket + dim-1) / dim;
 
   for (int loop = 0; loop < loops; loop++) {
@@ -323,9 +338,13 @@ __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *i
       u64 edge = buf[i] ^ last;
       u32 u = edge & EDGEMASK;
       u32 v = (edge >> 32) & EDGEMASK;
-      for (int p = 0; p < PROOFSIZE; p++) {
-        if (recoveredges[p].x == u && recoveredges[p].y == v)
+      for (int p = 0; p < PROOFSIZE; p++) { //YO
+        if (recoveredges[p].x == u && recoveredges[p].y == v) {
+#ifdef SYNCBUG
+          if (!p) printf("nonce %x\n", nonce0 + i);
+#endif
           nonces[p] = nonce0 + i;
+        }
       }
     }
   }
@@ -446,6 +465,7 @@ struct edgetrimmer {
     cudaMemset(indexesE, 0, indexesSize);
 
     Round<EDGES_A, EDGES_B><<<tp.trim.blocks, tp.trim.tpb>>>(0, (const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE); // to .632
+    cudaDeviceSynchronize();
     if (abort) return false;
 
     cudaMemset(indexesE2, 0, indexesSize);
