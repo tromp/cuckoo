@@ -340,9 +340,6 @@ __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *i
       u32 v = (edge >> 32) & EDGEMASK;
       for (int p = 0; p < PROOFSIZE; p++) { //YO
         if (recoveredges[p].x == u && recoveredges[p].y == v) {
-#ifdef SYNCBUG
-          if (!p) printf("nonce %x\n", nonce0 + i);
-#endif
           nonces[p] = nonce0 + i;
         }
       }
@@ -441,8 +438,6 @@ struct edgetrimmer {
     float durationA, durationB;
     cudaEventRecord(start, NULL);
   
-    assert(tp.genA.blocks * tp.genA.tpb * EDGE_BLOCK_SIZE <= NEDGES); // check THREADS_HAVE_EDGES
-    assert(tp.genA.tpb / NX <= FLUSHA); // check ROWS_LIMIT_LOSSES
     SeedA<EDGES_A><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
   
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
@@ -452,7 +447,6 @@ struct edgetrimmer {
   
     const u32 halfA = sizeA/2 / sizeof(ulonglong4);
     const u32 halfE = NX2 / 2;
-    assert(tp.genB.tpb / NX <= FLUSHB); // check COLS_LIMIT_LOSSES
     SeedB<EDGES_A><<<tp.genB.blocks/2, tp.genB.tpb>>>((const uint2 *)bufferAB, bufferA, (const int *)indexesE, indexesE2);
     if (abort) return false;
     SeedB<EDGES_A><<<tp.genB.blocks/2, tp.genB.tpb>>>((const uint2 *)(bufferAB+halfA), bufferA+halfA, (const int *)(indexesE+halfE), indexesE2+halfE);
@@ -680,6 +674,11 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
   // assert(tp.tailblocks <= prop.threadDims[0]);
   assert(tp.tail.tpb <= prop.maxThreadsPerBlock);
   assert(tp.recover.tpb <= prop.maxThreadsPerBlock);
+
+  assert(tp.genA.blocks * tp.genA.tpb * EDGE_BLOCK_SIZE <= NEDGES); // check THREADS_HAVE_EDGES
+  assert(tp.recover.blocks * tp.recover.tpb * EDGE_BLOCK_SIZE <= NEDGES); // check THREADS_HAVE_EDGES
+  assert(tp.genA.tpb / NX <= FLUSHA); // check ROWS_LIMIT_LOSSES
+  assert(tp.genB.tpb / NX <= FLUSHB); // check COLS_LIMIT_LOSSES
 
   cudaSetDevice(params->device);
 
