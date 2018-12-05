@@ -12,6 +12,7 @@ GPP ?= g++ $(GPP_ARCH_FLAGS) -std=c++11 $(FLAGS)
 CFLAGS ?= -Wall -Wno-format -fomit-frame-pointer $(OPT)
 GCC ?= gcc $(GCC_ARCH_FLAGS) -std=gnu11 $(CFLAGS)
 BLAKE_2B_SRC ?= ../crypto/blake2b-ref.c
+NVCC ?= nvcc -std=c++11 
 
 all : simpletest leantest
 
@@ -55,7 +56,7 @@ mean29x1:	cuckoo.h ../crypto/siphash.h mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -DNSIPHASH=1 -DEDGEBITS=29 mean.cpp $(BLAKE_2B_SRC)
 
 lcuda29:	../crypto/siphash.cuh lean.cu Makefile
-	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 lean.cu $(BLAKE_2B_SRC)
+	$(NVCC) -o $@ -DEDGEBITS=29 -arch sm_35 lean.cu $(BLAKE_2B_SRC)
 
 cuda29:		../crypto/siphash.cuh mean.cu Makefile
-	nvcc -o $@ -DEDGEBITS=29 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
+	$(NVCC) -o $@ -DEDGEBITS=29 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
