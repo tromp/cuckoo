@@ -216,7 +216,7 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
     int localIdx = min(FLUSHB2, counters[col]);
     u32 grp = row * NX + col;
 #ifdef SYNCBUG
-    if (group==0x2f2 && grp==0x2d6) printf("group %x bktsz %d lid %d localIdx %d\n", group, bucketEdges, lid, localIdx);
+    if (group==0x2f2 && grp==0x2d6) printf("group %x size %d lid %d localIdx %d\n", group, bucketEdges, lid, localIdx);
 #endif
     for (int j = localIdx; j % TMPPERLL4; j++)
       tmp[col][j] = zero;
