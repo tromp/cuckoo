@@ -106,9 +106,10 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
       int localIdx = min(FLUSHA2, counters[row]);
       int newCount = localIdx % FLUSHA;
       int nflush = localIdx - newCount;
-      int cnt = min((int)atomicAdd(indexes + row * NX + col, nflush), (int)(maxOut - nflush));
+      u32 grp = row * NX + col;
+      int cnt = min((int)atomicAdd(indexes + grp, nflush), (int)(maxOut - nflush));
       for (int i = 0; i < nflush; i += TMPPERLL4) {
-        buffer[((u64)(row * NX + col) * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
+        buffer[((u64)grp * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
       }
       for (int t = 0; t < newCount; t++) {
         tmp[row][t] = tmp[row][t + nflush];
@@ -120,11 +121,12 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
   EdgeOut zero = make_Edge(0, tmp[0][0], 0, 0);
   for (int row = lid; row < NX; row += dim) {
     int localIdx = min(FLUSHA2, counters[row]);
+    u32 grp = row * NX + col;
     for (int j = localIdx; j % TMPPERLL4; j++)
       tmp[row][j] = zero;
     for (int i = 0; i < localIdx; i += TMPPERLL4) {
-      int cnt = min((int)atomicAdd(indexes + row * NX + col, TMPPERLL4), (int)(maxOut - TMPPERLL4));
-      buffer[((u64)(row * NX + col) * maxOut + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
+      int cnt = min((int)atomicAdd(indexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
+      buffer[((u64)grp * maxOut + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[row][i]);
     }
   }
 }
@@ -167,20 +169,22 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
     if (edgeIndex < bucketEdges) {
       const int index = group * maxOut + edgeIndex;
       EdgeOut edge = __ldg(&source[index]);
-      if (null(edge)) continue;
-      u32 node0 = endpoint(sipkeys, edge, 0);
-      col = (node0 >> ZBITS) & XMASK;
-      counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1)); // assuming COLS_LIMIT_LOSSES checked
-      tmp[col][counter] = edge;
+      if (!null(edge)) {
+        u32 node0 = endpoint(sipkeys, edge, 0);
+        col = (node0 >> ZBITS) & XMASK;
+        counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1)); // assuming COLS_LIMIT_LOSSES checked
+        tmp[col][counter] = edge;
+      }
     }
     __syncthreads();
     if (counter == FLUSHB-1) {
       int localIdx = min(FLUSHB2, counters[col]);
       int newCount = localIdx % FLUSHB;
       int nflush = localIdx - newCount;
-      int cnt = min((int)atomicAdd(destinationIndexes + row * NX + col, nflush), (int)(maxOut - nflush));
+      u32 grp = row * NX + col;
+      int cnt = min((int)atomicAdd(destinationIndexes + grp, nflush), (int)(maxOut - nflush));
       for (int i = 0; i < nflush; i += TMPPERLL4)
-        destination[((u64)(row * NX + col) * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
+        destination[((u64)grp * maxOut + cnt + i) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
       for (int t = 0; t < newCount; t++) {
         tmp[col][t] = tmp[col][t + nflush];
       }
@@ -191,11 +195,12 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
   EdgeOut zero = make_Edge(0, tmp[0][0], 0, 0);
   for (int col = lid; col < NX; col += dim) {
     int localIdx = min(FLUSHB2, counters[col]);
+    u32 grp = row * NX + col;
     for (int j = localIdx; j % TMPPERLL4; j++)
       tmp[col][j] = zero;
     for (int i = 0; i < localIdx; i += TMPPERLL4) {
-      int cnt = min((int)atomicAdd(destinationIndexes + row * NX + col, TMPPERLL4), (int)(maxOut - TMPPERLL4));
-      destination[((u64)(row * NX + col) * maxOut + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
+      int cnt = min((int)atomicAdd(destinationIndexes + grp, TMPPERLL4), (int)(maxOut - TMPPERLL4));
+      destination[((u64)grp * maxOut + cnt) / TMPPERLL4] = *(ulonglong4 *)(&tmp[col][i]);
     }
   }
 }

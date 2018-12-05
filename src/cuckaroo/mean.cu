@@ -186,11 +186,12 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
     if (edgeIndex < bucketEdges) {
       const int index = group * maxOut + edgeIndex;
       uint2 edge = __ldg(&source[index]);
-      if (null(edge)) continue;
-      u32 node1 = edge.x;
-      col = (node1 >> ZBITS) & XMASK;
-      counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1)); // assuming COLS_LIMIT_LOSSES checked
-      tmp[col][counter] = edge;
+      if (!null(edge)) {
+        u32 node1 = edge.x;
+        col = (node1 >> ZBITS) & XMASK;
+        counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1)); // assuming COLS_LIMIT_LOSSES checked
+        tmp[col][counter] = edge;
+        }
     }
     __syncthreads();
     if (counter == FLUSHB-1) {
