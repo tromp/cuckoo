@@ -28,13 +28,13 @@ typedef u64 nonce_t;
 const static u32 NX        = 1 << XBITS;
 const static u32 NX2       = NX * NX;
 const static u32 XMASK     = NX - 1;
-const static u32 X2MASK    = NX2 - 1;
 const static u32 YBITS     = XBITS;
 const static u32 NY        = 1 << YBITS;
 const static u32 YZBITS    = EDGEBITS - XBITS;
 const static u32 NYZ       = 1 << YZBITS;
 const static u32 ZBITS     = YZBITS - YBITS;
 const static u32 NZ        = 1 << ZBITS;
+const static u32 ZMASK     = NZ - 1;
 
 #define EPS_A 133/128
 #define EPS_B 85/128
@@ -80,7 +80,7 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
     u32 node1, node0 = dipnode(sipkeys, (u64)nonce, 0);
     if (sizeof(EdgeOut) == sizeof(uint2))
       node1 = dipnode(sipkeys, (u64)nonce, 1);
-    int row = node0 & XMASK;
+    int row = node0 >> YZBITS;
     int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1));
     tmp[row][counter] = make_Edge(nonce, tmp[0][0], node0, node1);
     __syncthreads();
@@ -151,7 +151,7 @@ __global__ void SeedB(const siphash_keys &sipkeys, const EdgeOut * __restrict__ 
       EdgeOut edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node1 = endpoint(sipkeys, edge, 0);
-      col = (node1 >> XBITS) & XMASK;
+      col = (node1 >> ZBITS) & XMASK;
       counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1));
       tmp[col][counter] = edge;
     }
@@ -244,7 +244,7 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, const EdgeIn
       EdgeIn edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node = endpoint(sipkeys, edge, round&1);
-      Increase2bCounter(ecounters, node >> (2*XBITS));
+      Increase2bCounter(ecounters, node & ZMASK);
     }
   }
   __syncthreads();
@@ -255,9 +255,9 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, const EdgeIn
       EdgeIn edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node0 = endpoint(sipkeys, edge, round&1);
-      if (Read2bCounter(ecounters, node0 >> (2*XBITS))) {
+      if (Read2bCounter(ecounters, node0 & ZMASK)) {
         u32 node1 = endpoint(sipkeys, edge, (round&1)^1);
-        const int bucket = node1 & X2MASK;
+        const int bucket = node1 >> ZBITS;
         const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), maxOut - 1);
         destination[bucket * maxOut + bktIdx] = (round&1) ? make_Edge(edge, *destination, node1, node0)
                                                           : make_Edge(edge, *destination, node0, node1);
