@@ -875,7 +875,7 @@ int main(int argc, char **argv) {
   print_log("Looking for %d-cycle on cuckoo%d(\"%s\",%d", PROOFSIZE, NODEBITS, header, nonce);
   if (range > 1)
     print_log("-%d", nonce+range-1);
-  print_log(") with 50%% edges, %d*%d buckets, %d trims, and %d thread blocks.\n", NX, NY, tp.ntrims, NX);
+  print_log(") with 50%% edges, %d*%d buckets, %d trims, and %d thread blocks.\n", NX, NY, params.ntrims, NX);
 
   SolverCtx* ctx = create_solver_ctx(&params);
 
