@@ -192,8 +192,7 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
       counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1)); // assuming COLS_LIMIT_LOSSES checked
       tmp[col][counter] = edge;
     }
-    __syncthreads();
-    __syncwarp(); 
+    __syncwarp(); __syncthreads();
     if (counter == FLUSHB-1) {
       int localIdx = min(FLUSHB2, counters[col]);
       int newCount = localIdx % FLUSHB;
@@ -210,8 +209,7 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
       }
       counters[col] = newCount;
     }
-    __syncthreads(); 
-    __syncwarp(); 
+    __syncwarp(); __syncthreads(); 
   }
   uint2 zero = make_uint2(0, 0);
   for (int col = lid; col < NX; col += dim) {
