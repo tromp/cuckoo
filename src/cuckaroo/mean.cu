@@ -314,7 +314,7 @@ inline int gpuAssert(cudaError_t code, const char *file, int line, bool abort=tr
   int device_id;
   cudaGetDevice(&device_id);
   if (code != cudaSuccess) {
-    snprintf(LAST_ERROR_REASON, MAX_NAME_LEN, "Device %d GPUassert: %s %s %d\0", device_id, cudaGetErrorString(code), file, line);
+    snprintf(LAST_ERROR_REASON, MAX_NAME_LEN, "Device %d GPUassert: %s %s %d", device_id, cudaGetErrorString(code), file, line);
     cudaDeviceReset();
     if (abort) return code;
   }
