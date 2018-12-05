@@ -41,12 +41,12 @@ const static u32 MAXEDGES = NEDGES >> IDXSHIFT;
 const static u32 NX        = 1 << XBITS;
 const static u32 NX2       = NX * NX;
 const static u32 XMASK     = NX - 1;
-const static u32 X2MASK    = NX2 - 1;
 const static u32 YBITS     = XBITS;
 const static u32 NY        = 1 << YBITS;
 const static u32 YZBITS    = EDGEBITS - XBITS;
 const static u32 ZBITS     = YZBITS - YBITS;
 const static u32 NZ        = 1 << ZBITS;
+const static u32 ZMASK     = NZ - 1;
 
 #ifndef EPS_A
 #define EPS_A 133/128
@@ -112,7 +112,7 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
       u64 edge = buf[e] ^ last;
       u32 node0 = edge & EDGEMASK;
       u32 node1 = (edge >> 32) & EDGEMASK;
-      int row = node0 & XMASK;
+      int row = node0 >> YZBITS;
       int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1)); // assuming ROWS_LIMIT_LOSSES checked
       tmp[row][counter] = make_uint2(node0, node1);
       __syncthreads();
@@ -187,12 +187,12 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
       const int index = group * maxOut + edgeIndex;
       uint2 edge = __ldg(&source[index]);
       if (null(edge)) continue;
-      u32 node1 = endpoint(edge, 0);
-      col = (node1 >> XBITS) & XMASK;
+      u32 node1 = edge.x;
+      col = (node1 >> ZBITS) & XMASK;
       counter = min((int)atomicAdd(counters + col, 1), (int)(FLUSHB2-1)); // assuming COLS_LIMIT_LOSSES checked
       tmp[col][counter] = edge;
     }
-    __syncwarp(); __syncthreads();
+    __syncthreads();
     if (counter == FLUSHB-1) {
       int localIdx = min(FLUSHB2, counters[col]);
       int newCount = localIdx % FLUSHB;
@@ -209,7 +209,7 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
       }
       counters[col] = newCount;
     }
-    __syncwarp(); __syncthreads(); 
+    __syncthreads(); 
   }
   uint2 zero = make_uint2(0, 0);
   for (int col = lid; col < NX; col += dim) {
@@ -269,7 +269,7 @@ __global__ void Round(const int round, const uint2 * __restrict__ source, uint2 
       uint2 edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node = endpoint(edge, round&1);
-      Increase2bCounter(ecounters, node >> (2*XBITS));
+      Increase2bCounter(ecounters, node & ZMASK);
     }
   }
   __syncthreads();
@@ -280,9 +280,9 @@ __global__ void Round(const int round, const uint2 * __restrict__ source, uint2 
       uint2 edge = __ldg(&source[index]);
       if (null(edge)) continue;
       u32 node0 = endpoint(edge, round&1);
-      if (Read2bCounter(ecounters, node0 >> (2*XBITS))) {
+      if (Read2bCounter(ecounters, node0 & ZMASK)) {
         u32 node1 = endpoint(edge, (round&1)^1);
-        const int bucket = node1 & X2MASK;
+        const int bucket = node1 >> ZBITS;
         const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), maxOut - 1);
         destination[bucket * maxOut + bktIdx] = (round&1) ? make_uint2(node1, node0) : make_uint2(node0, node1);
       }
