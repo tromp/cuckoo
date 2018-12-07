@@ -682,6 +682,8 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
   assert(tp.genB.tpb / NX <= FLUSHB); // check COLS_LIMIT_LOSSES
 
   cudaSetDevice(params->device);
+  if (!params->cpuload)
+    checkCudaErrors_N(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
 
   SolverCtx* ctx = new SolverCtx(tp, params->mutate_nonce);
 
@@ -707,6 +709,7 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
   params->tailtpb = tp.tail.tpb;
   params->recoverblocks = tp.recover.blocks;
   params->recovertpb = tp.recover.tpb;
+  params->cpuload = true;
 }
 
 int main(int argc, char **argv) {
@@ -723,12 +726,15 @@ int main(int argc, char **argv) {
   fill_default_params(&params);
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt(argc, argv, "sb:d:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
+  while ((c = getopt(argc, argv, "scb:d:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
     switch (c) {
       case 's':
-        print_log("SYNOPSIS\n  cuda%d [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
+        print_log("SYNOPSIS\n  cuda%d [-s] [-c] [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
         print_log("DEFAULTS\n  cuda%d -d %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
         exit(0);
+      case 'c':
+        params.cpuload = false;
+        break;
       case 'd':
         params.device = atoi(optarg);
         break;

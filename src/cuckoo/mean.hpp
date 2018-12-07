@@ -254,18 +254,12 @@ public:
   trim_barrier barry;
 
 #if NSIPHASH > 4
-
   void* operator new(size_t size) noexcept {
     void* newobj;
     int tmp = posix_memalign(&newobj, NSIPHASH * sizeof(u32), sizeof(edgetrimmer));
-
-    if (tmp != 0) {
-      return nullptr;
-    }
-
+    if (tmp != 0) return nullptr;
     return newobj;
   }
-
 #endif
 
   void touch(u8 *p, const offset_t n) {

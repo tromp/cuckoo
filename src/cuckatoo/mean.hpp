@@ -261,21 +261,6 @@ public:
   thread_ctx *threads;
   trim_barrier barry;
 
-#if NSIPHASH > 4
-
-  void* operator new(size_t size) noexcept {
-    void* newobj;
-    int tmp = posix_memalign(&newobj, NSIPHASH * sizeof(u32), sizeof(edgetrimmer));
-
-    if (tmp != 0) {
-      return nullptr;
-    }
-
-    return newobj;
-  }
-
-#endif
-
   void touch(u8 *p, const offset_t n) {
     for (offset_t i=0; i<n; i+=4096)
       *(u32 *)(p+i) = 0;
@@ -1072,6 +1057,17 @@ public:
   proof cyclevs;
   std::bitset<NXY> uxymap;
   std::vector<word_t> sols; // concatanation of all proof's indices
+
+#if NSIPHASH > 4  // ensure correct alignment for _mm256_load_si256 of sip_keys at start of trimmer struct
+  void* operator new(size_t size) noexcept {
+    void* newobj;
+    int tmp = posix_memalign(&newobj, NSIPHASH * sizeof(u32), sizeof(solver_ctx));
+    if (tmp != 0) {
+      return nullptr;
+    }
+    return newobj;
+  }
+#endif
 
   solver_ctx(const u32 nthreads, const u32 n_trims, bool allrounds, bool show_cycle, bool mutate_nonce)
     : trimmer(nthreads, n_trims, allrounds), 
