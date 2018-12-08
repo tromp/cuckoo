@@ -447,7 +447,6 @@ public:
 #define STORE0(i,v,x,w) \
   ux = _mm256_extract_epi32(v,x);\
   *(u64 *)(base+dst.index[ux]) = _mm256_extract_epi64(w,i%4);\
-  printf("%lx%c", ux, " \n"[i==7]);\
   dst.index[ux] += BIGSIZE0;
 #else
   u32 zz;
