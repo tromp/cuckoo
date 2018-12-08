@@ -54,6 +54,7 @@ struct SolverParams {
         bool showcycle;
         bool allrounds;
         bool mutate_nonce = 1;
+        bool cpuload = 1;
 
         // Common cuda params
         u32 device = 0;
