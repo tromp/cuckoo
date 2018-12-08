@@ -447,6 +447,7 @@ public:
 #define STORE0(i,v,x,w) \
   ux = _mm256_extract_epi32(v,x);\
   *(u64 *)(base+dst.index[ux]) = _mm256_extract_epi64(w,i%4);\
+  printf("%lx%c", ux, " \n"[i==7]);\
   dst.index[ux] += BIGSIZE0;
 #else
   u32 zz;
@@ -611,6 +612,9 @@ public:
 #elif NSIPHASH == 8
         const __m256i vuy34  = {uy34, uy34, uy34, uy34};
         const __m256i vuorv  = {uorv, uorv, uorv, uorv};
+#ifdef AVX2BUG
+  print_log("uorv %d vuorv %llx\n", uorv, _mm256_extract_epi64(vuorv,0));
+#endif
         for (; readedge <= edges-NSIPHASH; readedge += NSIPHASH, readz += NSIPHASH) {
           v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
           v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
