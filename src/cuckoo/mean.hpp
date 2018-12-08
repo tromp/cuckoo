@@ -313,30 +313,30 @@ public:
     const u32   endy = NY * (id+1) / nthreads;
     u32 edge = starty << YZBITS, endedge = edge + NYZ;
 #if NSIPHASH == 4
-    static const __m128i vxmask = {XMASK, XMASK};
-    static const __m128i vyzmask = {YZMASK, YZMASK};
+    static const __m128i vxmask = _mm_set1_epi64x(XMASK);
+    static const __m128i vyzmask = _mm_set1_epi64x(YZMASK);
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge + uorv;
     __m128i vpacket0 = _mm_set_epi64x(e2+2, e2+0);
     __m128i vpacket1 = _mm_set_epi64x(e2+6, e2+4);
-    static const __m128i vpacketinc = {8, 8};
+    static const __m128i vpacketinc = _mm_set1_epi64x(8);
     u64 e1 = edge;
     __m128i vhi0 = _mm_set_epi64x((e1+1)<<YZBITS, (e1+0)<<YZBITS);
     __m128i vhi1 = _mm_set_epi64x((e1+3)<<YZBITS, (e1+2)<<YZBITS);
-    static const __m128i vhiinc = {4<<YZBITS, 4<<YZBITS};
+    static const __m128i vhiinc = _mm_set1_epi64x(4<<YZBITS);
 #elif NSIPHASH == 8
-    static const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
-    static const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
+    static const __m256i vxmask = _mm256_set1_epi64x(XMASK);
+    static const __m256i vyzmask = _mm256_set1_epi64x(YZMASK);
     const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge + uorv;
     __m256i vpacket0 = _mm256_set_epi64x(e2+6, e2+4, e2+2, e2+0);
     __m256i vpacket1 = _mm256_set_epi64x(e2+14, e2+12, e2+10, e2+8);
-    static const __m256i vpacketinc = {16, 16, 16, 16};
+    static const __m256i vpacketinc = _mm256_set1_epi64x(16);
     u64 e1 = edge;
     __m256i vhi0 = _mm256_set_epi64x((e1+3)<<YZBITS, (e1+2)<<YZBITS, (e1+1)<<YZBITS, (e1+0)<<YZBITS);
     __m256i vhi1 = _mm256_set_epi64x((e1+7)<<YZBITS, (e1+6)<<YZBITS, (e1+5)<<YZBITS, (e1+4)<<YZBITS);
-    static const __m256i vhiinc = {8<<YZBITS, 8<<YZBITS, 8<<YZBITS, 8<<YZBITS};
+    static const __m256i vhiinc = _mm256_set1_epi64x(8<<YZBITS);
 #endif
     offset_t sumsize = 0;
     for (u32 my = starty; my < endy; my++, endedge += NYZ) {
@@ -483,14 +483,14 @@ public:
   void genVnodes(const u32 id, const u32 uorv) {
     u64 rdtsc0, rdtsc1;
 #if NSIPHASH == 4
-    static const __m128i vxmask = {XMASK, XMASK};
-    static const __m128i vyzmask = {YZMASK, YZMASK};
+    static const __m128i vxmask = _mm_set1_epi64x(XMASK);
+    static const __m128i vyzmask = _mm_set1_epi64x(YZMASK);
     const __m128i ff = _mm_set1_epi64x(0xffLL);
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     __m128i vpacket0, vpacket1, vhi0, vhi1;
 #elif NSIPHASH == 8
-    static const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
-    static const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
+    static const __m256i vxmask = _mm256_set1_epi64x(XMASK);
+    static const __m256i vyzmask = _mm256_set1_epi64x(YZMASK);
     const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
     __m256i vpacket0, vpacket1, vhi0, vhi1;
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
@@ -606,8 +606,8 @@ public:
           STORE(2,v5,0,v4); STORE(3,v5,2,v4);
         }
 #elif NSIPHASH == 8
-        const __m256i vuy34  = {uy34, uy34, uy34, uy34};
-        const __m256i vuorv  = {uorv, uorv, uorv, uorv};
+        const __m256i vuy34  = _mm256_set1_epi64x(uy34);
+        const __m256i vuorv  = _mm256_set1_epi64x(uorv);
         for (; readedge <= edges-NSIPHASH; readedge += NSIPHASH, readz += NSIPHASH) {
           v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
           v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
@@ -1204,21 +1204,21 @@ public:
     const u32   endy = NY * (mc->id+1) / trimmer->nthreads;
     u32 edge = starty << YZBITS, endedge = edge + NYZ;
   #if NSIPHASH == 4
-    static const __m128i vnodemask = {EDGEMASK, EDGEMASK};
+    static const __m128i vnodemask = _mm_set1_epi64x(EDGEMASK);
     siphash_keys &sip_keys = trimmer->sip_keys;
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge;
     __m128i vpacket0 = _mm_set_epi64x(e2+2, e2+0);
     __m128i vpacket1 = _mm_set_epi64x(e2+6, e2+4);
-    static const __m128i vpacketinc = {8, 8};
+    static const __m128i vpacketinc = _mm_set1_epi64x(8);
   #elif NSIPHASH == 8
-    static const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
+    static const __m256i vnodemask = _mm256_set1_epi64x(EDGEMASK);
     const __m256i vinit = _mm256_load_si256((__m256i *)&trimmer->sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge;
     __m256i vpacket0 = _mm256_set_epi64x(e2+6, e2+4, e2+2, e2+0);
     __m256i vpacket1 = _mm256_set_epi64x(e2+14, e2+12, e2+10, e2+8);
-    static const __m256i vpacketinc = {16, 16, 16, 16};
+    static const __m256i vpacketinc = _mm256_set1_epi64x(16);
   #endif
     for (u32 my = starty; my < endy; my++, endedge += NYZ) {
       for (; edge < endedge; edge += NSIPHASH) {
