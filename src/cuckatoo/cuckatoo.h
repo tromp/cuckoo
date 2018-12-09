@@ -30,7 +30,7 @@ typedef uint64_t u64;
 #define PROOFSIZE 42
 #endif
 
-#if EDGEBITS > 30
+#if EDGEBITS > 31
 typedef uint64_t word_t;
 #elif EDGEBITS > 14
 typedef u32 word_t;

@@ -1056,7 +1056,7 @@ public:
   proof cycleus;
   proof cyclevs;
   std::bitset<NXY> uxymap;
-  std::vector<word_t> sols; // concatanation of all proof's indices
+  std::vector<word_t> sols; // concatenation of all proof's indices
 
 #if NSIPHASH > 4  // ensure correct alignment for _mm256_load_si256 of sip_keys at start of trimmer struct
   void* operator new(size_t size) noexcept {

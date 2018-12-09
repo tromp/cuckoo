@@ -92,6 +92,7 @@ public:
 
   // total size of new-operated data, excludes sols and visited bitmap of MAXEDGES bits
   uint64_t bytes() {
+    assert(2*MAXNODES && 2*MAXEDGES); // allocation fails for uncompressed EDGEBITS=31
     return sizeof(word_t[2*MAXNODES]) + sizeof(link[2*MAXEDGES]) + (compressu ? 2 * compressu->bytes() : 0);
   }
 

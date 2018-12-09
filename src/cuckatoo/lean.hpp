@@ -57,8 +57,8 @@ const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 #endif
 #define MAXEDGES (NEDGES >> IDXSHIFT)
 
-const static word_t PART_MASK = (1 << PART_BITS) - 1;
-const static word_t NONPART_BITS = EDGEBITS - PART_BITS;
+const static u32 PART_MASK = (1 << PART_BITS) - 1;
+const static u32 NONPART_BITS = EDGEBITS - PART_BITS;
 const static word_t NONPART_MASK = ((word_t)1 << NONPART_BITS) - 1;
 
 // set that starts out full and gets reset by threads on disjoint words
