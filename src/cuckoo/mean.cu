@@ -286,10 +286,6 @@ __global__ void Tail(const uint2 *source, uint2 *destination, const int *sourceI
     destination[destIdx + lid] = source[group * maxIn + lid];
 }
 
-#define checkCudaErrors_V(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return;})
-#define checkCudaErrors_N(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return NULL;})
-#define checkCudaErrors(ans) ({int retval = gpuAssert((ans), __FILE__, __LINE__); if (retval != cudaSuccess) return retval;})
-
 inline int gpuAssert(cudaError_t code, const char *file, int line, bool abort=true) {
   int device_id;
   cudaGetDevice(&device_id);
@@ -300,6 +296,11 @@ inline int gpuAssert(cudaError_t code, const char *file, int line, bool abort=tr
   }
   return code;
 }
+
+#define checkCudaErrors_B(ans) (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess)
+// This helper function is not side-effect free. It modifies the value of the global variable `cuckooErr`. Use with caution.
+#define checkCudaErrors_V(ans) ([=, &cuckooErr] (const cudaError_t res) {cuckooErr = gpuAssert((res), __FILE__, __LINE__); return true;})(ans)
+#define checkCudaErrors(ans) (checkCudaErrors_V(ans) && cuckooErr != cudaSuccess)
 
 __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *indexes) {
   const int gid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -377,15 +378,15 @@ struct edgetrimmer {
 
   edgetrimmer(const trimparams _tp) : tp(_tp) {
     tp = _tp;
-    checkCudaErrors_V(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
-    checkCudaErrors_V(cudaMalloc((void**)&uvnodes, PROOFSIZE * 2 * sizeof(u32)));
-    checkCudaErrors_V(cudaMalloc((void**)&dipkeys, sizeof(siphash_keys)));
-    checkCudaErrors_V(cudaMalloc((void**)&indexesE, indexesSize));
-    checkCudaErrors_V(cudaMalloc((void**)&indexesE2, indexesSize));
+    if checkCudaErrors_B(cudaMalloc((void**)&dt, sizeof(edgetrimmer))) return;
+    if checkCudaErrors_B(cudaMalloc((void**)&uvnodes, PROOFSIZE * 2 * sizeof(u32))) return;
+    if checkCudaErrors_B(cudaMalloc((void**)&dipkeys, sizeof(siphash_keys))) return;
+    if checkCudaErrors_B(cudaMalloc((void**)&indexesE, indexesSize)) return;
+    if checkCudaErrors_B(cudaMalloc((void**)&indexesE2, indexesSize)) return;
     sizeA = ROW_EDGES_A * NX * (tp.expand > 0 ? sizeof(u32) : sizeof(uint2));
     sizeB = ROW_EDGES_B * NX * (tp.expand > 1 ? sizeof(u32) : sizeof(uint2));
     const size_t bufferSize = sizeA + sizeB;
-    checkCudaErrors_V(cudaMalloc((void**)&bufferA, bufferSize));
+    if checkCudaErrors_B(cudaMalloc((void**)&bufferA, bufferSize)) return;
     bufferB  = bufferA + sizeA / sizeof(ulonglong4);
     bufferAB = bufferA + sizeB / sizeof(ulonglong4);
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
@@ -395,18 +396,20 @@ struct edgetrimmer {
     return (sizeA+sizeB) + 2 * indexesSize + sizeof(siphash_keys) + PROOFSIZE * 2 * sizeof(u32) + sizeof(edgetrimmer);
   }
   ~edgetrimmer() {
-    checkCudaErrors_V(cudaFree(bufferA));
-    checkCudaErrors_V(cudaFree(indexesE2));
-    checkCudaErrors_V(cudaFree(indexesE));
-    checkCudaErrors_V(cudaFree(dipkeys));
-    checkCudaErrors_V(cudaFree(uvnodes));
-    checkCudaErrors_V(cudaFree(dt));
+    if checkCudaErrors_B(cudaFree(bufferA)) return;
+    if checkCudaErrors_B(cudaFree(indexesE2)) return;
+    if checkCudaErrors_B(cudaFree(indexesE)) return;
+    if checkCudaErrors_B(cudaFree(dipkeys)) return;
+    if checkCudaErrors_B(cudaFree(uvnodes)) return;
+    if checkCudaErrors_B(cudaFree(dt)) return;
     cudaDeviceReset();
   }
   u32 trim() {
+    int cuckooErr; // Required to use error checking helper functions.
     cudaEvent_t start, stop;
-    checkCudaErrors(cudaEventCreate(&start)); checkCudaErrors(cudaEventCreate(&stop));
-  
+    if checkCudaErrors(cudaEventCreate(&start)) return cuckooErr;
+    if checkCudaErrors(cudaEventCreate(&stop)) return cuckooErr;
+
     cudaMemset(indexesE, 0, indexesSize);
     cudaMemset(indexesE2, 0, indexesSize);
     cudaMemcpy(dipkeys, &sipkeys, sizeof(sipkeys), cudaMemcpyHostToDevice);
@@ -419,9 +422,11 @@ struct edgetrimmer {
       SeedA<EDGES_A, uint2><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
     else
       SeedA<EDGES_A,   u32><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, bufferAB, (int *)indexesE);
-  
-    checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
-    cudaEventSynchronize(stop); cudaEventElapsedTime(&durationA, start, stop);
+
+    if checkCudaErrors(cudaDeviceSynchronize()) return cuckooErr;
+    cudaEventRecord(stop, NULL);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&durationA, start, stop);
     if (abort) return false;
     cudaEventRecord(start, NULL);
   
@@ -435,9 +440,12 @@ struct edgetrimmer {
       SeedB<EDGES_A,   u32><<<tp.genB.blocks/2, tp.genB.tpb>>>(*dipkeys, (const   u32 *)(bufferAB+halfA), bufferA+halfA, (const int *)(indexesE+halfE), indexesE2+halfE);
     }
 
-    checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
-    cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
-    checkCudaErrors(cudaEventDestroy(start)); checkCudaErrors(cudaEventDestroy(stop));
+    if checkCudaErrors(cudaDeviceSynchronize()) return cuckooErr;
+    cudaEventRecord(stop, NULL);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&durationB, start, stop);
+    if checkCudaErrors(cudaEventDestroy(start)) return cuckooErr;
+    if checkCudaErrors(cudaEventDestroy(stop)) return cuckooErr;
     print_log("Seeding completed in %.0f + %.0f ms\n", durationA, durationB);
     if (abort) return false;
   
@@ -582,7 +590,7 @@ struct solver_ctx {
     cudaMemset(trimmer.indexesE2, 0, trimmer.indexesSize);
     Recovery<<<trimmer.tp.recover.blocks, trimmer.tp.recover.tpb>>>(*trimmer.dipkeys, trimmer.bufferA, (int *)trimmer.indexesE2);
     cudaMemcpy(&sols[sols.size()-PROOFSIZE], trimmer.indexesE2, PROOFSIZE * sizeof(u32), cudaMemcpyDeviceToHost);
-    checkCudaErrors_V(cudaDeviceSynchronize());
+    if checkCudaErrors_B(cudaDeviceSynchronize()) return;
     qsort(&sols[sols.size()-PROOFSIZE], PROOFSIZE, sizeof(u32), nonce_cmp);
   }
 
@@ -759,7 +767,7 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
   tp.recover.tpb = params->recovertpb;
 
   cudaDeviceProp prop;
-  checkCudaErrors_N(cudaGetDeviceProperties(&prop, params->device));
+  if checkCudaErrors_B(cudaGetDeviceProperties(&prop, params->device)) return NULL;
 
   assert(tp.genA.tpb <= prop.maxThreadsPerBlock);
   assert(tp.genB.tpb <= prop.maxThreadsPerBlock);
@@ -775,7 +783,7 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
 
   cudaSetDevice(params->device);
   if (!params->cpuload)
-    checkCudaErrors_N(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
+    if checkCudaErrors_B(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync)) return NULL;
 
   SolverCtx* ctx = new SolverCtx(tp, params->mutate_nonce);
 
@@ -806,6 +814,7 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
 }
 
 int main(int argc, char **argv) {
+  int cuckooErr; // Required to use error checking helper functions.
   trimparams tp;
   u32 nonce = 0;
   u32 range = 1;
@@ -874,10 +883,10 @@ int main(int argc, char **argv) {
     }
   }
   int nDevices;
-  checkCudaErrors(cudaGetDeviceCount(&nDevices));
+  if checkCudaErrors(cudaGetDeviceCount(&nDevices)) return cuckooErr;
   assert(device < nDevices);
   cudaDeviceProp prop;
-  checkCudaErrors(cudaGetDeviceProperties(&prop, device));
+  if checkCudaErrors(cudaGetDeviceProperties(&prop, device)) return cuckooErr;
   u64 dbytes = prop.totalGlobalMem;
   int dunit;
   for (dunit=0; dbytes >= 10240; dbytes>>=10,dunit++) ;
