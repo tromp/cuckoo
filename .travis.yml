@@ -3,6 +3,8 @@ sudo: false
 language: cpp
 env:
   - JOB=cuckoo
+  - JOB=cuckoo-cuda MINER=cuda29  CUDA_DISTRO=ubuntu1404 CUDA_VSN_MAJOR=10 CUDA_VSN_MINOR=0 CUDA_VSN_PATCH=130-1 CUDA_ARCH=amd64 CUDA_PKG=cuda-toolkit
+  - JOB=cuckoo-cuda MINER=lcuda29 CUDA_DISTRO=ubuntu1404 CUDA_VSN_MAJOR=10 CUDA_VSN_MINOR=0 CUDA_VSN_PATCH=130-1 CUDA_ARCH=amd64 CUDA_PKG=cuda-toolkit
   - JOB=cuckatoo
   - JOB=java
   - JOB=doc
@@ -18,6 +20,22 @@ addons:
       - texlive-latex-base
       - texlive-pictures
       - pgf
+before_install:
+  - |
+    if test linux = "${TRAVIS_OS_NAME:?}" -a cuckoo-cuda = "${JOB:?}"; then
+      # Refs:
+      # * https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#ubuntu-installation
+      # * https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#package-manager-metas
+      # * https://developer.nvidia.com/cuda-downloads
+      CUDA_VSN=${CUDA_VSN_MAJOR:?}.${CUDA_VSN_MINOR:?}.${CUDA_VSN_PATCH:?}
+      curl -OfsS https://developer.download.nvidia.com/compute/cuda/repos/${CUDA_DISTRO:?}/x86_64/cuda-repo-${CUDA_DISTRO:?}_${CUDA_VSN:?}_${CUDA_ARCH:?}.deb \
+      && sudo dpkg -i cuda-repo-${CUDA_DISTRO:?}_${CUDA_VSN:?}_${CUDA_ARCH:?}.deb \
+      && rm cuda-repo-${CUDA_DISTRO:?}_${CUDA_VSN:?}_${CUDA_ARCH:?}.deb \
+      && sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/${CUDA_DISTRO:?}/x86_64/7fa2af80.pub \
+      && sudo apt-get update \
+      && sudo apt-get install cuda-toolkit-${CUDA_VSN_MAJOR:?}-${CUDA_VSN_MINOR:?} \
+      && export PATH=/usr/local/cuda-${CUDA_VSN_MAJOR:?}.${CUDA_VSN_MINOR}/bin${PATH:+:${PATH}}
+    fi
 before_script:
   - case "${TRAVIS_OS_NAME:?}" in linux) LIBV=LD_LIBRARY_PATH;; osx) LIBV=DYLD_LIBRARY_PATH;; esac
   - echo "The library path variable name is ${LIBV:?}"
@@ -25,10 +43,17 @@ before_script:
   - echo "The library path variable value is ${LIBP:?}"
 script:
   - if test cuckoo = "${JOB:?}"; then ( cd src/crypto && env ${LIBV:?}="${LIBP:?}" make && cd ../cuckoo && make; ); fi
+  - if test cuckoo-cuda = "${JOB:?}"; then make -C src/cuckoo ${MINER:?}; fi
   - if test cuckatoo = "${JOB:?}"; then ( cd src/crypto && env ${LIBV:?}="${LIBP:?}" make && cd ../cuckatoo && make; ); fi
   - if test java = "${JOB:?}"; then ( cd src/java && make; ); fi
   - if test doc = "${JOB:?}"; then ( cd doc && make cuckoo.pdf; ); fi
 after_success:
+  - |
+    if test cuckoo-cuda = "${JOB:?}"; then
+      sha512sum src/cuckoo/${MINER:?}
+      echo "Below is the generated ${MINER:?} encoded as base64. You can decode it using 'openssl base64 -d'."
+      cat src/cuckoo/${MINER:?} | openssl base64
+    fi
   - |
     if test doc = "${JOB:?}"; then
       echo "Below is the generated PDF encoded as base64. You can decode it using 'openssl base64 -d'."
