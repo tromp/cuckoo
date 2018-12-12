@@ -3,7 +3,6 @@
 
 #include "lean.hpp"
 #include <unistd.h>
-#include <sys/time.h>
 
 #define MAXSOLS 8
 // arbitrary length of header hashed into siphash key
@@ -19,7 +18,7 @@ int main(int argc, char **argv) {
   int range = 1;
   char header[HEADERLEN];
   unsigned len;
-  struct timeval time0, time1;
+  u64 time0, time1;
   u32 timems;
   int c;
 
@@ -69,7 +68,7 @@ int main(int argc, char **argv) {
 
   u32 sumnsols = 0;
   for (int r = 0; r < range; r++) {
-    gettimeofday(&time0, 0);
+    time0 = timestamp();
     ctx.setheadernonce(header, sizeof(header), nonce + r);
     ctx.barry.clear();
     for (int t = 0; t < nthreads; t++) {
@@ -83,8 +82,7 @@ int main(int argc, char **argv) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
     }
-    gettimeofday(&time1, 0);
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
+    time1 = timestamp(); timems = (time1 - time0) / 1000000;
     printf("Time: %d ms\n", timems);
     for (unsigned s = 0; s < ctx.nsols; s++) {
       printf("Solution");

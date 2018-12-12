@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/time.h> // gettimeofday
 #include <set>
 
 #ifndef MAXSOLS
@@ -214,9 +213,9 @@ public:
   }
 
   int solve() {
+    u64 time0, time1;
     u32 timems,timems2;
-    struct timeval time0, time1;
-    gettimeofday(&time0, 0);
+    time0 = timestamp();
 
     trimmer.abort = false;
     if (!trimmer.trim()) // trimmer aborted
@@ -230,14 +229,11 @@ public:
       print_log("overloaded! exiting...");
       exit(0);
     }
-    gettimeofday(&time1, 0);
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
-    gettimeofday(&time0, 0);
+    time1 = timestamp(); timems  = (time1 - time0) / 1000000;
+    time0 = timestamp();
+    findcycles(edges, nedges);
+    time1 = timestamp(); timems2 = (time1 - time0) / 1000000;
 
-    findcycles();
-
-    gettimeofday(&time1, 0);
-    timems2 = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
     print_log("%d trims %d ms %d edges %d ms total %d ms\n", trimmer.tp.ntrims, timems, nedges, timems2, timems+timems2);
 
     for (u32 s=0; s < cg.nsols; s++) {
@@ -311,8 +307,7 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
     ctx->setheadernonce(header, header_length, nonce + r);
     print_log("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx->trimmer.sipkeys.k0, ctx->trimmer.sipkeys.k1, ctx->trimmer.sipkeys.k2, ctx->trimmer.sipkeys.k3);
     u32 nsols = ctx->solve();
-    time1 = timestamp();
-    timems = (time1 - time0) / 1000000;
+    time1 = timestamp(); timems = (time1 - time0) / 1000000;
     print_log("Time: %d ms\n", timems);
     for (u32 s = 0; s < nsols; s++) {
       print_log("Solution");

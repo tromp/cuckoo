@@ -6,7 +6,6 @@
 #include <string.h>
 #include <vector>
 #include <assert.h>
-#include <sys/time.h> // gettimeofday
 #include "cuckaroo.hpp"
 #include "graph.hpp"
 #include "../crypto/siphash.cuh"
@@ -59,7 +58,7 @@ const static u32 EDGES_A = NZ * EPS_A;
 const static u32 EDGES_B = NZ * EPS_B;
  
 const static u32 ROW_EDGES_A = EDGES_A * NY;
-const static u32 ROW_EDGES_B = EDGES_B * NX;
+const static u32 ROW_EDGES_B = EDGES_B * NY;
 
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
@@ -542,11 +541,11 @@ struct solver_ctx {
   }
 
   int solve() {
+    u64 time0, time1;
     u32 timems,timems2;
-    struct timeval time0, time1;
 
     trimmer.abort = false;
-    gettimeofday(&time0, 0);
+    time0 = timestamp();
     u32 nedges = trimmer.trim();
     print_log("%d edges after trimming\n", nedges);
     if (!nedges)
@@ -557,12 +556,10 @@ struct solver_ctx {
       return 0;
     }
     cudaMemcpy(edges, trimmer.bufferB, sizeof(uint2[nedges]), cudaMemcpyDeviceToHost);
-    gettimeofday(&time1, 0);
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
-    gettimeofday(&time0, 0);
+    time1 = timestamp(); timems  = (time1 - time0) / 1000000;
+    time0 = timestamp();
     findcycles(edges, nedges);
-    gettimeofday(&time1, 0);
-    timems2 = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
+    time1 = timestamp(); timems2 = (time1 - time0) / 1000000;
     print_log("findcycles edges %d time %d ms total %d ms\n", nedges, timems2, timems+timems2);
     return sols.size() / PROOFSIZE;
   }

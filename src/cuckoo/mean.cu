@@ -6,7 +6,6 @@
 #include <string.h>
 #include <vector>
 #include <assert.h>
-#include <sys/time.h> // gettimeofday
 #include "cuckoo.h"
 #include "../crypto/siphash.cuh"
 #include "../crypto/blake2.h"
@@ -36,21 +35,21 @@ const static u32 ZBITS     = YZBITS - YBITS;
 const static u32 NZ        = 1 << ZBITS;
 const static u32 ZMASK     = NZ - 1;
 
+#ifndef EPS_A
 #define EPS_A 133/128
+#endif
+#ifndef EPS_B
 #define EPS_B 85/128
+#endif
 
-const static u32 ROW_EDGES_A = NYZ * EPS_A;
-const static u32 ROW_EDGES_B = NYZ * EPS_B;
+const static u32 EDGES_A = NZ * EPS_A;
+const static u32 EDGES_B = NZ * EPS_B;
 
-const static u32 EDGES_A = ROW_EDGES_A / NX;
-const static u32 EDGES_B = ROW_EDGES_B / NX;
+const static u32 ROW_EDGES_A = EDGES_A * NY;
+const static u32 ROW_EDGES_B = EDGES_B * NY;
 
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
-
-__device__ __forceinline__ ulonglong4 Pack8(const u32 e0, const u32 e1, const u32 e2, const u32 e3, const u32 e4, const u32 e5, const u32 e6, const u32 e7) {
-  return make_ulonglong4((u64)e0<<32|e1, (u64)e2<<32|e3, (u64)e4<<32|e5, (u64)e6<<32|e7);
-}
 
 #ifndef FLUSHA // should perhaps be in trimparams and passed as template parameter
 #define FLUSHA 16
@@ -639,11 +638,11 @@ struct solver_ctx {
   }
 
   int solve() {
+    u64 time0, time1;
     u32 timems,timems2;
-    struct timeval time0, time1;
 
     trimmer.abort = false;
-    gettimeofday(&time0, 0);
+    time0 = timestamp();
     u32 nedges = trimmer.trim();
     if (!nedges)
       return 0;
@@ -652,12 +651,10 @@ struct solver_ctx {
       nedges = MAXEDGES;
     }
     cudaMemcpy(edges, trimmer.bufferB, nedges * 8, cudaMemcpyDeviceToHost);
-    gettimeofday(&time1, 0);
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
-    gettimeofday(&time0, 0);
+    time1 = timestamp(); timems  = (time1 - time0) / 1000000;
+    time0 = timestamp();
     findcycles(edges, nedges);
-    gettimeofday(&time1, 0);
-    timems2 = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
+    time1 = timestamp(); timems2 = (time1 - time0) / 1000000;
     print_log("findcycles edges %d time %d ms total %d ms\n", nedges, timems2, timems+timems2);
     return sols.size() / PROOFSIZE;
   }

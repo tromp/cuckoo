@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
-#include <sys/time.h>
 #include <set>
 
 #define NNODES (2*NEDGES)
@@ -96,7 +95,7 @@ int main(int argc, char **argv) {
   int c, easipct = 50;
   u32 nonce = 0;
   u32 range = 1;
-  struct timeval time0, time1;
+  u64 time0, time1;
   u32 timems;
 
   while ((c = getopt (argc, argv, "e:h:n:r:")) != -1) {
@@ -128,12 +127,11 @@ int main(int argc, char **argv) {
   printf("using %d%cB memory\n", bytes, " KMGT"[unit]);
 
   for (u32 r = 0; r < range; r++) {
-    gettimeofday(&time0, 0);
+    time0 = timestamp();
     ctx.setheadernonce(header, sizeof(header), nonce + r);
     printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.sip_keys.k0, ctx.sip_keys.k1, ctx.sip_keys.k2, ctx.sip_keys.k3);
     ctx.find_cycles();
-    gettimeofday(&time1, 0);
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
+    time1 = timestamp(); timems = (time1 - time0) / 1000000;
     printf("Time: %d ms\n", timems);
   }
 }

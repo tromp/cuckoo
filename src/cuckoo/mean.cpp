@@ -3,7 +3,6 @@
 
 #include "mean.hpp"
 #include <unistd.h>
-#include <sys/time.h>
 
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
@@ -18,7 +17,7 @@ int main(int argc, char **argv) {
 #else
   bool showcycle = 0;
 #endif
-  struct timeval time0, time1;
+  u64 time0, time1;
   u32 timems;
   char header[HEADERLEN];
   u32 len;
@@ -77,12 +76,11 @@ int main(int argc, char **argv) {
 
   u32 sumnsols = 0;
   for (u32 r = 0; r < range; r++) {
-    gettimeofday(&time0, 0);
+    time0 = timestamp();
     ctx.setheadernonce(header, sizeof(header), nonce + r);
     printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.trimmer->sip_keys.k0, ctx.trimmer->sip_keys.k1, ctx.trimmer->sip_keys.k2, ctx.trimmer->sip_keys.k3);
     u32 nsols = ctx.solve();
-    gettimeofday(&time1, 0);
-    timems = (time1.tv_sec-time0.tv_sec)*1000 + (time1.tv_usec-time0.tv_usec)/1000;
+    time1 = timestamp(); timems = (time1 - time0) / 1000000;
     printf("Time: %d ms\n", timems);
 
     for (unsigned s = 0; s < nsols; s++) {
