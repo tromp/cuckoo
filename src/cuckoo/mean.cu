@@ -405,7 +405,6 @@ struct edgetrimmer {
     cudaDeviceReset();
   }
   u32 trim() {
-    cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
     cudaEvent_t start, stop;
     cudaEvent_t startall, stopall;
     checkCudaErrors(cudaEventCreate(&startall)); checkCudaErrors(cudaEventCreate(&stopall));
