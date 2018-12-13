@@ -231,7 +231,7 @@ public:
     }
     time1 = timestamp(); timems  = (time1 - time0) / 1000000;
     time0 = timestamp();
-    findcycles(edges, nedges);
+    findcycles();
     time1 = timestamp(); timems2 = (time1 - time0) / 1000000;
 
     print_log("%d trims %d ms %d edges %d ms total %d ms\n", trimmer.tp.ntrims, timems, nedges, timems2, timems+timems2);
