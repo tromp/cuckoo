@@ -405,8 +405,6 @@ struct edgetrimmer {
   }
   u32 trim() {
     cudaEvent_t start, stop;
-    cudaEvent_t startall, stopall;
-    checkCudaErrors(cudaEventCreate(&startall)); checkCudaErrors(cudaEventCreate(&stopall));
     checkCudaErrors(cudaEventCreate(&start)); checkCudaErrors(cudaEventCreate(&stop));
   
     cudaMemset(indexesE, 0, indexesSize);
@@ -439,6 +437,7 @@ struct edgetrimmer {
 
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
+    checkCudaErrors(cudaEventDestroy(start)); checkCudaErrors(cudaEventDestroy(stop));
     print_log("Seeding completed in %.0f + %.0f ms\n", durationA, durationB);
     if (abort) return false;
   

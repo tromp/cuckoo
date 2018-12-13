@@ -275,8 +275,7 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaMalloc((void**)&device_ctx, sizeof(cuckoo_ctx)));
 
   cudaEvent_t start, stop;
-  checkCudaErrors(cudaEventCreate(&start));
-  checkCudaErrors(cudaEventCreate(&stop));
+  checkCudaErrors(cudaEventCreate(&start)); checkCudaErrors(cudaEventCreate(&stop));
   for (int r = 0; r < range; r++) {
     cudaEventRecord(start, NULL);
     checkCudaErrors(cudaMemset(ctx.alive.bits, 0, edgeBytes));
@@ -301,6 +300,7 @@ int main(int argc, char **argv) {
     cudaEventSynchronize(stop);
     float duration;
     cudaEventElapsedTime(&duration, start, stop);
+    checkCudaErrors(cudaEventDestroy(start)); checkCudaErrors(cudaEventDestroy(stop));
     u32 cnt = 0;
     for (int i = 0; i < NEDGES/64; i++)
       cnt += __builtin_popcountll(~bits[i]);
