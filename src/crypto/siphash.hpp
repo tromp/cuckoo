@@ -1,7 +1,9 @@
 #pragma once
 
 #include <stdint.h>    // for types uint32_t,uint64_t
+#if NSIPHASH > 1
 #include <immintrin.h> // for _mm256_* intrinsics
+#endif
 #ifndef __APPLE__
 #include <endian.h>    // for htole32/64
 #else
