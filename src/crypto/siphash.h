@@ -1,7 +1,6 @@
 #ifndef INCLUDE_SIPHASH_H
 #define INCLUDE_SIPHASH_H
 #include <stdint.h>    // for types uint32_t,uint64_t
-#include <immintrin.h> // for _mm256_* intrinsics
 #ifndef __APPLE__
 #include <endian.h>    // for htole32/64
 #else

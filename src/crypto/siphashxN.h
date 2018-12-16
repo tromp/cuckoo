@@ -1,5 +1,6 @@
 #ifndef INCLUDE_SIPHASHXN_H
 #define INCLUDE_SIPHASHXN_H
+#include <immintrin.h> // for _mm256_* intrinsics
 
 #ifdef __AVX2__
 
