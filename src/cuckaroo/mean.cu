@@ -26,7 +26,7 @@ typedef uint64_t u64; // save some typing
 #define IDXSHIFT 12
 #endif
 
-const static u32 MAXEDGES = NEDGES >> IDXSHIFT;
+const u32 MAXEDGES = NEDGES >> IDXSHIFT;
 
 #ifndef XBITS
 // assumes at least 2^17 bitpairs of shared mem (32 KB) on thread block
@@ -37,15 +37,15 @@ const static u32 MAXEDGES = NEDGES >> IDXSHIFT;
 
 #define NODEBITS (EDGEBITS + 1)
 
-const static u32 NX        = 1 << XBITS;
-const static u32 NX2       = NX * NX;
-const static u32 XMASK     = NX - 1;
-const static u32 YBITS     = XBITS;
-const static u32 NY        = 1 << YBITS;
-const static u32 YZBITS    = EDGEBITS - XBITS;
-const static u32 ZBITS     = YZBITS - YBITS;
-const static u32 NZ        = 1 << ZBITS;
-const static u32 ZMASK     = NZ - 1;
+const u32 NX        = 1 << XBITS;
+const u32 NX2       = NX * NX;
+const u32 XMASK     = NX - 1;
+const u32 YBITS     = XBITS;
+const u32 NY        = 1 << YBITS;
+const u32 YZBITS    = EDGEBITS - XBITS;
+const u32 ZBITS     = YZBITS - YBITS;
+const u32 NZ        = 1 << ZBITS;
+const u32 ZMASK     = NZ - 1;
 
 #ifndef EPS_A
 #define EPS_A 133/128
@@ -54,11 +54,11 @@ const static u32 ZMASK     = NZ - 1;
 #define EPS_B 85/128
 #endif
 
-const static u32 EDGES_A = NZ * EPS_A;
-const static u32 EDGES_B = NZ * EPS_B;
+const u32 EDGES_A = NZ * EPS_A;
+const u32 EDGES_B = NZ * EPS_B;
  
-const static u32 ROW_EDGES_A = EDGES_A * NY;
-const static u32 ROW_EDGES_B = EDGES_B * NY;
+const u32 ROW_EDGES_A = EDGES_A * NY;
+const u32 ROW_EDGES_B = EDGES_B * NY;
 
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
@@ -249,7 +249,7 @@ __global__ void Round(const int round, const uint2 * __restrict__ source, uint2 
   const int group = blockIdx.x;
   const int dim = blockDim.x;
   const int lid = threadIdx.x;
-  const static int COUNTERWORDS = NZ / 16; // 16 2-bit counters per 32-bit word
+  const int COUNTERWORDS = NZ / 16; // 16 2-bit counters per 32-bit word
 
   __shared__ u32 ecounters[COUNTERWORDS];
 

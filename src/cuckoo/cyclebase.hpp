@@ -15,6 +15,7 @@ struct edge {
 };
 
 struct cyclebase {
+  // should avoid different values of MAXPATHLEN in different threads of one process
   static const u32 MAXPATHLEN = 16 << (EDGEBITS/3);
 
   int ncycles;

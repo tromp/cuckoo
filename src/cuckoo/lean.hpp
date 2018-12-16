@@ -45,8 +45,8 @@ typedef unsigned char uatwice;
 
 // algorithm/performance parameters; assume EDGEBITS < 31
 
-const static u32 NODEBITS = EDGEBITS + 1;
-const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
+const u32 NODEBITS = EDGEBITS + 1;
+const word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 
 #ifndef PART_BITS
 // #bits used to partition edge set processing to save memory
@@ -74,13 +74,13 @@ const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 #define IDXSHIFT (PART_BITS + 6)
 #endif
 // grow with cube root of size, hardly affected by trimming
-const static u32 MAXPATHLEN = 8 << (NODEBITS/3);
+const u32 MAXPATHLEN = 8 << (NODEBITS/3);
 
-const static u32 PART_MASK = (1 << PART_BITS) - 1;
-const static u64 ONCE_BITS = NEDGES >> PART_BITS;
-const static u64 TWICE_BYTES = (2 * ONCE_BITS) / 8;
-const static u64 TWICE_ATOMS = TWICE_BYTES / sizeof(atwice);
-const static u32 TWICE_PER_ATOM = sizeof(atwice) * 4;
+const u32 PART_MASK = (1 << PART_BITS) - 1;
+const u64 ONCE_BITS = NEDGES >> PART_BITS;
+const u64 TWICE_BYTES = (2 * ONCE_BITS) / 8;
+const u64 TWICE_ATOMS = TWICE_BYTES / sizeof(atwice);
+const u32 TWICE_PER_ATOM = sizeof(atwice) * 4;
 
 class twice_set {
 public:
@@ -163,12 +163,12 @@ public:
   }
 };
 
-const static u64 CUCKOO_SIZE = NEDGES >> (IDXSHIFT-1); // NNODES >> IDXSHIFT;
-const static u64 CUCKOO_MASK = CUCKOO_SIZE - 1;
+const u64 CUCKOO_SIZE = NEDGES >> (IDXSHIFT-1); // NNODES >> IDXSHIFT;
+const u64 CUCKOO_MASK = CUCKOO_SIZE - 1;
 // number of (least significant) key bits that survives leftshift by NODEBITS
-const static u32 KEYBITS = 64-NODEBITS;
-const static u64 KEYMASK = (1LL << KEYBITS) - 1;
-const static u64 MAXDRIFT = 1LL << (KEYBITS - IDXSHIFT);
+const u32 KEYBITS = 64-NODEBITS;
+const u64 KEYMASK = (1LL << KEYBITS) - 1;
+const u64 MAXDRIFT = 1LL << (KEYBITS - IDXSHIFT);
 
 class cuckoo_hash {
 public:

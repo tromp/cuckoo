@@ -19,7 +19,6 @@
 typedef unsigned char u8;
 
 class cuckoo_ctx {
-  static const u32 CUCKOO_NIL = ~0;
 public:
   siphash_keys sip_keys;
   word_t easiness;

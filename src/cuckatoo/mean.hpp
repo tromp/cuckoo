@@ -103,43 +103,43 @@ typedef u32 BIGTYPE0;
 #endif
 
 // node bits have two groups of bucketbits (X for big and Y for small) and a remaining group Z of degree bits
-const static u32 NX        = 1 << XBITS;
-const static u32 XMASK     = NX - 1;
-const static u32 NY        = 1 << YBITS;
-const static u32 YMASK     = NY - 1;
-const static u32 XYBITS    = XBITS + YBITS;
-const static u32 NXY       = 1 << XYBITS;
-const static u32 ZBITS     = EDGEBITS - XYBITS;
-const static u32 NZ        = 1 << ZBITS;
-const static u32 ZMASK     = NZ - 1;
-const static u32 YZBITS    = EDGEBITS - XBITS;
-const static u32 NYZ       = 1 << YZBITS;
-const static u32 YZMASK    = NYZ - 1;
-const static u32 YZ1BITS   = YZBITS < 16 ? YZBITS : 16;  // compressed YZ bits
-const static u32 NYZ1      = 1 << YZ1BITS;
-const static u32 YZ1MASK   = NYZ1 - 1;
-const static u32 Z1BITS    = YZ1BITS - YBITS;
-const static u32 NZ1       = 1 << Z1BITS;
-const static u32 Z1MASK    = NZ1 - 1;
-const static u32 YZ2BITS   = YZBITS < 12 ? YZBITS : 12;  // more compressed YZ bits
-const static u32 NYZ2      = 1 << YZ2BITS;
-const static u32 YZ2MASK   = NYZ2 - 1;
-const static u32 Z2BITS    = YZ2BITS - YBITS;
-const static u32 NZ2       = 1 << Z2BITS;
-const static u32 Z2MASK    = NZ2 - 1;
-const static u32 YZZBITS   = YZBITS + ZBITS;
-const static u32 YZZ1BITS  = YZ1BITS + ZBITS;
+const u32 NX        = 1 << XBITS;
+const u32 XMASK     = NX - 1;
+const u32 NY        = 1 << YBITS;
+const u32 YMASK     = NY - 1;
+const u32 XYBITS    = XBITS + YBITS;
+const u32 NXY       = 1 << XYBITS;
+const u32 ZBITS     = EDGEBITS - XYBITS;
+const u32 NZ        = 1 << ZBITS;
+const u32 ZMASK     = NZ - 1;
+const u32 YZBITS    = EDGEBITS - XBITS;
+const u32 NYZ       = 1 << YZBITS;
+const u32 YZMASK    = NYZ - 1;
+const u32 YZ1BITS   = YZBITS < 16 ? YZBITS : 16;  // compressed YZ bits
+const u32 NYZ1      = 1 << YZ1BITS;
+const u32 YZ1MASK   = NYZ1 - 1;
+const u32 Z1BITS    = YZ1BITS - YBITS;
+const u32 NZ1       = 1 << Z1BITS;
+const u32 Z1MASK    = NZ1 - 1;
+const u32 YZ2BITS   = YZBITS < 12 ? YZBITS : 12;  // more compressed YZ bits
+const u32 NYZ2      = 1 << YZ2BITS;
+const u32 YZ2MASK   = NYZ2 - 1;
+const u32 Z2BITS    = YZ2BITS - YBITS;
+const u32 NZ2       = 1 << Z2BITS;
+const u32 Z2MASK    = NZ2 - 1;
+const u32 YZZBITS   = YZBITS + ZBITS;
+const u32 YZZ1BITS  = YZ1BITS + ZBITS;
 
-const static u32 MAXEDGES = NX * NYZ2;
+const u32 MAXEDGES = NX * NYZ2;
 
-const static u32 BIGSLOTBITS   = BIGSIZE * 8;
-const static u32 SMALLSLOTBITS = SMALLSIZE * 8;
-const static u64 BIGSLOTMASK   = (1ULL << BIGSLOTBITS) - 1ULL;
-const static u64 SMALLSLOTMASK = (1ULL << SMALLSLOTBITS) - 1ULL;
-const static u32 BIGSLOTBITS0  = BIGSIZE0 * 8;
-const static u64 BIGSLOTMASK0  = (1ULL << BIGSLOTBITS0) - 1ULL;
-const static u32 NONYZBITS     = BIGSLOTBITS0 - YZBITS;
-const static u32 NNONYZ        = 1 << NONYZBITS;
+const u32 BIGSLOTBITS   = BIGSIZE * 8;
+const u32 SMALLSLOTBITS = SMALLSIZE * 8;
+const u64 BIGSLOTMASK   = (1ULL << BIGSLOTBITS) - 1ULL;
+const u64 SMALLSLOTMASK = (1ULL << SMALLSLOTBITS) - 1ULL;
+const u32 BIGSLOTBITS0  = BIGSIZE0 * 8;
+const u64 BIGSLOTMASK0  = (1ULL << BIGSLOTBITS0) - 1ULL;
+const u32 NONYZBITS     = BIGSLOTBITS0 - YZBITS;
+const u32 NNONYZ        = 1 << NONYZBITS;
 
 // for p close to 0, Pr(X>=k) < e^{-n*p*eps^2} where k=n*p*(1+eps)
 // see https://en.wikipedia.org/wiki/Binomial_distribution#Tail_bounds
@@ -157,20 +157,21 @@ const static u32 NNONYZ        = 1 << NONYZBITS;
 #define TRIMFRAC256 176
 #endif
 
-const static u32 NTRIMMEDZ  = NZ * TRIMFRAC256 / 256;
+const u32 NTRIMMEDZ  = NZ * TRIMFRAC256 / 256;
 
-const static u32 ZBUCKETSLOTS = NZ + NZ * BIGEPS;
+const u32 ZBUCKETSLOTS = NZ + NZ * BIGEPS;
 #ifdef SAVEEDGES
-const static u32 ZBUCKETSIZE = NTRIMMEDZ * (BIGSIZE + sizeof(u32));  // assumes EDGEBITS <= 32
+const u32 ZBUCKETSIZE = NTRIMMEDZ * (BIGSIZE + sizeof(u32));  // assumes EDGEBITS <= 32
 #else
-const static u32 ZBUCKETSIZE = ZBUCKETSLOTS * BIGSIZE0; 
+const u32 ZBUCKETSIZE = ZBUCKETSLOTS * BIGSIZE0; 
 #endif
-const static u32 TBUCKETSIZE = ZBUCKETSLOTS * BIGSIZE; 
+const u32 TBUCKETSIZE = ZBUCKETSLOTS * BIGSIZE; 
 
 template<u32 BUCKETSIZE>
 struct zbucket {
   u32 size;
-  const static u32 RENAMESIZE = NZ2 + (COMPRESSROUND ? NZ1 : 0);
+  // should avoid different values of RENAMESIZE in different threads of one process
+  static const u32 RENAMESIZE = NZ2 + (COMPRESSROUND ? NZ1 : 0);
   union alignas(16) {
     u8 bytes[BUCKETSIZE];
     struct {
@@ -314,30 +315,30 @@ public:
     const u32   endy = NY * (id+1) / nthreads;
     u32 edge = starty << YZBITS, endedge = edge + NYZ;
 #if NSIPHASH == 4
-    static const __m128i vxmask = _mm_set1_epi64x(XMASK);
-    static const __m128i vyzmask = _mm_set1_epi64x(YZMASK);
+    const __m128i vxmask = _mm_set1_epi64x(XMASK);
+    const __m128i vyzmask = _mm_set1_epi64x(YZMASK);
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge + uorv;
     __m128i vpacket0 = _mm_set_epi64x(e2+2, e2+0);
     __m128i vpacket1 = _mm_set_epi64x(e2+6, e2+4);
-    static const __m128i vpacketinc = _mm_set1_epi64x(8);
+    const __m128i vpacketinc = _mm_set1_epi64x(8);
     u64 e1 = edge;
     __m128i vhi0 = _mm_set_epi64x((e1+1)<<YZBITS, (e1+0)<<YZBITS);
     __m128i vhi1 = _mm_set_epi64x((e1+3)<<YZBITS, (e1+2)<<YZBITS);
-    static const __m128i vhiinc = _mm_set1_epi64x(4<<YZBITS);
+    const __m128i vhiinc = _mm_set1_epi64x(4<<YZBITS);
 #elif NSIPHASH == 8
-    static const __m256i vxmask = _mm256_set1_epi64x(XMASK);
-    static const __m256i vyzmask = _mm256_set1_epi64x(YZMASK);
+    const __m256i vxmask = _mm256_set1_epi64x(XMASK);
+    const __m256i vyzmask = _mm256_set1_epi64x(YZMASK);
     const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge + uorv;
     __m256i vpacket0 = _mm256_set_epi64x(e2+6, e2+4, e2+2, e2+0);
     __m256i vpacket1 = _mm256_set_epi64x(e2+14, e2+12, e2+10, e2+8);
-    static const __m256i vpacketinc = _mm256_set1_epi64x(16);
+    const __m256i vpacketinc = _mm256_set1_epi64x(16);
     u64 e1 = edge;
     __m256i vhi0 = _mm256_set_epi64x((e1+3)<<YZBITS, (e1+2)<<YZBITS, (e1+1)<<YZBITS, (e1+0)<<YZBITS);
     __m256i vhi1 = _mm256_set_epi64x((e1+7)<<YZBITS, (e1+6)<<YZBITS, (e1+5)<<YZBITS, (e1+4)<<YZBITS);
-    static const __m256i vhiinc = _mm256_set1_epi64x(8<<YZBITS);
+    const __m256i vhiinc = _mm256_set1_epi64x(8<<YZBITS);
 #endif
     offset_t sumsize = 0;
     for (u32 my = starty; my < endy; my++, endedge += NYZ) {
@@ -485,20 +486,20 @@ public:
   void genVnodes(const u32 id, const u32 uorv) {
     u64 rdtsc0, rdtsc1;
 #if NSIPHASH == 4
-    static const __m128i vxmask = _mm_set1_epi64x(XMASK);
-    static const __m128i vyzmask = _mm_set1_epi64x(YZMASK);
+    const __m128i vxmask = _mm_set1_epi64x(XMASK);
+    const __m128i vyzmask = _mm_set1_epi64x(YZMASK);
     const __m128i ff = _mm_set1_epi64x(0xffLL);
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     __m128i vpacket0, vpacket1, vhi0, vhi1;
 #elif NSIPHASH == 8
-    static const __m256i vxmask = _mm256_set1_epi64x(XMASK);
-    static const __m256i vyzmask = _mm256_set1_epi64x(YZMASK);
+    const __m256i vxmask = _mm256_set1_epi64x(XMASK);
+    const __m256i vyzmask = _mm256_set1_epi64x(YZMASK);
     const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
     __m256i vpacket0, vpacket1, vhi0, vhi1;
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
 #endif
-    static const u32 NONDEGBITS = std::min(BIGSLOTBITS, 2 * YZBITS) - ZBITS;
-    static const u32 NONDEGMASK = (1 << NONDEGBITS) - 1;
+    const u32 NONDEGBITS = std::min(BIGSLOTBITS, 2 * YZBITS) - ZBITS;
+    const u32 NONDEGMASK = (1 << NONDEGBITS) - 1;
     indexer<ZBUCKETSIZE> dst;
     indexer<TBUCKETSIZE> small;
   
@@ -1030,7 +1031,7 @@ void *etworker(void *vp) {
 #define NODEBITS (EDGEBITS + 1)
 
 // grow with cube root of size, hardly affected by trimming
-const static u32 MAXPATHLEN = 16 << (EDGEBITS/3);
+const u32 MAXPATHLEN = 16 << (EDGEBITS/3);
 
 int nonce_cmp(const void *a, const void *b) {
   return *(u32 *)a - *(u32 *)b;
@@ -1193,21 +1194,21 @@ public:
     const u32   endy = NY * (mc->id+1) / trimmer.nthreads;
     u32 edge = starty << YZBITS, endedge = edge + NYZ;
   #if NSIPHASH == 4
-    static const __m128i vnodemask = _mm_set1_epi64x(EDGEMASK);
+    const __m128i vnodemask = _mm_set1_epi64x(EDGEMASK);
     siphash_keys &sip_keys = trimmer.sip_keys;
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge;
     __m128i vpacket0 = _mm_set_epi64x(e2+2, e2+0);
     __m128i vpacket1 = _mm_set_epi64x(e2+6, e2+4);
-    static const __m128i vpacketinc = _mm_set1_epi64x(8);
+    const __m128i vpacketinc = _mm_set1_epi64x(8);
   #elif NSIPHASH == 8
-    static const __m256i vnodemask = _mm256_set1_epi64x(EDGEMASK);
+    const __m256i vnodemask = _mm256_set1_epi64x(EDGEMASK);
     const __m256i vinit = _mm256_load_si256((__m256i *)&trimmer.sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge;
     __m256i vpacket0 = _mm256_set_epi64x(e2+6, e2+4, e2+2, e2+0);
     __m256i vpacket1 = _mm256_set_epi64x(e2+14, e2+12, e2+10, e2+8);
-    static const __m256i vpacketinc = _mm256_set1_epi64x(16);
+    const __m256i vpacketinc = _mm256_set1_epi64x(16);
   #endif
     for (u32 my = starty; my < endy; my++, endedge += NYZ) {
       for (; edge < endedge; edge += NSIPHASH) {

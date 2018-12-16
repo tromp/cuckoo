@@ -13,7 +13,7 @@ public:
   word_t MASK;
   word_t MASK2;
   word_t nnodes;
-  const static word_t NIL = ~(word_t)0;
+  const word_t NIL = ~(word_t)0;
   word_t *nodes;
   bool sharedmem;
 

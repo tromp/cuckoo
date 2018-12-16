@@ -31,8 +31,8 @@ typedef u64 au64;
 
 // algorithm/performance parameters; assume EDGEBITS < 31
 
-const static u32 NODEBITS = EDGEBITS + 1;
-const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
+const u32 NODEBITS = EDGEBITS + 1;
+const word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 
 #ifndef PART_BITS
 // #bits used to partition edge set processing to save memory
@@ -57,9 +57,9 @@ const static word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 #endif
 #define MAXEDGES (NEDGES >> IDXSHIFT)
 
-const static u32 PART_MASK = (1 << PART_BITS) - 1;
-const static u32 NONPART_BITS = EDGEBITS - PART_BITS;
-const static word_t NONPART_MASK = ((word_t)1 << NONPART_BITS) - 1;
+const u32 PART_MASK = (1 << PART_BITS) - 1;
+const u32 NONPART_BITS = EDGEBITS - PART_BITS;
+const word_t NONPART_MASK = ((word_t)1 << NONPART_BITS) - 1;
 
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {

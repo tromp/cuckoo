@@ -9,7 +9,7 @@ public:
   typedef word_t aword_t;
 #endif
   aword_t *bits;
-  const static u32 BITS_PER_WORD = sizeof(word_t) * 8;
+  const u32 BITS_PER_WORD = sizeof(word_t) * 8;
 
   bitmap(word_t size) {
     SIZE = size;
