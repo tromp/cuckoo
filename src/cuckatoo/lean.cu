@@ -399,7 +399,7 @@ int main(int argc, char **argv) {
         print_log("DEFAULTS\n  cuda%d -d %d -h \"\" -m %d -n %d -r %d -b %d -t %d\n", NODEBITS, device, tp.ntrims, nonce, range, tp.blocks, tp.tpb);
         exit(0);
       case 'd':
-        params.device = atoi(optarg);
+        device = params.device = atoi(optarg);
         break;
       case 'h':
         len = strlen(optarg)/2;
