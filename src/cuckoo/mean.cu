@@ -829,7 +829,7 @@ int main(int argc, char **argv) {
         params.cpuload = false;
         break;
       case 'd':
-        params.device = atoi(optarg);
+        device = params.device = atoi(optarg);
         break;
       case 'E':
         params.expand = atoi(optarg);

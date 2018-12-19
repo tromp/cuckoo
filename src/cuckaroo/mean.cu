@@ -734,7 +734,7 @@ int main(int argc, char **argv) {
         params.cpuload = false;
         break;
       case 'd':
-        params.device = atoi(optarg);
+        device = params.device = atoi(optarg);
         break;
       case 'h':
         len = strlen(optarg)/2;
