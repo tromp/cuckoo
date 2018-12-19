@@ -362,10 +362,12 @@ public:
 // node       XXXXXX     YYYYYY    ZZZZZ
             const u32 ux = node0 >> YZBITS;
             const BIGTYPE0 zz = (BIGTYPE0)node1 << YZBITS | (node & YZMASK);
-// bit        50...22     21..15    14..0
+// bit  50/39/31...22     21..15    14..0
 // write      VXXYYZZ     UYYYYY    UZZZZ
             *(BIGTYPE0 *)(base+dst.index[ux]) = zz;
             dst.index[ux] += BIGSIZE0;
+          }
+        }
       }
       sumsize += dst.storev(buckets, my);
     }
@@ -408,7 +410,7 @@ public:
         u8 const *endreadbig = readbig + buckets[ux][my].size;
 // print_log("id %d x %d y %d size %u read %d\n", id, ux, my, buckets[ux][my].size, readbig-base);
         for (; readbig < endreadbig; readbig += BIGSIZE0) {
-// bit        50...22     21..15    14..0
+// bit  50/39/31...22     21..15    14..0
 // write      VXXYYZZ     UYYYYY    UZZZZ   within UX partition
           BIGTYPE0 e = *(BIGTYPE0 *)readbig;
           e &= BIGSLOTMASK0;
