@@ -55,30 +55,15 @@
 
 #define YBITS XBITS
 
+// need to fit 2 endpoints bucketed by one XBITS
+#define BIGSIZE0 ((2*EDGEBITS-XBITS+7)/8)
 // size in bytes of a big bucket entry
-#ifndef BIGSIZE
-#if EDGEBITS <= 15
-#define BIGSIZE 5
-// no compression needed
-#define COMPRESSROUND 0
-#else
-#define BIGSIZE 6
+// need to fit 2 endpoints bucketed by XBITS and YBITS
+#define BIGSIZE ((2*(EDGEBITS-XBITS)+7)/8)
 // YZ compression round; must be even
-#ifndef COMPRESSROUND
 #define COMPRESSROUND 14
-#endif
-#endif
-#endif
 // size in bytes of a small bucket entry
 #define SMALLSIZE BIGSIZE
-
-// initial entries could be smaller at percent or two slowdown
-#ifndef BIGSIZE0
-#define BIGSIZE0 ((EDGEBITS + YZBITS + 7) / 8)
-#endif
-// but they may need syncing entries
-#if BIGSIZE0 == 4 && EDGEBITS > 27
-#endif
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -298,13 +283,13 @@ public:
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     __m128i vpacket0 = _mm_set_epi64x(e1+EDGE_BLOCK_SIZE, e1+0);
     __m128i vpacket1 = _mm_set_epi64x(e1+3*EDGE_BLOCK_SIZE, e1+2*EDGE_BLOCK_SIZE);
-    const __m128i vpacketinc = {NEBS, NEBS};
+    const __m128i vpacketinc = _mm_set1_epi64x(NEBS);
 #elif NSIPHASH == 8
     const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     __m256i vpacket0 = _mm256_set_epi64x(e1+3*EDGE_BLOCK_SIZE, e1+2*EDGE_BLOCK_SIZE, e1+EDGE_BLOCK_SIZE, e1+0);
     __m256i vpacket1 = _mm256_set_epi64x(e1+7*EDGE_BLOCK_SIZE, e1+6*EDGE_BLOCK_SIZE, e1+5*EDGE_BLOCK_SIZE, e1+4*EDGE_BLOCK_SIZE);
-    const __m256i vpacketinc = {NEBS, NEBS, NEBS, NEBS};
+    const __m256i vpacketinc _mm256_set1_epi64x(NEBS);
 #endif
     offset_t sumsize = 0;
     for (u32 my = starty; my < endy; my++, endedge0 += NYZ) {
@@ -354,6 +339,7 @@ public:
 #endif
         for (u32 ns = 0; ns < NSIPHASH; ns++) {
           const u64 buflast = buf[NEBS - NSIPHASH + ns];
+          buf[NEBS - NSIPHASH + ns] = 0;
           for (u32 e = 0; e < EDGE_BLOCK_SIZE; e++) {
             const u32 nodes = buf[e * NSIPHASH + ns] ^ buflast;
             const u32 node0 = nodes & EDGEMASK;
@@ -362,7 +348,7 @@ public:
 // node       XXXXXX     YYYYYY    ZZZZZ
             const u32 ux = node0 >> YZBITS;
             const BIGTYPE0 zz = (BIGTYPE0)node1 << YZBITS | (node & YZMASK);
-// bit  50/39/31...22     21..15    14..0
+// bit        50...22     21..15    14..0
 // write      VXXYYZZ     UYYYYY    UZZZZ
             *(BIGTYPE0 *)(base+dst.index[ux]) = zz;
             dst.index[ux] += BIGSIZE0;
@@ -378,19 +364,6 @@ public:
 
   void genVnodes(const u32 id, const u32 uorv) {
     u64 rdtsc0, rdtsc1;
-#if NSIPHASH == 4
-    const __m128i vxmask = {XMASK, XMASK};
-    const __m128i vyzmask = {YZMASK, YZMASK};
-    const __m128i ff = _mm_set1_epi64x(0xffLL);
-    __m128i v0, v1, v2, v3, v4, v5, v6, v7;
-    __m128i vpacket0, vpacket1, vhi0, vhi1;
-#elif NSIPHASH == 8
-    const __m256i vxmask = {XMASK, XMASK, XMASK, XMASK};
-    const __m256i vyzmask = {YZMASK, YZMASK, YZMASK, YZMASK};
-    const __m256i vinit = _mm256_load_si256((__m256i *)&sip_keys);
-    __m256i vpacket0, vpacket1, vhi0, vhi1;
-    __m256i v0, v1, v2, v3, v4, v5, v6, v7;
-#endif
     const u32 NONDEGBITS = std::min(BIGSLOTBITS, 2 * YZBITS) - ZBITS;
     const u32 NONDEGMASK = (1 << NONDEGBITS) - 1;
     indexer<ZBUCKETSIZE> dst;
@@ -410,7 +383,7 @@ public:
         u8 const *endreadbig = readbig + buckets[ux][my].size;
 // print_log("id %d x %d y %d size %u read %d\n", id, ux, my, buckets[ux][my].size, readbig-base);
         for (; readbig < endreadbig; readbig += BIGSIZE0) {
-// bit  50/39/31...22     21..15    14..0
+// bit        50...22     21..15    14..0
 // write      VXXYYZZ     UYYYYY    UZZZZ   within UX partition
           BIGTYPE0 e = *(BIGTYPE0 *)readbig;
           e &= BIGSLOTMASK0;
@@ -420,7 +393,7 @@ public:
 // write       VXXYYZZ     UZZZZ   within UX UY partition
           *(u64 *)(small0+small.index[uy]) = ((u64)vxyz << ZBITS) | (e & ZMASK);
 // print_log("id %d ux %d y %d e %010lx e' %010x\n", id, ux, my, e, ((u64)edge << ZBITS) | (e >> YBITS));
-          small.index[uy] += BIGSIZE0;
+          small.index[uy] += BIGSIZE;
         }
       }
       u8 *degs = tdegs[id];
@@ -454,81 +427,6 @@ public:
         const u16 *readz = tzs[id];
         const u32 *readedge = edges0;
         int64_t uy34 = (int64_t)uy << YZZBITS;
-#if NSIPHASH == 4
-        const __m128i vuy34 = _mm_set1_epi64x(uy34);
-        const __m128i vuorv = _mm_set1_epi64x(uorv);
-        for (; readedge <= edges-NSIPHASH; readedge += NSIPHASH, readz += NSIPHASH) {
-          v4 = v0 = _mm_set1_epi64x(sip_keys.k0);
-          v5 = v1 = _mm_set1_epi64x(sip_keys.k1);
-          v6 = v2 = _mm_set1_epi64x(sip_keys.k2);
-          v7 = v3 = _mm_set1_epi64x(sip_keys.k3);
-
-          vpacket0 = _mm_slli_epi64(_mm_cvtepu32_epi64(*(__m128i*) readedge     ), 1) | vuorv;
-          vhi0     = vuy34 | _mm_slli_epi64(_mm_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)readz)), YZBITS);
-          vpacket1 = _mm_slli_epi64(_mm_cvtepu32_epi64(*(__m128i*)(readedge + 2)), 1) | vuorv;
-          vhi1     = vuy34 | _mm_slli_epi64(_mm_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)(readz + 2))), YZBITS);
-
-          v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
-          SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-          v2 = XOR(v2,ff);
-          v6 = XOR(v6,ff);
-          SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-          v4 = XOR(XOR(v4,v5),XOR(v6,v7));
-
-          v1 = _mm_srli_epi64(v0, YZBITS) & vxmask;
-          v5 = _mm_srli_epi64(v4, YZBITS) & vxmask;
-          v0 = vhi0 | (v0 & vyzmask);
-          v4 = vhi1 | (v4 & vyzmask);
-
-          u32 vx;
-#define STORE(i,v,x,w) \
-  vx = extract32(v,x);\
-  *(u64 *)(base+dst.index[vx]) = _mm_extract_epi64(w,i%2);\
-  dst.index[vx] += BIGSIZE;
-          STORE(0,v1,0,v0); STORE(1,v1,2,v0);
-          STORE(2,v5,0,v4); STORE(3,v5,2,v4);
-        }
-#elif NSIPHASH == 8
-        const __m256i vuy34  = {uy34, uy34, uy34, uy34};
-        const __m256i vuorv  = {uorv, uorv, uorv, uorv};
-        for (; readedge <= edges-NSIPHASH; readedge += NSIPHASH, readz += NSIPHASH) {
-          v7 = v3 = _mm256_permute4x64_epi64(vinit, 0xFF);
-          v4 = v0 = _mm256_permute4x64_epi64(vinit, 0x00);
-          v5 = v1 = _mm256_permute4x64_epi64(vinit, 0x55);
-          v6 = v2 = _mm256_permute4x64_epi64(vinit, 0xAA);
-
-          vpacket0 = _mm256_slli_epi64(_mm256_cvtepu32_epi64(*(__m128i*) readedge     ), 1) | vuorv;
-          vhi0     = vuy34 | _mm256_slli_epi64(_mm256_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)readz)), YZBITS);
-          vpacket1 = _mm256_slli_epi64(_mm256_cvtepu32_epi64(*(__m128i*)(readedge + 4)), 1) | vuorv;
-          vhi1     = vuy34 | _mm256_slli_epi64(_mm256_cvtepu16_epi64(_mm_set_epi64x(0,*(u64*)(readz + 4))), YZBITS);
-
-          v3 = XOR(v3,vpacket0); v7 = XOR(v7,vpacket1);
-          SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(v0,vpacket0); v4 = XOR(v4,vpacket1);
-          v2 = XOR(v2,_mm256_set1_epi64x(0xffLL));
-          v6 = XOR(v6,_mm256_set1_epi64x(0xffLL));
-          SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N; SIPROUNDX2N;
-          v0 = XOR(XOR(v0,v1),XOR(v2,v3));
-          v4 = XOR(XOR(v4,v5),XOR(v6,v7));
-    
-          v1 = _mm256_srli_epi64(v0, YZBITS) & vxmask;
-          v5 = _mm256_srli_epi64(v4, YZBITS) & vxmask;
-          v0 = vhi0 | (v0 & vyzmask);
-          v4 = vhi1 | (v4 & vyzmask);
-
-          u32 vx;
-#define STORE(i,v,x,w) \
-  vx = _mm256_extract_epi32(v,x);\
-  *(u64 *)(base+dst.index[vx]) = _mm256_extract_epi64(w,i%4);\
-  dst.index[vx] += BIGSIZE;
-// print_log("Id %d ux %d y %d edge %08x e' %010lx vx %d\n", id, ux, uy, readedge[i], _mm256_extract_epi64(w,i%4), vx);
-
-          STORE(0,v1,0,v0); STORE(1,v1,2,v0); STORE(2,v1,4,v0); STORE(3,v1,6,v0);
-          STORE(4,v5,0,v4); STORE(5,v5,2,v4); STORE(6,v5,4,v4); STORE(7,v5,6,v4);
-        }
-#endif
         for (; readedge < edges; readedge++, readz++) { // process up to 7 leftover edges if NSIPHASH==8
           const u32 node = sipnode(&sip_keys, *readedge, uorv);
           const u32 vx = node >> YZBITS; // & XMASK;
@@ -1058,21 +956,21 @@ public:
     const u32   endy = NY * (mc->id+1) / trimmer.nthreads;
     u32 edge = starty << YZBITS, endedge = edge + NYZ;
   #if NSIPHASH == 4
-    const __m128i vnodemask = {EDGEMASK, EDGEMASK};
+    const __m128i vnodemask _mm_set1_epi64x(EDGEMASK);
     siphash_keys &sip_keys = trimmer.sip_keys;
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge;
     __m128i vpacket0 = _mm_set_epi64x(e2+2, e2+0);
     __m128i vpacket1 = _mm_set_epi64x(e2+6, e2+4);
-    const __m128i vpacketinc = {8, 8};
+    const __m128i vpacketinc _mm_set1_epi64x(8);
   #elif NSIPHASH == 8
-    const __m256i vnodemask = {EDGEMASK, EDGEMASK, EDGEMASK, EDGEMASK};
+    const __m256i vnodemask _mm256_set1_epi64x(EDGEMASK);
     const __m256i vinit = _mm256_load_si256((__m256i *)&trimmer.sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge;
     __m256i vpacket0 = _mm256_set_epi64x(e2+6, e2+4, e2+2, e2+0);
     __m256i vpacket1 = _mm256_set_epi64x(e2+14, e2+12, e2+10, e2+8);
-    const __m256i vpacketinc = {16, 16, 16, 16};
+    const __m256i vpacketinc _mm256_set1_epi64x(16);
   #endif
     for (u32 my = starty; my < endy; my++, endedge += NYZ) {
       for (; edge < endedge; edge += NSIPHASH) {

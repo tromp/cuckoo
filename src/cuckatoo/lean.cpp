@@ -3,7 +3,6 @@
 
 #include "lean.hpp"
 #include <unistd.h>
-#include <sys/time.h>
 
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
