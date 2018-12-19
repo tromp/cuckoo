@@ -24,8 +24,8 @@ before_script:
   - LIBP="$(pwd)/src"
   - echo "The library path variable value is ${LIBP:?}"
 script:
-  - if test cuckoo = "${JOB:?}"; then ( cd ../cuckoo && make; ); fi
-  - if test cuckatoo = "${JOB:?}"; then ( cd ../cuckatoo && make; ); fi
+  - if test cuckoo = "${JOB:?}"; then ( cd cuckoo && make; ); fi
+  - if test cuckatoo = "${JOB:?}"; then ( cd cuckatoo && make; ); fi
   - if test java = "${JOB:?}"; then ( cd src/java && make; ); fi
   - if test doc = "${JOB:?}"; then ( cd doc && make cuckoo.pdf; ); fi
 after_success:
