@@ -104,4 +104,4 @@ cuda30:		../crypto/siphash.cuh mean.cu Makefile
 	$(NVCC) -o $@ -DEDGEBITS=30 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
 
 cuda31:		../crypto/siphash.cuh mean.cu Makefile
-	$(NVCC) -o $@ -DEDGEBITS=31 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
+	$(NVCC) -o $@ -DXBITS=7 -DEDGEBITS=31 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
