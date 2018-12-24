@@ -45,7 +45,7 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
         for (u32 i = 0; i < PROOFSIZE; i++) 
           solutions->sols[sumnsols+s].proof[i] = (u64) prf[i];
       }
-      int pow_rc = verify(prf, &ctx->trimmer.sip_keys);
+      int pow_rc = verify(prf, ctx->trimmer.sip_keys);
       if (pow_rc == POW_OK) {
         print_log("Verified with cyclehash ");
         unsigned char cyclehash[32];

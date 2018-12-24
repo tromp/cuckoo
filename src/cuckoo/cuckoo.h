@@ -8,7 +8,7 @@
 #include <chrono>
 #include <ctime>
 #include "../crypto/blake2.h"
-#include "../crypto/siphash.h"
+#include "../crypto/siphash.hpp"
 
 #ifdef SIPHASH_COMPAT
 #include <stdio.h>
@@ -110,7 +110,7 @@ struct SolverStats {
 
 // generate edge endpoint in cuckoo graph without partition bit
 word_t sipnode(siphash_keys *keys, word_t edge, u32 uorv) {
-  return siphash24(keys, 2*edge + uorv) & EDGEMASK;
+  return keys->siphash24(2*edge + uorv) & EDGEMASK;
 }
 
 enum verify_code { POW_OK, POW_HEADER_LENGTH, POW_TOO_BIG, POW_TOO_SMALL, POW_NON_MATCHING, POW_BRANCH, POW_DEAD_END, POW_SHORT_CYCLE};
@@ -161,7 +161,7 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
   k[2] = k0 ^ 0x6c7967656e657261ULL;
   k[3] = k1 ^ 0x7465646279746573ULL;
 #endif
-  setkeys(keys, hdrkey);
+  keys->setkeys(hdrkey);
 }
 
 // edge endpoint in cuckoo graph with partition bit

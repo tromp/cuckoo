@@ -195,7 +195,7 @@ void siphash24x4(const siphash_keys *keys, const uint64_t *indices, uint64_t *ha
 
 void siphash24xN(const siphash_keys *keys, const uint64_t *indices, uint64_t * hashes) {
 #if NSIPHASH == 1
-  *hashes = siphash24(keys, *indices);
+  *hashes = keys->siphash24(*indices);
 #elif NSIPHASH == 2  
   siphash24x2(keys, indices, hashes); 
 #elif NSIPHASH == 4

@@ -1122,6 +1122,7 @@ public:
         int err = pthread_join(threads[t].thread, NULL);
         assert(err == 0);
       }
+      delete[] threads;
 #endif
       qsort(&sols[sols.size()-PROOFSIZE], PROOFSIZE, sizeof(u32), nonce_cmp);
     }
