@@ -811,7 +811,7 @@ public:
 #if NSIPHASH > 4  // ensure correct alignment for _mm256_load_si256 of sip_keys at start of trimmer struct
   void* operator new(size_t size) noexcept {
     void* newobj;
-    int tmp = posix_memalign(&newobj, NSIPHASH * sizeof(u32), sizeof(edgetrimmer));
+    int tmp = posix_memalign(&newobj, NSIPHASH * sizeof(u32), sizeof(solver_ctx));
     if (tmp != 0) return nullptr;
     return newobj;
   }
