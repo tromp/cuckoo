@@ -20,7 +20,7 @@ simpletest:     simple19
 	./simple19 -n 71
 
 meantest:	mean29x4
-	./mean29x4 -n 77 -t 4 -s
+	./mean29x4 -n 671 -t 4 -s
 
 simple19:	../crypto/siphash.hpp cuckaroo.hpp  bitmap.hpp graph.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DPROOFSIZE=42 -DEDGEBITS=19 simple.cpp $(BLAKE_2B_SRC)
