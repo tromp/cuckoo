@@ -802,7 +802,7 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
   params->tailtpb = tp.tail.tpb;
   params->recoverblocks = tp.recover.blocks;
   params->recovertpb = tp.recover.tpb;
-  params->cpuload = true;
+  params->cpuload = false;
 }
 
 int main(int argc, char **argv) {
