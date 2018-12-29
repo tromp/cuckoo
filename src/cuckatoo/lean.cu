@@ -55,7 +55,7 @@ inline int gpuAssert(cudaError_t code, const char *file, int line, bool abort=tr
   int device_id;
   cudaGetDevice(&device_id);
   if (code != cudaSuccess) {
-    snprintf(LAST_ERROR_REASON, MAX_NAME_LEN, "Device %d GPUassert: %s %s %d\0", device_id, cudaGetErrorString(code), file, line);
+    snprintf(LAST_ERROR_REASON, MAX_NAME_LEN, "Device %d GPUassert: %s %s %d", device_id, cudaGetErrorString(code), file, line);
     cudaDeviceReset();
     if (abort) return code;
   }
@@ -392,7 +392,7 @@ int main(int argc, char **argv) {
   fill_default_params(&params);
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "sb:h:n:m:r:t:")) != -1) {
+  while ((c = getopt (argc, argv, "sb:d:h:n:m:r:t:")) != -1) {
     switch (c) {
       case 's':
         print_log("SYNOPSIS\n  lcuda%d [-d device] [-h hexheader] [-m trims] [-n nonce] [-r range] [-b blocks] [-t threads]\n", NODEBITS);
