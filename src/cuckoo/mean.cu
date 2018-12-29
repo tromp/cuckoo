@@ -369,7 +369,7 @@ struct edgetrimmer {
   ulonglong4 *bufferAB;
   int *indexesE;
   int *indexesE2;
-  u32 hostA[NX * NY];
+  u32 nedges;
   u32 *uvnodes;
   siphash_keys sipkeys, *dipkeys;
   bool abort;
@@ -481,9 +481,9 @@ struct edgetrimmer {
     cudaDeviceSynchronize();
   
     Tail<EDGES_B/4><<<tp.tail.blocks, tp.tail.tpb>>>((const uint2 *)bufferA, (uint2 *)bufferB, (const int *)indexesE2, (int *)indexesE);
-    cudaMemcpy(hostA, indexesE, NX * NY * sizeof(u32), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&nedges, indexesE, sizeof(u32), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
-    return hostA[0];
+    return nedges;
   }
 };
 
