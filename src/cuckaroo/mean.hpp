@@ -270,7 +270,7 @@ public:
   void genUVnodes(const u32 id) {
     u64 rdtsc0, rdtsc1;
     const u32 NEBS = NSIPHASH * EDGE_BLOCK_SIZE;
-    alignas(NSIPHASH*4) u64 buf[NEBS];
+    alignas(NSIPHASH > 4 ? 4*NSIPHASH : 8) u64 buf[NEBS];
   
     rdtsc0 = __rdtsc();
     u8 const *base = (u8 *)buckets;
@@ -922,7 +922,7 @@ public:
   void *matchUnodes(match_ctx *mc) {
     u64 rdtsc0, rdtsc1;
     const u32 NEBS = NSIPHASH * EDGE_BLOCK_SIZE;
-    alignas(NSIPHASH*4) u64 buf[NEBS];
+    alignas(NSIPHASH > 4 ? 4*NSIPHASH : 8) u64 buf[NEBS];
   
     rdtsc0 = __rdtsc();
     const u32 starty = NY *  mc->id    / trimmer.nthreads;
