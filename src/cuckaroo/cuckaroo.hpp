@@ -79,6 +79,7 @@ struct SolverParams {
 // Solutions result structs to be instantiated by caller,
 // and filled by solver if desired
 struct Solution {
+ u64 id = 0;
  u64 nonce = 0;
  u64 proof[PROOFSIZE];
 };
