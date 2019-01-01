@@ -98,7 +98,7 @@ lcuda31:	../crypto/siphash.cuh lean.cu Makefile
 	$(NVCC) -o $@ -DEDGEBITS=31 -arch sm_35 lean.cu $(BLAKE_2B_SRC)
 
 cuda19:		../crypto/siphash.cuh mean.cu Makefile
-	$(NVCC) -o $@ -DEPS_A=4 -DEPS_B=3 -DIDXSHIFT=6 -DEDGEBITS=19 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
+	$(NVCC) -o $@ -DNEPS_A=512 -DNEPS_B=384 -DIDXSHIFT=6 -DEDGEBITS=19 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
 
 cuda29:		../crypto/siphash.cuh mean.cu Makefile
 	$(NVCC) -o $@ -DEDGEBITS=29 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
@@ -107,4 +107,7 @@ cuda30:		../crypto/siphash.cuh mean.cu Makefile
 	$(NVCC) -o $@ -DEDGEBITS=30 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
 
 cuda31:		../crypto/siphash.cuh mean.cu Makefile
-	$(NVCC) -o $@ -DXBITS=7 -DEDGEBITS=31 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
+	$(NVCC) -o $@ -DNEPS_B=86 -DPART_BITS=1 -DEDGEBITS=31 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
+
+cuda31_:	../crypto/siphash.cuh mean.cu Makefile
+	$(NVCC) -o $@ -DNEPS_A=124 -DNEPS_B=80 -DPART_BITS=1 -DEDGEBITS=31 -arch sm_35 mean.cu $(BLAKE_2B_SRC)

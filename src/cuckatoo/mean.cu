@@ -245,12 +245,24 @@ __device__ u32 endpoint(const siphash_keys &sipkeys, uint2 nodes, int uorv) {
   return uorv ? nodes.y : nodes.x;
 }
 
+#ifndef PART_BITS
+// #bits used to partition edge set processing to save shared memory
+// a value of 0 does no partitioning and is fastest
+// a value of 1 partitions in two at about 33% slowdown
+// higher values are not that interesting
+#define PART_BITS 0
+#endif
+
+const u32 PART_MASK = (1 << PART_BITS) - 1;
+const u32 NONPART_BITS = ZBITS - PART_BITS;
+const word_t NONPART_MASK = (1 << NONPART_BITS) - 1;
+
 template<int NP, int maxIn, typename EdgeIn, int maxOut, typename EdgeOut>
-__global__ void Round(const int round, const siphash_keys &sipkeys, EdgeIn * __restrict__ src, EdgeOut * __restrict__ dst, u32 * __restrict__ srcIdx, u32 * __restrict__ dstIdx) {
+__global__ void Round(const int round, const int part, const siphash_keys &sipkeys, EdgeIn * __restrict__ src, EdgeOut * __restrict__ dst, u32 * __restrict__ srcIdx, u32 * __restrict__ dstIdx) {
   const int group = blockIdx.x;
   const int dim = blockDim.x;
   const int lid = threadIdx.x;
-  const int BITMAPWORDS = NZ / 32; // 32-bit words in bitmap
+  const int BITMAPWORDS = (NZ >> PART_BITS) / 32; // 32-bit words in bitmap
 
   __shared__ u32 ebitmap[BITMAPWORDS];
 
@@ -268,8 +280,10 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, EdgeIn * __r
         const int index = maxIn * group + lindex;
         EdgeIn edge = __ldg(&src[index]);
         if (null(edge)) continue;
-        u32 node = endpoint(sipkeys, edge, round&1);
-        bitmapset(ebitmap, node & ZMASK);
+        u32 z = endpoint(sipkeys, edge, round&1) & ZMASK;
+        if ((z >> NONPART_BITS) == part) {
+          bitmapset(ebitmap, z & NONPART_MASK);
+        }
       }
     }
   }
@@ -285,12 +299,12 @@ __global__ void Round(const int round, const siphash_keys &sipkeys, EdgeIn * __r
         EdgeIn edge = __ldg(&src[index]);
         if (null(edge)) continue;
         u32 node0 = endpoint(sipkeys, edge, round&1);
-        if (bitmaptest(ebitmap, (node0 & ZMASK) ^ 1)) {
+        u32 z = node0 & ZMASK;
+        if ((z >> NONPART_BITS) == part && bitmaptest(ebitmap, (z & NONPART_MASK) ^ 1)) {
           u32 node1 = endpoint(sipkeys, edge, (round&1)^1);
           const int bucket = node1 >> ZBITS;
           const int bktIdx = min(atomicAdd(dstIdx + bucket, 1), maxOut - 1);
-          dst[bucket * maxOut + bktIdx] = (round&1) ? make_Edge(edge, *dst, node1, node0)
-                                                            : make_Edge(edge, *dst, node0, node1);
+          dst[bucket * maxOut + bktIdx] = (round&1) ? make_Edge(edge, *dst, node1, node0) : make_Edge(edge, *dst, node0, node1);
         }
       }
     }
@@ -476,40 +490,57 @@ struct edgetrimmer {
     const size_t qB = sizeB/NB;
     qE = NX2 / NB;
     for (u32 i = NB; i--; ) {
-      if (tp.expand == 0) {
-        Round<1, EDGES_A, uint2, EDGES_B/NB, uint2><<<tp.trim.blocks/NB, tp.trim.tpb>>>(0, *dipkeys, (uint2*)(bufferA+i*qA), (uint2*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
-      } else if (tp.expand == 1) {
-        Round<1, EDGES_A,   u32, EDGES_B/NB, uint2><<<tp.trim.blocks/NB, tp.trim.tpb>>>(0, *dipkeys, (u32*)(bufferA+i*qA), (uint2*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
-      } else { // tp.expand == 2
-        Round<1, EDGES_A,   u32, EDGES_B/NB,   u32><<<tp.trim.blocks/NB, tp.trim.tpb>>>(0, *dipkeys, (u32*)(bufferA+i*qA), (u32*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
+      for (u32 part = 0; part <= PART_MASK; part++) {
+        if (tp.expand == 0) {
+          Round<1, EDGES_A, uint2, EDGES_B/NB, uint2><<<tp.trim.blocks/NB, tp.trim.tpb>>>(0, part, *dipkeys, (uint2*)(bufferA+i*qA), (uint2*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
+        } else if (tp.expand == 1) {
+          Round<1, EDGES_A,   u32, EDGES_B/NB, uint2><<<tp.trim.blocks/NB, tp.trim.tpb>>>(0, part, *dipkeys, (u32*)(bufferA+i*qA), (uint2*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
+        } else { // tp.expand == 2
+          Round<1, EDGES_A,   u32, EDGES_B/NB,   u32><<<tp.trim.blocks/NB, tp.trim.tpb>>>(0, part, *dipkeys, (u32*)(bufferA+i*qA), (u32*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
+        }
+        if (abort) return false;
       }
+    }
+
+    cudaMemset(indexesE[0], 0, indexesSize);
+
+    for (u32 part = 0; part <= PART_MASK; part++) {
+      if (tp.expand < 2) {
+        Round<NB, EDGES_B/NB, uint2, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, part, *dipkeys, (uint2*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
+      } else {
+        Round<NB, EDGES_B/NB,   u32, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, part, *dipkeys, (  u32*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
+      }
+      if (abort) return false;
+    }
+
+    cudaMemset(indexesE[1], 0, indexesSize);
+
+    for (u32 part = 0; part <= PART_MASK; part++) {
+      Round<1, EDGES_B/2, uint2, EDGES_A/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(2, part, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]); // to .176
       if (abort) return false;
     }
 
     cudaMemset(indexesE[0], 0, indexesSize);
 
-    if (tp.expand < 2) {
-      Round<NB, EDGES_B/NB, uint2, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, *dipkeys, (uint2*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
-    } else {
-      Round<NB, EDGES_B/NB,   u32, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, *dipkeys, (  u32*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
+    for (u32 part = 0; part <= PART_MASK; part++) {
+      Round<1, EDGES_A/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(3, part, *dipkeys, (uint2 *)bufferB, (uint2 *)bufferA, indexesE[1], indexesE[0]); // to .117
+      if (abort) return false;
     }
-    if (abort) return false;
-
-    cudaMemset(indexesE[1], 0, indexesSize);
-    Round<1, EDGES_B/2, uint2, EDGES_A/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(2, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]); // to .176
-    if (abort) return false;
-    cudaMemset(indexesE[0], 0, indexesSize);
-    Round<1, EDGES_A/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(3, *dipkeys, (uint2 *)bufferB, (uint2 *)bufferA, indexesE[1], indexesE[0]); // to .117
   
     cudaDeviceSynchronize();
   
     for (int round = 4; round < tp.ntrims; round += 2) {
       if (abort) return false;
       cudaMemset(indexesE[1], 0, indexesSize);
-      Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round  , *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]);
-      if (abort) return false;
+      for (u32 part = 0; part <= PART_MASK; part++) {
+        Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round  , part, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]);
+        if (abort) return false;
+      }
       cudaMemset(indexesE[0], 0, indexesSize);
-      Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round+1, *dipkeys, (uint2 *)bufferB, (uint2 *)bufferA, indexesE[1], indexesE[0]);
+      for (u32 part = 0; part <= PART_MASK; part++) {
+        Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round+1, part, *dipkeys, (uint2 *)bufferB, (uint2 *)bufferA, indexesE[1], indexesE[0]);
+        if (abort) return false;
+      }
     }
     
     if (abort) return false;
