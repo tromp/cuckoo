@@ -256,15 +256,16 @@ __device__ u32 endpoint(const siphash_keys &sipkeys, uint2 nodes, int uorv) {
 const u32 PART_MASK = (1 << PART_BITS) - 1;
 const u32 NONPART_BITS = ZBITS - PART_BITS;
 const word_t NONPART_MASK = (1 << NONPART_BITS) - 1;
+const int BITMAPBYTES = (NZ >> PART_BITS) / 8;
 
 template<int NP, int maxIn, typename EdgeIn, int maxOut, typename EdgeOut>
 __global__ void Round(const int round, const int part, const siphash_keys &sipkeys, EdgeIn * __restrict__ src, EdgeOut * __restrict__ dst, u32 * __restrict__ srcIdx, u32 * __restrict__ dstIdx) {
   const int group = blockIdx.x;
   const int dim = blockDim.x;
   const int lid = threadIdx.x;
-  const int BITMAPWORDS = (NZ >> PART_BITS) / 32; // 32-bit words in bitmap
+  const int BITMAPWORDS = BITMAPBYTES / sizeof(u32);
 
-  __shared__ u32 ebitmap[BITMAPWORDS];
+  extern __shared__ u32 ebitmap[];
 
   for (int i = lid; i < BITMAPWORDS; i += dim)
     ebitmap[i] = 0;
@@ -431,6 +432,15 @@ struct edgetrimmer {
     assert(bufferA + sizeA == bufferB + sizeB * (NB-1) / NB); // ensure alignment of overlap
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
     initsuccess = true;
+    int maxbytes = 0x10000; // 64 KB
+    cudaFuncSetAttribute(Round<1, EDGES_A, uint2, EDGES_B/NB, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<1, EDGES_A,   u32, EDGES_B/NB, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<1, EDGES_A,   u32, EDGES_B/NB,   u32>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<NB, EDGES_B/NB, uint2, EDGES_B/2, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<NB, EDGES_B/NB,   u32, EDGES_B/2, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<1, EDGES_B/2, uint2, EDGES_A/4, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<1, EDGES_A/4, uint2, EDGES_B/4, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
   }
   u64 globalbytes() const {
     return (sizeA+sizeB/NB) + (1+NB) * indexesSize + sizeof(siphash_keys) + PROOFSIZE * 2*sizeof(u32) + sizeof(edgetrimmer);
@@ -493,11 +503,11 @@ struct edgetrimmer {
     for (u32 i = NB; i--; ) {
       for (u32 part = 0; part <= PART_MASK; part++) {
         if (tp.expand == 0) {
-          Round<1, EDGES_A, uint2, EDGES_B/NB, uint2><<<tp.trim.blocks/NB, tp.trim.tpb>>>(0, part, *dipkeys, (uint2*)(bufferA+i*qA), (uint2*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
+          Round<1, EDGES_A, uint2, EDGES_B/NB, uint2><<<tp.trim.blocks/NB, tp.trim.tpb, BITMAPBYTES>>>(0, part, *dipkeys, (uint2*)(bufferA+i*qA), (uint2*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
         } else if (tp.expand == 1) {
-          Round<1, EDGES_A,   u32, EDGES_B/NB, uint2><<<tp.trim.blocks/NB, tp.trim.tpb>>>(0, part, *dipkeys, (u32*)(bufferA+i*qA), (uint2*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
+          Round<1, EDGES_A,   u32, EDGES_B/NB, uint2><<<tp.trim.blocks/NB, tp.trim.tpb, BITMAPBYTES>>>(0, part, *dipkeys, (u32*)(bufferA+i*qA), (uint2*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
         } else { // tp.expand == 2
-          Round<1, EDGES_A,   u32, EDGES_B/NB,   u32><<<tp.trim.blocks/NB, tp.trim.tpb>>>(0, part, *dipkeys, (u32*)(bufferA+i*qA), (u32*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
+          Round<1, EDGES_A,   u32, EDGES_B/NB,   u32><<<tp.trim.blocks/NB, tp.trim.tpb, BITMAPBYTES>>>(0, part, *dipkeys, (u32*)(bufferA+i*qA), (u32*)(bufferB+i*qB), indexesE[0]+i*qE, indexesE[1+i]); // to .632
         }
         if (abort) return false;
       }
@@ -507,9 +517,9 @@ struct edgetrimmer {
 
     for (u32 part = 0; part <= PART_MASK; part++) {
       if (tp.expand < 2) {
-        Round<NB, EDGES_B/NB, uint2, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, part, *dipkeys, (uint2*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
+        Round<NB, EDGES_B/NB, uint2, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(1, part, *dipkeys, (uint2*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
       } else {
-        Round<NB, EDGES_B/NB,   u32, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(1, part, *dipkeys, (  u32*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
+        Round<NB, EDGES_B/NB,   u32, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(1, part, *dipkeys, (  u32*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
       }
       if (abort) return false;
     }
@@ -517,14 +527,14 @@ struct edgetrimmer {
     cudaMemset(indexesE[1], 0, indexesSize);
 
     for (u32 part = 0; part <= PART_MASK; part++) {
-      Round<1, EDGES_B/2, uint2, EDGES_A/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(2, part, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]); // to .176
+      Round<1, EDGES_B/2, uint2, EDGES_A/4, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(2, part, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]); // to .176
       if (abort) return false;
     }
 
     cudaMemset(indexesE[0], 0, indexesSize);
 
     for (u32 part = 0; part <= PART_MASK; part++) {
-      Round<1, EDGES_A/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(3, part, *dipkeys, (uint2 *)bufferB, (uint2 *)bufferA, indexesE[1], indexesE[0]); // to .117
+      Round<1, EDGES_A/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(3, part, *dipkeys, (uint2 *)bufferB, (uint2 *)bufferA, indexesE[1], indexesE[0]); // to .117
       if (abort) return false;
     }
   
@@ -534,12 +544,12 @@ struct edgetrimmer {
       if (abort) return false;
       cudaMemset(indexesE[1], 0, indexesSize);
       for (u32 part = 0; part <= PART_MASK; part++) {
-        Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round  , part, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]);
+        Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(round  , part, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]);
         if (abort) return false;
       }
       cudaMemset(indexesE[0], 0, indexesSize);
       for (u32 part = 0; part <= PART_MASK; part++) {
-        Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb>>>(round+1, part, *dipkeys, (uint2 *)bufferB, (uint2 *)bufferA, indexesE[1], indexesE[0]);
+        Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(round+1, part, *dipkeys, (uint2 *)bufferB, (uint2 *)bufferA, indexesE[1], indexesE[0]);
         if (abort) return false;
       }
     }
