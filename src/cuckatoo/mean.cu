@@ -423,11 +423,12 @@ struct edgetrimmer {
     }
     sizeA = ROW_EDGES_A * NX * (tp.expand > 0 ? sizeof(u32) : sizeof(uint2));
     sizeB = ROW_EDGES_B * NX * (tp.expand > 1 ? sizeof(u32) : sizeof(uint2));
-    const size_t bufferSize = sizeA + sizeB/NB;
+    const size_t bufferSize = sizeA + sizeB / NB;
+    assert(bufferSize >= sizeB + sizeB / NB / (tp.expand == 1 ? 1 : 2)); // ensure enough space for Round 1
     checkCudaErrors_V(cudaMalloc((void**)&bufferA, bufferSize));
-    bufferAB = bufferA + sizeB/NB;
+    bufferAB = bufferA + sizeB / NB;
     bufferB  = bufferA + bufferSize - sizeB;
-    assert(bufferA+sizeA == bufferB+sizeB*(NB-1)/NB);
+    assert(bufferA + sizeA == bufferB + sizeB * (NB-1) / NB); // ensure alignment of overlap
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
     initsuccess = true;
   }
