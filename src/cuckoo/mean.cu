@@ -30,7 +30,6 @@ const u32 XMASK     = NX - 1;
 const u32 YBITS     = XBITS;
 const u32 NY        = 1 << YBITS;
 const u32 YZBITS    = EDGEBITS - XBITS;
-const u32 NYZ       = 1 << YZBITS;
 const u32 ZBITS     = YZBITS - YBITS;
 const u32 NZ        = 1 << ZBITS;
 const u32 ZMASK     = NZ - 1;
