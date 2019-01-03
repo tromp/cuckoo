@@ -459,15 +459,14 @@ struct edgetrimmer {
     cudaEvent_t start, stop;
     checkCudaErrors(cudaEventCreate(&start)); checkCudaErrors(cudaEventCreate(&stop));
   
-    for (int i = 0; i < 1+NB; i++) {
-      cudaMemset(indexesE[i], 0, indexesSize);
-    }
     cudaMemcpy(dipkeys, &sipkeys, sizeof(sipkeys), cudaMemcpyHostToDevice);
   
     cudaDeviceSynchronize();
     float durationA, durationB;
     cudaEventRecord(start, NULL);
   
+    cudaMemset(indexesE[1], 0, indexesSize);
+
     if (tp.expand == 0) {
       SeedA<EDGES_A, uint2><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, (ulonglong4*)bufferAB, (u32 *)indexesE[1]);
     } else
@@ -478,6 +477,8 @@ struct edgetrimmer {
     if (abort) return false;
     cudaEventRecord(start, NULL);
   
+    cudaMemset(indexesE[0], 0, indexesSize);
+
     size_t qA = sizeA/NA;
     size_t qE = NX2 / NA;
     for (u32 i = 0; i < NA; i++) {
@@ -541,7 +542,6 @@ struct edgetrimmer {
     cudaDeviceSynchronize();
   
     for (int round = 4; round < tp.ntrims; round += 2) {
-      if (abort) return false;
       cudaMemset(indexesE[1], 0, indexesSize);
       for (u32 part = 0; part <= PART_MASK; part++) {
         Round<1, EDGES_B/4, uint2, EDGES_B/4, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(round  , part, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]);
@@ -554,7 +554,6 @@ struct edgetrimmer {
       }
     }
     
-    if (abort) return false;
     cudaMemset(indexesE[1], 0, indexesSize);
     cudaDeviceSynchronize();
   
