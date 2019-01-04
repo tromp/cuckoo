@@ -1,12 +1,14 @@
-Tuning the GPU solver
+Tuning the cuckoo GPU solver
 ============
+
+Outputs will vary for cuckaroo and cuckatoo but to the extent that options are accepted, results will mostly still be applicable.
 
 Running with option -s provides a synopsis of solver options:
 
 SYNOPSIS
-  cuda30 [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]
+  cuda29 [-s] [-c] [-d device] [-E 0-2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]
 DEFAULTS
-  cuda30 -d 0 -E 0 -h "" -m 176 -n 0 -r 1 -U 4096 -u 256 -v 128 -w 512 -y 1024 -Z 1024 -z 1024
+  cuda29 -d 0 -E 0 -h "" -m 176 -n 0 -r 1 -U 4096 -u 256 -v 128 -w 512 -y 1024 -Z 1024 -z 1024
 
 Let's look at each of these in turn.
 
@@ -15,7 +17,7 @@ Let's look at each of these in turn.
 This option lets us select among multiple CUDA devices. Default is 0.
 Besides a 1080 Ti as device 0, I also have a plain 1080 available:
 
-    $ ./cuda30 -d 1 | head -1
+    $ ./cuda29 -d 1 | head -1
     GeForce GTX 1080 with 8114MB @ 256 bits x 5005MHz
 
 -h hexheader
@@ -24,11 +26,11 @@ This allows specification of arbitrary headers. Default "".
 The given string is padded with nul bytes to a fixed header length of 80 bytes.
 For example,
 
-    $ ./cuda30 -h "DEADBEEF" | head -2
+    $ ./cuda29 -h "DEADBEEF" | head -2
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("ޭ??",0) with 50% edges, 64*64 buckets, 176 trims, and 64 thread blocks.
 
-    $ ./cuda30 -h "444541440A42454546" | head -3
+    $ ./cuda29 -h "444541440A42454546" | head -3
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("DEAD
     BEEF",0) with 50% edges, 64*64 buckets, 176 trims, and 64 thread blocks.
@@ -41,16 +43,16 @@ round before which edges are expanded into explicit endpoints, taking 8 bytes ea
 Higher values (1 and 2) result in larger memory savings, at the cost of having to do more endpoint recomputation.
 For cuckoo30, we can mine in either 7 GB, 5 GB, or as little as 4 GB:
 
-    $ ./cuda30 -E 0 | head -3
+    $ ./cuda29 -E 0 | head -3
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("",0) with 50% edges, 64*64 buckets, 176 trims, and 64 thread blocks.
     Using 6976MB of global memory.
-    $ ./cuda30 -E 1 | head -3
+    $ ./cuda29 -E 1 | head -3
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("",0) with 50% edges, 64*64 buckets, 176 trims, and 64 thread blocks.
     Using 4848MB of global memory.
     Using 4848MB of global memory.
-    $ ./cuda30 -E 2 | head -3
+    $ ./cuda29 -E 2 | head -3
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("",0) with 50% edges, 64*64 buckets, 176 trims, and 64 thread blocks.
     Using 3488MB of global memory.
@@ -60,7 +62,7 @@ For cuckoo30, we can mine in either 7 GB, 5 GB, or as little as 4 GB:
 The number of trimming rounds. Default 176. Can be increased arbitrarily. At some point, there will be
 no edges left to trim, as all remaining edges are already part of a cycle:
 
-    $ ./cuda30 -m 1514
+    $ ./cuda29 -m 1514
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("",0) with 50% edges, 64*64 buckets, 1514 trims, and 64 thread blocks.
     Using 6976MB of global memory.
@@ -77,7 +79,7 @@ no edges left to trim, as all remaining edges are already part of a cycle:
 Note that 88 is exactly the sum length of all 5 cycles.
 Insufficient trimming results in loss of  edges and possible loss of cycles:
 
-    $ ./cuda30 -n 63 -m 128
+    $ ./cuda29 -n 63 -m 128
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("",63) with 50% edges, 64*64 buckets, 128 trims, and 64 thread blocks.
     Using 6976MB of global memory.
@@ -92,7 +94,7 @@ Insufficient trimming results in loss of  edges and possible loss of cycles:
     Verified with cyclehash b06d3a638f4237c1d5d96fe57e549a83b76421522fb09af24d3520fb91f364f7
     1 total solutions
 
-    $ ./cuda30 -n 63 -m 120
+    $ ./cuda29 -n 63 -m 120
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("",63) with 50% edges, 64*64 buckets, 120 trims, and 64 thread blocks.
     Using 6976MB of global memory.
@@ -102,7 +104,7 @@ Insufficient trimming results in loss of  edges and possible loss of cycles:
     findcycles edges 131072 time 18 ms total 1936 ms
     0 total solutions
 
-    $ ./cuda30 -m 120
+    $ ./cuda29 -m 120
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("",0) with 50% edges, 64*64 buckets, 120 trims, and 64 thread blocks.
     Using 6976MB of global memory.
@@ -145,7 +147,7 @@ tpb\blocks |  256 | 1024 | 4096 | 16384
 
 There is a related compile time define -DFLUSHA=16 that should grow along with tpb to avoid excessive edge loss:
 
-    $ ./cuda30 -n 63 -u 512
+    $ ./cuda29 -n 63 -u 512
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("",63) with 50% edges, 64*64 buckets, 176 trims, and 64 thread blocks.
     Using 6976MB of global memory.
@@ -160,7 +162,7 @@ There is a related compile time define -DFLUSHA=16 that should grow along with t
     Verified with cyclehash b06d3a638f4237c1d5d96fe57e549a83b76421522fb09af24d3520fb91f364f7
     1 total solutions
 
-    $ ./cuda30 -n 63 -u 1024
+    $ ./cuda29 -n 63 -u 1024
     GeForce GTX 1080 Ti with 10GB @ 352 bits x 5505MHz
     Looking for 42-cycle on cuckoo30("",63) with 50% edges, 64*64 buckets, 176 trims, and 64 thread blocks.
     Using 6976MB of global memory.
