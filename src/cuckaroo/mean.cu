@@ -844,7 +844,7 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaGetDeviceProperties(&prop, device));
   u64 dbytes = prop.totalGlobalMem;
   int dunit;
-  for (dunit=0; dbytes >= 10240; dbytes>>=10,dunit++) ;
+  for (dunit=0; dbytes >= 102040; dbytes>>=10,dunit++) ;
   print_log("%s with %d%cB @ %d bits x %dMHz\n", prop.name, (u32)dbytes, " KMGT"[dunit], prop.memoryBusWidth, prop.memoryClockRate/1000);
   // cudaSetDevice(device);
 
@@ -857,7 +857,7 @@ int main(int argc, char **argv) {
 
   u64 bytes = ctx->trimmer.globalbytes();
   int unit;
-  for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
+  for (unit=0; bytes >= 102400; bytes>>=10,unit++) ;
   print_log("Using %d%cB of global memory.\n", (u32)bytes, " KMGT"[unit]);
 
   run_solver(ctx, header, sizeof(header), nonce, range, NULL, NULL);
