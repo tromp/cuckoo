@@ -857,7 +857,7 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaGetDeviceProperties(&prop, device));
   u64 dbytes = prop.totalGlobalMem;
   int dunit;
-  for (dunit=0; dbytes >= 10240; dbytes>>=10,dunit++) ;
+  for (dunit=0; dbytes >= 102400; dbytes>>=10,dunit++) ;
   print_log("%s with %d%cB @ %d bits x %dMHz\n", prop.name, (u32)dbytes, " KMGT"[dunit], prop.memoryBusWidth, prop.memoryClockRate/1000);
 
   print_log("Looking for %d-cycle on cuckatoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
