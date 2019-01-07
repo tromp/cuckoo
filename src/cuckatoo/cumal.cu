@@ -5,7 +5,7 @@
 int main(int argc, char **argv) {
   size_t bufferMB;
   void *buffer;
-  int device = argc > 1 ? atoi(argv[1]) : 1;
+  int device = argc > 1 ? atoi(argv[argc-1]) : 1;
   int nDevices;
   cudaGetDeviceCount(&nDevices);
   assert(device < nDevices);
