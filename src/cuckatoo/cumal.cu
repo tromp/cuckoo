@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
   printf("%s with %d MB @ %d bits x %dMHz\n", prop.name, availMB, prop.memoryBusWidth, prop.memoryClockRate/1000);
 
   cudaSetDevice(device);
-  for (bufferMB = availMB; ; bufferMB -= 16) {
+  for (bufferMB = availMB; ; bufferMB -= 1) {
     int ret = cudaMalloc((void**)&buffer, bufferMB << 20);
     if (ret) printf("cudaMalloc(%d MB) returned %d\n", bufferMB, ret);
     else break;
