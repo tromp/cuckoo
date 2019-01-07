@@ -111,3 +111,6 @@ cuda31.0:		../crypto/siphash.cuh mean.cu Makefile
 
 cuda31.1:	../crypto/siphash.cuh mean.cu Makefile
 	$(NVCC) -o $@ -DNEPS_A=130 -DNEPS_B=84 -DPART_BITS=1 -DEDGEBITS=31 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
+
+cumal:		cumal.cu
+	$(NVCC) -o $@ cumal.cu

@@ -12,10 +12,11 @@ int main(int argc, char **argv) {
   cudaDeviceProp prop;
   cudaGetDeviceProperties(&prop, device);
   uint64_t dbytes = prop.totalGlobalMem;
-  printf("%s with %d MB @ %d bits x %dMHz\n", prop.name, (uint32_t)(dbytes>>20), prop.memoryBusWidth, prop.memoryClockRate/1000);
+  int availMB = dbytes >> 20;
+  printf("%s with %d MB @ %d bits x %dMHz\n", prop.name, availMB, prop.memoryBusWidth, prop.memoryClockRate/1000);
 
   cudaSetDevice(device);
-  for (bufferMB = 11 * 1024; ; bufferMB -= 16) {
+  for (bufferMB = availMB; ; bufferMB -= 16) {
     int ret = cudaMalloc((void**)&buffer, bufferMB << 20);
     if (ret) printf("cudaMalloc(%d MB) returned %d\n", bufferMB, ret);
     else break;
