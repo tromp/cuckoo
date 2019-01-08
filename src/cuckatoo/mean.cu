@@ -469,8 +469,9 @@ struct edgetrimmer {
 
     if (tp.expand == 0) {
       SeedA<EDGES_A, uint2><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, (ulonglong4*)bufferAB, (u32 *)indexesE[1]);
-    } else
+    } else {
       SeedA<EDGES_A,   u32><<<tp.genA.blocks, tp.genA.tpb>>>(*dipkeys, (ulonglong4*)bufferAB, (u32 *)indexesE[1]);
+    }
   
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationA, start, stop);
