@@ -382,7 +382,7 @@ struct trimparams {
   blockstpb recover;
 
   trimparams() {
-    expand              =    0;
+    expand              = EDGEBITS >= 30 ? 2 : 0;
     ntrims              =  176;
     genA.blocks         = 4096;
     genA.tpb            =  256;
