@@ -1,14 +1,7 @@
 #pragma once
 
 #include <stdint.h>    // for types uint32_t,uint64_t
-#ifndef __APPLE__
-#include <endian.h>    // for htole32/64
-#else
-#include <machine/endian.h>
-#include <libkern/OSByteOrder.h>
-#define htole32(x) OSSwapHostToLittleInt32(x)
-#define htole64(x) OSSwapHostToLittleInt64(x)
-#endif
+#include "portable_endian.h"    // for htole32/64
 
 // generalize siphash by using a quadruple of 64-bit keys,
 class siphash_keys {
