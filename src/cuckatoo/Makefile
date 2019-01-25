@@ -106,11 +106,11 @@ cuda29:		../crypto/siphash.cuh mean.cu Makefile
 cuda30:		../crypto/siphash.cuh mean.cu Makefile
 	$(NVCC) -o $@ -DEDGEBITS=30 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
 
-cuda31.0:		../crypto/siphash.cuh mean.cu Makefile
-	$(NVCC) -o $@ -DNEPS_A=128 -DNEPS_B=80 -DPART_BITS=0 -DEDGEBITS=31 -arch sm_75 mean.cu $(BLAKE_2B_SRC)
-
 cuda31.1:	../crypto/siphash.cuh mean.cu Makefile
-	$(NVCC) -o $@ -DNEPS_A=130 -DNEPS_B=84 -DPART_BITS=1 -DEDGEBITS=31 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
+	$(NVCC) -o $@ -DNRB1=26 -DNEPS_A=133 -DNEPS_B=85 -DPART_BITS=1 -DEDGEBITS=31 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
+
+cuda31.0:	../crypto/siphash.cuh mean.cu Makefile
+	$(NVCC) -o $@ -DNRB1=26 -DNEPS_A=133 -DNEPS_B=85 -DPART_BITS=0 -DEDGEBITS=31 -arch sm_75 mean.cu $(BLAKE_2B_SRC)
 
 cumal:		cumal.cu
 	$(NVCC) -o $@ cumal.cu
