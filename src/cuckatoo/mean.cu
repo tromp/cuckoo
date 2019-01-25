@@ -71,7 +71,7 @@ const u32 ROW_EDGES_B = EDGES_B * NY;
 
 // number of equal sized (each smaller than non-ovlp) parts in which to safely move bufferAB to bufferA,
 #ifndef NA
-#define NA  ((NEPS_A * NX + EPS_B * NRB1 - 1) / (NEPS_B * NRB1))
+#define NA  ((NEPS_A * NX + NEPS_B * NRB1 - 1) / (NEPS_B * NRB1))
 #endif
 
 __constant__ uint2 recoveredges[PROOFSIZE];
@@ -273,9 +273,9 @@ __global__ void Round(const int round, const int part, const siphash_keys &sipke
   for (int i = lid; i < BITMAPWORDS; i += dim)
     ebitmap[i] = 0;
   __syncthreads();
-  const int edgesInBucket = min(srcIdx[group], maxIn);
+  int edgesInBucket = min(srcIdx[group], maxIn);
   // if (!group && !lid) printf("round %d size  %d\n", round, edgesInBucket);
-  const int loops = (edgesInBucket + dim-1) / dim;
+  int loops = (edgesInBucket + dim-1) / dim;
 
   for (int loop = 0; loop < loops; loop++) {
     const int lindex = loop * dim + lid;
@@ -290,8 +290,8 @@ __global__ void Round(const int round, const int part, const siphash_keys &sipke
     }
   }
   __syncthreads();
-  const int edgesInBucket = min(srcIdx[group], maxIn);
-  const int loops = (edgesInBucket + dim-1) / dim;
+  edgesInBucket = min(srcIdx[group], maxIn);
+  loops = (edgesInBucket + dim-1) / dim;
   for (int loop = 0; loop < loops; loop++) {
     const int lindex = loop * dim + lid;
     if (lindex < edgesInBucket) {
@@ -323,9 +323,9 @@ __global__ void Round2(const int round, const int part, const siphash_keys &sipk
     ebitmap[i] = 0;
   __syncthreads();
 
-  const int edgesInBucket = min(srcIdx[group], maxIn0);
+  int edgesInBucket = min(srcIdx[group], maxIn0);
   // if (!group && !lid) printf("round %d size  %d\n", round, edgesInBucket);
-  const int loops = (edgesInBucket + dim-1) / dim;
+  int loops = (edgesInBucket + dim-1) / dim;
   for (int loop = 0; loop < loops; loop++) {
     const int lindex = loop * dim + lid;
     if (lindex < edgesInBucket) {
@@ -338,9 +338,9 @@ __global__ void Round2(const int round, const int part, const siphash_keys &sipk
       }
     }
   }
-  const int edgesInBucket = min(srcIdx[NX2 + group], maxIn1);
+  edgesInBucket = min(srcIdx[NX2 + group], maxIn1);
   // if (!group && !lid) printf("round %d size  %d\n", round, edgesInBucket);
-  const int loops = (edgesInBucket + dim-1) / dim;
+  loops = (edgesInBucket + dim-1) / dim;
   for (int loop = 0; loop < loops; loop++) {
     const int lindex = loop * dim + lid;
     if (lindex < edgesInBucket) {
@@ -355,8 +355,8 @@ __global__ void Round2(const int round, const int part, const siphash_keys &sipk
   }
   __syncthreads();
 
-  const int edgesInBucket = min(srcIdx[group], maxIn0);
-  const int loops = (edgesInBucket + dim-1) / dim;
+  edgesInBucket = min(srcIdx[group], maxIn0);
+  loops = (edgesInBucket + dim-1) / dim;
   for (int loop = 0; loop < loops; loop++) {
     const int lindex = loop * dim + lid;
     if (lindex < edgesInBucket) {
@@ -373,8 +373,8 @@ __global__ void Round2(const int round, const int part, const siphash_keys &sipk
       }
     }
   }
-  const int edgesInBucket = min(srcIdx[NX2 + group], maxIn1);
-  const int loops = (edgesInBucket + dim-1) / dim;
+  edgesInBucket = min(srcIdx[NX2 + group], maxIn1);
+  loops = (edgesInBucket + dim-1) / dim;
   for (int loop = 0; loop < loops; loop++) {
     const int lindex = loop * dim + lid;
     if (lindex < edgesInBucket) {
@@ -899,7 +899,7 @@ int main(int argc, char **argv) {
         break;
       case 'E':
         params.expand = atoi(optarg);
-        assert(params.expand = 0 || params.expand = 2);
+        assert(params.expand == 0 || params.expand == 2);
         break;
       case 'h':
         len = strlen(optarg)/2;
