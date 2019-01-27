@@ -71,7 +71,7 @@ const u32 ROW_EDGES_B = EDGES_B * NY;
 
 // number of equal sized (each smaller than non-ovlp) parts in which to safely move bufferAB to bufferA,
 #ifndef NA
-#define NA  ((NEPS_A * NX + NEPS_B * NRB1 - 1) / (NEPS_B * NRB1))
+#define NA 4
 #endif
 
 __constant__ uint2 recoveredges[PROOFSIZE];
@@ -511,6 +511,8 @@ struct edgetrimmer {
     checkCudaErrors_V(cudaMalloc((void**)&bufferA, bufferSize));
     bufferAB = bufferA + nonoverlap;
     bufferB  = bufferA + bufferSize - sizeB;
+    assert(NA & (NA-1) == 0); // ensure NA is a 2 power
+    assert(NA * NEPS_B * NRB1 >= NEPS_A * NX); // ensure disjoint source dest in SeedB
     assert(bufferA + sizeA * NRB2 / NX <= bufferB); // ensure disjoint source dest in 2nd phase of round 0
     assert(bufferA + sizeA == bufferB + sizeB * NRB2 / NX); // ensure alignment of overlap
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
