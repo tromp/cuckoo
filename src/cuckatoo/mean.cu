@@ -511,7 +511,7 @@ struct edgetrimmer {
     checkCudaErrors_V(cudaMalloc((void**)&bufferA, bufferSize));
     bufferAB = bufferA + nonoverlap;
     bufferB  = bufferA + bufferSize - sizeB;
-    assert(NA & (NA-1) == 0); // ensure NA is a 2 power
+    assert((NA & (NA-1)) == 0); // ensure NA is a 2 power
     assert(NA * NEPS_B * NRB1 >= NEPS_A * NX); // ensure disjoint source dest in SeedB
     assert(sizeA / NA <= nonoverlap); // equivalent to above
     assert(bufferA + sizeA * NRB2 / NX <= bufferB); // ensure disjoint source dest in 2nd phase of round 0
