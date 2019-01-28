@@ -507,12 +507,13 @@ struct edgetrimmer {
     sizeB = ROW_EDGES_B * NX * (tp.expand ? sizeof(u32) : sizeof(uint2));
     const size_t nonoverlap = sizeB * NRB1 / NX;
     const size_t bufferSize = sizeA + nonoverlap;
-    assert(bufferSize - sizeB >= sizeB / 2); // ensure enough space for Round 1, / 2 is for 0.296 / 0.632
+    assert(bufferSize - sizeB >= sizeB / (tp.expand==2 ? 1 : 2)); // ensure enough space for Round 1, / 2 is for 0.296 / 0.632 without expansion
     checkCudaErrors_V(cudaMalloc((void**)&bufferA, bufferSize));
     bufferAB = bufferA + nonoverlap;
     bufferB  = bufferA + bufferSize - sizeB;
     assert(NA & (NA-1) == 0); // ensure NA is a 2 power
     assert(NA * NEPS_B * NRB1 >= NEPS_A * NX); // ensure disjoint source dest in SeedB
+    assert(sizeA / NA <= nonoverlap); // equivalent to above
     assert(bufferA + sizeA * NRB2 / NX <= bufferB); // ensure disjoint source dest in 2nd phase of round 0
     assert(bufferA + sizeA == bufferB + sizeB * NRB2 / NX); // ensure alignment of overlap
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
@@ -609,10 +610,12 @@ struct edgetrimmer {
     cudaMemset(indexesE[0], 0, indexesSize);
 
     for (u32 part = 0; part <= PART_MASK; part++) {
-      if (tp.expand < 2) {
+      if (tp.expand == 0) {
         Round2<EDGES_B*NRB2/NX, EDGES_B*NRB1/NX, uint2, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(1, part, *dipkeys, (uint2*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
-      } else {
+      } else if (tp.expand == 2) {
         Round2<EDGES_B*NRB2/NX, EDGES_B*NRB1/NX,   u32, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(1, part, *dipkeys, (  u32*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
+      } else { // tp.expand == 3
+        Round2<EDGES_B*NRB2/NX, EDGES_B*NRB1/NX,   u32, EDGES_B/2,   u32><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(1, part, *dipkeys, (  u32*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
       }
       if (abort) return false;
     }
@@ -620,7 +623,11 @@ struct edgetrimmer {
     cudaMemset(indexesE[1], 0, indexesSize);
 
     for (u32 part = 0; part <= PART_MASK; part++) {
-      Round<EDGES_B/2, uint2, EDGES_A/4, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(2, part, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]); // to .176
+      if (tp.expand < 3) {
+        Round<EDGES_B/2, uint2, EDGES_A/4, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(2, part, *dipkeys, (uint2 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]); // to .176
+      } else {
+        Round<EDGES_B/2,   u32, EDGES_A/4, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(2, part, *dipkeys, (u32 *)bufferA, (uint2 *)bufferB, indexesE[0], indexesE[1]); // to .176
+      }
       if (abort) return false;
     }
 
@@ -890,7 +897,7 @@ int main(int argc, char **argv) {
   while ((c = getopt(argc, argv, "scb:d:E:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
     switch (c) {
       case 's':
-        print_log("SYNOPSIS\n  cuda%d [-s] [-c] [-d device] [-E 0/2] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
+        print_log("SYNOPSIS\n  cuda%d [-s] [-c] [-d device] [-E 0/2/3] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
         print_log("DEFAULTS\n  cuda%d -d %d -E %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.expand, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
         exit(0);
       case 'c':
@@ -901,7 +908,7 @@ int main(int argc, char **argv) {
         break;
       case 'E':
         params.expand = atoi(optarg);
-        assert(params.expand == 0 || params.expand == 2);
+        assert(params.expand <= 3 && params.expand != 1);
         break;
       case 'h':
         len = strlen(optarg)/2;
