@@ -511,7 +511,7 @@ struct edgetrimmer {
     checkCudaErrors_V(cudaMalloc((void**)&bufferA, bufferSize));
     bufferAB = bufferA + nonoverlap;
     bufferB  = bufferA + bufferSize - sizeB;
-    assert(NA & (NA-1) == 0); // ensure NA is a 2 power
+    assert((NA & (NA-1)) == 0); // ensure NA is a 2 power
     assert(NA * NEPS_B * NRB1 >= NEPS_A * NX); // ensure disjoint source dest in SeedB
     assert(sizeA / NA <= nonoverlap); // equivalent to above
     assert(bufferA + sizeA * NRB2 / NX <= bufferB); // ensure disjoint source dest in 2nd phase of round 0
@@ -519,12 +519,15 @@ struct edgetrimmer {
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
     initsuccess = true;
     int maxbytes = 0x10000; // 64 KB
-    cudaFuncSetAttribute(Round<EDGES_A, uint2, EDGES_B/NB, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    cudaFuncSetAttribute(Round<EDGES_A,   u32, EDGES_B/NB, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
-    cudaFuncSetAttribute(Round<EDGES_A,   u32, EDGES_B/NB,   u32>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<EDGES_A, uint2, EDGES_B*NRB1/NX, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<EDGES_A,   u32, EDGES_B*NRB1/NX,   u32>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<EDGES_A, uint2, EDGES_B*NRB2/NX, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<EDGES_A,   u32, EDGES_B*NRB2/NX,   u32>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     cudaFuncSetAttribute(Round2<EDGES_B*NRB2/NX, EDGES_B*NRB1/NX, uint2, EDGES_B/2, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     cudaFuncSetAttribute(Round2<EDGES_B*NRB2/NX, EDGES_B*NRB1/NX,   u32, EDGES_B/2, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round2<EDGES_B*NRB2/NX, EDGES_B*NRB1/NX,   u32, EDGES_B/2,   u32>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     cudaFuncSetAttribute(Round<EDGES_B/2, uint2, EDGES_A/4, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
+    cudaFuncSetAttribute(Round<EDGES_B/2,   u32, EDGES_A/4, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     cudaFuncSetAttribute(Round<EDGES_A/4, uint2, EDGES_B/4, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     cudaFuncSetAttribute(Round<EDGES_B/4, uint2, EDGES_B/4, uint2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
   }
@@ -590,7 +593,7 @@ struct edgetrimmer {
     for (u32 part = 0; part <= PART_MASK; part++) {
       if (tp.expand == 0) {
         Round<EDGES_A, uint2, EDGES_B*NRB1/NX, uint2><<<tp.trim.blocks*NRB1/NX, tp.trim.tpb, BITMAPBYTES>>>(0, part, *dipkeys, (uint2*)(bufferA+qA), (uint2*)(bufferA+sizeA), indexesE[0]+qE, indexesE[2]); // to .632
-      } else { // tp.expand == 2
+      } else { // tp.expand >= 2
         Round<EDGES_A,   u32, EDGES_B*NRB1/NX,   u32><<<tp.trim.blocks*NRB1/NX, tp.trim.tpb, BITMAPBYTES>>>(0, part, *dipkeys, (u32*)(bufferA+qA), (u32*)(bufferA+sizeA), indexesE[0]+qE, indexesE[2]); // to .632
       }
       if (abort) return false;
@@ -601,7 +604,7 @@ struct edgetrimmer {
     for (u32 part = 0; part <= PART_MASK; part++) {
       if (tp.expand == 0) {
         Round<EDGES_A, uint2, EDGES_B*NRB2/NX, uint2><<<tp.trim.blocks*NRB2/NX, tp.trim.tpb, BITMAPBYTES>>>(0, part, *dipkeys, (uint2*)bufferA, (uint2*)bufferB, indexesE[0], indexesE[1]); // to .632
-      } else { // tp.expand == 2
+      } else { // tp.expand >= 2
         Round<EDGES_A,   u32, EDGES_B*NRB2/NX,   u32><<<tp.trim.blocks*NRB2/NX, tp.trim.tpb, BITMAPBYTES>>>(0, part, *dipkeys, (u32*)bufferA, (u32*)bufferB, indexesE[0], indexesE[1]); // to .632
       }
       if (abort) return false;
@@ -615,7 +618,7 @@ struct edgetrimmer {
       } else if (tp.expand == 2) {
         Round2<EDGES_B*NRB2/NX, EDGES_B*NRB1/NX,   u32, EDGES_B/2, uint2><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(1, part, *dipkeys, (  u32*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
       } else { // tp.expand == 3
-        Round2<EDGES_B*NRB2/NX, EDGES_B*NRB1/NX,   u32, EDGES_B/2,   u32><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(1, part, *dipkeys, (  u32*)bufferB, (uint2*)bufferA, indexesE[1], indexesE[0]); // to .296
+        Round2<EDGES_B*NRB2/NX, EDGES_B*NRB1/NX,   u32, EDGES_B/2,   u32><<<tp.trim.blocks, tp.trim.tpb, BITMAPBYTES>>>(1, part, *dipkeys, (  u32*)bufferB, (  u32*)bufferA, indexesE[1], indexesE[0]); // to .296
       }
       if (abort) return false;
     }
