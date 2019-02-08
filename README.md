@@ -2,6 +2,7 @@ Cuck(at)oo Cycle
 ================
 
 My [Grincon0](https://grincon.org/) talk on [Cuckoo Cycle](https://www.youtube.com/watch?list=PLvgCPbagiHgqYdVUj-ylqhsXOifWrExiq&v=CLiKX0nOsHE)
+My [GrinconUS](https://grincon.us/) talk on [Cuckoo Cycle](https://www.youtube.com/watch?v=OsBsz8bKeN4)
 
 [Blog article explaining Cuckoo Cycle](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing)
 
@@ -162,7 +163,6 @@ How to build
 --------------
 <pre>
 cd src
-export LD_LIBRARY_PATH="$PWD/crypto:$LD_LIBRARY_PATH"
 make
 </pre>
 
