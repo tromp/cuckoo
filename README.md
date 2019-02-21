@@ -179,11 +179,14 @@ Projects using Cuckoo Cycle
 --------------
 * [Grin](https://hq.grin.ninja/)
 * [æternity - the oracle machine](http://www.aeternity.com/)
+* [BitGrin // MimbleWimble with bitcoin economics](https://bitgrin.io/)
 * [CodeChain](https://codechain.io/)
 * [BitCash](https://www.choosebitcash.com/)
 * [Veres One](https://veres.one)
 * [BIP 154: Rate Limiting via peer specified challenges; Bitcoin Peer Services](https://github.com/bitcoin/bips/blob/master/bip-0154.mediawiki)
 * [Raddi // radically decentralized discussion](http://www.raddi.net/)
 * [Cortex // AI on Blockchain](https://www.cortexlabs.ai/)
+
+
 
 ![](img/logo.png?raw=true)
