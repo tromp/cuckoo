@@ -186,4 +186,8 @@ Projects using Cuckoo Cycle
 * [Raddi // radically decentralized discussion](http://www.raddi.net/)
 * [Cortex // AI on Blockchain](https://www.cortexlabs.ai/)
 
+Projects reconsidering Cuckoo Cycle
+--------------
+* [Handshake] (https://handshake.org) found [unreconcilable issues] (https://handshake.org/files/handshake.txt)
+
 ![](img/logo.png?raw=true)

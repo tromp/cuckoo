@@ -22,7 +22,7 @@ typedef uint64_t u64;
 #ifndef EDGEBITS
 // the main parameter is the number of bits in an edge index,
 // i.e. the 2-log of the number of edges
-#define EDGEBITS 29
+#define EDGEBITS 31
 #endif
 #ifndef PROOFSIZE
 // the next most important parameter is the (even) length
@@ -30,16 +30,16 @@ typedef uint64_t u64;
 #define PROOFSIZE 42
 #endif
 
-#if EDGEBITS > 31
+#if EDGEBITS > 32
 typedef uint64_t word_t;
-#elif EDGEBITS > 14
+#elif EDGEBITS > 16
 typedef u32 word_t;
-#else // if EDGEBITS <= 14
+#else // if EDGEBITS <= 16
 typedef uint16_t word_t;
 #endif
 
 // number of edges
-#define NEDGES ((word_t)1 << EDGEBITS)
+#define NEDGES (1ULL << EDGEBITS)
 // used to mask siphash output
 #define EDGEMASK ((word_t)NEDGES - 1)
 
@@ -151,11 +151,6 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
   // SHA256((unsigned char *)header, headerlen, (unsigned char *)hdrkey);
   blake2b((void *)hdrkey, sizeof(hdrkey), (const void *)header, headerlen, 0, 0);
   keys->setkeys(hdrkey);
-}
-
-// edge endpoint in cuckatoo graph with partition bit
-word_t sipnode_(siphash_keys *keys, word_t edge, u32 uorv) {
-  return (word_t)sipnode(keys, edge, uorv) << 1 | uorv;
 }
 
 u64 timestamp() {

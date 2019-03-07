@@ -32,7 +32,6 @@ typedef u64 au64;
 // algorithm/performance parameters; assume EDGEBITS < 31
 
 const u32 NODEBITS = EDGEBITS + 1;
-const word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 
 #ifndef PART_BITS
 // #bits used to partition edge set processing to save memory
@@ -58,8 +57,12 @@ const word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 #define MAXEDGES (NEDGES >> IDXSHIFT)
 
 const u32 PART_MASK = (1 << PART_BITS) - 1;
-const u32 NONPART_BITS = EDGEBITS - PART_BITS;
+#define NONPART_BITS (EDGEBITS - PART_BITS)
+#if NONPART_BITS == 32
+const word_t NONPART_MASK = -1;
+#else
 const word_t NONPART_MASK = ((word_t)1 << NONPART_BITS) - 1;
+#endif
 
 // set that starts out full and gets reset by threads on disjoint words
 class shrinkingset {
@@ -170,7 +173,8 @@ public:
   
     memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf.set(0) to reduce branching
     u32 nidx = 0;
-    for (word_t block = id*64; block < NEDGES; block += nthreads*64) {
+    word_t block = id * 64;
+    do {
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
@@ -184,7 +188,7 @@ public:
         }
         if (ffs & 64) break; // can't shift by 64
       }
-    }
+    } while ((block += nthreads*64) != (word_t)NEDGES);
     node_deg(hashes, NPREFETCH, part);
     if (nidx % NSIPHASH != 0) {
       siphash24xN(&sip_keys, indices, hashes+(nidx&-NSIPHASH));
@@ -198,7 +202,8 @@ public:
     for (int i=0; i < NPREFETCH; i++)
       hashes[i] = 1; // allow many nonleaf.test(0) to reduce branching
     u32 nidx = 0;
-    for (word_t block = id*64; block < NEDGES; block += nthreads*64) {
+    word_t block = id * 64;
+    do {
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
@@ -212,7 +217,7 @@ public:
         }
         if (ffs & 64) break; // can't shift by 64
       }
-    }
+    } while ((block += nthreads*64) != (word_t)NEDGES);
     const u32 pnsip = nidx & -NSIPHASH;
     if (pnsip != nidx) {
       siphash24xN(&sip_keys, indices+pnsip, hashes+pnsip);
@@ -254,7 +259,8 @@ void *worker(void *vp) {
     pthread_exit(NULL);
   print_log("%d trims completed  %d edges left\n", round-1, alive.count());
   ctx->cg.reset();
-  for (word_t block = 0; block < NEDGES; block += 64) {
+  word_t block = 0;
+  do {
     u64 alive64 = alive.block(block);
     for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
@@ -263,10 +269,11 @@ void *worker(void *vp) {
       ctx->cg.add_compress_edge(u, v);
       if (ffs & 64) break; // can't shift by 64
     }
-  }
+  } while ((block += 64) != (word_t)NEDGES);
   for (u32 s=0; s < ctx->cg.nsols; s++) {
     u32 j = 0, nalive = 0;
-    for (word_t block = 0; block < NEDGES; block += 64) {
+    word_t block = 0;
+    do {
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
@@ -276,7 +283,7 @@ void *worker(void *vp) {
         }
         if (ffs & 64) break; // can't shift by 64
       }
-    }
+    } while ((block += 64) != (word_t)NEDGES);
     assert (j == PROOFSIZE);
   }
   ctx->nsols = ctx->cg.nsols;

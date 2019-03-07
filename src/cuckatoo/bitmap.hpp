@@ -11,7 +11,7 @@ public:
   aword_t *bits;
   const u32 BITS_PER_WORD = sizeof(word_t) * 8;
 
-  bitmap(word_t size) {
+  bitmap(u64 size) {
     SIZE = size;
     BITMAP_WORDS = SIZE / BITS_PER_WORD;
     bits = new aword_t[BITMAP_WORDS];

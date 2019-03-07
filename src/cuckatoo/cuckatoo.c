@@ -1,5 +1,5 @@
-// Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2016 John Tromp
+// Cuck(at)oo Cycle, a memory-hard proof-of-work
+// Copyright (c) 2013-2019 John Tromp
 
 #include "cuckatoo.h"
 #include <inttypes.h> // for SCNx64 macro
@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
   }
   char headernonce[HEADERLEN];
   u32 hdrlen = strlen(header);
+  assert(hdrlen <= HEADERLEN);
   memcpy(headernonce, header, hdrlen);
   memset(headernonce+hdrlen, 0, sizeof(headernonce)-hdrlen);
   ((u32 *)headernonce)[HEADERLEN/sizeof(u32)-1] = htole32(nonce);
