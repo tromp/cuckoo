@@ -188,6 +188,6 @@ Projects using Cuckoo Cycle
 
 Projects reconsidering Cuckoo Cycle
 --------------
-* [Handshake] (https://handshake.org) found [unreconcilable issues] (https://handshake.org/files/handshake.txt)
+* [Handshake](https://handshake.org) found [unreconcilable issues](https://handshake.org/files/handshake.txt)
 
 ![](img/logo.png?raw=true)
