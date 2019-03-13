@@ -28,7 +28,7 @@
 // Here we have the default XBITS=YBITS=7, ZBITS=15 summing to EDGEBITS=29
 // nodebits   XXXXXXX YYYYYYY ZZZZZZZZZZZZZZZ
 // bit%10     8765432 1098765 432109876543210
-// bit/10     2222222 2111111 111110000000000
+// bit/10     2222222 2211111 111110000000000
 
 // The matrix solver stores all edges in a matrix of NX * NX buckets,
 // where NX = 2^XBITS is the number of possible values of the 'X' bits.
