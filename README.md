@@ -132,6 +132,8 @@ that finds 42-cycles twice as fast as mean_miner.cu on 2^29 edge graphs on compa
 
 The Makefile defines corresponding targets leancpubounty, meancpubounty, tmtobounty, and gpubounty.
 
+User Photon has submitted a successful half bounty claim, which I'm in the (slow) process of integrating.
+
 Double and fractional bounties
 ------------------------------
 Improvements by a factor of 4 will be rewarded with double the regular bounty.
@@ -185,5 +187,9 @@ Projects using Cuckoo Cycle
 * [BIP 154: Rate Limiting via peer specified challenges; Bitcoin Peer Services](https://github.com/bitcoin/bips/blob/master/bip-0154.mediawiki)
 * [Raddi // radically decentralized discussion](http://www.raddi.net/)
 * [Cortex // AI on Blockchain](https://www.cortexlabs.ai/)
+
+Projects reconsidering Cuckoo Cycle
+--------------
+* [Handshake](https://handshake.org) found [unreconcilable issues](https://handshake.org/files/handshake.txt)
 
 ![](img/logo.png?raw=true)
