@@ -12,7 +12,7 @@ template <typename word_t>
 class graph {
 public:
   // terminates adjacency lists
-  const word_t NIL = ~(word_t)0;
+  const word_t NIL = ~(word_t)0;	// NOTE: matches last edge when EDGEBITS==32
 
   struct link { // element of adjacency list
     word_t next;
@@ -36,6 +36,7 @@ public:
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
+    assert((u32)(2*MAXNODES));
     adjlist = new word_t[2*MAXNODES]; // index into links array
     links   = new link[2*MAXEDGES];
     compressu = compressv = 0;
@@ -56,6 +57,7 @@ public:
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
+    assert((u32)(2*MAXNODES));
     adjlist = new word_t[2*MAXNODES]; // index into links array
     links   = new link[2*MAXEDGES];
     compressu = new compressor<word_t>(EDGEBITS, compressbits);
@@ -69,6 +71,7 @@ public:
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
+    assert((u32)(2*MAXNODES));
     adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
     links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[2*MAXEDGES];
     compressu = compressv = 0;
@@ -81,6 +84,7 @@ public:
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
+    assert((u32)(2*MAXNODES));
     adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
     links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[2*MAXEDGES];
     compressu = new compressor<word_t>(EDGEBITS, compressbits, bytes += sizeof(link[2*MAXEDGES]));
@@ -150,7 +154,7 @@ public:
     }
     word_t ulink = nlinks++;
     word_t vlink = nlinks++; // the two halfedges of an edge differ only in last bit
-    assert(vlink != NIL);    // avoid confusing links with NIL; guaranteed if bits in word_t > EDGEBITS + 1
+    assert(vlink != NIL);    // avoid confusing links with NIL (possible if word_t is u32 and EDGEBITS is 31 or 32)
     links[ulink].next = adjlist[u];
     links[vlink].next = adjlist[v];
     links[adjlist[u] = ulink].to = u;
