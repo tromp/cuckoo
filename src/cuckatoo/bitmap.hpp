@@ -1,7 +1,7 @@
 template <typename word_t>
 class bitmap {
 public:
-  word_t SIZE;
+  u64 SIZE;
   word_t BITMAP_WORDS;
 #ifdef ATOMIC
   typedef std::atomic<word_t> aword_t;

@@ -36,7 +36,6 @@ public:
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
-    assert((u32)(2*MAXNODES));
     adjlist = new word_t[2*MAXNODES]; // index into links array
     links   = new link[2*MAXEDGES];
     compressu = compressv = 0;
@@ -57,7 +56,6 @@ public:
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
-    assert((u32)(2*MAXNODES));
     adjlist = new word_t[2*MAXNODES]; // index into links array
     links   = new link[2*MAXEDGES];
     compressu = new compressor<word_t>(EDGEBITS, compressbits);
@@ -71,7 +69,6 @@ public:
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
-    assert((u32)(2*MAXNODES));
     adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
     links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[2*MAXEDGES];
     compressu = compressv = 0;
@@ -84,7 +81,6 @@ public:
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
-    assert((u32)(2*MAXNODES));
     adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
     links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[2*MAXEDGES];
     compressu = new compressor<word_t>(EDGEBITS, compressbits, bytes += sizeof(link[2*MAXEDGES]));
