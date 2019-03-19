@@ -23,10 +23,11 @@ public:
     SIZEBITS = NODEBITS-COMPRESSBITS;
     SIZEBITS1 = SIZEBITS-1;
     SIZE = (word_t)1 << SIZEBITS;
-    nodes = new (bytes) word_t[SIZE];
-    sharedmem = true;
+    assert(SIZE);
     MASK = SIZE-1;
     MASK1 = MASK >> 1;
+    nodes = new (bytes) word_t[SIZE];
+    sharedmem = true;
   }
 
   compressor(u32 nodebits, u32 compressbits) {
@@ -35,10 +36,11 @@ public:
     SIZEBITS = NODEBITS-COMPRESSBITS;
     SIZEBITS1 = SIZEBITS-1;
     SIZE = (word_t)1 << SIZEBITS;
-    nodes = new word_t[SIZE];
-    sharedmem = false;
+    assert(SIZE);
     MASK = SIZE-1;
     MASK1 = MASK >> 1;
+    nodes = new word_t[SIZE];
+    sharedmem = false;
   }
 
   ~compressor() {

@@ -107,7 +107,7 @@ struct SolverStats {
 
 // generate edge endpoint in cuck(at)oo graph without partition bit
 word_t sipnode(siphash_keys *keys, word_t edge, u32 uorv) {
-  return keys->siphash24(2*edge + uorv) & EDGEMASK;
+  return keys->siphash24(2*(u64)edge + uorv) & EDGEMASK;
 }
 
 enum verify_code { POW_OK, POW_HEADER_LENGTH, POW_TOO_BIG, POW_TOO_SMALL, POW_NON_MATCHING, POW_BRANCH, POW_DEAD_END, POW_SHORT_CYCLE};

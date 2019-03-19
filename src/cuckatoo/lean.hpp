@@ -72,8 +72,8 @@ public:
   u32 nthreads;
 
   shrinkingset(const u32 nt) : bmap(NEDGES) {
-    cnt  = new u64[nt];
     nthreads = nt;
+    cnt  = new u64[nt];
   }
   ~shrinkingset() {
     delete[] cnt;
@@ -81,17 +81,16 @@ public:
   void clear() {
     bmap.clear();
     memset(cnt, 0, nthreads * sizeof(u64));
-    cnt[0] = NEDGES;
   }
   u64 count() const {
-    u64 sum = 0LL;
+    u64 sum = NEDGES;
     for (u32 i=0; i<nthreads; i++)
-      sum += cnt[i];
+      sum -= cnt[i];
     return sum;
   }
   void reset(word_t n, u32 thread) {
     bmap.set(n);
-    cnt[thread]--;
+    cnt[thread]++;
   }
   bool test(word_t n) const {
     return !bmap.test(n);
@@ -173,13 +172,14 @@ public:
   
     memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf.set(0) to reduce branching
     u32 nidx = 0;
-    word_t block = id * 64;
-    do {
+    word_t nloops = NEDGES / 64 / nthreads;
+    for (word_t loop = 0; loop < nloops; loop++) {
+      word_t block = 64 * (id + loop * nthreads);
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        indices[nidx++ % NSIPHASH] = 2*nonce + uorv;
+        indices[nidx++ % NSIPHASH] = 2*(u64)nonce + uorv;
         if (nidx % NSIPHASH == 0) {
           node_deg(hashes+nidx-NSIPHASH, NSIPHASH, part);
           siphash24xN(&sip_keys, indices, hashes+nidx-NSIPHASH);
@@ -188,7 +188,7 @@ public:
         }
         if (ffs & 64) break; // can't shift by 64
       }
-    } while ((block += nthreads*64) != (word_t)NEDGES);
+    }
     node_deg(hashes, NPREFETCH, part);
     if (nidx % NSIPHASH != 0) {
       siphash24xN(&sip_keys, indices, hashes+(nidx&-NSIPHASH));
@@ -202,13 +202,14 @@ public:
     for (int i=0; i < NPREFETCH; i++)
       hashes[i] = 1; // allow many nonleaf.test(0) to reduce branching
     u32 nidx = 0;
-    word_t block = id * 64;
-    do {
+    word_t nloops = NEDGES / 64 / nthreads;
+    for (word_t loop = 0; loop < nloops; loop++) {
+      word_t block = 64 * (id + loop * nthreads);
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
         nonce += ffs; alive64 >>= ffs;
-        indices[nidx++] = 2*nonce + uorv;
+        indices[nidx++] = 2*(u64)nonce + uorv;
         if (nidx % NSIPHASH == 0) {
           siphash24xN(&sip_keys, indices+nidx-NSIPHASH, hashes+nidx-NSIPHASH);
           prefetch(hashes+nidx-NSIPHASH, part);
@@ -217,7 +218,7 @@ public:
         }
         if (ffs & 64) break; // can't shift by 64
       }
-    } while ((block += nthreads*64) != (word_t)NEDGES);
+    }
     const u32 pnsip = nidx & -NSIPHASH;
     if (pnsip != nidx) {
       siphash24xN(&sip_keys, indices+pnsip, hashes+pnsip);
@@ -239,10 +240,14 @@ void *worker(void *vp) {
   cuckoo_ctx *ctx = tp->ctx;
 
   shrinkingset &alive = ctx->alive;
-  // if (tp->id == 0) print_log("initial size %d\n", NEDGES);
+#ifdef VERBOSE
+  if (tp->id == 0) print_log("initial size %llu\n", NEDGES);
+#endif
   u32 round;
   for (round=0; round < ctx->ntrims; round++) {
-    // if (tp->id == 0) print_log("round %2d partition sizes", round);
+#ifdef VERBOSE
+    if (tp->id == 0) print_log("round %2d partition sizes", round);
+#endif
     for (u32 part = 0; part <= PART_MASK; part++) {
       if (tp->id == 0)
         ctx->nonleaf.clear(); // clear all counts
@@ -250,17 +255,22 @@ void *worker(void *vp) {
       ctx->count_node_deg(tp->id,round&1,part);
       ctx->barrier();
       ctx->kill_leaf_edges(tp->id,round&1,part);
-      // if (tp->id == 0) print_log(" %c%d %d", "UV"[round&1], part, alive.count());
+#ifdef VERBOSE
+      if (tp->id == 0) print_log(" %c%d %llu", "UV"[round&1], part, alive.count());
+#endif
       ctx->barrier();
     }
-    // if (tp->id == 0) print_log("\n");
+#ifdef VERBOSE
+    if (tp->id == 0) print_log("\n");
+#endif
   }
   if (tp->id != 0)
     pthread_exit(NULL);
   print_log("%d trims completed  %d edges left\n", round-1, alive.count());
   ctx->cg.reset();
-  word_t block = 0;
-  do {
+  word_t nloops = NEDGES / 64;
+  for (word_t loop = 0; loop < nloops; loop++) {
+    word_t block = 64 * loop;
     u64 alive64 = alive.block(block);
     for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
@@ -269,11 +279,12 @@ void *worker(void *vp) {
       ctx->cg.add_compress_edge(u, v);
       if (ffs & 64) break; // can't shift by 64
     }
-  } while ((block += 64) != (word_t)NEDGES);
+  }
   for (u32 s=0; s < ctx->cg.nsols; s++) {
     u32 j = 0, nalive = 0;
-    word_t block = 0;
-    do {
+    word_t nloops = NEDGES / 64;
+    for (word_t loop = 0; loop < nloops; loop++) {
+      word_t block = 64 * loop;
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
@@ -283,7 +294,7 @@ void *worker(void *vp) {
         }
         if (ffs & 64) break; // can't shift by 64
       }
-    } while ((block += 64) != (word_t)NEDGES);
+    }
     assert (j == PROOFSIZE);
   }
   ctx->nsols = ctx->cg.nsols;
