@@ -5,8 +5,10 @@
 #include <unistd.h>
 #include <chrono>
 
+#ifndef HEADERLEN
 // arbitrary length of header hashed into siphash key
 #define HEADERLEN 80
+#endif
 
 typedef solver_ctx SolverCtx;
 

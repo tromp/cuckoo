@@ -38,10 +38,12 @@ typedef u32 word_t;
 typedef uint16_t word_t;
 #endif
 
-// number of edges
-#define NEDGES (1ULL << EDGEBITS)
+// number of nodes in one partition
+#define NNODES1 (1ULL << EDGEBITS)
 // used to mask siphash output
-#define EDGEMASK ((word_t)NEDGES - 1)
+#define NODEMASK ((word_t)NNODES1 - 1)
+// number of edges
+#define NEDGES NNODES1
 
 // Common Solver parameters, to return to caller
 struct SolverParams {
@@ -107,7 +109,7 @@ struct SolverStats {
 
 // generate edge endpoint in cuck(at)oo graph without partition bit
 word_t sipnode(siphash_keys *keys, word_t edge, u32 uorv) {
-  return keys->siphash24(2*(u64)edge + uorv) & EDGEMASK;
+  return keys->siphash24(2*(u64)edge + uorv) & NODEMASK;
 }
 
 enum verify_code { POW_OK, POW_HEADER_LENGTH, POW_TOO_BIG, POW_TOO_SMALL, POW_NON_MATCHING, POW_BRANCH, POW_DEAD_END, POW_SHORT_CYCLE};
@@ -119,7 +121,7 @@ int verify(word_t edges[PROOFSIZE], siphash_keys *keys) {
   xor0 = xor1 = (PROOFSIZE/2) & 1;
 
   for (u32 n = 0; n < PROOFSIZE; n++) {
-    if (edges[n] > EDGEMASK)
+    if (edges[n] > NODEMASK)
       return POW_TOO_BIG;
     if (n && edges[n] <= edges[n-1])
       return POW_TOO_SMALL;

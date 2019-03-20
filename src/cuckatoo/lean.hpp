@@ -114,10 +114,10 @@ public:
   bool mutatenonce;
   trim_barrier barry;
 
-  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols, bool mutate_nonce) : alive(n_threads), nonleaf(NEDGES >> PART_BITS),
+  cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols, bool mutate_nonce) : alive(n_threads), nonleaf(NNODES1 >> PART_BITS),
       cg(MAXEDGES, MAXEDGES, max_sols, IDXSHIFT, (char *)nonleaf.bits), barry(n_threads) {
     print_log("cg.bytes %llu NEDGES/8 %llu\n", cg.bytes(), NEDGES/8);
-    assert(cg.bytes() <= NEDGES/8); // check that graph cg can fit in share nonleaf's memory
+    assert(cg.bytes() <= NNODES1/8); // check that graph cg can fit in share nonleaf's memory
     nthreads = n_threads;
     ntrims = n_trims;
     sols = new proof[max_sols];
@@ -144,7 +144,7 @@ public:
   }
   void prefetch(const u64 *hashes, const u32 part) const {
     for (u32 i=0; i < NSIPHASH; i++) {
-      u64 u = hashes[i] & EDGEMASK;
+      u64 u = hashes[i] & NODEMASK;
       if ((u >> NONPART_BITS) == part) {
         nonleaf.prefetch(u & NONPART_MASK);
       }
@@ -152,7 +152,7 @@ public:
   }
   void node_deg(const u64 *hashes, const u32 nsiphash, const u32 part) {
     for (u32 i=0; i < nsiphash; i++) {
-      u64 u = hashes[i] & EDGEMASK;
+      u64 u = hashes[i] & NODEMASK;
       if ((u >> NONPART_BITS) == part) {
         nonleaf.set(u & NONPART_MASK);
       }
@@ -160,7 +160,7 @@ public:
   }
   void kill(const u64 *hashes, const u64 *indices, const u32 nsiphash, const u32 part, const u32 id) {
     for (u32 i=0; i < nsiphash; i++) {
-      u64 u = hashes[i] & EDGEMASK;
+      u64 u = hashes[i] & NODEMASK;
       if ((u >> NONPART_BITS) == part && !nonleaf.test((u & NONPART_MASK) ^ 1)) {
         alive.reset(indices[i]/2, id);
       }
