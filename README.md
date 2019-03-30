@@ -125,6 +125,8 @@ All of these bounties require N ranging over {2^27,2^29,2^31} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
 recent gcc compiler with regular flags as in my Makefile.
 
+Wilke Trei has submitted a bounty claim with his slean miner, which is now under evaluation.
+
 GPU Speedup Bounty
 ------------------
 $5000 for an open source implementation for a consumer GPU
