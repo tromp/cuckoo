@@ -148,6 +148,7 @@ const u32 NNONYZ        = 1 << NONYZBITS;
 
 // 1/32 reduces odds of overflowing z bucket on 2^30 nodes to 2^14*e^-32
 // (less than 1 in a billion) in theory. not so in practice (fails first at mean30 -n 1549)
+// 3/64 works well for 29, would need to be enlarged to 1/16 for EDGEBITS=27
 #ifndef BIGEPS
 #define BIGEPS 3/64
 #endif

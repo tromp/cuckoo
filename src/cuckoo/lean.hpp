@@ -66,11 +66,11 @@ const word_t NODEMASK = (EDGEMASK << 1) | (word_t)1;
 
 #ifndef IDXSHIFT
 // we want sizeof(cuckoo_hash) == sizeof(twice_set), so
-// CUCKOO_SIZE * sizeof(u64)   == 2 * ONCE_BITS / 32
-// CUCKOO_SIZE * 2             == 2 * ONCE_BITS / 32
-// (NNODES >> IDXSHIFT) * 2      == 2 * ONCE_BITS / 32
-// NNODES >> IDXSHIFT            == NEDGES >> PART_BITS >> 5
-// IDXSHIFT                    == 1 + PART_BITS + 5
+// CUCKOO_SIZE * sizeof(u64)   == 2 * ONCE_BITS / 8
+// CUCKOO_SIZE * 8             == ONCE_BITS / 4
+// NEDGES >> (IDXSHIFT-1)      == ONCE_BITS / 32
+// NEDGES >> (IDXSHIFT-1)      == NEDGES >> PART_BITS >> 5
+// IDXSHIFT - 1                == PART_BITS + 5
 #define IDXSHIFT (PART_BITS + 6)
 #endif
 // grow with cube root of size, hardly affected by trimming
