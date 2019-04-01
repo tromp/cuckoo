@@ -112,7 +112,9 @@ In support of these claims, I offer the following bounties:
 CPU Speedup Bounties
 --------------------
 $10000 for an open source implementation that finds 42-cycles twice as fast
-as lean_miner, using no more than 1 byte per edge.
+as slean_miner, using no more than 1 byte per edge.
+
+Wilke Trei has submitted a successful (1-1/e)-bounty claim with his slean miner at https://github.com/Lolliedieb/cuckoo
 
 $10000 for an open source implementation that finds 42-cycles twice as fast
 as mean_miner, regardless of memory use.
@@ -124,8 +126,6 @@ $10000 for an open source implementation that uses at most N/k bits while findin
 All of these bounties require N ranging over {2^27,2^29,2^31} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
 recent gcc compiler with regular flags as in my Makefile.
-
-Wilke Trei has submitted a bounty claim with his slean miner, which is now under evaluation.
 
 GPU Speedup Bounty
 ------------------
