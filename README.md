@@ -112,7 +112,7 @@ In support of these claims, I offer the following bounties:
 CPU Speedup Bounties
 --------------------
 $10000 for an open source implementation that finds 42-cycles twice as fast
-as slean_miner, using no more than 1 byte per edge.
+as cuckoo/slean_miner, using no more than 1 byte per edge.
 
 Wilke Trei has submitted a successful (1-1/e)-bounty claim with his slean miner at https://github.com/Lolliedieb/cuckoo
 
@@ -130,7 +130,10 @@ recent gcc compiler with regular flags as in my Makefile.
 GPU Speedup Bounty
 ------------------
 $5000 for an open source implementation for a consumer GPU
-that finds 42-cycles twice as fast as mean_miner.cu on 2^29 edge graphs on comparable hardware.
+that finds 42-cycles twice as fast as cuckoo/lean_miner.cu on 2^29 edge graphs on comparable hardware, using no more than a nibble per edge.
+
+$5000 for an open source implementation for a consumer GPU
+that finds 42-cycles twice as fast as cuckoo/mean_miner.cu on 2^29 edge graphs on comparable hardware.
 
 The Makefile defines corresponding targets leancpubounty, meancpubounty, tmtobounty, and gpubounty.
 
