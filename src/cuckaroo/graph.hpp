@@ -12,7 +12,7 @@ template <typename word_t>
 class graph {
 public:
   // terminates adjacency lists
-  const word_t NIL = ~(word_t)0;
+  static const word_t NIL = ~(word_t)0;
 
   struct link { // element of adjacency list
     word_t next;

@@ -937,7 +937,7 @@ public:
               if (renames == endrenames) {
                 endrenames += (TRIMONV ? sizeof(yzbucket<ZBUCKETSIZE>) : sizeof(zbucket<ZBUCKETSIZE>)) / sizeof(u32);
                 renames = endrenames - NZ2/2;
-                assert(renames < buckets[NX][NY].renameu1);
+                // assert(renames < buckets[NX][NY].renameu1);
               }
             }
             vdeg = ((vdeg-0x0102) << 1) | (vyz & 1); // preserve parity
