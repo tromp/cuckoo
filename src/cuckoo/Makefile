@@ -43,6 +43,15 @@ lean19x1:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
 lean19x8:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DNSIPHASH=8 -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
 
+lean27x1:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -DATOMIC -DNSIPHASH=1 -DEDGEBITS=27 lean.cpp $(BLAKE_2B_SRC)
+
+lean29x1:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -DATOMIC -DNSIPHASH=1 -DEDGEBITS=29 lean.cpp $(BLAKE_2B_SRC)
+
+lean31x1:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -DATOMIC -DNSIPHASH=1 -DEDGEBITS=31 lean.cpp $(BLAKE_2B_SRC)
+
 lean29x8:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean.cpp $(BLAKE_2B_SRC)
 
