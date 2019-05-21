@@ -931,6 +931,7 @@ public:
               if (renames == endrenames) {
                 endrenames += (TRIMONV ? sizeof(yzbucket<ZBUCKETSIZE>) : sizeof(zbucket<ZBUCKETSIZE>)) / sizeof(u32);
                 renames = endrenames - NZ2;
+                assert(renames < buckets[NX][0].renameu1);
               }
             }
 // bit       25...15     14...0

@@ -75,7 +75,7 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
 
 CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
   if (params->nthreads == 0) params->nthreads = 1;
-  if (params->ntrims == 0) params->ntrims = EDGEBITS > 30 ? 96 : 68;
+  if (params->ntrims == 0) params->ntrims = EDGEBITS >= 30 ? 96 : 68;
 
   SolverCtx* ctx = new SolverCtx(params->nthreads,
                                  params->ntrims,

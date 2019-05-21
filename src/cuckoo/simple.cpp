@@ -55,6 +55,15 @@ public:
   #endif
       cb.addedge(u, v);
     }
+#ifdef CCSIZE1000
+    u32 nlarge = 0;
+    for (u32 i=0; i<NNODES; i++) {
+      int size = -cb.cuckoo[i];
+      if (size >= 1000)
+        nlarge += size;
+    }
+    printf("%u nodes in ccsize >= 1000\n", nlarge);
+#endif
   }
 };
 
