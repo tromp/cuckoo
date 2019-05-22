@@ -22,7 +22,7 @@ typedef uint64_t u64;
 #ifndef EDGEBITS
 // the main parameter is the number of bits in an edge index,
 // i.e. the 2-log of the number of edges
-#define EDGEBITS 29
+#define EDGEBITS 31
 #endif
 #ifndef PROOFSIZE
 // the next most important parameter is the (even) length
@@ -30,18 +30,20 @@ typedef uint64_t u64;
 #define PROOFSIZE 42
 #endif
 
-#if EDGEBITS > 31
+#if EDGEBITS > 32
 typedef uint64_t word_t;
-#elif EDGEBITS > 14
+#elif EDGEBITS > 16
 typedef u32 word_t;
-#else // if EDGEBITS <= 14
+#else // if EDGEBITS <= 16
 typedef uint16_t word_t;
 #endif
 
-// number of edges
-#define NEDGES ((word_t)1 << EDGEBITS)
+// number of nodes in one partition
+#define NNODES1 (1ULL << EDGEBITS)
 // used to mask siphash output
-#define EDGEMASK ((word_t)NEDGES - 1)
+#define NODEMASK ((word_t)NNODES1 - 1)
+// number of edges
+#define NEDGES NNODES1
 
 // Common Solver parameters, to return to caller
 struct SolverParams {
@@ -107,7 +109,7 @@ struct SolverStats {
 
 // generate edge endpoint in cuck(at)oo graph without partition bit
 word_t sipnode(siphash_keys *keys, word_t edge, u32 uorv) {
-  return keys->siphash24(2*edge + uorv) & EDGEMASK;
+  return keys->siphash24(2*(u64)edge + uorv) & NODEMASK;
 }
 
 enum verify_code { POW_OK, POW_HEADER_LENGTH, POW_TOO_BIG, POW_TOO_SMALL, POW_NON_MATCHING, POW_BRANCH, POW_DEAD_END, POW_SHORT_CYCLE};
@@ -119,7 +121,7 @@ int verify(word_t edges[PROOFSIZE], siphash_keys *keys) {
   xor0 = xor1 = (PROOFSIZE/2) & 1;
 
   for (u32 n = 0; n < PROOFSIZE; n++) {
-    if (edges[n] > EDGEMASK)
+    if (edges[n] > NODEMASK)
       return POW_TOO_BIG;
     if (n && edges[n] <= edges[n-1])
       return POW_TOO_SMALL;
@@ -151,11 +153,6 @@ void setheader(const char *header, const u32 headerlen, siphash_keys *keys) {
   // SHA256((unsigned char *)header, headerlen, (unsigned char *)hdrkey);
   blake2b((void *)hdrkey, sizeof(hdrkey), (const void *)header, headerlen, 0, 0);
   keys->setkeys(hdrkey);
-}
-
-// edge endpoint in cuckatoo graph with partition bit
-word_t sipnode_(siphash_keys *keys, word_t edge, u32 uorv) {
-  return (word_t)sipnode(keys, edge, uorv) << 1 | uorv;
 }
 
 u64 timestamp() {

@@ -20,7 +20,6 @@ struct cyclebase {
 
   int ncycles;
   word_t *cuckoo;
-  u32 *pathcount;
   edge cycleedges[MAXCYCLES];
   u32 cyclelengths[MAXCYCLES];
   u32 prevcycle[MAXCYCLES];
@@ -29,12 +28,10 @@ struct cyclebase {
 
   void alloc() {
     cuckoo = (word_t *)calloc(NCUCKOO, sizeof(word_t));
-    pathcount = (u32 *)calloc(NCUCKOO, sizeof(u32));
   }
 
   void freemem() { // not a destructor, as memory may have been allocated elsewhere, bypassing alloc()
     free(cuckoo);
-    free(pathcount);
   }
 
   void reset() {
@@ -43,14 +40,12 @@ struct cyclebase {
 
   void resetcounts() {
     memset(cuckoo, -1, NCUCKOO * sizeof(word_t)); // for prevcycle nil
-    memset(pathcount, 0, NCUCKOO * sizeof(u32));
     ncycles = 0;
   }
 
   int path(u32 u0, u32 *us) const {
     int nu;
-    for (u32 u = us[nu = 0] = u0; pathcount[u]; ) {
-      pathcount[u]++;
+    for (u32 u = us[nu = 0] = u0; cuckoo[u] < 0x80000000; ) {
       u = cuckoo[u];
       if (++nu >= (int)MAXPATHLEN) {
         while (nu-- && us[nu] != u) ;
@@ -76,9 +71,10 @@ struct cyclebase {
     u32 u = u0 << 1, v = (v0 << 1) | 1;
     int nu = path(u, us), nv = path(v, vs);
     if (us[nu] == vs[nv]) {
+     u32 ccsize = -cuckoo[us[nu]];
       pathjoin(us, &nu, vs, &nv);
       int len = nu + nv + 1;
-      printf("% 4d-cycle found\n", len);
+      printf("% 4d-cycle found in ccsize %d\n", len, ccsize);
       cycleedges[ncycles].u = u;
       cycleedges[ncycles].v = v;
       cyclelengths[ncycles++] = len;
@@ -86,12 +82,12 @@ struct cyclebase {
         solution(us, nu, vs, nv);
       assert(ncycles < MAXCYCLES);
     } else if (nu < nv) {
-      pathcount[us[nu]]++;
+      cuckoo[vs[nv]] += cuckoo[us[nu]];
       while (nu--)
         cuckoo[us[nu+1]] = us[nu];
       cuckoo[u] = v;
     } else {
-      pathcount[vs[nv]]++;
+      cuckoo[us[nu]] += cuckoo[vs[nv]];
       while (nv--)
         cuckoo[vs[nv+1]] = vs[nv];
       cuckoo[v] = u;
@@ -127,57 +123,5 @@ struct cyclebase {
     int len = 0;
     for (; nu-- && nv-- && us[nu] == vs[nv]; len++) ;
     return len;
-  }
-
-  void cycles() {
-    int len, len2;
-    word_t us2[MAXPATHLEN], vs2[MAXPATHLEN];
-    for (int i=0; i < ncycles; i++) {
-      word_t u = cycleedges[i].u, v = cycleedges[i].v;
-      int   nu = path(u, us),    nv = path(v, vs);
-      word_t root = us[nu]; assert(root == vs[nv]);
-      int i2 = prevcycle[i] = cuckoo[root];
-      cuckoo[root] = i;
-      if (i2 < 0) continue;
-      int rootdist = pathjoin(us, &nu, vs, &nv);
-      do  {
-        printf("chord found at cycleids %d %d\n", i2, i);
-        word_t u2 = cycleedges[i2].u, v2 = cycleedges[i2].v;
-        int nu2 = path(u2, us2), nv2 = path(v2, vs2);
-        word_t root2 = us2[nu2]; assert(root2 == vs2[nv2] && root == root2);
-        int rootdist2 = pathjoin(us2, &nu2, vs2, &nv2);
-        if (us[nu] == us2[nu2]) {
-          len  = sharedlen(us,nu,us2,nu2) + sharedlen(us,nu,vs2,nv2);
-          len2 = sharedlen(vs,nv,us2,nu2) + sharedlen(vs,nv,vs2,nv2);
-          if (len + len2 > 0) {
-#if 0
-            word_t ubranch = us[nu-len], vbranch = vs[nv-len2];
-            addpath(ubranch, vbranch, len+len2);
-            addpath(ubranch, vbranch, len+len2);
-#endif
-            printf(" % 4d-cycle found At %d%%\n", cyclelengths[i] + cyclelengths[i2] - 2*(len+len2), (int)(i*100L/ncycles));
-          }
-        } else {
-          int rd = rootdist - rootdist2;
-          if (rd < 0) {
-            if (nu+rd > 0 && us2[nu2] == us[nu+rd]) {
-              int len = sharedlen(us,nu+rd,us2,nu2) + sharedlen(us,nu+rd,vs2,nv2);
-              if (len) printf(" % 4d-cycle found At %d%%\n", cyclelengths[i] + cyclelengths[i2] - 2*len, (int)(i*100L/ncycles));
-            } else if (nv+rd > 0 && vs2[nv2] == vs[nv+rd]) {
-              int len = sharedlen(vs,nv+rd,us2,nu2) + sharedlen(vs,nv+rd,vs2,nv2);
-              if (len) printf(" % 4d-cycle found At %d%%\n", cyclelengths[i] + cyclelengths[i2] - 2*len, (int)(i*100L/ncycles));
-            }
-          } else if (rd > 0) {
-            if (nu2-rd > 0 && us[nu] == us2[nu2-rd]) {
-              int len = sharedlen(us2,nu2-rd,us,nu) + sharedlen(us2,nu2-rd,vs,nv);
-              if (len) printf(" % 4d-cycle found At %d%%\n", cyclelengths[i] + cyclelengths[i2] - 2*len, (int)(i*100L/ncycles));
-            } else if (nv2-rd > 0 && vs[nv] == vs2[nv2-rd]) {
-              int len = sharedlen(vs2,nv2-rd,us,nu) + sharedlen(vs2,nv2-rd,vs,nv);
-              if (len) printf(" % 4d-cycle found At %d%%\n", cyclelengths[i] + cyclelengths[i2] - 2*len, (int)(i*100L/ncycles));
-            }
-          } // else cyles are disjoint
-        }
-      } while ((i2 = prevcycle[i2]) >= 0);
-    }
   }
 };

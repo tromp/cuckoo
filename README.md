@@ -121,9 +121,9 @@ as mean_miner, regardless of memory use.
 
 Linear Time-Memory Trade-Off Bounty
 -----------------------------------
-$10000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
+$10000 for an open source implementation that uses at most 2^N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
 
-All of these bounties require N ranging over {2^27,2^29,2^31} and #threads
+All of these bounties require N ranging over {27,29,31} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
 recent gcc compiler with regular flags as in my Makefile.
 

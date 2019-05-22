@@ -12,7 +12,7 @@ template <typename word_t>
 class graph {
 public:
   // terminates adjacency lists
-  const word_t NIL = ~(word_t)0;
+  const word_t NIL = ~(word_t)0;	// NOTE: matches last edge when EDGEBITS==32
 
   struct link { // element of adjacency list
     word_t next;
@@ -150,7 +150,7 @@ public:
     }
     word_t ulink = nlinks++;
     word_t vlink = nlinks++; // the two halfedges of an edge differ only in last bit
-    assert(vlink != NIL);    // avoid confusing links with NIL; guaranteed if bits in word_t > EDGEBITS + 1
+    assert(vlink != NIL);    // avoid confusing links with NIL (possible if word_t is u32 and EDGEBITS is 31 or 32)
     links[ulink].next = adjlist[u];
     links[vlink].next = adjlist[v];
     links[adjlist[u] = ulink].to = u;

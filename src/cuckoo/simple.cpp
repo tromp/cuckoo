@@ -55,6 +55,15 @@ public:
   #endif
       cb.addedge(u, v);
     }
+#ifdef CCSIZE1000
+    u32 nlarge = 0;
+    for (u32 i=0; i<NNODES; i++) {
+      int size = -cb.cuckoo[i];
+      if (size >= 1000)
+        nlarge += size;
+    }
+    printf("%u nodes in ccsize >= 1000\n", nlarge);
+#endif
   }
 };
 
@@ -103,7 +112,6 @@ int main(int argc, char **argv) {
     ctx.setheadernonce(header, sizeof(header), nonce + r);
     printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce+r, ctx.sip_keys.k0, ctx.sip_keys.k1, ctx.sip_keys.k2, ctx.sip_keys.k3);
     ctx.cycle_base();
-    ctx.cb.cycles();
     time1 = timestamp(); timems = (time1 - time0) / 1000000;
     printf("Time: %d ms\n", timems);
   }

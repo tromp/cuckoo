@@ -36,8 +36,6 @@ typedef uint64_t u64; // save some typing
 #define XBITS 6
 #endif
 
-#define NODEBITS (EDGEBITS + 1)
-
 const u32 NX        = 1 << XBITS;
 const u32 XMASK     = NX - 1;
 const u32 NX2       = NX * NX;
@@ -56,11 +54,11 @@ const u32 ZMASK     = NZ - 1;
 #endif
 #define NEPS 128
 
-const u32 EDGES_A = NZ * NEPS_A / NEPS;
-const u32 EDGES_B = NZ * NEPS_B / NEPS;
+const u64 EDGES_A = NZ * NEPS_A / NEPS;
+const u64 EDGES_B = NZ * NEPS_B / NEPS;
 
-const u32 ROW_EDGES_A = EDGES_A * NY;
-const u32 ROW_EDGES_B = EDGES_B * NY;
+const u64 ROW_EDGES_A = EDGES_A * NY;
+const u64 ROW_EDGES_B = EDGES_B * NY;
 
 // Number of rows in bufferB not overlapping bufferA
 #ifndef NRB1
@@ -873,12 +871,12 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
   params->device = 0;
   params->ntrims = tp.ntrims;
   params->expand = tp.expand;
-  params->genablocks = min(tp.genA.blocks, NEDGES/tp.genA.tpb);
+  params->genablocks = min(tp.genA.blocks, (u16)(NEDGES/tp.genA.tpb));
   params->genatpb = tp.genA.tpb;
   params->genbtpb = tp.genB.tpb;
   params->trimtpb = tp.trim.tpb;
   params->tailtpb = tp.tail.tpb;
-  params->recoverblocks = min(tp.recover.blocks, NEDGES/tp.recover.tpb);
+  params->recoverblocks = min(tp.recover.blocks, (u16)(NEDGES/tp.recover.tpb));
   params->recovertpb = tp.recover.tpb;
   params->cpuload = false;
 }
@@ -900,8 +898,8 @@ int main(int argc, char **argv) {
   while ((c = getopt(argc, argv, "scb:d:E:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
     switch (c) {
       case 's':
-        print_log("SYNOPSIS\n  cuda%d [-s] [-c] [-d device] [-E 0/2/3] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", NODEBITS);
-        print_log("DEFAULTS\n  cuda%d -d %d -E %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", NODEBITS, device, tp.expand, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
+        print_log("SYNOPSIS\n  cuda%d [-s] [-c] [-d device] [-E 0/2/3] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", EDGEBITS);
+        print_log("DEFAULTS\n  cuda%d -d %d -E %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", EDGEBITS, device, tp.expand, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
         exit(0);
       case 'c':
         params.cpuload = false;

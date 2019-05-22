@@ -87,7 +87,7 @@ public:
   }
 };
  
-__device__ uint64_t dipnode(const siphash_keys &sip_keys, const uint32_t nonce, const int uorv) {
+__device__ uint64_t dipnode(const siphash_keys &sip_keys, const uint64_t nonce, const int uorv) {
   diphash_state v(sip_keys);
   v.hash24((nonce << 1) | uorv);
   return v.xor_lanes() & EDGEMASK;

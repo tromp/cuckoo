@@ -21,7 +21,9 @@
 
 // algorithm/performance parameters
 
-// EDGEBITS/NEDGES/EDGEMASK defined in cuckoo.h
+// EDGEBITS/NEDGES/NODEMASK defined in cuckoo.h
+
+#define EDGEMASK ((word_t)NEDGES - 1)
 
 // The node bits are logically split into 3 groups:
 // XBITS 'X' bits (most significant), YBITS 'Y' bits, and ZBITS 'Z' bits (least significant)
@@ -937,7 +939,7 @@ public:
               if (renames == endrenames) {
                 endrenames += (TRIMONV ? sizeof(yzbucket<ZBUCKETSIZE>) : sizeof(zbucket<ZBUCKETSIZE>)) / sizeof(u32);
                 renames = endrenames - NZ2/2;
-                // assert(renames < buckets[NX][NY].renameu1);
+                assert(renames < buckets[NX][0].renameu1);
               }
             }
             vdeg = ((vdeg-0x0102) << 1) | (vyz & 1); // preserve parity
@@ -1195,7 +1197,7 @@ public:
     const u32   endy = NY * (mc->id+1) / trimmer.nthreads;
     u32 edge = starty << YZBITS, endedge = edge + NYZ;
   #if NSIPHASH == 4
-    const __m128i vnodemask = _mm_set1_epi64x(EDGEMASK);
+    const __m128i vnodemask = _mm_set1_epi64x(NODEMASK);
     siphash_keys &sip_keys = trimmer.sip_keys;
     __m128i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge;
@@ -1203,7 +1205,7 @@ public:
     __m128i vpacket1 = _mm_set_epi64x(e2+6, e2+4);
     const __m128i vpacketinc = _mm_set1_epi64x(8);
   #elif NSIPHASH == 8
-    const __m256i vnodemask = _mm256_set1_epi64x(EDGEMASK);
+    const __m256i vnodemask = _mm256_set1_epi64x(NODEMASK);
     const __m256i vinit = _mm256_load_si256((__m256i *)&trimmer.sip_keys);
     __m256i v0, v1, v2, v3, v4, v5, v6, v7;
     const u32 e2 = 2 * edge;

@@ -43,6 +43,15 @@ lean19x1:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
 lean19x8:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -DATOMIC -DNSIPHASH=8 -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
 
+lean27x1:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -DATOMIC -DNSIPHASH=1 -DEDGEBITS=27 lean.cpp $(BLAKE_2B_SRC)
+
+lean29x1:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -DATOMIC -DNSIPHASH=1 -DEDGEBITS=29 lean.cpp $(BLAKE_2B_SRC)
+
+lean31x1:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -DATOMIC -DNSIPHASH=1 -DEDGEBITS=31 lean.cpp $(BLAKE_2B_SRC)
+
 lean29x8:	../crypto/siphash.hpp cuckoo.h  lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean.cpp $(BLAKE_2B_SRC)
 
@@ -54,6 +63,9 @@ mean29x4:	cuckoo.h ../crypto/siphash.hpp mean.hpp mean.cpp Makefile
 
 mean29x8:	cuckoo.h ../crypto/siphash.hpp mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean.cpp $(BLAKE_2B_SRC)
+
+mean30x8:	cuckoo.h ../crypto/siphash.hpp mean.hpp mean.cpp Makefile
+	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEXPANDROUND=10 -DCOMPRESSROUND=22 -DEDGEBITS=30 mean.cpp $(BLAKE_2B_SRC)
 
 mean29x1:	cuckoo.h ../crypto/siphash.hpp mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -DNSIPHASH=1 -DEDGEBITS=29 mean.cpp $(BLAKE_2B_SRC)

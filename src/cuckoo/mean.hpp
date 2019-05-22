@@ -112,6 +112,7 @@ const u32 NYZ       = 1 << YZBITS;
 const u32 YZMASK    = NYZ - 1;
 const u32 YZ1BITS   = YZBITS < 15 ? YZBITS : 15;  // compressed YZ bits
 const u32 NYZ1      = 1 << YZ1BITS;
+const u32 MAXNZNYZ1 = NYZ1 < NZ ? NZ : NYZ1;
 const u32 YZ1MASK   = NYZ1 - 1;
 const u32 Z1BITS    = YZ1BITS - YBITS;
 const u32 NZ1       = 1 << Z1BITS;
@@ -236,7 +237,7 @@ typedef struct {
   edgetrimmer *et;
 } thread_ctx;
 
-typedef u8 zbucket8[2*NYZ1];
+typedef u8 zbucket8[2*MAXNZNYZ1];
 typedef u16 zbucket16[NTRIMMEDZ];
 typedef u32 zbucket32[NTRIMMEDZ];
 
@@ -540,6 +541,7 @@ public:
       small.storeu(tbuckets+id, 0);
       dst.matrixu(ux);
       for (u32 uy = 0 ; uy < NY; uy++) {
+        assert(NZ <= sizeof(zbucket8));
         memset(degs, 0xff, NZ);
         u8 *readsmall = tbuckets[id][uy].bytes, *endreadsmall = readsmall + tbuckets[id][uy].size;
 // if (id==1) printf("id %d ux %d y %d size %u sumsize %u\n", id, ux, uy, tbuckets[id][uy].size/BIGSIZE, sumsize);
@@ -711,6 +713,7 @@ public:
       TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
       for (u32 vy = 0 ; vy < NY; vy++) {
         const u64 vy34 = (u64)vy << YZZBITS;
+        assert(NZ <= sizeof(zbucket8));
         memset(degs, 0xff, NZ);
         u8    *readsmall = tbuckets[id][vy].bytes, *endreadsmall = readsmall + tbuckets[id][vy].size;
 // printf("id %d vx %d vy %d size %u sumsize %u\n", id, vx, vy, tbuckets[id][vx].size/BIGSIZE, sumsize);
@@ -796,6 +799,7 @@ public:
       u32 *renames = TRIMONV ? buckets[0][vx].renamev : buckets[vx][0].renameu;
       u32 *endrenames = renames + NZ1;
       for (u32 vy = 0 ; vy < NY; vy++) {
+        assert(2*NZ <= sizeof(zbucket8));
         memset(degs, 0xff, 2*NZ);
         u8    *readsmall = tbuckets[id][vy].bytes, *endreadsmall = readsmall + tbuckets[id][vy].size;
 // printf("id %d vx %d vy %d size %u sumsize %u\n", id, vx, vy, tbuckets[id][vx].size/BIGSIZE, sumsize);
@@ -860,6 +864,7 @@ public:
     const u32   endvx = NY * (id+1) / nthreads;
     for (u32 vx = startvx; vx < endvx; vx++) {
       TRIMONV ? dst.matrixv(vx) : dst.matrixu(vx);
+      assert(NYZ1 <= sizeof(zbucket8));
       memset(degs, 0xff, NYZ1);
       for (u32 ux = 0 ; ux < NX; ux++) {
         zbucket<ZBUCKETSIZE> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
@@ -932,6 +937,7 @@ public:
               if (renames == endrenames) {
                 endrenames += (TRIMONV ? sizeof(yzbucket<ZBUCKETSIZE>) : sizeof(zbucket<ZBUCKETSIZE>)) / sizeof(u32);
                 renames = endrenames - NZ2;
+                assert(renames < buckets[NX][0].renameu1);
               }
             }
 // bit       25...15     14...0
