@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv) {
   u32 nthreads = 1;
-  u32 ntrims = EDGEBITS > 30 ? 96 : 68;
+  u32 ntrims = EDGEBITS >= 30 ? 96 : 68;
   u32 nonce = 0;
   u32 range = 1;
 #ifdef SAVEEDGES
