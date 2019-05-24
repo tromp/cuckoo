@@ -42,6 +42,7 @@ typedef uint16_t word_t;
 #define NNODES1 (1ULL << EDGEBITS)
 // used to mask siphash output
 #define NODEMASK ((word_t)NNODES1 - 1)
+#define EDGEMASK NODEMASK
 // number of edges
 #define NEDGES NNODES1
 
