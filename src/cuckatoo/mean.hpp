@@ -23,8 +23,6 @@
 
 // EDGEBITS/NEDGES/NODEMASK defined in cuckoo.h
 
-#define EDGEMASK ((word_t)NEDGES - 1)
-
 // The node bits are logically split into 3 groups:
 // XBITS 'X' bits (most significant), YBITS 'Y' bits, and ZBITS 'Z' bits (least significant)
 // Here we have the default XBITS=YBITS=7, ZBITS=15 summing to EDGEBITS=29
