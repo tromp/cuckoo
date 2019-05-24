@@ -75,6 +75,18 @@ const u64 ROW_EDGES_B = EDGES_B * NY;
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
 
+__device__ uint2 make_Edge(const u32 nonce, const uint2 dummy, const u32 node0, const u32 node1) {
+   return make_uint2(node0, node1);
+}
+
+__device__ uint2 make_Edge(const uint2 edge, const uint2 dummy, const u32 node0, const u32 node1) {
+   return edge;
+}
+
+__device__ u32 make_Edge(const u32 nonce, const u32 dummy, const u32 node0, const u32 node1) {
+   return nonce;
+}
+
 #ifndef FLUSHA // should perhaps be in trimparams and passed as template parameter
 #define FLUSHA 16
 #endif
@@ -222,18 +234,6 @@ __device__ __forceinline__  bool bitmaptest(u32 *ebitmap, const int bucket) {
   int word = bucket >> 5;
   unsigned char bit = bucket & 0x1F;
   return (ebitmap[word] >> bit) & 1;
-}
-
-__device__ uint2 make_Edge(const u32 nonce, const uint2 dummy, const u32 node0, const u32 node1) {
-   return make_uint2(node0, node1);
-}
-
-__device__ uint2 make_Edge(const uint2 edge, const uint2 dummy, const u32 node0, const u32 node1) {
-   return edge;
-}
-
-__device__ u32 make_Edge(const u32 nonce, const u32 dummy, const u32 node0, const u32 node1) {
-   return nonce;
 }
 
 template <typename Edge> u32 __device__ endpoint(const siphash_keys &sipkeys, Edge e, int uorv);
