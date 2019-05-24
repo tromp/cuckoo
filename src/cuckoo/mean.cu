@@ -60,6 +60,18 @@ const u32 ROW_EDGES_B = EDGES_B * NY;
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
 
+__device__ uint2 make_Edge(const u32 nonce, const uint2 dummy, const u32 node0, const u32 node1) {
+   return make_uint2(node0, node1);
+}
+
+__device__ uint2 make_Edge(const uint2 edge, const uint2 dummy, const u32 node0, const u32 node1) {
+   return edge;
+}
+
+__device__ u32 make_Edge(const u32 nonce, const u32 dummy, const u32 node0, const u32 node1) {
+   return nonce;
+}
+
 #ifndef FLUSHA // should perhaps be in trimparams and passed as template parameter
 #define FLUSHA 16
 #endif
@@ -211,18 +223,6 @@ __device__ __forceinline__  bool Read2bCounter(u32 *ecounters, const int bucket)
   u32 mask = 1 << bit;
 
   return (ecounters[word + NZ/32] & mask) != 0;
-}
-
-__device__ uint2 make_Edge(const u32 nonce, const uint2 dummy, const u32 node0, const u32 node1) {
-   return make_uint2(node0, node1);
-}
-
-__device__ uint2 make_Edge(const uint2 edge, const uint2 dummy, const u32 node0, const u32 node1) {
-   return edge;
-}
-
-__device__ u32 make_Edge(const u32 nonce, const u32 dummy, const u32 node0, const u32 node1) {
-   return nonce;
 }
 
 template <typename Edge> u32 __device__ endpoint(const siphash_keys &sipkeys, Edge e, int uorv);
