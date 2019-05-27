@@ -28,7 +28,7 @@ public:
 
   ~cuckoo_ctx() { }
 
-  word_t bytes() {
+  u64 bytes() {
     return cg.bytes();
   }
 
@@ -120,10 +120,10 @@ int main(int argc, char **argv) {
   printf(") with %d%% edges, ", easipct);
   word_t easiness = easipct * (uint64_t)NNODES / 100;
   cuckoo_ctx ctx(header, sizeof(header), nonce, easiness);
-  word_t bytes = ctx.bytes();
+  u64 bytes = ctx.bytes();
   int unit;
   for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
-  printf("using %d%cB memory\n", bytes, " KMGT"[unit]);
+  printf("using %d%cB memory\n", (u32)bytes, " KMGT"[unit]);
 
   for (u32 r = 0; r < range; r++) {
     time0 = timestamp();

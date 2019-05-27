@@ -33,7 +33,7 @@ public:
     cb.freemem();
   }
 
-  word_t bytes() {
+  u64 bytes() {
     return (word_t)(1+NNODES) * sizeof(word_t);
   }
 
@@ -102,10 +102,10 @@ int main(int argc, char **argv) {
   printf(") with %d%% edges, ", easipct);
   word_t easiness = easipct * (word_t)NNODES / 100;
   cuckoo_ctx ctx(header, sizeof(header), nonce, easiness);
-  word_t bytes = ctx.bytes();
+  u64 bytes = ctx.bytes();
   int unit;
   for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
-  printf("using %d%cB memory at %llx.\n", bytes, " KMGT"[unit], (uint64_t)ctx.cb.cuckoo);
+  printf("using %d%cB memory at %llx.\n", (u32)bytes, " KMGT"[unit], (uint64_t)ctx.cb.cuckoo);
 
   for (u32 r = 0; r < range; r++) {
     time0 = timestamp();

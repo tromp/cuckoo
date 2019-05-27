@@ -21,7 +21,7 @@ public:
 
   ~cuckoo_ctx() { }
 
-  word_t bytes() {
+  u64 bytes() {
     return cg.bytes();
   }
 
@@ -106,11 +106,12 @@ int main(int argc, char **argv) {
   printf("Looking for %d-cycle on cuckarood%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
   if (range > 1)
     printf("-%d", nonce+range-1);
+  printf("), ");
   cuckoo_ctx ctx(header, sizeof(header), nonce);
-  word_t bytes = ctx.bytes();
+  u64 bytes = ctx.bytes();
   int unit;
   for (unit=0; bytes >= 10240; bytes>>=10,unit++) ;
-  printf("using %d%cB memory\n", bytes, " KMGT"[unit]);
+  printf("using %d%cB memory\n", (u32)bytes, " KMGT"[unit]);
 
   for (u32 r = 0; r < range; r++) {
     time0 = timestamp();
