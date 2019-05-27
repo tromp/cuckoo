@@ -1,4 +1,4 @@
-// Cuckaroo Cycle, a memory-hard proof-of-work by John Tromp
+// Cuckarood Cycle, a memory-hard proof-of-work by John Tromp
 // Copyright (c) 2018-2019 Jiri Vadura (photon) and John Tromp
 // This software is covered by the FAIR MINING license
 
@@ -6,7 +6,7 @@
 #include <string.h>
 #include <vector>
 #include <assert.h>
-#include "cuckaroo.hpp"
+#include "cuckarood.hpp"
 #include "graph.hpp"
 #include "../crypto/siphash.cuh"
 #include "../crypto/blake2.h"
@@ -14,10 +14,6 @@
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint64_t u64; // save some typing
-
-#ifndef MAXSOLS
-#define MAXSOLS 4
-#endif
 
 #ifndef IDXSHIFT
 // number of bits of compression of surviving edge endpoints
@@ -69,7 +65,7 @@ __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
 
 __device__ u64 dipblock(const siphash_keys &keys, const word_t edge, u64 *buf) {
-  diphash_state shs(keys);
+  diphash_state<25> shs(keys);
   word_t edge0 = edge & ~EDGE_BLOCK_MASK;
   u32 i;
   for (i=0; i < EDGE_BLOCK_MASK; i++) {
@@ -525,7 +521,7 @@ struct solver_ctx {
   uint2 soledges[PROOFSIZE];
   std::vector<u32> sols; // concatenation of all proof's indices
 
-  solver_ctx(const trimparams tp, bool mutate_nonce) : trimmer(tp), cg(MAXEDGES, MAXEDGES, MAXSOLS, IDXSHIFT) {
+  solver_ctx(const trimparams tp, bool mutate_nonce) : trimmer(tp), cg(MAXEDGES, MAXEDGES, MAX_SOLS, IDXSHIFT) {
     edges   = new uint2[MAXEDGES];
     mutatenonce = mutate_nonce;
   }
@@ -805,7 +801,7 @@ int main(int argc, char **argv) {
   print_log("%s with %d%cB @ %d bits x %dMHz\n", prop.name, (u32)dbytes, " KMGT"[dunit], prop.memoryBusWidth, prop.memoryClockRate/1000);
   // cudaSetDevice(device);
 
-  print_log("Looking for %d-cycle on cuckaroo%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
+  print_log("Looking for %d-cycle on cuckarood%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
   if (range > 1)
     print_log("-%d", nonce+range-1);
   print_log(") with 50%% edges, %d*%d buckets, %d trims, and %d thread blocks.\n", NX, NY, params.ntrims, NX);
