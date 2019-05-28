@@ -44,10 +44,6 @@
 // and directly count YZ values in a cache friendly 32KB.
 // A final pair of compression rounds remap YZ values from 15 into 11 bits.
 
-#ifndef MAXSOLS
-#define MAXSOLS 4
-#endif
-
 #ifndef XBITS
 // 7 seems to give best performance
 #define XBITS 7
@@ -1073,7 +1069,7 @@ public:
 
   solver_ctx(const u32 nthreads, const u32 n_trims, bool allrounds, bool show_cycle, bool mutate_nonce)
     : trimmer(nthreads, n_trims, allrounds), 
-      cg(MAXEDGES, MAXEDGES, MAXSOLS, (char *)trimmer.tbuckets) {
+      cg(MAXEDGES, MAXEDGES, MAX_SOLS, (char *)trimmer.tbuckets) {
     assert(cg.bytes() <= sizeof(yzbucket<TBUCKETSIZE>[nthreads])); // check that graph cg can fit in tbucket's memory
     showcycle = show_cycle;
     mutatenonce = mutate_nonce;

@@ -44,10 +44,6 @@
 // and directly count YZ values in a cache friendly 32KB.
 // A final pair of compression rounds remap YZ values from 15 into 11 bits.
 
-#ifndef MAXSOLS
-#define MAXSOLS 4
-#endif
-
 #ifndef XBITS
 // 7 seems to give best performance
 #define XBITS 7
@@ -68,9 +64,11 @@
 #define SMALLSIZE BIGSIZE1
 
 #ifndef BIGSIZE
-// need to fit 2 endpoints bucketed by XBITS and YBITS
-// while able to recover some (4) Y bits from handling Ys in increasing order
-#define BIGSIZE ((2*(EDGEBITS-XBITS)-4+7)/8)
+#if EDGEBITS <= 15
+#define BIGSIZE 4
+#else
+#define BIGSIZE 5
+#endif
 #endif
 
 typedef uint8_t u8;
@@ -284,7 +282,7 @@ public:
       dst.matrixv(my);
       for (; edge0 < endedge0; edge0 += NEBS) {
 #if NSIPHASH == 1
-        siphash_state shs(sip_keys);
+        siphash_state<> shs(sip_keys);
         for (u32 e = 0; e < NEBS; e += NSIPHASH) {
           shs.hash24(edge0 + e);
           buf[e] = shs.xor_lanes();
@@ -823,7 +821,7 @@ public:
 
   solver_ctx(const u32 nthreads, const u32 n_trims, bool allrounds, bool show_cycle, bool mutate_nonce)
     : trimmer(nthreads, n_trims, allrounds), 
-      cg(MAXEDGES, MAXEDGES, MAXSOLS, (char *)trimmer.tbuckets) {
+      cg(MAXEDGES, MAXEDGES, MAX_SOLS, (char *)trimmer.tbuckets) {
     assert(cg.bytes() <= sizeof(yzbucket<TBUCKETSIZE>[nthreads])); // check that graph cg can fit in tbucket's memory
     showcycle = show_cycle;
     mutatenonce = mutate_nonce;
@@ -935,7 +933,7 @@ public:
     for (u32 my = starty; my < endy; my++, endedge0 += NYZ) {
       for (; edge0 < endedge0; edge0 += NEBS) {
 #if NSIPHASH == 1
-        siphash_state shs(trimmer.sip_keys);
+        siphash_state<> shs(trimmer.sip_keys);
         for (u32 e = 0; e < NEBS; e += NSIPHASH) {
           shs.hash24(edge0 + e);
           buf[e] = shs.xor_lanes();
