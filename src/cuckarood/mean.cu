@@ -22,7 +22,7 @@ typedef uint64_t u64; // save some typing
 #define IDXSHIFT 12
 #endif
 
-const u32 MAXEDGES = NEDGES >> IDXSHIFT;
+const u32 MAXEDGES = NEDGES2 >> IDXSHIFT;
 
 #ifndef XBITS
 #define XBITS 6
@@ -104,15 +104,15 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
   __syncthreads();
 
   const int col = group % NX;
-  const int loops = NEDGES / nthreads; // assuming THREADS_HAVE_EDGES checked
+  const int loops = NEDGES2 / nthreads; // assuming THREADS_HAVE_EDGES checked
   for (int blk = 0; blk < loops; blk += EDGE_BLOCK_SIZE) {
     u32 nonce0 = gid * loops + blk;
     const u64 last = dipblock(sipkeys, nonce0, buf);
     for (u32 e = 0; e < EDGE_BLOCK_SIZE; e++) {
       u64 edge = buf[e] ^ last;
       u32 dir = e & 1;
-      u32 node0 = (edge        &  EDGEMASK) << 1 | dir;
-      u32 node1 = (edge >> 31) & (EDGEMASK << 1) | dir;
+      u32 node0 = (edge        &  NODEMASK) << 1 | dir;
+      u32 node1 = (edge >> 31) & (NODEMASK << 1) | dir;
       int row = node0 >> YZBITS;
       int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1)); // assuming ROWS_LIMIT_LOSSES checked
       tmp[row][counter] = make_uint2(node0, node1);
@@ -226,6 +226,19 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
   }
 }
 
+__device__ __forceinline__  void bitmapset(u32 *ebitmap, const int bucket) {
+  int word = bucket >> 5;
+  unsigned char bit = bucket & 0x1F;
+  u32 mask = 1 << bit;
+  atomicOr(ebitmap + word, mask);
+}
+
+__device__ __forceinline__  bool bitmaptest(u32 *ebitmap, const int bucket) {
+  int word = bucket >> 5;
+  unsigned char bit = bucket & 0x1F;
+  return (ebitmap[word] >> bit) & 1;
+}
+
 template<int NP, int maxIn, int maxOut>
 __global__ void Round(const int round, const uint2 * __restrict__ src, uint2 * __restrict__ dst, const u32 * __restrict__ srcIdx, u32 * __restrict__ dstIdx) {
   const int group = blockIdx.x;
@@ -314,7 +327,7 @@ __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *i
   const int gid = blockDim.x * blockIdx.x + threadIdx.x;
   const int lid = threadIdx.x;
   const int nthreads = blockDim.x * gridDim.x;
-  const int loops = NEDGES / nthreads;
+  const int loops = NEDGES2 / nthreads;
   __shared__ u32 nonces[PROOFSIZE];
   u64 buf[EDGE_BLOCK_SIZE];
 
@@ -325,11 +338,11 @@ __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *i
     const u64 last = dipblock(sipkeys, nonce0, buf);
     for (int i = 0; i < EDGE_BLOCK_SIZE; i++) {
       u64 edge = buf[i] ^ last;
-      u32 u = edge & EDGEMASK;
-      u32 v = (edge >> 32) & EDGEMASK;
+      u32 dir = i & 1;
+      u32 u = (edge & NODEMASK) << 1 | dir;
+      u32 v = ((edge >> 32) & NODEMASK) << 1 | dir;
       for (int p = 0; p < PROOFSIZE; p++) { //YO
-        if (recoveredges[p].x == u>>1 && recoveredges[p].y == v>>1) {
-          assert((u&1) == (edge&1) && (v&1) == (edge&1));
+        if (recoveredges[p].x == u && recoveredges[p].y == v) {
           nonces[p] = nonce0 + i;
         }
       }
@@ -529,7 +542,7 @@ struct solver_ctx {
       // print_log("Solution");
       for (u32 j = 0; j < PROOFSIZE; j++) {
         soledges[j] = edges[cg.sols[s][j]];
-        // print_log(" (%x, %x)", soledges[j].x, soledges[j].y);
+        // print_log(" (%x, %x)", soledges[j].x>>1, soledges[j].y>>1);
       }
       // print_log("\n");
       sols.resize(sols.size() + PROOFSIZE);
@@ -674,8 +687,8 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
   assert(tp.tail.tpb <= prop.maxThreadsPerBlock);
   assert(tp.recover.tpb <= prop.maxThreadsPerBlock);
 
-  assert(tp.genA.blocks * tp.genA.tpb * EDGE_BLOCK_SIZE <= NEDGES); // check THREADS_HAVE_EDGES
-  assert(tp.recover.blocks * tp.recover.tpb * EDGE_BLOCK_SIZE <= NEDGES); // check THREADS_HAVE_EDGES
+  assert(tp.genA.blocks * tp.genA.tpb * EDGE_BLOCK_SIZE <= NEDGES2); // check THREADS_HAVE_EDGES
+  assert(tp.recover.blocks * tp.recover.tpb * EDGE_BLOCK_SIZE <= NEDGES2); // check THREADS_HAVE_EDGES
   assert(tp.genA.tpb / NX <= FLUSHA); // check ROWS_LIMIT_LOSSES
   assert(tp.genB.tpb / NX <= FLUSHB); // check COLS_LIMIT_LOSSES
 
@@ -700,12 +713,12 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
   trimparams tp;
   params->device = 0;
   params->ntrims = tp.ntrims;
-  params->genablocks = min(tp.genA.blocks, NEDGES/EDGE_BLOCK_SIZE/tp.genA.tpb);
+  params->genablocks = min(tp.genA.blocks, NEDGES2/EDGE_BLOCK_SIZE/tp.genA.tpb);
   params->genatpb = tp.genA.tpb;
   params->genbtpb = tp.genB.tpb;
   params->trimtpb = tp.trim.tpb;
   params->tailtpb = tp.tail.tpb;
-  params->recoverblocks = min(tp.recover.blocks, NEDGES/EDGE_BLOCK_SIZE/tp.recover.tpb);
+  params->recoverblocks = min(tp.recover.blocks, NEDGES2/EDGE_BLOCK_SIZE/tp.recover.tpb);
   params->recovertpb = tp.recover.tpb;
   params->cpuload = false;
 }

@@ -69,7 +69,7 @@ __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
 
 __device__ u64 dipblock(const siphash_keys &keys, const word_t edge, u64 *buf) {
-  diphash_state shs(keys);
+  diphash_state<> shs(keys);
   word_t edge0 = edge & ~EDGE_BLOCK_MASK;
   u32 i;
   for (i=0; i < EDGE_BLOCK_MASK; i++) {

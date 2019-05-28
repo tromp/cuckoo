@@ -46,6 +46,7 @@ typedef uint16_t word_t;
 #define NEDGES ((word_t)1 << EDGEBITS)
 // used to mask siphash output
 #define EDGEMASK ((word_t)NEDGES - 1)
+#define NODE1MASK EDGEMASK
 
 // Common Solver parameters, to return to caller
 struct SolverParams {

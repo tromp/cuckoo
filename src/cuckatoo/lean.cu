@@ -44,8 +44,8 @@ const u32 NONPART_BITS = EDGEBITS - PART_BITS;
 const word_t NONPART_MASK = ((word_t)1 << NONPART_BITS) - 1;
 
 #define NODEBITS (EDGEBITS + 1)
-#define NNODES (2 * NEDGES)
-#define NODEMASK (NNODES-1)
+#define NNODES2 (2 * NEDGES)
+#define NODE2MASK (NNODES2-1)
 
 #define checkCudaErrors_V(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return;})
 #define checkCudaErrors_N(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return NULL;})

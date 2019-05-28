@@ -149,9 +149,9 @@ int verify(word_t edges[PROOFSIZE], siphash_keys &keys) {
       return POW_TOO_SMALL;
     u64 edge = sipblock(keys, edges[n], sips);
     xor0 ^= uvs[4 * ndir[dir] + 2 * dir    ] =  edge        & NODEMASK;
-printf("%2d %8x\t", 4 * ndir[dir] + 2 * dir , edge        & NODEMASK);
+    // printf("%2d %8x\t", 4 * ndir[dir] + 2 * dir , edge        & NODEMASK);
     xor1 ^= uvs[4 * ndir[dir] + 2 * dir + 1] = (edge >> 32) & NODEMASK;
-printf("%2d %8x\n", 4 * ndir[dir] + 2 * dir + 1 ,(edge >> 32) & NODEMASK);
+    // printf("%2d %8x\n", 4 * ndir[dir] + 2 * dir + 1 ,(edge >> 32) & NODEMASK);
     ndir[dir]++;
   }
   if (xor0 | xor1)              // optional check for obviously bad proofs
