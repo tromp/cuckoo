@@ -110,8 +110,9 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
     const u64 last = dipblock(sipkeys, nonce0, buf);
     for (u32 e = 0; e < EDGE_BLOCK_SIZE; e++) {
       u64 edge = buf[e] ^ last;
-      u32 node0 = edge & EDGEMASK;
-      u32 node1 = (edge >> 32) & EDGEMASK;
+      u32 dir = e & 1;
+      u32 node0 = (edge        &  EDGEMASK) << 1 | dir;
+      u32 node1 = (edge >> 31) & (EDGEMASK << 1) | dir;
       int row = node0 >> YZBITS;
       int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1)); // assuming ROWS_LIMIT_LOSSES checked
       tmp[row][counter] = make_uint2(node0, node1);
@@ -225,34 +226,17 @@ __global__ void SeedB(const uint2 * __restrict__ source, ulonglong4 * __restrict
   }
 }
 
-__device__ __forceinline__  void Increase2bCounter(u32 *ecounters, const int bucket) {
-  int word = bucket >> 5;
-  unsigned char bit = bucket & 0x1F;
-  u32 mask = 1 << bit;
-
-  u32 old = atomicOr(ecounters + word, mask) & mask;
-  if (old)
-    atomicOr(ecounters + word + NZ/32, mask);
-}
-
-__device__ __forceinline__  bool Read2bCounter(u32 *ecounters, const int bucket) {
-  int word = bucket >> 5;
-  unsigned char bit = bucket & 0x1F;
-
-  return (ecounters[word + NZ/32] >> bit) & 1;
-}
-
 template<int NP, int maxIn, int maxOut>
 __global__ void Round(const int round, const uint2 * __restrict__ src, uint2 * __restrict__ dst, const u32 * __restrict__ srcIdx, u32 * __restrict__ dstIdx) {
   const int group = blockIdx.x;
   const int dim = blockDim.x;
   const int lid = threadIdx.x;
-  const int COUNTERWORDS = NZ / 16; // 16 2-bit counters per 32-bit word
+  const int BITMAPWORDS = NZ / 32;
 
-  __shared__ u32 ecounters[COUNTERWORDS];
+  __shared__ u32 ebitmap[BITMAPWORDS];
 
-  for (int i = lid; i < COUNTERWORDS; i += dim)
-    ecounters[i] = 0;
+  for (int i = lid; i < BITMAPWORDS; i += dim)
+    ebitmap[i] = 0;
   __syncthreads();
 
   for (int i = 0; i < NP; i++, src += NX2 * maxIn, srcIdx += NX2) {
@@ -267,7 +251,7 @@ __global__ void Round(const int round, const uint2 * __restrict__ src, uint2 * _
         uint2 edge = __ldg(&src[index]);
         if (null(edge)) continue;
         u32 node = endpoint(edge, round&1);
-        Increase2bCounter(ecounters, node & ZMASK);
+        bitmapset(ebitmap, node & ZMASK);
       }
     }
   }
@@ -285,7 +269,7 @@ __global__ void Round(const int round, const uint2 * __restrict__ src, uint2 * _
         uint2 edge = __ldg(&src[index]);
         if (null(edge)) continue;
         u32 node0 = endpoint(edge, round&1);
-        if (Read2bCounter(ecounters, node0 & ZMASK)) {
+        if (bitmaptest(ebitmap, (node0 & ZMASK) ^ 1)) {
           u32 node1 = endpoint(edge, (round&1)^1);
           const int bucket = node1 >> ZBITS;
           const int bktIdx = min(atomicAdd(dstIdx + bucket, 1), maxOut - 1);
@@ -344,7 +328,8 @@ __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *i
       u32 u = edge & EDGEMASK;
       u32 v = (edge >> 32) & EDGEMASK;
       for (int p = 0; p < PROOFSIZE; p++) { //YO
-        if (recoveredges[p].x == u && recoveredges[p].y == v) {
+        if (recoveredges[p].x == u>>1 && recoveredges[p].y == v>>1) {
+          assert((u&1) == (edge&1) && (v&1) == (edge&1));
           nonces[p] = nonce0 + i;
         }
       }
