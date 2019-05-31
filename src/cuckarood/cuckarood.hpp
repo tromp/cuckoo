@@ -50,7 +50,7 @@ typedef uint16_t word_t;
 #define NNODES1 NEDGES1
 #define NNODES2 NEDGES2
 // used to mask siphash output
-#define NODEMASK ((word_t)NNODES1 - 1)
+#define NODE1MASK ((word_t)NNODES1 - 1)
 
 // Common Solver parameters, to return to caller
 struct SolverParams {
@@ -148,10 +148,10 @@ int verify(word_t edges[PROOFSIZE], siphash_keys &keys) {
     if (n && edges[n] <= edges[n-1])
       return POW_TOO_SMALL;
     u64 edge = sipblock(keys, edges[n], sips);
-    xor0 ^= uvs[4 * ndir[dir] + 2 * dir    ] =  edge        & NODEMASK;
-    // printf("%2d %8x\t", 4 * ndir[dir] + 2 * dir , edge        & NODEMASK);
-    xor1 ^= uvs[4 * ndir[dir] + 2 * dir + 1] = (edge >> 32) & NODEMASK;
-    // printf("%2d %8x\n", 4 * ndir[dir] + 2 * dir + 1 ,(edge >> 32) & NODEMASK);
+    xor0 ^= uvs[4 * ndir[dir] + 2 * dir    ] =  edge        & NODE1MASK;
+    // printf("%2d %8x\t", 4 * ndir[dir] + 2 * dir , edge        & NODE1MASK);
+    xor1 ^= uvs[4 * ndir[dir] + 2 * dir + 1] = (edge >> 32) & NODE1MASK;
+    // printf("%2d %8x\n", 4 * ndir[dir] + 2 * dir + 1 ,(edge >> 32) & NODE1MASK);
     ndir[dir]++;
   }
   if (xor0 | xor1)              // optional check for obviously bad proofs

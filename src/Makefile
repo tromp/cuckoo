@@ -1,4 +1,4 @@
-SUBDIRS := cuckoo cuckatoo cuckaroo
+SUBDIRS := cuckoo cuckatoo cuckaroo cuckarood
 
 all: $(SUBDIRS)
 $(SUBDIRS):

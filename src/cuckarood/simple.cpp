@@ -37,8 +37,8 @@ public:
       sipblock(sip_keys, block, sips);
       for (u32 i = 0; i < EDGE_BLOCK_SIZE; i++) {
         u64 edge = sips[i];
-        word_t u = edge & NODEMASK;
-        word_t v = (edge >> 32) & NODEMASK;
+        word_t u = edge & NODE1MASK;
+        word_t v = (edge >> 32) & NODE1MASK;
         cg.add_edge(u, v, i&1);
 #ifdef SHOW
         word_t nonce = block + i;
@@ -58,7 +58,7 @@ public:
       for (u32 j=0; j < PROOFSIZE; j++) {
         word_t nonce = cg.sols[s][j];
         // u64 edge = sipblock(sip_keys, nonce, sips);
-        // printf(" (%x,%x)", edge & NODEMASK, (edge >> 32) & NODEMASK);
+        // printf(" (%x,%x)", edge & NODE1MASK, (edge >> 32) & NODE1MASK);
         printf(" %x", nonce);
       }
       printf("\n");

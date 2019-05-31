@@ -111,8 +111,8 @@ __global__ void SeedA(const siphash_keys &sipkeys, ulonglong4 * __restrict__ buf
     for (u32 e = 0; e < EDGE_BLOCK_SIZE; e++) {
       u64 edge = buf[e] ^ last;
       u32 dir = e & 1;
-      u32 node0 = (edge        &  NODEMASK) << 1 | dir;
-      u32 node1 = (edge >> 31) & (NODEMASK << 1) | dir;
+      u32 node0 = (edge        &  NODE1MASK) << 1 | dir;
+      u32 node1 = (edge >> 31) & (NODE1MASK << 1) | dir;
       int row = node0 >> YZBITS;
       int counter = min((int)atomicAdd(counters + row, 1), (int)(FLUSHA2-1)); // assuming ROWS_LIMIT_LOSSES checked
       tmp[row][counter] = make_uint2(node0, node1);
@@ -339,8 +339,8 @@ __global__ void Recovery(const siphash_keys &sipkeys, ulonglong4 *buffer, int *i
     for (int i = 0; i < EDGE_BLOCK_SIZE; i++) {
       u64 edge = buf[i] ^ last;
       u32 dir = i & 1;
-      u32 u = (edge & NODEMASK) << 1 | dir;
-      u32 v = ((edge >> 32) & NODEMASK) << 1 | dir;
+      u32 u = (edge & NODE1MASK) << 1 | dir;
+      u32 v = ((edge >> 32) & NODE1MASK) << 1 | dir;
       for (int p = 0; p < PROOFSIZE; p++) { //YO
         if (recoveredges[p].x == u && recoveredges[p].y == v) {
           nonces[p] = nonce0 + i;
