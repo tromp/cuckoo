@@ -1,4 +1,4 @@
-// Cuckatoo Cycle, a memory-hard proof-of-work
+// Cuckarood Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2019 John Tromp
 // The edge-trimming memory optimization is due to Dave Andersen
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
@@ -53,6 +53,7 @@
 
 // need to fit 2 endpoints bucketed by one XBITS
 #define BIGSIZE0 ((2*EDGEBITS-XBITS+7)/8)
+2*29-7+7 / 8 = 58 / 8 = 7
 // size in bytes of a big bucket entry
 // need to fit 2 endpoints bucketed by XBITS and YBITS
 #define BIGSIZE1 ((2*(EDGEBITS-XBITS)+7)/8)
@@ -101,14 +102,14 @@ const u32 ZMASK     = NZ - 1;
 const u32 YZBITS    = EDGEBITS - XBITS;
 const u32 NYZ       = 1 << YZBITS;
 const u32 YZMASK    = NYZ - 1;
-const u32 YZ1BITS   = YZBITS < 15 ? YZBITS : 15;  // compressed YZ bits
+const u32 YZ1BITS   = YZBITS < 16 ? YZBITS : 16;  // compressed YZ bits
 const u32 NYZ1      = 1 << YZ1BITS;
 const u32 MAXNZNYZ1 = NZ < NYZ1 ? NYZ1 : NZ;
 const u32 YZ1MASK   = NYZ1 - 1;
 const u32 Z1BITS    = YZ1BITS - YBITS;
 const u32 NZ1       = 1 << Z1BITS;
 const u32 Z1MASK    = NZ1 - 1;
-const u32 YZ2BITS   = YZBITS < 11 ? YZBITS : 11;  // more compressed YZ bits
+const u32 YZ2BITS   = YZBITS < 12 ? YZBITS : 12;  // more compressed YZ bits
 const u32 NYZ2      = 1 << YZ2BITS;
 const u32 YZ2MASK   = NYZ2 - 1;
 const u32 Z2BITS    = YZ2BITS - YBITS;
@@ -216,7 +217,7 @@ typedef struct {
   edgetrimmer *et;
 } thread_ctx;
 
-typedef u8 zbucket8[2*MAXNZNYZ1];
+typedef u8 zbucket8[MAXNZNYZ1];
 typedef u16 zbucket16[NTRIMMEDZ];
 typedef u32 zbucket32[NTRIMMEDZ];
 
