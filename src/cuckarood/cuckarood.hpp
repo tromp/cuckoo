@@ -1,4 +1,4 @@
-// Cuck(at)oo Cycle, a memory-hard proof-of-work
+// Cuckarood Cycle, a memory-hard proof-of-work
 // Copyright (c) 2013-2019 John Tromp
 
 #include <stdint.h> // for types uint32_t,uint64_t
@@ -149,9 +149,7 @@ int verify(word_t edges[PROOFSIZE], siphash_keys &keys) {
       return POW_TOO_SMALL;
     u64 edge = sipblock(keys, edges[n], sips);
     xor0 ^= uvs[4 * ndir[dir] + 2 * dir    ] =  edge        & NODE1MASK;
-    // printf("%2d %8x\t", 4 * ndir[dir] + 2 * dir , edge        & NODE1MASK);
     xor1 ^= uvs[4 * ndir[dir] + 2 * dir + 1] = (edge >> 32) & NODE1MASK;
-    // printf("%2d %8x\n", 4 * ndir[dir] + 2 * dir + 1 ,(edge >> 32) & NODE1MASK);
     ndir[dir]++;
   }
   if (xor0 | xor1)              // optional check for obviously bad proofs

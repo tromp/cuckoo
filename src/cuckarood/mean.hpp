@@ -8,6 +8,7 @@
 // to race conditions (typically takes under 1% of runtime)
 
 #include "cuckarood.hpp"
+#define ROT_E ROT25
 #include "../crypto/siphashxN.h"
 #include <stdlib.h>
 #include <pthread.h>
@@ -36,13 +37,13 @@
 // resides in the bucket at (uiX,viX)
 // In each trimming round, either a matrix row or a matrix column (NX buckets)
 // is bucket sorted on uY or vY respectively, and then within each bucket
-// uZ or vZ values are counted and edges with a count of only one are eliminated,
+// uZ or vZ values are marked and edges with no marked endpoint neighbour are eliminated,
 // while remaining edges are bucket sorted back on vX or uX respectively.
 // When sufficiently many edges have been eliminated, a pair of compression
 // rounds remap surviving Y,Z values in each row or column into 15 bit
 // combined YZ values, allowing the remaining rounds to avoid the sorting on Y,
 // and directly count YZ values in a cache friendly 32KB.
-// A final pair of compression rounds remap YZ values from 15 into 11 bits.
+// A final pair of compression rounds remap YZ values from 16 into 12 bits.
 
 #ifndef XBITS
 // 7 seems to give best performance
@@ -283,7 +284,7 @@ public:
       dst.matrixv(my);
       for (; edge0 < endedge0; edge0 += NEBS) {
 #if NSIPHASH == 1
-        siphash_state<> shs(sip_keys);
+        siphash_state<25> shs(sip_keys);
         for (u32 e = 0; e < NEBS; e += NSIPHASH) {
           shs.hash24(edge0 + e);
           buf[e] = shs.xor_lanes();
@@ -338,7 +339,7 @@ public:
           const u64 buflast = buf[NEBS - NSIPHASH + ns];
           buf[NEBS - NSIPHASH + ns] = 0;
           for (u32 e = 0; e < NEBS; e += NSIPHASH) {
-            const u32 dir = (e + ns) & 1;                                                                                       
+            const u32 dir = (e / NSIPHASH) & 1;                                                                                       
             const u64 nodes = buf[e + ns] ^ buflast;
             const u32 node0 =  (nodes        & NODE1MASK) << 1   | dir;
             const u32 node1 = ((nodes >> 31) & (NODE1MASK << 1)) | dir;
@@ -373,7 +374,6 @@ public:
       for (u32 my = 0 ; my < NY; my++) {
         u8    *readbig = buckets[ux][my].bytes;
         u8 const *endreadbig = readbig + buckets[ux][my].size;
-// print_log("id %d x %d y %d size %u read %d\n", id, ux, my, buckets[ux][my].size, readbig-base);
         for (; readbig < endreadbig; readbig += BIGSIZE0) {
 // bit        50...22     21..15    14..0
 // write      VXXYYZZ     UYYYYY    UZZZZ   within UX partition
@@ -384,7 +384,6 @@ public:
 // bit         43...15     14..0
 // write       VXXYYZZ     UZZZZ   within UX UY partition
           *(u64 *)(small0+small.index[uy]) = ((u64)vxyz << ZBITS) | (e & ZMASK);
-// print_log("id %d ux %d y %d e %010lx e' %010x\n", id, ux, my, e, ((u64)edge << ZBITS) | (e >> YBITS));
           small.index[uy] += SMALLSIZE;
         }
       }
@@ -395,7 +394,6 @@ public:
         assert(NZ <= sizeof(zbucket8));
         memset(degs, 0, NZ);
         u8 *readsmall = tbuckets[id][uy].bytes, *endreadsmall = readsmall + tbuckets[id][uy].size;
-// if (id==1) print_log("id %d ux %d y %d size %u sumsize %u\n", id, ux, uy, tbuckets[id][uy].size/BIGSIZE1, sumsize);
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall+=SMALLSIZE)
           degs[*(u32 *)rdsmall & ZMASK] = BIGSIZE;
 
@@ -409,7 +407,6 @@ public:
 // bit     43/39..37    36..22     21..15     14..0
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within UX VX partition
           *(u64 *)(base+dst.index[vx]) = uy37 | ((u64)uz << YZBITS) | ((e >> ZBITS) & YZMASK);
-// print_log("id %d ux %d y %d edge %08x e' %010lx vx %d\n", id, ux, uy, *readedge, uy34 | ((u64)(node & YZMASK) << ZBITS) | *readz, vx);
           dst.index[vx] += degs[uz ^ 1];
         }
       }
@@ -446,13 +443,11 @@ public:
         u32 uxyz = ux << YZBITS;
         zbucket<ZBUCKETSIZE> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
         const u8 *readbig = zb.bytes, *endreadbig = readbig + zb.size;
-// print_log("id %d vx %d ux %d size %u\n", id, vx, ux, zb.size/SRCSIZE);
         for (; readbig < endreadbig; readbig += SRCSIZE) {
 // bit        43..37    36..22     21..15     14..0
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition
           const u64 e = *(u64 *)readbig & SRCSLOTMASK;
           uxyz += ((u32)(e >> YZBITS) - uxyz) & SRCPREFMASK;
-// if (round==6) print_log("id %d vx %d ux %d e %010lx suffUXYZ %05x suffUXY %03x UXYZ %08x UXY %04x mask %x\n", id, vx, ux, e, (u32)(e >> YZBITS), (u32)(e >> YZZBITS), uxyz, uxyz>>ZBITS, SRCPREFMASK);
           const u32 vy = (e >> ZBITS) & YMASK;
 // bit     43/39..37    36..30     29..15     14..0
 // write      UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition
@@ -470,7 +465,6 @@ public:
         const u64 vy34 = (u64)vy << YZZBITS;
         memset(degs, 0, NZ);
         u8    *readsmall = tbuckets[id][vy].bytes, *endreadsmall = readsmall + tbuckets[id][vy].size;
-// print_log("id %d vx %d vy %d size %u sumsize %u\n", id, vx, vy, tbuckets[id][vx].size/BIGSIZE1, sumsize);
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall += DSTSIZE)
           degs[*(u32 *)rdsmall & ZMASK] = DSTSIZE;
         u32 ux = 0;
@@ -479,7 +473,6 @@ public:
 // read       UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition
           const u64 e = *(u64 *)rdsmall & DSTSLOTMASK;
           ux += ((u32)(e >> YZZBITS) - ux) & DSTPREFMASK;
-// print_log("id %d vx %d vy %d e %010lx suffUX %02x UX %x mask %x\n", id, vx, vy, e, (u32)(e >> YZZBITS), ux, SRCPREFMASK);
 // bit    41/39..34    33..21     20..13     12..0
 // write     VYYYYY    VZZZZZ     UYYYYY     UZZZZ   within UX partition
           *(u64 *)(base+dst.index[ux]) = vy34 | ((e & ZMASK) << YZBITS) | ((e >> ZBITS) & YZMASK);
@@ -522,7 +515,6 @@ public:
         u32 uyz = 0;
         zbucket<ZBUCKETSIZE> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
         const u8 *readbig = zb.bytes, *endreadbig = readbig + zb.size;
-// print_log("id %d vx %d ux %d size %u\n", id, vx, ux, zb.size/SRCSIZE);
         for (; readbig < endreadbig; readbig += SRCSIZE) {
 // bit        39..37    36..22     21..15     14..0
 // write      UYYYYY    UZZZZZ     VYYYYY     VZZZZ   within VX partition  if TRIMONV
@@ -532,14 +524,12 @@ public:
           if (TRIMONV)
             uyz += ((u32)(e >> YZBITS) - uyz) & SRCPREFMASK;
           else uyz = e >> YZBITS;
-// if (round==32 && ux==25) print_log("id %d vx %d ux %d e %010lx suffUXYZ %05x suffUXY %03x UXYZ %08x UXY %04x mask %x\n", id, vx, ux, e, (u32)(e >> YZBITS), (u32)(e >> YZZBITS), uxyz, uxyz>>ZBITS, SRCPREFMASK);
           const u32 vy = (e >> ZBITS) & YMASK;
 // bit        39..37    36..30     29..15     14..0
 // write      UXXXXX    UYYYYY     UZZZZZ     VZZZZ   within VX VY partition  if TRIMONV
 // bit            37...31     30...15     14..0
 // write          VXXXXXX     VYYYZZ'     UZZZZ   within UX UY partition  if !TRIMONV
           *(u64 *)(small0+small.index[vy]) = ((u64)(ux << (TRIMONV ? YZBITS : YZ1BITS) | uyz) << ZBITS) | (e & ZMASK);
-// if (TRIMONV&&vx==75&&vy==83) print_log("id %d vx %d vy %d e %010lx e15 %x ux %x\n", id, vx, vy, ((u64)uxyz << ZBITS) | (e & ZMASK), uxyz, uxyz>>YZBITS);
           if (TRIMONV)
             uyz &= ~ZMASK;
           small.index[vy] += SRCSIZE;
@@ -555,7 +545,6 @@ public:
         assert(2*NZ <= sizeof(zbucket8));
         memset(degs, 0, NZ);
         u8    *readsmall = tbuckets[id][vy].bytes, *endreadsmall = readsmall + tbuckets[id][vy].size;
-// print_log("id %d vx %d vy %d size %u sumsize %u\n", id, vx, vy, tbuckets[id][vx].size/BIGSIZE1, sumsize);
         for (u8 *rdsmall = readsmall; rdsmall < endreadsmall; rdsmall += SRCSIZE)
           degs[*(u32 *)rdsmall & ZMASK] = 1;
         u32 ux = 0;
@@ -587,7 +576,6 @@ public:
             if (TRIMONV)
                  *(u64 *)(base+dst.index[ux]) = ((u64)(newnodeid + vdeg) << YZBITS ) | ((e >> ZBITS) & YZMASK);
             else *(u32 *)(base+dst.index[ux]) = (     (newnodeid + vdeg) << YZ1BITS) | ((e >> ZBITS) & YZ1MASK);
-// if (vx==44&&vy==58) print_log("  id %d vx %d vy %d newe %010lx\n", id, vx, vy, vy28 | ((vdeg) << YZBITS) | ((e >> ZBITS) & YZMASK));
             dst.index[ux] += DSTSIZE;
           }
         }
@@ -636,7 +624,6 @@ public:
 // read      UYYZZZ'     VYYZZ'   within VX partition
           const u32 e = *readbig;
           const u32 vyz = e & YZ1MASK;
-          // print_log("id %d vx %d ux %d e %08lx vyz %04x uyz %04x\n", id, vx, ux, e, vyz, e >> YZ1BITS);
 // bit       31...16     15...0
 // write     VYYZZZ'     UYYZZ'   within UX partition
           *(u32 *)(base+dst.index[ux]) = (vyz << YZ1BITS) | (e >> YZ1BITS);
@@ -669,7 +656,6 @@ public:
       for (u32 ux = 0 ; ux < NX; ux++) {
         zbucket<ZBUCKETSIZE> &zb = TRIMONV ? buckets[ux][vx] : buckets[vx][ux];
         u32 *readbig = zb.words, *endreadbig = readbig + zb.size/sizeof(u32);
-        // print_log("id %d vx %d ux %d size %d\n", id, vx, ux, zb.size/SRCSIZE);
         for (; readbig < endreadbig; readbig++)
           degs[*readbig & YZ1MASK] = 1;
       }
@@ -724,7 +710,6 @@ public:
       int err = pthread_create(&threads[t].thread, NULL, etworker, (void *)&threads[t]);
       assert(err == 0);
     }
-    // sleep(7); abort();
     for (u32 t = 0; t < nthreads; t++) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
@@ -813,6 +798,7 @@ public:
   bool mutatenonce;
   proof cycleus;
   proof cyclevs;
+  word_t rowsize[NX];
   std::bitset<NXY> uxymap;
   std::vector<word_t> sols; // concatanation of all proof's indices
 
@@ -847,10 +833,11 @@ public:
   u32 threadbytes() const {
     return sizeof(thread_ctx) + sizeof(yzbucket<TBUCKETSIZE>) + sizeof(zbucket8) + sizeof(zbucket16) + sizeof(zbucket32);
   }
-  void recordedge(const u32 i, const u32 u1, const u32 v2) {
+  void recordedge(const u32 i, const u32 u1, const u32 v1) {
+    assert(u1 < NX * NYZ2);
     const u32 ux = u1 >> YZ2BITS;
     u32 uyz = trimmer.buckets[ux][(u1 >> Z2BITS) & YMASK].renameu1[(u1 & Z2MASK) >> 1] | (u1 & 1);
-    const u32 v1 = v2 - MAXEDGES;
+    assert(v1 < NX * NYZ2);
     const u32 vx = v1 >> YZ2BITS;
     u32 vyz = trimmer.buckets[(v1 >> Z2BITS) & YMASK][vx].renamev1[(v1 & Z2MASK) >> 1] | (v1 & 1);
 #if COMPRESSROUND > 0
@@ -859,14 +846,24 @@ public:
 #endif
     const u32 u = cycleus[i] = (ux << YZBITS) | uyz;
     cyclevs[i] = (vx << YZBITS) | vyz;
-    // print_log(" (%x,%x)", u, cyclevs[i]);
     uxymap[u >> ZBITS] = 1;
   }
 
   void solution(const proof sol) {
     // print_log("Nodes");
-    for (u32 i = 0; i < PROOFSIZE; i++)
-      recordedge(i, cg.links[2*sol[i]].to, cg.links[2*sol[i]+1].to);
+    for (u32 i = 0; i < PROOFSIZE; i++) {
+      u32 ux, vx, idx = sol[i];
+      for (vx = 0; idx >= rowsize[vx]; vx++) {
+        idx -= rowsize[vx];
+      }
+      for (ux = 0; idx >= trimmer.buckets[ux][vx].size/sizeof(u32); ux++) {
+        idx -= trimmer.buckets[ux][vx].size/sizeof(u32);
+      }
+      const u32 e = trimmer.buckets[ux][vx].words[idx];
+      const u32 u = (ux << YZ2BITS) | (e >> YZ2BITS);
+      const u32 v = (vx << YZ2BITS) | (e & YZ2MASK);
+      recordedge(i, u, v);
+    }
     // print_log("\n");
     if (showcycle) {
       void *matchworker(void *vp);
@@ -894,17 +891,17 @@ public:
     rdtsc0 = __rdtsc();
     cg.reset();
     for (u32 vx = 0; vx < NX; vx++) {
+      rowsize[vx] = 0;
       for (u32 ux = 0 ; ux < NX; ux++) {
         zbucket<ZBUCKETSIZE> &zb = trimmer.buckets[ux][vx];
         u32 *readbig = zb.words, *endreadbig = readbig + zb.size/sizeof(u32);
-// print_log("vx %d ux %d size %u\n", vx, ux, zb.size/4);
+        rowsize[vx] += zb.size/sizeof(u32);
         for (; readbig < endreadbig; readbig++) {
 // bit        21..11     10...0
 // write      UYYZZZ'    VYYZZ'   within VX partition
           const u32 e = *readbig;
           const u32 u = (ux << YZ2BITS) | (e >> YZ2BITS);
           const u32 v = (vx << YZ2BITS) | (e & YZ2MASK);
-          // print_log("add_edge(%x, %x)\n", u, v);
           cg.add_edge(u>>1, v>>1, u&1);
         }
       }
@@ -913,7 +910,7 @@ public:
       solution(cg.sols[s]);
     }
     rdtsc1 = __rdtsc();
-    print_log("findcycles rdtsc: %lu\n", rdtsc1-rdtsc0);
+    print_log("findcycles %u edges rdtsc: %lu\n", cg.nlinks, rdtsc1-rdtsc0);
   }
 
   void abort() {
@@ -939,7 +936,7 @@ public:
     for (u32 my = starty; my < endy; my++, endedge0 += NYZ) {
       for (; edge0 < endedge0; edge0 += NEBS) {
 #if NSIPHASH == 1
-        siphash_state<> shs(trimmer.sip_keys);
+        siphash_state<25> shs(trimmer.sip_keys);
         for (u32 e = 0; e < NEBS; e += NSIPHASH) {
           shs.hash24(edge0 + e);
           buf[e] = shs.xor_lanes();
@@ -994,7 +991,7 @@ public:
           const u64 buflast = buf[NEBS - NSIPHASH + ns];
           buf[NEBS - NSIPHASH + ns] = 0;
           for (u32 e = 0; e < NEBS; e += NSIPHASH) {
-            const u32 dir = (e + ns) & 1;                                                                    
+            const u32 dir = (e / NSIPHASH) & 1;                                                                    
             const u64 nodes = buf[e + ns] ^ buflast;
             const u32 node0 =  (nodes        & NODE1MASK) << 1   | dir;                                      
             const u32 node1 = ((nodes >> 31) & (NODE1MASK << 1)) | dir;                                      

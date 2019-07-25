@@ -114,7 +114,6 @@ public:
   }
 
   void cycles_with_link(u32 len, word_t u, word_t dest) {
-    // printf("cycles_with_link(%d, %x, %x)\n", len, u, dest);
     if (visited.test(u))
       return;
     if (u == dest) {
@@ -142,7 +141,6 @@ public:
     assert(u < MAXNODES);
     assert(v < MAXNODES);
     v += MAXNODES; // distinguish partitions
-    // printf("add_edge(%x,%x, %x)\n", u, v, dir);
     if (dir) {
       u32 tmp = v;
       v = u;

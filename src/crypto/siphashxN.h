@@ -12,6 +12,7 @@
 #define ROT16(x) _mm256_shuffle_epi8((x), ROTATE16)
 #define ROT17(x) _mm256_or_si256(_mm256_slli_epi64(x,17),_mm256_srli_epi64(x,47))
 #define ROT21(x) _mm256_or_si256(_mm256_slli_epi64(x,21),_mm256_srli_epi64(x,43))
+#define ROT25(x) _mm256_or_si256(_mm256_slli_epi64(x,25),_mm256_srli_epi64(x,39))
 #define ROT32(x) _mm256_shuffle_epi32((x), _MM_SHUFFLE(2, 3, 0, 1))
 
 #elif defined __SSE2__
@@ -22,8 +23,13 @@
 #define ROT16(x) _mm_shufflehi_epi16(_mm_shufflelo_epi16(x, _MM_SHUFFLE(2,1,0,3)), _MM_SHUFFLE(2,1,0,3))
 #define ROT17(x) _mm_or_si128(_mm_slli_epi64(x,17),_mm_srli_epi64(x,47))
 #define ROT21(x) _mm_or_si128(_mm_slli_epi64(x,21),_mm_srli_epi64(x,43))
+#define ROT25(x) _mm_or_si128(_mm_slli_epi64(x,25),_mm_srli_epi64(x,39))
 #define ROT32(x) _mm_shuffle_epi32  (x, _MM_SHUFFLE(2,3,0,1))
 
+#endif
+
+#ifndef ROT_E
+#define ROT_E ROT21
 #endif
 
 #define SIPROUNDXN \
@@ -31,7 +37,7 @@
     v0 = ADD(v0,v1); v2 = ADD(v2,v3); v1 = ROT13(v1); \
     v3 = ROT16(v3);  v1 = XOR(v1,v0); v3 = XOR(v3,v2); \
     v0 = ROT32(v0);  v2 = ADD(v2,v1); v0 = ADD(v0,v3); \
-    v1 = ROT17(v1);                   v3 = ROT21(v3); \
+    v1 = ROT17(v1);                   v3 = ROT_E(v3); \
     v1 = XOR(v1,v2); v3 = XOR(v3,v0); v2 = ROT32(v2); \
   } while(0)
 
@@ -47,7 +53,7 @@
     v2 = ADD(v2,v1); v6 = ADD(v6,v5); \
     v0 = ADD(v0,v3); v4 = ADD(v4,v7); \
     v1 = ROT17(v1);  v5 = ROT17(v5); \
-    v3 = ROT21(v3);  v7 = ROT21(v7); \
+    v3 = ROT_E(v3);  v7 = ROT_E(v7); \
     v1 = XOR(v1,v2); v5 = XOR(v5,v6); \
     v3 = XOR(v3,v0); v7 = XOR(v7,v4); \
     v2 = ROT32(v2);  v6 = ROT32(v6); \
@@ -65,7 +71,7 @@
     v2 = ADD(v2,v1); v6 = ADD(v6,v5);  vA = ADD(vA,v9); vE = ADD(vE,vD); \
     v0 = ADD(v0,v3); v4 = ADD(v4,v7);  v8 = ADD(v8,vB); vC = ADD(vC,vF); \
     v1 = ROT17(v1);  v5 = ROT17(v5);   v9 = ROT17(v9);  vD = ROT17(vD); \
-    v3 = ROT21(v3);  v7 = ROT21(v7);   vB = ROT21(vB);  vF = ROT21(vF); \
+    v3 = ROT_E(v3);  v7 = ROT_E(v7);   vB = ROT_E(vB);  vF = ROT_E(vF); \
     v1 = XOR(v1,v2); v5 = XOR(v5,v6);  v9 = XOR(v9,vA); vD = XOR(vD,vE); \
     v3 = XOR(v3,v0); v7 = XOR(v7,v4);  vB = XOR(vB,v8); vF = XOR(vF,vC); \
     v2 = ROT32(v2);  v6 = ROT32(v6);   vA = ROT32(vA);  vE = ROT32(vE); \
