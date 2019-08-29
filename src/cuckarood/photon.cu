@@ -28,7 +28,7 @@ const u32 MAXEDGES = NEDGES2 >> IDXSHIFT;
 #define NEPS_A 134 // to match Photon's kernel.cu
 #endif
 #ifndef NEPS_B
-#define NEPS_B 86 // to match Photon's kernel.cu
+#define NEPS_B 85 // to match Photon's kernel.cu
 #endif
 #define NEPS 128
 
@@ -343,39 +343,42 @@ struct blockstpb {
   u16 tpb;
 };
 
-#ifndef A0TPB
-#define A0TPB 256
+#ifndef SEED_TPB
+#define SEED_TPB 256
 #endif
-#ifndef A2TPB
-#define A2TPB 512
+#ifndef TRIM0_TPB
+#define TRIM0_TPB 1024
 #endif
-#ifndef A1TPB
-#define A1TPB (NX2/NA)
+#ifndef TRIM1_TPB
+#define TRIM1_TPB 512
 #endif
-#ifndef A3TPB
-#define A3TPB (NX2/NA)
+#ifndef TRIM_TPB
+#define TRIM_TPB 512
 #endif
 
 struct trimparams {
   u16 ntrims;
-  blockstpb genA;
-  blockstpb genB;
+  blockstpb seed;
+  blockstpb trim0;
+  blockstpb trim1;
   blockstpb trim;
   blockstpb tail;
   blockstpb recover;
 
   trimparams() {
-    ntrims              =  176;
-    genA.blocks         =   1024;
-    genA.tpb            = A0TPB;
-    genB.blocks         = NX2/NA;
-    genB.tpb            = 1024;
-    trim.blocks         =  NX2;
-    trim.tpb            =  512;
-    tail.blocks         =  NX2;
-    tail.tpb            = 1024;
-    recover.blocks      = 1024;
-    recover.tpb         = 1024;
+    ntrims         =       458;
+    seed.blocks    =        64;
+    seed.tpb       =  SEED_TPB;
+    trim0.blocks   =    NX2/NA;
+    trim0.tpb      = TRIM0_TPB;
+    trim1.blocks   =    NX2/NA;
+    trim1.tpb      = TRIM1_TPB;
+    trim.blocks    =       NX2;
+    trim.tpb       =  TRIM_TPB;
+    tail.blocks    =       NX2;
+    tail.tpb       =       256;
+    recover.blocks =      2048;
+    recover.tpb    =       256;
   }
 };
 
@@ -435,33 +438,37 @@ struct edgetrimmer {
   
 
     cudaMemset(indexesA, 0, indexesSizeNA);
-    // print_log("Seed4K<<<%d,%d>>>\n", tp.genA.blocks, tp.genA.tpb); // 1024x512
     for (u32 i=0; i < NA; i++) {
-      FluffySeed4K<A0TPB, EDGES_A/NA><<<tp.genA.blocks, tp.genA.tpb>>>((uint4*)(bufferA+i*sizeA/NA2), indexesA+i*NX2, i*NEDGES2/NA);
+      FluffySeed4K<SEED_TPB, EDGES_A/NA><<<tp.seed.blocks, tp.seed.tpb>>>((uint4*)(bufferA+i*(sizeA/NA2)), indexesA+i*NX2, i*(NEDGES2/NA));
       if (abort) return false;
     }
   
-    // cudaMemcpy(&nedges, indexesA+indexesSize/sizeof(u32), sizeof(u32), cudaMemcpyDeviceToHost);
-    // cudaDeviceSynchronize();
-    // print_log("round %d edges %d\n", 0, nedges);
+#ifdef VERBOSE
+    print_log("%d x Seed4K<<<%d,%d>>>\n", NA, tp.seed.blocks, tp.seed.tpb); // 1024x512
+    cudaMemcpy(&nedges, indexesA, sizeof(u32), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    print_log("round %d edges %d\n", 0, nedges);
+#endif
 
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationA, start, stop);
-    // print_log("Seeding completed in %.0f ms\n", durationA);
     cudaEventRecord(start, NULL);
   
     cudaMemset(indexesB, 0, indexesSizeNA);
-    // print_log("Round_A1<<<%d,%d>>>\n", tp.genB.blocks, A1TPB); // 1024x1024
     const u32 qB = sizeB/NA;
     const u32 qI = NX2 / NA;
     for (u32 i=0; i < NA; i++) {
-      FluffyRound_A1<A1TPB, EDGES_A/NA, EDGES_B/NA><<<tp.genB.blocks, A1TPB>>>((uint2*)bufferA, (uint4*)(bufferB+i*qB), indexesA, indexesB, i*qI);
+      FluffyRound_A1<TRIM0_TPB, EDGES_A/NA, EDGES_B/NA><<<NX2/NA, TRIM0_TPB>>>((uint2*)bufferA, (uint4*)(bufferB+i*qB), indexesA, indexesB, i*qI);
       if (abort) return false;
     }
 
-    // cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
-    // cudaDeviceSynchronize();
-    // print_log("round %d edges %d\n", 1, nedges);
+#ifdef VERBOSE
+    print_log("Seeding completed in %.0f ms\n", durationA);
+    print_log("Round_A1<<<%d,%d>>>\n", NX2/NA, TRIM0_TPB); // 1024x1024
+    cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    print_log("round %d edges %d\n", 1, nedges);
+#endif
 
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
@@ -469,25 +476,29 @@ struct edgetrimmer {
     // print_log("Round 0 completed in %.0f ms\n", durationB);
   
     cudaMemset(indexesA, 0, indexesSize);
-    // print_log("Round_A3<<<%d,%d>>>\n", tp.trim.blocks, A3TPB); // 4096x1024
-    FluffyRound_A3<A3TPB, EDGES_B/NA, EDGES_B/2><<<tp.trim.blocks, A3TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA);
+    FluffyRound_A3<TRIM1_TPB, EDGES_B/NA, EDGES_B/2><<<NX2, TRIM1_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA);
     if (abort) return false;
 
-    // cudaMemcpy(&nedges, indexesA, sizeof(u32), cudaMemcpyDeviceToHost);
-    // cudaDeviceSynchronize();
-    // print_log("round %d edges %d\n", 1, nedges);
+#ifdef VERBOSE
+    print_log("Round_A3<<<%d,%d>>>\n", NX2/NA, TRIM1_TPB); // 4096x1024
+    cudaMemcpy(&nedges, indexesA, sizeof(u32), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    print_log("round %d edges %d\n", 1, nedges);
+#endif
 
     cudaMemset(indexesB, 0, indexesSize);
-    // print_log("Round_A2<><<<%d,%d>>>\n", tp.trim.blocks, tp.trim.tpb); // 4096x512
-    FluffyRound_A2<A2TPB, EDGES_B/2, EDGES_B/2><<<tp.trim.blocks, tp.trim.tpb>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, 2, 0);
+    FluffyRound_A2<TRIM_TPB, EDGES_B/2, EDGES_B/2><<<NX2, TRIM_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, 2, 0);
     if (abort) return false;
 
-    // cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
-    // cudaDeviceSynchronize();
-    // print_log("round %d edges %d\n", 2, nedges);
+#ifdef VERBOSE
+    print_log("Round_A2<><<<%d,%d>>>\n", NX2, TRIM_TPB); // 4096x512
+    cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    print_log("round %d edges %d\n", 2, nedges);
+#endif
 
     cudaMemset(indexesA, 0, indexesSize);
-    FluffyRound_A2<A2TPB, EDGES_B/2, EDGES_B/2><<<tp.trim.blocks, tp.trim.tpb>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, 3, 0);
+    FluffyRound_A2<TRIM_TPB, EDGES_B/2, EDGES_B/2><<<NX2, TRIM_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, 3, 0);
     if (abort) return false;
 
     // cudaMemcpy(&nedges, indexesA, sizeof(u32), cudaMemcpyDeviceToHost);
@@ -495,7 +506,7 @@ struct edgetrimmer {
     // print_log("round %d edges %d\n", 3, nedges);
 
     cudaMemset(indexesB, 0, indexesSize);
-    FluffyRound_A2<A2TPB, EDGES_B/2, EDGES_B/2><<<tp.trim.blocks, tp.trim.tpb>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, 4, 0);
+    FluffyRound_A2<TRIM_TPB, EDGES_B/2, EDGES_B/2><<<NX2, TRIM_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, 4, 0);
     if (abort) return false;
 
     // cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
@@ -503,7 +514,7 @@ struct edgetrimmer {
     // print_log("round %d edges %d\n", 4, nedges);
 
     cudaMemset(indexesA, 0, indexesSize);
-    FluffyRound_A2<A2TPB, EDGES_B/2, EDGES_B/4><<<tp.trim.blocks, tp.trim.tpb>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, 5, 0);
+    FluffyRound_A2<TRIM_TPB, EDGES_B/2, EDGES_B/4><<<NX2, TRIM_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, 5, 0);
     if (abort) return false;
 
     // cudaMemcpy(&nedges, indexesA, sizeof(u32), cudaMemcpyDeviceToHost);
@@ -514,11 +525,11 @@ struct edgetrimmer {
   
     for (int round = 6; round < tp.ntrims; round += 2) {
       cudaMemset(indexesB, 0, indexesSize);
-      FluffyRound_A2<A2TPB, EDGES_B/4, EDGES_B/4><<<tp.trim.blocks, tp.trim.tpb>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, round, 0);
+      FluffyRound_A2<TRIM_TPB, EDGES_B/4, EDGES_B/4><<<NX2, TRIM_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, round, 0);
       if (abort) return false;
 
       cudaMemset(indexesA, 0, indexesSize);
-      FluffyRound_A2<A2TPB, EDGES_B/4, EDGES_B/4><<<tp.trim.blocks, tp.trim.tpb>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, round+1, 0);
+      FluffyRound_A2<TRIM_TPB, EDGES_B/4, EDGES_B/4><<<NX2, TRIM_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, round+1, 0);
       if (abort) return false;
     }
     
@@ -690,34 +701,33 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
 CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
   trimparams tp;
   tp.ntrims = params->ntrims;
-  tp.genA.blocks = params->genablocks;
-  tp.genA.tpb = params->genatpb;
-  tp.genB.tpb = params->genbtpb;
+  tp.seed.blocks = params->genablocks;
+  tp.seed.tpb = params->genatpb;
+  tp.trim0.tpb = params->genbtpb;
   tp.trim.tpb = params->trimtpb;
   tp.tail.tpb = params->tailtpb;
   tp.recover.blocks = params->recoverblocks;
+  print_log("create_solver_ctx %d = %d\n", tp.recover.tpb, params->recovertpb);
   tp.recover.tpb = params->recovertpb;
 
   cudaDeviceProp prop;
   checkCudaErrors_N(cudaGetDeviceProperties(&prop, params->device));
 
-  assert(tp.genA.tpb <= prop.maxThreadsPerBlock);
-  assert(tp.genB.tpb <= prop.maxThreadsPerBlock);
+  assert(tp.seed.tpb <= prop.maxThreadsPerBlock);
+  assert(tp.trim0.tpb <= prop.maxThreadsPerBlock);
   assert(tp.trim.tpb <= prop.maxThreadsPerBlock);
   // assert(tp.tailblocks <= prop.threadDims[0]);
   assert(tp.tail.tpb <= prop.maxThreadsPerBlock);
   assert(tp.recover.tpb <= prop.maxThreadsPerBlock);
 
-  assert(tp.genA.blocks * tp.genA.tpb * EDGE_BLOCK_SIZE <= NEDGES2); // check THREADS_HAVE_EDGES
+  assert(tp.seed.blocks * tp.seed.tpb * EDGE_BLOCK_SIZE <= NEDGES2); // check THREADS_HAVE_EDGES
   assert(tp.recover.blocks * tp.recover.tpb * EDGE_BLOCK_SIZE <= NEDGES2); // check THREADS_HAVE_EDGES
 
   cudaSetDevice(params->device);
   if (!params->cpuload)
     checkCudaErrors_N(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
 
-  SolverCtx* ctx = new SolverCtx(tp, params->mutate_nonce);
-
-  return ctx;
+  return new SolverCtx(tp, params->mutate_nonce);
 }
 
 CALL_CONVENTION void destroy_solver_ctx(SolverCtx* ctx) {
@@ -732,12 +742,12 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
   trimparams tp;
   params->device = 0;
   params->ntrims = tp.ntrims;
-  params->genablocks = min(tp.genA.blocks, NEDGES2/EDGE_BLOCK_SIZE/tp.genA.tpb);
-  params->genatpb = tp.genA.tpb;
-  params->genbtpb = tp.genB.tpb;
+  params->genablocks = tp.seed.blocks;
+  params->genatpb = tp.seed.tpb;
+  params->genbtpb = tp.trim0.tpb;
   params->trimtpb = tp.trim.tpb;
   params->tailtpb = tp.tail.tpb;
-  params->recoverblocks = min(tp.recover.blocks, NEDGES2/EDGE_BLOCK_SIZE/tp.recover.tpb);
+  params->recoverblocks = tp.recover.blocks;
   params->recovertpb = tp.recover.tpb;
   params->cpuload = false;
 }
@@ -756,11 +766,11 @@ int main(int argc, char **argv) {
   fill_default_params(&params);
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt(argc, argv, "scb:d:h:k:m:n:r:U:u:v:w:y:Z:z:")) != -1) {
+  while ((c = getopt(argc, argv, "scd:h:m:n:r:U:y:Z:z:")) != -1) {
     switch (c) {
       case 's':
-        print_log("SYNOPSIS\n  cuda%d [-s] [-c] [-d device] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedAblocks] [-u seedAthreads] [-v seedBthreads] [-w Trimthreads] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", EDGEBITS);
-        print_log("DEFAULTS\n  cuda%d -d %d -h \"\" -m %d -n %d -r %d -U %d -u %d -v %d -w %d -y %d -Z %d -z %d\n", EDGEBITS, device, tp.ntrims, nonce, range, tp.genA.blocks, tp.genA.tpb, tp.genB.tpb, tp.trim.tpb, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
+        print_log("SYNOPSIS\n  cuda%d [-s] [-c] [-d device] [-h hexheader] [-m trims] [-n nonce] [-r range] [-U seedblocks] [-y Tailthreads] [-Z recoverblocks] [-z recoverthreads]\n", EDGEBITS);
+        print_log("DEFAULTS\n  cuda%d -d %d -h \"\" -m %d -n %d -r %d -U %d -y %d -Z %d -z %d\n", EDGEBITS, device, tp.ntrims, nonce, range, tp.seed.blocks, tp.tail.tpb, tp.recover.blocks, tp.recover.tpb);
         exit(0);
       case 'c':
         params.cpuload = false;
@@ -774,34 +784,25 @@ int main(int argc, char **argv) {
         for (u32 i=0; i<len; i++)
           sscanf(optarg+2*i, "%2hhx", header+i); // hh specifies storage of a single byte
         break;
+      case 'm': // ntrims         =       458;
+        params.ntrims = atoi(optarg) & -2; // odd number of trimming rounds is treated same as 1 less anyway
+        break;
       case 'n':
         nonce = atoi(optarg);
-        break;
-      case 'm':
-        params.ntrims = atoi(optarg) & -2; // make even as required by solve()
         break;
       case 'r':
         range = atoi(optarg);
         break;
-      case 'U':
+      case 'U': // seed.blocks    =        64;
         params.genablocks = atoi(optarg);
         break;
-      case 'u':
-        params.genatpb = atoi(optarg);
-        break;
-      case 'v':
-        params.genbtpb = atoi(optarg);
-        break;
-      case 'w':
-        params.trimtpb = atoi(optarg);
-        break;
-      case 'y':
+      case 'y': // tail.tpb       =       256;
         params.tailtpb = atoi(optarg);
         break;
-      case 'Z':
+      case 'Z': // recover.blocks =      2048;
         params.recoverblocks = atoi(optarg);
         break;
-      case 'z':
+      case 'z': // recover.tpb    =       256;
         params.recovertpb = atoi(optarg);
         break;
     }

@@ -39,6 +39,41 @@ const u32 ZBITS = YZBITS - YBITS;
 const u32 NZ = 1 << ZBITS;
 const u32 ZMASK = NZ - 1;
 
+__device__ __forceinline__ uint2 ld_cs_u32_v2(const uint2 *p_src)
+{
+  uint2 n_result;
+  asm("ld.global.cs.v2.u32 {%0,%1}, [%2];"  : "=r"(n_result.x), "=r"(n_result.y) : "l"(p_src));
+  return n_result;
+}
+
+__device__ __forceinline__ void st_cg_u32_v2(uint2 *p_dest, const uint2 n_value)
+{
+  asm("st.global.cg.v2.u32 [%0], {%1, %2};" :: "l"(p_dest), "r"(n_value.x), "r"(n_value.y));
+}
+
+__device__ __forceinline__ void st_cg_u32_v4(uint4 *p_dest, const uint4 n_value)
+{
+  asm("st.global.cg.v4.u32 [%0], {%1, %2, %3, %4};" :: "l"(p_dest), "r"(n_value.x), "r"(n_value.y), "r"(n_value.z), "r"(n_value.w));
+}
+
+__device__ __forceinline__  void setbit(u32 * ecounters, const int bucket)
+{
+  const int word = bucket >> 5;
+  const unsigned char bit = bucket & 0x1F;
+  const u32 mask = 1 << bit;
+  atomicOr(ecounters + word, mask);
+}
+
+__device__ __forceinline__  bool testbit(u32 * ecounters, const int bucket)
+{
+  const int word = bucket >> 5;
+  const unsigned char bit = bucket & 0x1F;
+  return (ecounters[word] >> bit) & 1;
+}
+
+__constant__ siphash_keys dipkeys;
+__constant__ u64 recovery[42];
+
 #define ROTL(x,b) ( ((x) << (b)) | ( (x) >> (64 - (b))) )
 #define SIPROUND {\
   v0 += v1; v2 += v3; v1 = ROTL(v1,13); \
@@ -75,41 +110,6 @@ const u32 ZMASK = NZ - 1;
   }\
 }
 
-__device__ __forceinline__ uint2 ld_cs_u32_v2(const uint2 *p_src)
-{
-  uint2 n_result;
-  asm("ld.global.cs.v2.u32 {%0,%1}, [%2];"  : "=r"(n_result.x), "=r"(n_result.y) : "l"(p_src));
-  return n_result;
-}
-
-__device__ __forceinline__ void st_cg_u32_v2(uint2 *p_dest, const uint2 n_value)
-{
-  asm("st.global.cg.v2.u32 [%0], {%1, %2};" :: "l"(p_dest), "r"(n_value.x), "r"(n_value.y));
-}
-
-__device__ __forceinline__ void st_cg_u32_v4(uint4 *p_dest, const uint4 n_value)
-{
-  asm("st.global.cg.v4.u32 [%0], {%1, %2, %3, %4};" :: "l"(p_dest), "r"(n_value.x), "r"(n_value.y), "r"(n_value.z), "r"(n_value.w));
-}
-
-__device__ __forceinline__  void setbit(u32 * ecounters, const int bucket)
-{
-  const int word = bucket >> 5;
-  const unsigned char bit = bucket & 0x1F;
-  const u32 mask = 1 << bit;
-  atomicOr(ecounters + word, mask);
-}
-
-__device__ __forceinline__  bool testbit(u32 * ecounters, const int bucket)
-{
-  const int word = bucket >> 5;
-  const unsigned char bit = bucket & 0x1F;
-  return (ecounters[word] >> bit) & 1;
-}
-
-__constant__ siphash_keys dipkeys;
-__constant__ u64 recovery[42];
-
 template<int tpb, int bktOutSize>
 __global__  void FluffySeed4K(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, const u32 offset)
 {
@@ -117,9 +117,10 @@ __global__  void FluffySeed4K(uint4 * __restrict__ buffer, u32 * __restrict__ in
   const int lid = threadIdx.x;
 
   assert(blockDim.x == tpb);
+  assert(NEDGES2 % (NA * gridDim.x * tpb * EDGE_BLOCK_SIZE) == 0);
   const int nloops = NEDGES2 / NA / gridDim.x / tpb / EDGE_BLOCK_SIZE;
   ulonglong4 sipblockL[EDGE_BLOCK_SIZE/4 - 1];
-  __shared__ u64 magazine[NX2];
+  __shared__ unsigned long long magazine[NX2];
 
   uint64_t v0, v1, v2, v3;
 
@@ -194,21 +195,23 @@ __global__  void FluffyRound_A1(uint2 * source, uint4 * destination, const u32 *
   const int group = blockIdx.x;
 
   __shared__ u32 ecounters[NZ/32];
-  __shared__ u64 magazine[NX2];
+  __shared__ unsigned long long magazine[NX2];
   int edgesInBucket[NA];
 
   assert(blockDim.x == tpb);
-  // assert(NX2/NA == tpb);
   assert(gridDim.x == NX2/NA);
 
   for (int i = 0; i < NZ/32/tpb; i++)
     ecounters[lid + i * tpb] = 0;
 
+  for (int i = 0; i < NX2/tpb; i++)
+    magazine[lid + tpb * i] = 0;
+
   for (int a = 0; a < NA; a++)
     edgesInBucket[a] = min(sourceIndexes[a * NX2 + offset + group], bktInSize);
 
   const int rowOffset = offset * NA;
-  source += bktInSize * (group + rowOffset);
+  source += bktInSize * (rowOffset + group);
 
   __syncthreads();
 
@@ -227,11 +230,6 @@ __global__  void FluffyRound_A1(uint2 * source, uint4 * destination, const u32 *
       setbit(ecounters, (edge.x & ZMASK));
     }
   }
-
-  __syncthreads();
-
-  for (int i = 0; i < NX2/tpb; i++)
-    magazine[lid + tpb * i] = 0;
 
   __syncthreads();
 
@@ -269,8 +267,8 @@ __global__  void FluffyRound_A1(uint2 * source, uint4 * destination, const u32 *
       destination[((bucket * bktOutSize) + bktIdx) / 2] = make_uint4(edge >> 32, edge, 0, 0);
     }
   }
-
 }
+
 template<int tpb, int bktInSize, int bktOutSize>
 __global__  void FluffyRound_A2(const uint2 * source, uint2 * destination, const u32 * sourceIndexes, u32 * destinationIndexes, const int round, int * aux)
 {
@@ -388,26 +386,29 @@ __global__  void FluffyTail(const uint2 * source, uint2 * destination, const u32
 {
   const int lid = threadIdx.x;
   const int group = blockIdx.x;
-
-  int myEdges = sourceIndexes[group];
   __shared__ int destIdx;
 
+  assert(gridDim.x == NX2);
+
+  const int nEdges = sourceIndexes[group];
+
+  assert(blockDim.x >= nEdges);
+
   if (lid == 0)
-    destIdx = atomicAdd(destinationIndexes, myEdges);
+    destIdx = atomicAdd(destinationIndexes, nEdges);
 
   __syncthreads();
 
-  if (lid < myEdges)
-  {
+  if (lid < nEdges)
     destination[destIdx + lid] = source[group * bktInSize + lid];
-  }
 }
+
 __global__  void FluffyRecovery(u32 * indexes)
 {
   const int gid = blockDim.x * blockIdx.x + threadIdx.x;
   const int lid = threadIdx.x;
 
-  __shared__ u32 nonces[42];
+  __shared__ u32 nonces[PROOFSIZE];
   u64 sipblock[EDGE_BLOCK_SIZE];
 
   uint64_t v0;
@@ -415,35 +416,35 @@ __global__  void FluffyRecovery(u32 * indexes)
   uint64_t v2;
   uint64_t v3;
 
-  if (lid < 42) nonces[lid] = 0;
+  const int nloops = NEDGES2 / (gridDim.x * blockDim.x * EDGE_BLOCK_SIZE);
+  if (lid < PROOFSIZE) nonces[lid] = 0;
 
   __syncthreads();
 
-  for (int i = 0; i < 1024; i += EDGE_BLOCK_SIZE)
-  {
-    u64 blockNonce = gid * 1024 + i;
+  for (int i = 0; i < nloops; i++) {
+    u64 blockNonce = gid * nloops * EDGE_BLOCK_SIZE + i * EDGE_BLOCK_SIZE;
 
     v0 = dipkeys.k0;
     v1 = dipkeys.k1;
     v2 = dipkeys.k2;
     v3 = dipkeys.k3;
 
-    for (u32 b = 0; b < EDGE_BLOCK_SIZE; b++)
-    {
+    for (u32 b = 0; b < EDGE_BLOCK_SIZE; b++) {
       v3 ^= blockNonce + b;
-      SIPROUND; SIPROUND;
+      for (short r = 0; r < 2; r++)
+        SIPROUND;
       v0 ^= blockNonce + b;
       v2 ^= 0xff;
-      SIPROUND; SIPROUND; SIPROUND; SIPROUND;
+      for (short r = 0; r < 4; r++)
+        SIPROUND;
 
       sipblock[b] = (v0 ^ v1) ^ (v2  ^ v3);
-
     }
+
     const u64 last = sipblock[EDGE_BLOCK_SIZE - 1];
     sipblock[EDGE_BLOCK_SIZE - 1] = 0;
 
-    for (short s = EDGE_BLOCK_SIZE; --s >= 0; )
-    {
+    for (short s = EDGE_BLOCK_SIZE; --s >= 0; ) {
       u32 dir = s & 1;
       u64 lookup = sipblock[s] ^ last;
 
@@ -453,9 +454,8 @@ __global__  void FluffyRecovery(u32 * indexes)
       u64 a = u | (v << 32);
       u64 b = v | (u << 32);
 
-      for (int i = 0; i < 42; i++)
-      {
-        if ((recovery[i] == a) || (recovery[i] == b))
+      for (int i = 0; i < PROOFSIZE; i++) {
+        if (recovery[i] == a || recovery[i] == b)
           nonces[i] = blockNonce + s;
       }
     }
@@ -463,7 +463,7 @@ __global__  void FluffyRecovery(u32 * indexes)
 
   __syncthreads();
 
-  if (lid < 42)
+  if (lid < PROOFSIZE)
   {
     if (nonces[lid] > 0)
       indexes[lid] = nonces[lid];
