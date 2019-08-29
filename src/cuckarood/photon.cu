@@ -10,6 +10,13 @@
 #include "graph.hpp"
 #include "../crypto/siphash.cuh"
 #include "../crypto/blake2.h"
+
+// Number of Parts of BufferB, all but one of which will overlap BufferA
+#ifndef NA
+#define NA 4
+#endif
+#define NA2 (NA * NA)
+
 #include "kernel.cu"
 
 typedef uint8_t u8;
@@ -37,12 +44,6 @@ const u32 EDGES_B = NZ * NEPS_B / NEPS;
 
 const u32 ROW_EDGES_A = EDGES_A * NY;
 const u32 ROW_EDGES_B = EDGES_B * NY;
-
-// Number of Parts of BufferB, all but one of which will overlap BufferA
-#ifndef NA
-#define NA 4
-#endif
-#define NA2 (NA * NA)
 
 __constant__ uint2 recoveredges[PROOFSIZE];
 __constant__ uint2 e0 = {0,0};
