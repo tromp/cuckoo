@@ -133,11 +133,9 @@ $5000 for an open source implementation for a consumer GPU
 that finds 42-cycles twice as fast as cuckoo/lean_miner.cu on 2^29 edge graphs on comparable hardware, using no more than a nibble per edge.
 
 $5000 for an open source implementation for a consumer GPU
-that finds 42-cycles twice as fast as https://github.com/mozkomor/GrinGoldMiner on 2^29 edge graphs on comparable hardware.
+that finds 42-cycles twice as fast as cuckarood/photon.cu on 2^29 edge graphs on comparable hardware.
 
 The Makefile defines corresponding targets leancpubounty, meancpubounty, tmtobounty, and gpubounty.
-
-User Photon has submitted a successful half bounty claim, which I'm in the (slow) process of integrating.
 
 Double and fractional bounties
 ------------------------------
