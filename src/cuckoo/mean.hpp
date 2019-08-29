@@ -258,9 +258,14 @@ public:
 
 #if NSIPHASH > 4
   void* operator new(size_t size) noexcept {
+#if !defined(_WIN32)
     void* newobj;
     int tmp = posix_memalign(&newobj, NSIPHASH * sizeof(u32), sizeof(edgetrimmer));
     if (tmp != 0) return nullptr;
+#else
+    void* newobj = _aligned_malloc(sizeof(edgetrimmer), NSIPHASH * sizeof(u32));
+    if (newobj == NULL) return nullptr;
+#endif
     return newobj;
   }
 #endif
