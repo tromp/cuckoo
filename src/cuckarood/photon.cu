@@ -140,7 +140,7 @@ struct edgetrimmer {
     initsuccess = true;
   }
   u64 globalbytes() const {
-    return sizeA + sizeB/NA + 2 * indexesSizeNA + sizeof(siphash_keys) + PROOFSIZE * 2 * sizeof(u32) + sizeof(edgetrimmer);
+    return sizeA + sizeB/NA + 2 * indexesSizeNA + sizeof(siphash_keys) + sizeof(edgetrimmer);
   }
   ~edgetrimmer() {
     checkCudaErrors_V(cudaFree(bufferB));

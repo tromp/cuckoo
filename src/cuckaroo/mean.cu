@@ -312,7 +312,7 @@ __global__ void Tail(const uint2 *source, uint2 *destination, const u32 *srcIdx,
     destIdx = atomicAdd(dstIdx, myEdges);
   __syncthreads();
   for (int i = lid; i < myEdges; i += dim)
-    destination[destIdx + lid] = source[group * maxIn + lid];
+    destination[destIdx + i] = source[group * maxIn + i];
 }
 
 #define checkCudaErrors_V(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return;})
