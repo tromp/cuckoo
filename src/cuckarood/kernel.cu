@@ -18,16 +18,10 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 
-#define EDGEBITS 29
-#define NNODES1 NEDGES1
-#define NNODES2 NEDGES2
-
-#define EDGEMASK (NEDGES2 - 1)
-
-#define BKTMASK4K (4096-1)
-#define BKTGRAN 64
-
+#ifndef XBITS
 #define XBITS 6
+#endif
+
 const u32 NX = 1 << XBITS;
 const u32 XMASK = NX - 1;
 const u32 NX2 = NX * NX;
@@ -111,13 +105,11 @@ __constant__ u64 recovery[42];
 }
 
 template<int tpb, int bktOutSize>
-__global__  void FluffySeed4K(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, const u32 offset)
+__global__  void FluffySeed(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, const u32 offset)
 {
   const int gid = blockDim.x * blockIdx.x + threadIdx.x;
   const int lid = threadIdx.x;
 
-  assert(blockDim.x == tpb);
-  assert(NEDGES2 % (NA * gridDim.x * tpb * EDGE_BLOCK_SIZE) == 0);
   const int nloops = NEDGES2 / NA / gridDim.x / tpb / EDGE_BLOCK_SIZE;
   ulonglong4 sipblockL[EDGE_BLOCK_SIZE/4 - 1];
   __shared__ unsigned long long magazine[NX2];
@@ -189,17 +181,15 @@ __global__  void FluffySeed4K(uint4 * __restrict__ buffer, u32 * __restrict__ in
 }
 
 template<int tpb, int bktInSize, int bktOutSize>
-__global__  void FluffyRound_A1(uint2 * source, uint4 * destination, const u32 * sourceIndexes, u32 * destinationIndexes, const int offset)
+__global__  void FluffyRound_A1(const uint2 * source, uint4 * destination, const u32 * sourceIndexes, u32 * destinationIndexes, const int offset)
 {
   const int lid = threadIdx.x;
   const int group = blockIdx.x;
 
   __shared__ u32 ecounters[NZ/32];
   __shared__ unsigned long long magazine[NX2];
-  int edgesInBucket[NA];
 
-  assert(blockDim.x == tpb);
-  assert(gridDim.x == NX2/NA);
+  int nloops[NA];
 
   for (int i = 0; i < NZ/32/tpb; i++)
     ecounters[lid + i * tpb] = 0;
@@ -208,26 +198,19 @@ __global__  void FluffyRound_A1(uint2 * source, uint4 * destination, const u32 *
     magazine[lid + tpb * i] = 0;
 
   for (int a = 0; a < NA; a++)
-    edgesInBucket[a] = min(sourceIndexes[a * NX2 + offset + group], bktInSize);
+    nloops[a] = (min(sourceIndexes[a * NX2 + offset + group], bktInSize) - lid + tpb-1) / tpb;
 
   const int rowOffset = offset * NA;
-  source += bktInSize * (rowOffset + group);
+  source += bktInSize * (rowOffset + group) + lid;
 
   __syncthreads();
 
   for (int a = 0; a < NA; a++) {
     const int delta = a * (NX2/NA) * bktInSize;
-    int i;
-    for (i = 0; i < edgesInBucket[a] / tpb; i++) {
-      uint2 edge = source[delta + (i * tpb) + lid];
+    for (int i = 0; i < nloops[a]; i++) {
+      uint2 edge = source[delta + i * tpb];
       if (edge.x == 0 && edge.y == 0) continue;
-      setbit(ecounters, (edge.x & ZMASK));
-    }
-    int lindex = (i * tpb) + lid;
-    if (lindex < edgesInBucket[a]) {
-      uint2 edge = source[delta + lindex];
-      if (edge.x == 0 && edge.y == 0) continue;
-      setbit(ecounters, (edge.x & ZMASK));
+      setbit(ecounters, edge.x & ZMASK);
     }
   }
 
@@ -235,23 +218,20 @@ __global__  void FluffyRound_A1(uint2 * source, uint4 * destination, const u32 *
 
   for (int a = 0; a < NA; a++) {
     const int delta = a * (NX2/NA) * bktInSize;
-    for (int i = 0; i < (edgesInBucket[a] + tpb-1) / tpb; i++) {
-      const int lindex = (i * tpb) + lid;
-      if (lindex < edgesInBucket[a]) {
-        uint2 edge = source[delta + lindex];
-        if (edge.x == 0 && edge.y == 0) continue;
-        if (testbit(ecounters, (edge.x & ZMASK) ^ 1)) {
-          int bucket = (edge.y >> ZBITS) & BKTMASK4K;
-          u64 edge64 = (((u64)edge.y) << 32) | edge.x;
-          for (u64 ret = atomicCAS(&magazine[bucket], 0, edge64); ret; ) {
-            u64 ret2 = atomicCAS(&magazine[bucket], ret, 0);
-            if (ret2 == ret) {
-              int bktIdx = min(atomicAdd(destinationIndexes + bucket + rowOffset, 2), bktOutSize - 2);
-              destination[ ((bucket * bktOutSize) + bktIdx) / 2] = make_uint4(ret >> 32, ret, edge.y, edge.x);
-              break;
-            }
-            ret = ret2 ? ret2 : atomicCAS(&magazine[bucket], 0, edge64);
+    for (int i = 0; i < nloops[a]; i++) {
+      uint2 edge = source[delta + i * tpb];
+      if (edge.x == 0 && edge.y == 0) continue;
+      if (testbit(ecounters, (edge.x & ZMASK) ^ 1)) {
+        int bucket = (edge.y >> ZBITS) & X2MASK;
+        u64 edge64 = (((u64)edge.y) << 32) | edge.x;
+        for (u64 ret = atomicCAS(&magazine[bucket], 0, edge64); ret; ) {
+          u64 ret2 = atomicCAS(&magazine[bucket], ret, 0);
+          if (ret2 == ret) {
+            int bktIdx = min(atomicAdd(destinationIndexes + bucket + rowOffset, 2), bktOutSize - 2);
+            destination[ ((bucket * bktOutSize) + bktIdx) / 2] = make_uint4(ret >> 32, ret, edge.y, edge.x);
+            break;
           }
+          ret = ret2 ? ret2 : atomicCAS(&magazine[bucket], 0, edge64);
         }
       }
     }
@@ -260,7 +240,7 @@ __global__  void FluffyRound_A1(uint2 * source, uint4 * destination, const u32 *
   __syncthreads();
 
   for (int i = 0; i < NX2/tpb; i++) {
-    int bucket = lid + (tpb * i);
+    int bucket = lid + tpb * i;
     u64 edge = magazine[bucket];
     if (edge != 0) {
       int bktIdx = min(atomicAdd(destinationIndexes + bucket + rowOffset, 2), bktOutSize - 2);
@@ -277,50 +257,24 @@ __global__  void FluffyRound_A2(const uint2 * source, uint2 * destination, const
 
   __shared__ u32 ecounters[NZ/32];
 
-  const int edgesInBucket = min(sourceIndexes[group], bktInSize);
-  const int loops = (edgesInBucket + tpb-1) / tpb;
+  const int nloops = (min(sourceIndexes[group], bktInSize) - lid + tpb-1) / tpb;
 
-  if (!loops)
-    return;
-
-  const int offset = bktInSize * group;
-
-  assert(blockDim.x == tpb);
-  assert(gridDim.x == NX2);
+  source += bktInSize * group + lid;
 
   for (int i = 0; i < NZ/32/tpb; i++)
     ecounters[lid + (tpb * i)] = 0;
 
   __syncthreads();
 
-  for (int i = 0; i < loops - 1; i++) {
-    const int lindex = (i * tpb) + lid;
-    uint2 edge = source[offset + lindex];
-    setbit(ecounters, (edge.x & ZMASK));
-  }
-
-  uint2 edge1;
-  int lindex = ((loops - 1) * tpb) + lid;
-  if (lindex < edgesInBucket) {
-    edge1 = ld_cs_u32_v2(&source[offset + lindex]);
-    setbit(ecounters, (edge1.x & ZMASK));
-  }
+  for (int i = 0; i < nloops; i++)
+    setbit(ecounters, source[i * tpb].x & ZMASK);
 
   __syncthreads();
 
-  if (lindex < edgesInBucket) {
-    if (testbit(ecounters, (edge1.x & ZMASK) ^ 1)) {
-      const int bucket = (edge1.y >> ZBITS) & BKTMASK4K;
-      const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), bktOutSize - 1);
-      st_cg_u32_v2(&destination[(bucket * bktOutSize) + bktIdx], make_uint2(edge1.y, edge1.x));
-    }
-  }
-
-  for (int i = loops - 2; i >= 0; i--) {
-    const int lindex = (i * tpb) + lid;
-    uint2 edge = source[offset + lindex];
+  for (int i = nloops; --i >= 0;) {
+    uint2 edge = source[i * tpb];
     if (testbit(ecounters, (edge.x & ZMASK) ^ 1)) {
-      const int bucket = (edge.y >> ZBITS) & BKTMASK4K;
+      const int bucket = (edge.y >> ZBITS) & X2MASK;
       const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), bktOutSize - 1);
       st_cg_u32_v2(&destination[(bucket * bktOutSize) + bktIdx], make_uint2(edge.y, edge.x));
     }
@@ -334,31 +288,24 @@ __global__  void FluffyRound_A3(uint2 * source, uint2 * destination, const u32 *
   const int group = blockIdx.x;
 
   __shared__ u32 ecounters[NZ/32];
-  int edgesInBucket[NA];
-
-  assert(blockDim.x == tpb);
-  assert(gridDim.x == NX2);
+  int nloops[NA];
 
   for (int i = 0; i < NZ/32/tpb; i++)
     ecounters[lid + (i * tpb)] = 0;
 
-  for (int a = 0; a < NA; a++) {
-    edgesInBucket[a] = min(sourceIndexes[group + a*NX2], bktInSize);
-  }
+  for (int a = 0; a < NA; a++)
+    nloops[a] = (min(sourceIndexes[group + a*NX2], bktInSize) - lid + tpb-1) / tpb;
 
-  source += bktInSize * group;
+  source += bktInSize * group + lid;
 
   __syncthreads();
 
   for (int a = 0; a < NA; a++) {
     const int delta = a * bktInSize * NX2;
-    for (int i = 0; i < (edgesInBucket[a] + tpb-1) / tpb; i++) {
-      int lindex = (i * tpb) + lid;
-      if (lindex < edgesInBucket[a]) {
-        uint2 edge = ld_cs_u32_v2(&source[delta + lindex]);
-        if (edge.x == 0 && edge.y == 0) continue;
-        setbit(ecounters, (edge.x & ZMASK));
-      }
+    for (int i = 0; i < nloops[a]; i++) {
+      uint2 edge = ld_cs_u32_v2(&source[delta + i * tpb]);
+      if (edge.x == 0 && edge.y == 0) continue;
+      setbit(ecounters, edge.x & ZMASK);
     }
   }
 
@@ -366,41 +313,34 @@ __global__  void FluffyRound_A3(uint2 * source, uint2 * destination, const u32 *
 
   for (int a = 0; a < NA; a++) {
     const int delta = a * bktInSize * NX2;
-    for (int i = 0; i < (edgesInBucket[a] + tpb-1) / tpb; i++) {
-      int lindex = (i * tpb) + lid;
-      if (lindex < edgesInBucket[a]) {
-        uint2 edge = ld_cs_u32_v2(&source[delta + lindex]);
-        if (edge.x == 0 && edge.y == 0) continue;
-        if (testbit(ecounters, (edge.x & ZMASK) ^ 1)) {
-          const int bucket = (edge.y >> ZBITS) & BKTMASK4K;
-          const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), bktOutSize - 1);
-          st_cg_u32_v2(&destination[(bucket * bktOutSize) + bktIdx], make_uint2(edge.y, edge.x));
-        }
+    for (int i = 0; i < nloops[a]; i++) {
+      uint2 edge = ld_cs_u32_v2(&source[delta + i * tpb]);
+      if (edge.x == 0 && edge.y == 0) continue;
+      if (testbit(ecounters, (edge.x & ZMASK) ^ 1)) {
+        const int bucket = (edge.y >> ZBITS) & X2MASK;
+        const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), bktOutSize - 1);
+        st_cg_u32_v2(&destination[(bucket * bktOutSize) + bktIdx], make_uint2(edge.y, edge.x));
       }
     }
   }
 }
 
-template<int bktInSize>
+template<int tpb, int bktInSize>
 __global__  void FluffyTail(const uint2 * source, uint2 * destination, const u32 * sourceIndexes, u32 * destinationIndexes)
 {
   const int lid = threadIdx.x;
   const int group = blockIdx.x;
   __shared__ int destIdx;
 
-  assert(gridDim.x == NX2);
-
   const int nEdges = sourceIndexes[group];
-
-  assert(blockDim.x >= nEdges);
 
   if (lid == 0)
     destIdx = atomicAdd(destinationIndexes, nEdges);
 
   __syncthreads();
 
-  if (lid < nEdges)
-    destination[destIdx + lid] = source[group * bktInSize + lid];
+  for (int i = 0; i < (nEdges-lid+tpb-1)/tpb; i++)
+    destination[destIdx + i * tpb + lid] = source[group * bktInSize + i * tpb + lid];
 }
 
 __global__  void FluffyRecovery(u32 * indexes)
@@ -463,8 +403,7 @@ __global__  void FluffyRecovery(u32 * indexes)
 
   __syncthreads();
 
-  if (lid < PROOFSIZE)
-  {
+  if (lid < PROOFSIZE) {
     if (nonces[lid] > 0)
       indexes[lid] = nonces[lid];
   }
