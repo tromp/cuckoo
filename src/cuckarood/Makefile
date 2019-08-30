@@ -17,7 +17,7 @@ NVCC ?= nvcc -std=c++11
 all : simpletest meantest
 
 simpletest:     simple19
-	./simple19 -n 71
+	./simple19 -n 64
 
 meantest:	mean29x4
 	./mean29x4 -n 23 -t 4 -s
