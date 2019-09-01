@@ -78,11 +78,11 @@ __constant__ u64 recovery[42];
 }
 #define SIPBLOCK(b) {\
   v3 ^= (b);\
-  for (short r = 0; r < 2; r++)\
+  for (int r = 0; r < 2; r++)\
   SIPROUND;\
   v0 ^= (b);\
   v2 ^= 0xff;\
-  for (short r = 0; r < 4; r++)\
+  for (int r = 0; r < 4; r++)\
   SIPROUND;\
 }
 #define DUMP(E, dir) {\
@@ -109,19 +109,24 @@ __global__  void FluffySeed(uint4 * __restrict__ buffer, u32 * __restrict__ inde
 {
   const int gid = blockDim.x * blockIdx.x + threadIdx.x;
   const int lid = threadIdx.x;
+  const int nthreads = gridDim.x * tpb;
 
-  const int nloops = NEDGES2 / NA / gridDim.x / tpb / EDGE_BLOCK_SIZE;
+  const int nloops = (NEDGES2 / NA / EDGE_BLOCK_SIZE - gid + nthreads-1) / nthreads;
   ulonglong4 sipblockL[EDGE_BLOCK_SIZE/4 - 1];
   __shared__ unsigned long long magazine[NX2];
 
   uint64_t v0, v1, v2, v3;
 
-  for (short i = 0; i < NX2/tpb; i++)
+#if tpb && NX2 % tpb == 0
+  for (int i = 0; i < NX2/tpb; i++)
+#else
+  for (int i = 0; i < (NX2 - lid + tpb-1) / tpb; i++)
+#endif
     magazine[lid + tpb * i] = 0;
 
   __syncthreads();
 
-  for (short i = 0; i < nloops; i++) {
+  for (int i = 0; i < nloops; i++) {
     u64 blockNonce = offset + (gid * nloops * EDGE_BLOCK_SIZE + i * EDGE_BLOCK_SIZE);
 
     v0 = dipkeys.k0;
@@ -130,7 +135,7 @@ __global__  void FluffySeed(uint4 * __restrict__ buffer, u32 * __restrict__ inde
     v3 = dipkeys.k3;
 
     // do one block of 64 edges
-    for (short b = 0; b < EDGE_BLOCK_SIZE-4; b += 4) {
+    for (int b = 0; b < EDGE_BLOCK_SIZE-4; b += 4) {
       SIPBLOCK(blockNonce + b);
       u64 e1 = (v0 ^ v1) ^ (v2  ^ v3);
       SIPBLOCK(blockNonce + b + 1);
@@ -156,7 +161,7 @@ __global__  void FluffySeed(uint4 * __restrict__ buffer, u32 * __restrict__ inde
     DUMP(e2 ^ last, 1);
     DUMP(e3 ^ last, 0);
 
-    for (short s = 14; s >= 0; s--) {
+    for (int s = 14; s >= 0; s--) {
       ulonglong4 edges = sipblockL[s];
       DUMP(edges.x ^ last, 0);
       DUMP(edges.y ^ last, 1);
@@ -194,7 +199,11 @@ __global__  void FluffyRound_A1(const uint2 * source, uint4 * destination, const
   for (int i = 0; i < NZ/32/tpb; i++)
     ecounters[lid + i * tpb] = 0;
 
+#if tpb && NX2 % tpb == 0
   for (int i = 0; i < NX2/tpb; i++)
+#else
+  for (int i = 0; i < (NX2 - lid + tpb-1) / tpb; i++)
+#endif
     magazine[lid + tpb * i] = 0;
 
   for (int a = 0; a < NA; a++)
@@ -347,6 +356,7 @@ __global__  void FluffyRecovery(u32 * indexes)
 {
   const int gid = blockDim.x * blockIdx.x + threadIdx.x;
   const int lid = threadIdx.x;
+  const int nthreads = gridDim.x * blockDim.x;
 
   __shared__ u32 nonces[PROOFSIZE];
   u64 sipblock[EDGE_BLOCK_SIZE];
@@ -356,7 +366,7 @@ __global__  void FluffyRecovery(u32 * indexes)
   uint64_t v2;
   uint64_t v3;
 
-  const int nloops = NEDGES2 / (gridDim.x * blockDim.x * EDGE_BLOCK_SIZE);
+  const int nloops = (NEDGES2 / EDGE_BLOCK_SIZE - gid + nthreads-1) / nthreads;
   if (lid < PROOFSIZE) nonces[lid] = 0;
 
   __syncthreads();
@@ -371,11 +381,11 @@ __global__  void FluffyRecovery(u32 * indexes)
 
     for (u32 b = 0; b < EDGE_BLOCK_SIZE; b++) {
       v3 ^= blockNonce + b;
-      for (short r = 0; r < 2; r++)
+      for (int r = 0; r < 2; r++)
         SIPROUND;
       v0 ^= blockNonce + b;
       v2 ^= 0xff;
-      for (short r = 0; r < 4; r++)
+      for (int r = 0; r < 4; r++)
         SIPROUND;
 
       sipblock[b] = (v0 ^ v1) ^ (v2  ^ v3);
@@ -384,7 +394,7 @@ __global__  void FluffyRecovery(u32 * indexes)
     const u64 last = sipblock[EDGE_BLOCK_SIZE - 1];
     sipblock[EDGE_BLOCK_SIZE - 1] = 0;
 
-    for (short s = EDGE_BLOCK_SIZE; --s >= 0; ) {
+    for (int s = EDGE_BLOCK_SIZE; --s >= 0; ) {
       u32 dir = s & 1;
       u64 lookup = sipblock[s] ^ last;
 

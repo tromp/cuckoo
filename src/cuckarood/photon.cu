@@ -493,8 +493,6 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
 }
 
 
-static_assert(NX2 % SEED_TPB == 0);        // for Seed     magazine init
-static_assert(NX2 % TRIM0_TPB == 0);       // for Round_A1 magazine init
 static_assert(NZ % (32 * TRIM0_TPB) == 0); // for Round_A1 ecounters init
 static_assert(NZ % (32 * TRIM1_TPB) == 0); // for Round_A3 ecounters init
 static_assert(NZ % (32 *  TRIM_TPB) == 0); // for Round_A2 ecounters init
@@ -568,8 +566,6 @@ int main(int argc, char **argv) {
     print_log("-%d", nonce+range-1);
   print_log(") with 50%% edges, %d*%d buckets, %d trims, and %d thread blocks.\n", NX, NY, params.ntrims, NX);
 
-  assert(NEDGES2 % (NA * params.genablocks * SEED_TPB * EDGE_BLOCK_SIZE) == 0);
-  assert(NEDGES2 % (params.recoverblocks * params.recovertpb * EDGE_BLOCK_SIZE) == 0);
   assert(params.recovertpb >= PROOFSIZE);
   SolverCtx* ctx = create_solver_ctx(&params);
 
