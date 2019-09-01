@@ -92,7 +92,7 @@ struct trimparams {
 
   trimparams() {
     ntrims         =       458;
-    seed.blocks    =        64;
+    seed.blocks    =      1024;
     seed.tpb       =  SEED_TPB;
     trim0.blocks   =    NX2/NA;
     trim0.tpb      = TRIM0_TPB;
@@ -538,13 +538,13 @@ int main(int argc, char **argv) {
       case 'r':
         range = atoi(optarg);
         break;
-      case 'U': // seed.blocks    =        64;
+      case 'U': // seed.blocks    =      1024;
         params.genablocks = atoi(optarg);
         break;
-      case 'Z': // recover.blocks =        64;
+      case 'Z': // recover.blocks =      2048;
         params.recoverblocks = atoi(optarg);
         break;
-      case 'z': // recover.tpb    =       128;
+      case 'z': // recover.tpb    =       256;
         params.recovertpb = atoi(optarg);
         break;
     }
