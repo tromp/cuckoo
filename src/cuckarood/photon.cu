@@ -17,7 +17,7 @@
 #endif
 #define NA2 (NA * NA)
 
-#include "kernel.cu"
+#include "kernel.cuh"
 
 typedef uint8_t u8;
 typedef uint16_t u16;
