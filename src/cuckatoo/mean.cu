@@ -871,12 +871,12 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
   params->device = 0;
   params->ntrims = tp.ntrims;
   params->expand = tp.expand;
-  params->genablocks = min(tp.genA.blocks, (u16)(NEDGES/tp.genA.tpb));
+  params->genablocks = min(tp.genA.blocks, (u32)(NEDGES/tp.genA.tpb));
   params->genatpb = tp.genA.tpb;
   params->genbtpb = tp.genB.tpb;
   params->trimtpb = tp.trim.tpb;
   params->tailtpb = tp.tail.tpb;
-  params->recoverblocks = min(tp.recover.blocks, (u16)(NEDGES/tp.recover.tpb));
+  params->recoverblocks = min(tp.recover.blocks, (u32)(NEDGES/tp.recover.tpb));
   params->recovertpb = tp.recover.tpb;
   params->cpuload = false;
 }
