@@ -32,13 +32,14 @@ public:
   proof *sols;
   u32 nsols;
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols) : visited(2*maxnodes) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits) : visited(2*maxnodes) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
     adjlist = new word_t[2*MAXNODES]; // index into links array
     links   = new link[MAXEDGES];
-    compressu = compressv = 0;
+    compressu = compressbits ? new compressor<word_t>(EDGEBITS, compressbits) : 0;
+    compressv = compressbits ? new compressor<word_t>(EDGEBITS, compressbits) : 0;
     sharedmem = false;
     sols    = new proof[MAXSOLS+1]; // extra one for current path
     visited.clear();
@@ -52,41 +53,16 @@ public:
     delete[] sols;
   }
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits) : visited(2*maxnodes) {
-    MAXEDGES = maxedges;
-    MAXNODES = maxnodes;
-    MAXSOLS = maxsols;
-    adjlist = new word_t[2*MAXNODES]; // index into links array
-    links   = new link[MAXEDGES];
-    compressu = new compressor<word_t>(EDGEBITS, compressbits);
-    compressv = new compressor<word_t>(EDGEBITS, compressbits);
-    sharedmem = false;
-    sols    = new  proof[MAXSOLS];
-    visited.clear();
-  }
-
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols, char *bytes) : visited(2*maxnodes) {
-    MAXEDGES = maxedges;
-    MAXNODES = maxnodes;
-    MAXSOLS = maxsols;
-    adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
-    links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[MAXEDGES];
-    compressu = compressv = 0;
-    sharedmem = true;
-    sols    = new  proof[MAXSOLS];
-    visited.clear();
-  }
-
   graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits, char *bytes) : visited(2*maxnodes) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
     adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
     links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[MAXEDGES];
-    compressu = new compressor<word_t>(EDGEBITS, compressbits, bytes += sizeof(link[2*MAXEDGES]));
-    compressv = new compressor<word_t>(EDGEBITS, compressbits, bytes + compressu->bytes());
+    compressu = compressbits ? new compressor<word_t>(EDGEBITS, compressbits, bytes += sizeof(link[2*MAXEDGES])) : 0;
+    compressv = compressbits ? new compressor<word_t>(EDGEBITS, compressbits, bytes + compressu->bytes()) : 0;
     sharedmem = true;
-    sols    = new  proof[MAXSOLS];
+    sols    = new  proof[MAXSOLS+1];
     visited.clear();
   }
 

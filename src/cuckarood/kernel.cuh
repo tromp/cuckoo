@@ -25,7 +25,6 @@ typedef uint32_t u32;
 const u32 NX = 1 << XBITS;
 const u32 XMASK = NX - 1;
 const u32 NX2 = NX * NX;
-const u32 X2MASK = NX2 - 1;
 const u32 YBITS = XBITS;
 const u32 NY = 1 << YBITS;
 const u32 YZBITS = EDGEBITS - XBITS;
@@ -88,7 +87,7 @@ __constant__ u64 recovery[42];
 #define DUMP(E, dir) {\
   u64 lookup = E;\
   uint2 edge1 = make_uint2( (lookup & NODE1MASK) << 1 | dir, (lookup >> 31) & (NODE1MASK << 1) | dir);\
-  int bucket = (edge1.x >> ZBITS) & X2MASK;\
+  int bucket = edge1.x >> ZBITS;\
   u64 edge64 = (((u64)edge1.y) << 32) | edge1.x;\
   for (u64 ret = atomicCAS(&magazine[bucket], 0, edge64); ret; ) {\
     u64 ret2 = atomicCAS(&magazine[bucket], ret, 0);\
@@ -231,7 +230,7 @@ __global__  void FluffyRound_A1(const uint2 * source, uint4 * destination, const
       uint2 edge = source[delta + i * tpb];
       if (edge.x == 0 && edge.y == 0) continue;
       if (testbit(ecounters, (edge.x & ZMASK) ^ 1)) {
-        int bucket = (edge.y >> ZBITS) & X2MASK;
+        int bucket = edge.y >> ZBITS;
         u64 edge64 = (((u64)edge.y) << 32) | edge.x;
         for (u64 ret = atomicCAS(&magazine[bucket], 0, edge64); ret; ) {
           u64 ret2 = atomicCAS(&magazine[bucket], ret, 0);
@@ -259,7 +258,7 @@ __global__  void FluffyRound_A1(const uint2 * source, uint4 * destination, const
 }
 
 template<int tpb, int bktInSize, int bktOutSize>
-__global__  void FluffyRound_A2(const uint2 * source, uint2 * destination, const u32 * sourceIndexes, u32 * destinationIndexes, const int round, int * aux)
+__global__  void FluffyRound_A2(const uint2 * source, uint2 * destination, const u32 * sourceIndexes, u32 * destinationIndexes)
 {
   const int lid = threadIdx.x;
   const int group = blockIdx.x;
@@ -283,7 +282,7 @@ __global__  void FluffyRound_A2(const uint2 * source, uint2 * destination, const
   for (int i = nloops; --i >= 0;) {
     uint2 edge = source[i * tpb];
     if (testbit(ecounters, (edge.x & ZMASK) ^ 1)) {
-      const int bucket = (edge.y >> ZBITS) & X2MASK;
+      const int bucket = edge.y >> ZBITS;
       const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), bktOutSize - 1);
       st_cg_u32_v2(&destination[(bucket * bktOutSize) + bktIdx], make_uint2(edge.y, edge.x));
     }
@@ -326,7 +325,7 @@ __global__  void FluffyRound_A3(uint2 * source, uint2 * destination, const u32 *
       uint2 edge = ld_cs_u32_v2(&source[delta + i * tpb]);
       if (edge.x == 0 && edge.y == 0) continue;
       if (testbit(ecounters, (edge.x & ZMASK) ^ 1)) {
-        const int bucket = (edge.y >> ZBITS) & X2MASK;
+        const int bucket = edge.y >> ZBITS;
         const int bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), bktOutSize - 1);
         st_cg_u32_v2(&destination[(bucket * bktOutSize) + bktIdx], make_uint2(edge.y, edge.x));
       }
@@ -334,22 +333,100 @@ __global__  void FluffyRound_A3(uint2 * source, uint2 * destination, const u32 *
   }
 }
 
-template<int tpb, int bktInSize>
-__global__  void FluffyTail(const uint2 * source, uint2 * destination, const u32 * sourceIndexes, u32 * destinationIndexes)
+#ifndef LISTBITS
+#define LISTBITS 12
+#endif
+
+const u32 NLISTS  = 1 << LISTBITS;
+const u32 LISTMASK = NLISTS - 1;
+
+#ifndef NNEXTS
+#define NNEXTS NLISTS
+#endif
+
+template<int tpb, int bktInSize, int bktOutSize>
+__global__  void Tag_Relay(const uint2 * source, uint2 * destination, const u32 * sourceIndexes, u32 * destinationIndexes, bool TAGGED)
 {
   const int lid = threadIdx.x;
   const int group = blockIdx.x;
-  __shared__ int destIdx;
 
-  const int nEdges = sourceIndexes[group];
+  __shared__ u32 lists[NLISTS];
+  __shared__ u32 nexts[NNEXTS];
 
-  if (lid == 0)
-    destIdx = atomicAdd(destinationIndexes, nEdges);
+  const int nloops = (min(sourceIndexes[group], NNEXTS) - lid + tpb-1) / tpb;
+
+  source += bktInSize * group;
+
+  for (int i = 0; i < NLISTS/tpb; i++)
+    lists[i * tpb + lid] = ~0;
 
   __syncthreads();
 
-  for (int i = 0; i < (nEdges-lid+tpb-1)/tpb; i++)
-    destination[destIdx + i * tpb + lid] = source[group * bktInSize + i * tpb + lid];
+  for (int i = 0; i < nloops; i++) {
+    const u32 index = i * tpb + lid;
+    const u32 list = source[index].x & LISTMASK;
+    nexts[index] = atomicExch(&lists[list], index);
+  }
+
+  __syncthreads();
+
+  for (int i = nloops; --i >= 0;) {
+    const u32 index = i * tpb + lid;
+    const uint2 edge = source[index];
+    if (edge.y & NEDGES2) continue; // copies don't relay
+    u32 bucket = edge.y >> ZBITS;
+    u32 copybit = 0;
+    const u32 list = (edge.x & LISTMASK) ^ 1;
+    for (u32 idx = lists[list]; idx != ~0; idx = nexts[idx]) {
+      uint2 tagged = source[idx];
+      if ((tagged.x ^ edge.x ^ 1) & ZMASK) continue;
+      u32 bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), bktOutSize - 1);
+      u32 tag = TAGGED ? tagged.x >> ZBITS : tagged.y >> 1;
+      destination[(bucket * bktOutSize) + bktIdx] = make_uint2((tag << ZBITS) | (edge.y & ZMASK), copybit | (group << ZBITS) | (edge.x & ZMASK));
+      copybit = NEDGES2;
+    }
+  }
+}
+
+template<int tpb, int bktInSize>
+__global__  void FluffyTail(const uint2 * source, uint4 * destination, const u32 * sourceIndexes, u32 * destinationIndexes)
+{
+  const int lid = threadIdx.x;
+  const int group = blockIdx.x;
+
+  __shared__ u32 lists[NLISTS];
+  __shared__ u32 nexts[NNEXTS];
+
+  const int nloops = (min(sourceIndexes[group], NNEXTS) - lid + tpb-1) / tpb;
+
+  source += bktInSize * group;
+
+  for (int i = 0; i < NLISTS/tpb; i++)
+    lists[i * tpb + lid] = ~0;
+
+  __syncthreads();
+
+  for (int i = 0; i < nloops; i++) {
+    const u32 index = i * tpb + lid;
+    const u32 list = source[index].x & LISTMASK;
+    nexts[index] = atomicExch(&lists[list], index);
+  }
+
+  __syncthreads();
+
+  for (int i = nloops; --i >= 0;) {
+    const u32 index = i * tpb + lid;
+    const uint2 edge = source[index];
+    if (edge.x & 1) continue;
+    const u32 list = (edge.x & LISTMASK) ^ 1;
+    for (u32 idx = lists[list]; idx != ~0; idx = nexts[idx]) {
+      uint2 other = source[idx];
+      if ((other.x ^ edge.x) != 1) continue;
+      u32 bktIdx = atomicAdd(destinationIndexes, 2);
+      destination[bktIdx/2] = make_uint4(edge.y & (NEDGES2-1), (group << ZBITS) |  (edge.x & ZMASK),
+                                        other.y & (NEDGES2-1), (group << ZBITS) | (other.x & ZMASK));
+    }
+  }
 }
 
 __global__  void FluffyRecovery(u32 * indexes)

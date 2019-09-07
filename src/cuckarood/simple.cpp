@@ -16,7 +16,7 @@ public:
   siphash_keys sip_keys;
   graph<word_t> cg;
 
-  cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce) : cg(NEDGES2, NNODES1, MAX_SOLS) {
+  cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce) : cg(NEDGES2, NNODES1, MAX_SOLS, 0) {
   }
 
   ~cuckoo_ctx() { }

@@ -26,16 +26,16 @@ typedef uint16_t u16;
 // number of bits of compression of surviving edge endpoints
 // reduces space used in cycle finding, but too high a value
 // results in NODE OVERFLOW warnings and fake cycles
-#define IDXSHIFT 12
+#define IDXSHIFT 19
 #endif
 
 const u32 MAXEDGES = NEDGES2 >> IDXSHIFT;
 
 #ifndef NEPS_A
-#define NEPS_A 134 // to match Photon's kernel.cu
+#define NEPS_A 135 // to match Photon's kernel.cu
 #endif
 #ifndef NEPS_B
-#define NEPS_B 85 // to match Photon's kernel.cu
+#define NEPS_B 88 // to match Photon's kernel.cu
 #endif
 #define NEPS 128
 
@@ -77,6 +77,9 @@ struct blockstpb {
 #ifndef TRIM_TPB
 #define TRIM_TPB 512
 #endif
+#ifndef RELAY_TPB
+#define RELAY_TPB 512
+#endif
 #ifndef TAIL_TPB
 #define TAIL_TPB SEED_TPB
 #endif
@@ -91,7 +94,7 @@ struct trimparams {
   blockstpb recover;
 
   trimparams() {
-    ntrims         =       458;
+    ntrims         =        31;
     seed.blocks    =      1024;
     seed.tpb       =  SEED_TPB;
     trim0.blocks   =    NX2/NA;
@@ -108,6 +111,10 @@ struct trimparams {
 };
 
 typedef u32 proof[PROOFSIZE];
+
+#ifndef VBIDX
+#define VBIDX 0
+#endif
 
 // maintains set of trimmable edges
 struct edgetrimmer {
@@ -149,6 +156,14 @@ struct edgetrimmer {
     checkCudaErrors_V(cudaFree(dt));
     cudaDeviceReset();
   }
+  void indexcount(u32 round, const u32 *indexes) {
+#ifdef VERBOSE
+    u32 nedges;
+    cudaMemcpy(&nedges, indexes+VBIDX, sizeof(u32), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    print_log("round %d edges %d\n", round, nedges);
+#endif
+  }
   u32 trim() {
     cudaEvent_t start, stop;
     checkCudaErrors(cudaEventCreate(&start)); checkCudaErrors(cudaEventCreate(&stop));
@@ -167,9 +182,7 @@ struct edgetrimmer {
   
 #ifdef VERBOSE
     print_log("%d x Seed<<<%d,%d>>>\n", NA, tp.seed.blocks, tp.seed.tpb); // 1024x512
-    cudaMemcpy(&nedges, indexesA, sizeof(u32), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    print_log("round %d edges %d\n", 0, nedges);
+    indexcount(0, indexesA);
 #endif
 
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
@@ -189,78 +202,58 @@ struct edgetrimmer {
       if (abort) return false;
     }
 
-#ifdef VERBOSE
-    cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    print_log("round %d edges %d\n", 1, nedges);
-    print_log("Round_A3<<<%d,%d>>>\n", NX2/NA, TRIM1_TPB); // 4096x1024
-#endif
-
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
     cudaEventSynchronize(stop); cudaEventElapsedTime(&durationB, start, stop);
     checkCudaErrors(cudaEventDestroy(start)); checkCudaErrors(cudaEventDestroy(stop));
-    // print_log("Round 0 completed in %.0f ms\n", durationB);
   
+#ifdef VERBOSE
+    indexcount(1, indexesB);
+    print_log("Round A1 completed in %.0f ms\n", durationB);
+    print_log("Round_A3<<<%d,%d>>>\n", NX2/NA, TRIM1_TPB); // 4096x1024
+#endif
+
     cudaMemset(indexesA, 0, indexesSize);
     FluffyRound_A3<TRIM1_TPB, EDGES_B/NA, EDGES_B/2><<<NX2, TRIM1_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA);
+    indexcount(2, indexesA);
     if (abort) return false;
 
 #ifdef VERBOSE
-    cudaMemcpy(&nedges, indexesA, sizeof(u32), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    print_log("round %d edges %d\n", 1, nedges);
     print_log("Round_A2<><<<%d,%d>>>\n", NX2, TRIM_TPB); // 4096x512
 #endif
 
     cudaMemset(indexesB, 0, indexesSize);
-    FluffyRound_A2<TRIM_TPB, EDGES_B/2, EDGES_B/2><<<NX2, TRIM_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, 2, 0);
+    FluffyRound_A2<TRIM_TPB, EDGES_B/2, EDGES_A/4><<<NX2, TRIM_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB);
+    indexcount(3, indexesB);
     if (abort) return false;
-
-#ifdef VERBOSE
-    cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    print_log("round %d edges %d\n", 2, nedges);
-#endif
 
     cudaMemset(indexesA, 0, indexesSize);
-    FluffyRound_A2<TRIM_TPB, EDGES_B/2, EDGES_B/2><<<NX2, TRIM_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, 3, 0);
+    FluffyRound_A2<TRIM_TPB, EDGES_A/4, EDGES_B/4><<<NX2, TRIM_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA);
+    indexcount(4, indexesA);
     if (abort) return false;
-
-#ifdef VERBOSE
-    cudaMemcpy(&nedges, indexesA, sizeof(u32), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    print_log("round %d edges %d\n", 3, nedges);
-#endif
 
     cudaMemset(indexesB, 0, indexesSize);
-    FluffyRound_A2<TRIM_TPB, EDGES_B/2, EDGES_B/2><<<NX2, TRIM_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, 4, 0);
+    FluffyRound_A2<TRIM_TPB, EDGES_B/4, EDGES_A/8><<<NX2, TRIM_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB);
+    indexcount(5, indexesB);
     if (abort) return false;
-
-#ifdef VERBOSE
-    cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    print_log("round %d edges %d\n", 4, nedges);
-#endif
 
     cudaMemset(indexesA, 0, indexesSize);
-    FluffyRound_A2<TRIM_TPB, EDGES_B/2, EDGES_B/4><<<NX2, TRIM_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, 5, 0);
+    FluffyRound_A2<TRIM_TPB, EDGES_A/8, EDGES_B/8><<<NX2, TRIM_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA);
+    indexcount(6, indexesA);
     if (abort) return false;
 
-#ifdef VERBOSE
-    cudaMemcpy(&nedges, indexesA, sizeof(u32), cudaMemcpyDeviceToHost);
-    cudaDeviceSynchronize();
-    print_log("round %d edges %d\n", 5, nedges);
-#endif
-
-    cudaDeviceSynchronize();
-  
-    for (int round = 6; round < tp.ntrims; round += 2) {
+    for (int round = 7; round < tp.ntrims + PROOFSIZE/2-1; round += 2) {
       cudaMemset(indexesB, 0, indexesSize);
-      FluffyRound_A2<TRIM_TPB, EDGES_B/4, EDGES_B/4><<<NX2, TRIM_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, round, 0);
+      if (round >= tp.ntrims)
+        Tag_Relay<RELAY_TPB, EDGES_B/8, EDGES_B/8><<<NX2, RELAY_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB, round>tp.ntrims);
+      else FluffyRound_A2<TRIM_TPB, EDGES_B/8, EDGES_B/8><<<NX2, TRIM_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB);
+      indexcount(round, indexesA);
       if (abort) return false;
 
       cudaMemset(indexesA, 0, indexesSize);
-      FluffyRound_A2<TRIM_TPB, EDGES_B/4, EDGES_B/4><<<NX2, TRIM_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, round+1, 0);
+      if (round+1 >= tp.ntrims)
+        Tag_Relay<RELAY_TPB, EDGES_B/8, EDGES_B/8><<<NX2, RELAY_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA, round>=tp.ntrims);
+      else FluffyRound_A2<TRIM_TPB, EDGES_B/8, EDGES_B/8><<<NX2, TRIM_TPB>>>((uint2*)bufferB, (uint2*)bufferA1, indexesB, indexesA);
+      indexcount(round+1, indexesB);
       if (abort) return false;
     }
     
@@ -268,11 +261,11 @@ struct edgetrimmer {
 #ifdef VERBOSE
     print_log("Tail<><<<%d,%d>>>\n", NX2, TAIL_TPB);
 #endif
-    FluffyTail<TAIL_TPB, EDGES_B/4><<<NX2, TAIL_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB);
+    FluffyTail<TAIL_TPB, EDGES_B/8><<<NX2, TAIL_TPB>>>((uint2*)bufferA1, (uint4*)bufferB, indexesA, indexesB);
 
     cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
-    print_log("%d rounds %d edges\n", tp.ntrims, nedges);
+    print_log("%d+%d rounds %d edges\n", tp.ntrims, PROOFSIZE/2, nedges);
     return nedges;
   }
 };
@@ -302,8 +295,10 @@ struct solver_ctx {
 
   int findcycles(uint2 *edges, u32 nedges) {
     cg.reset();
-    for (u32 i = 0; i < nedges; i++)
+    for (u32 i = 0; i < nedges; i++) {
+      assert(((edges[i].x ^ edges[i].y) & 1) == 0);
       cg.add_compress_edge(edges[i].x, edges[i].y);
+    }
     for (u32 s = 0 ;s < cg.nsols; s++) {
 #ifdef VERBOSE
       print_log("Solution");
@@ -493,6 +488,7 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
 }
 
 
+static_assert(NLISTS % (RELAY_TPB) == 0);    // for Tag_Edges lists    init
 static_assert(NZ % (32 * TRIM0_TPB) == 0); // for Round_A1 ecounters init
 static_assert(NZ % (32 * TRIM1_TPB) == 0); // for Round_A3 ecounters init
 static_assert(NZ % (32 *  TRIM_TPB) == 0); // for Round_A2 ecounters init
@@ -530,7 +526,7 @@ int main(int argc, char **argv) {
           sscanf(optarg+2*i, "%2hhx", header+i); // hh specifies storage of a single byte
         break;
       case 'm': // ntrims         =       458;
-        params.ntrims = atoi(optarg) & -2; // odd number of trimming rounds is treated same as 1 less anyway
+        params.ntrims = atoi(optarg);
         break;
       case 'n':
         nonce = atoi(optarg);
@@ -550,6 +546,7 @@ int main(int argc, char **argv) {
     }
   }
 
+  assert((params.ntrims & 1) == (PROOFSIZE/2 & 1)); // number of trims must match half cycle length in parity
   int nDevices;
   checkCudaErrors(cudaGetDeviceCount(&nDevices));
   assert(device < nDevices);
