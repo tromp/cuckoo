@@ -121,8 +121,8 @@ public:
     if ((u ^ 1) == dest) {
       print_log("  %d-cycle found\n", len);
       if (len == PROOFSIZE && nsols < MAXSOLS) {
+        memcpy(sols[nsols+1], sols[nsols], sizeof(sols[0]));
         qsort(sols[nsols++], PROOFSIZE, sizeof(word_t), nonce_cmp);
-        memcpy(sols[nsols], sols[nsols-1], sizeof(sols[0]));
       }
       return;
     }
@@ -139,7 +139,7 @@ public:
     }
   }
 
-  void add_edge(word_t u, word_t v) {
+  bool add_edge(word_t u, word_t v) {
     assert(u < MAXNODES);
     assert(v < MAXNODES);
     v += MAXNODES; // distinguish partitions
@@ -151,13 +151,18 @@ public:
     word_t ulink = nlinks++;
     word_t vlink = nlinks++; // the two halfedges of an edge differ only in last bit
     assert(vlink != NIL);    // avoid confusing links with NIL (possible if word_t is u32 and EDGEBITS is 31 or 32)
+#ifndef ALLOWDUPES
+    for (word_t au = adjlist[u]; au != NIL; au = links[au].next)
+      if (links[au ^ 1].to == v) return false; // drop duplicate edge
+#endif
     links[ulink].next = adjlist[u];
     links[vlink].next = adjlist[v];
     links[adjlist[u] = ulink].to = u;
     links[adjlist[v] = vlink].to = v;
+    return true;
   }
 
-  void add_compress_edge(word_t u, word_t v) {
-    add_edge(compressu->compress(u), compressv->compress(v));
+  bool add_compress_edge(word_t u, word_t v) {
+    return add_edge(compressu->compress(u), compressv->compress(v));
   }
 };

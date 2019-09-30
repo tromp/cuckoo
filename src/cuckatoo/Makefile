@@ -109,10 +109,10 @@ cuda29:		../crypto/siphash.cuh mean.cu Makefile
 cuda30:		../crypto/siphash.cuh mean.cu Makefile
 	$(NVCC) -o $@ -DEDGEBITS=30 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
 
-cuda31.1:	../crypto/siphash.cuh mean.cu Makefile
+cuda31.1:	../crypto/siphash.cuh mean.cu graph.hpp Makefile
 	$(NVCC) -o $@ -DNRB1=26 -DNEPS_A=135 -DNEPS_B=88 -DPART_BITS=1 -DEDGEBITS=31 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
 
-cuda31.0:	../crypto/siphash.cuh mean.cu Makefile
+cuda31.0:	../crypto/siphash.cuh mean.cu graph.hpp Makefile
 	$(NVCC) -o $@ -DNRB1=26 -DNEPS_A=133 -DNEPS_B=85 -DPART_BITS=0 -DEDGEBITS=31 -arch sm_75 mean.cu $(BLAKE_2B_SRC)
 
 cuda32.2:	../crypto/siphash.cuh mean.cu Makefile
