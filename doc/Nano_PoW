@@ -27,7 +27,7 @@ preventing rho search from cycling around the loop more than once.
 
 So instead let's consider a chain of values
 
-x_{i+1} = min( H0(x_i), H2(x_i) )
+x_{i+1} = min( H0(x_i), H2(x_i) ) mod D
 
 starting at some arbitrary x_0.
 
