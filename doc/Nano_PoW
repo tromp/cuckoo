@@ -8,7 +8,7 @@ where H0,H1 are two different hash functions and D = 2^d is a difficulty paramet
 It is claimed to be memory-hard, requiring on the order of sqrt(D) = 2^(d/2) memory for efficient solving.
 
 However, a simple variation of rho search [2] can efficiently find solutions without any use of memory.
-First, note that by defining H2(y) = -H1(y), the following equation simplifies to
+First, note that by defining H2(y) = -H1(y), the following above simplifies to
 
  H0(x) = H2(y) mod D
 
