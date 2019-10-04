@@ -44,7 +44,7 @@ Btw, another chain of values that should work is
 
 x_{i+1} = if H3(x_i) & 1 then H0(x_i) else H2(x_i)
 
-where H3 is another arbitrary hash function.
+where H3 is another arbitrary hash function, or even simply the identity function.
 
 [1] https://github.com/nanocurrency/nano-pow
 [2] Parallel Collision Search with Cryptanalytic Applications: https://people.scs.carleton.ca/~paulv/papers/JoC97.pdf
