@@ -42,9 +42,9 @@ yielding a solution (x,y) = (x_{i-1}, x_{j-1}) to the PoW.
 
 Btw, another chain of values that should work is
 
-x_{i+1} = if H3(x_i) & 1 then H0(x_i) else H2(x_i)
+x_{i+1} = if H3(x_i) < P * 2^64 then H0(x_i) else H2(x_i)
 
-where H3 is another arbitrary hash function, or even simply the identity function.
+where H3 is another arbitrary (64-bit output) hash function, and P is the probability of taking an H0 step.
 
 [1] https://github.com/nanocurrency/nano-pow
 [2] Parallel Collision Search with Cryptanalytic Applications: https://people.scs.carleton.ca/~paulv/papers/JoC97.pdf
