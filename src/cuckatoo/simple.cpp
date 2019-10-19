@@ -22,7 +22,7 @@ public:
   word_t easiness;
   graph<word_t> cg;
 
-  cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce, word_t easy_ness) : cg(NEDGES, NEDGES, MAXSOLS) {
+  cuckoo_ctx(const char* header, const u32 headerlen, const u32 nonce, word_t easy_ness) : cg(NEDGES, NEDGES, MAXSOLS, 0) {
     easiness = easy_ness;
   }
 

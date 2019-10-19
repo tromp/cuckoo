@@ -1069,7 +1069,7 @@ public:
 
   solver_ctx(const u32 nthreads, const u32 n_trims, bool allrounds, bool show_cycle, bool mutate_nonce)
     : trimmer(nthreads, n_trims, allrounds), 
-      cg(MAXEDGES, MAXEDGES, MAX_SOLS, (char *)trimmer.tbuckets) {
+      cg(MAXEDGES, MAXEDGES, MAX_SOLS, 0, (char *)trimmer.tbuckets) {
     assert(cg.bytes() <= sizeof(yzbucket<TBUCKETSIZE>[nthreads])); // check that graph cg can fit in tbucket's memory
     showcycle = show_cycle;
     mutatenonce = mutate_nonce;
