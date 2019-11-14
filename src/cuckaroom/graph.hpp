@@ -7,7 +7,7 @@
 
 typedef word_t proof[PROOFSIZE];
 
-// cuck(ar)oo graph with given limit on number of edges (and on single partition nodes)
+// cuck(ar)oom graph with given limit on number of edges (and on single partition nodes)
 template <typename word_t>
 class graph {
 public:
@@ -25,21 +25,19 @@ public:
   word_t *adjlist; // index into links array
   link *links;
   bool sharedmem;
-  compressor<word_t> *compressu;
-  compressor<word_t> *compressv;
+  compressor<word_t> *compress;
   bitmap<u32> visited;
   u32 MAXSOLS;
   proof *sols;
   u32 nsols;
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits) : visited(2*maxnodes) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits) : visited(maxnodes) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
-    adjlist = new word_t[2*MAXNODES]; // index into links array
+    adjlist = new word_t[MAXNODES]; // index into links array
     links   = new link[MAXEDGES];
-    compressu = compressbits ? new compressor<word_t>(EDGEBITS, compressbits) : 0;
-    compressv = compressbits ? new compressor<word_t>(EDGEBITS, compressbits) : 0;
+    compress = compressbits ? new compressor<word_t>(EDGEBITS, compressbits) : 0;
     sharedmem = false;
     sols    = new proof[MAXSOLS+1]; // extra one for current path
     visited.clear();
@@ -53,14 +51,13 @@ public:
     delete[] sols;
   }
 
-  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits, char *bytes) : visited(2*maxnodes) {
+  graph(word_t maxedges, word_t maxnodes, u32 maxsols, u32 compressbits, char *bytes) : visited(maxnodes) {
     MAXEDGES = maxedges;
     MAXNODES = maxnodes;
     MAXSOLS = maxsols;
-    adjlist = new (bytes) word_t[2*MAXNODES]; // index into links array
-    links   = new (bytes += sizeof(word_t[2*MAXNODES])) link[MAXEDGES];
-    compressu = compressbits ? new compressor<word_t>(EDGEBITS, compressbits, bytes += sizeof(link[MAXEDGES])) : 0;
-    compressv = compressbits ? new compressor<word_t>(EDGEBITS, compressbits, bytes + compressu->bytes()) : 0;
+    adjlist = new (bytes) word_t[MAXNODES]; // index into links array
+    links   = new (bytes += sizeof(word_t[MAXNODES])) link[MAXEDGES];
+    compress = compressbits ? new compressor<word_t>(EDGEBITS, compressbits, bytes += sizeof(link[MAXEDGES])) : 0;
     sharedmem = true;
     sols    = new  proof[MAXSOLS+1];
     visited.clear();
@@ -68,15 +65,13 @@ public:
 
   // total size of new-operated data, excludes sols and visited bitmap of MAXEDGES bits
   uint64_t bytes() {
-    return sizeof(word_t[2*MAXNODES]) + sizeof(link[MAXEDGES]) + (compressu ? 2 * compressu->bytes() : 0);
+    return sizeof(word_t[MAXNODES]) + sizeof(link[MAXEDGES]) + (compress ? compress->bytes() : 0);
   }
 
   void reset() {
-    memset(adjlist, (char)NIL, sizeof(word_t[2*MAXNODES]));
-    if (compressu) {
-      compressu->reset();
-      compressv->reset();
-    }
+    memset(adjlist, (char)NIL, sizeof(word_t[MAXNODES]));
+    if (compress)
+      compress->reset();
     resetcounts();
   }
 
@@ -113,29 +108,22 @@ public:
     }
   }
 
-  void add_edge(word_t u, word_t v, u32 dir) {
-    assert(u < MAXNODES);
-    assert(v < MAXNODES);
-    v += MAXNODES; // distinguish partitions
-    if (dir) {
-      u32 tmp = v;
-      v = u;
-      u = tmp;
-    }
-    if (adjlist[v] != NIL) { // possibly part of a cycle
+  void add_edge(word_t from, word_t to) {
+    assert(from < MAXNODES);
+    assert(to   < MAXNODES);
+    if (from == to || adjlist[to] != NIL) { // possibly part of a cycle
       sols[nsols][0] = nlinks;
-      assert(!visited.test(u));
-      cycles_with_link(1, v, u);
+      assert(!visited.test(from));
+      cycles_with_link(1, to, from);
     }
-    word_t ulink = nlinks++;
-    assert(ulink != NIL);    // avoid confusing links with NIL; guaranteed if bits in word_t > EDGEBITS + 1
-    assert(ulink < MAXEDGES);
-    links[ulink].next = adjlist[u];
-    links[adjlist[u] = ulink].to = v;
+    word_t link = nlinks++;
+    assert(link != NIL);    // avoid confusing links with NIL; guaranteed if bits in word_t > EDGEBITS + 1
+    assert(link < MAXEDGES);
+    links[link].next = adjlist[from];
+    links[adjlist[from] = link].to = to;
   }
 
-  void add_compress_edge(word_t u, word_t v) {
-    assert( (u&1) == (v&1));
-    add_edge(compressu->compress(u) >> 1, compressv->compress(v) >> 1, u&1);
+  void add_compress_edge(word_t from, word_t to) {
+    add_edge(compress->compress(from), compress->compress(to));
   }
 };

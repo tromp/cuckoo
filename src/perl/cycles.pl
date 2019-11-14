@@ -17,13 +17,12 @@ while (<>) {
     $ncycles = 0;
   } elsif (/(\d+)-cycle found/) {
     $ncycles += 1;
-    $count[$1/2]++;
+    $count[$1]++;
   }
 }
 for $i (1..$#count) {
   my $c = $count[$i];
-  my $i2 = 2 * $i;
-  my $f = $c * $i2 / $nnonces;
-  print "$i2 $c $f\n" if $c;
+  my $f = $c * $i / $nnonces;
+  print "$i $c $f\n" if $c;
 }
 printf "$nnonces nonces $maxcycles cycles at nonce $maxnonce\n";

@@ -12,6 +12,7 @@
 #define ROT16(x) _mm256_shuffle_epi8((x), ROTATE16)
 #define ROT17(x) _mm256_or_si256(_mm256_slli_epi64(x,17),_mm256_srli_epi64(x,47))
 #define ROT21(x) _mm256_or_si256(_mm256_slli_epi64(x,21),_mm256_srli_epi64(x,43))
+#define ROT23(x) _mm256_or_si256(_mm256_slli_epi64(x,23),_mm256_srli_epi64(x,41))
 #define ROT25(x) _mm256_or_si256(_mm256_slli_epi64(x,25),_mm256_srli_epi64(x,39))
 #define ROT32(x) _mm256_shuffle_epi32((x), _MM_SHUFFLE(2, 3, 0, 1))
 
@@ -23,6 +24,7 @@
 #define ROT16(x) _mm_shufflehi_epi16(_mm_shufflelo_epi16(x, _MM_SHUFFLE(2,1,0,3)), _MM_SHUFFLE(2,1,0,3))
 #define ROT17(x) _mm_or_si128(_mm_slli_epi64(x,17),_mm_srli_epi64(x,47))
 #define ROT21(x) _mm_or_si128(_mm_slli_epi64(x,21),_mm_srli_epi64(x,43))
+#define ROT23(x) _mm_or_si128(_mm_slli_epi64(x,23),_mm_srli_epi64(x,41))
 #define ROT25(x) _mm_or_si128(_mm_slli_epi64(x,25),_mm_srli_epi64(x,39))
 #define ROT32(x) _mm_shuffle_epi32  (x, _MM_SHUFFLE(2,3,0,1))
 
