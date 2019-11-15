@@ -119,10 +119,6 @@ struct trimparams {
 
 typedef u32 proof[PROOFSIZE];
 
-#ifndef VBIDX
-#define VBIDX 0
-#endif
-
 // maintains set of trimmable edges
 struct edgetrimmer {
   trimparams tp;
@@ -171,10 +167,16 @@ struct edgetrimmer {
   }
   void indexcount(u32 round, const u32 *indexes) {
 #ifdef VERBOSE
-    u32 nedges;
-    cudaMemcpy(&nedges, indexes+VBIDX, sizeof(u32), cudaMemcpyDeviceToHost);
+    u32 nedges[NX2];
+    cudaMemcpy(nedges, indexes, NX2 * sizeof(u32), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
-    print_log("round %d edges %d\n", round, nedges);
+    u32 sum, max;
+    for (int i = sum = max = 0; i < NX2; i++) {
+      sum += nedges[i];
+      if (nedges[i] > max)
+        max = nedges[i];
+    }
+    print_log("round %d edges avg %d max %d\n", round, sum/NX2, max);
 #endif
   }
   u32 trim() {
@@ -183,14 +185,39 @@ struct edgetrimmer {
     cudaMemcpyToSymbol(dipkeys, &sipkeys, sizeof(sipkeys));
 
     cudaDeviceSynchronize();
-    float durationA, durationB;
+    float durationA, durationB, durationY;
     cudaEventRecord(start, NULL);
   
+    const u32 qI = NX2 / NA;
+#if 1
+    cudaMemset(indexesA, 0, indexesSizeNA);
+    for (u32 i=0; i < NA; i++) {
+      YSeed<SEED_TPB, EDGES_A/NA><<<tp.seed.blocks, SEED_TPB>>>((uint2*)bufferA, indexesA+i*NX2, i);
+      if (abort) return false;
+    }
+    cudaDeviceSynchronize();
+#ifdef VERBOSE
+    print_log("%d x YSeed<<<%d,%d>>>\n", NA, tp.seed.blocks, tp.seed.tpb); // 1024x256
+    indexcount(0, indexesA);
+#endif
+    cudaMemset(nodemap, 0, nodemapSize);
+    NodemapRound<TRIM0_TPB, EDGES_A/NA><<<NX2, TRIM0_TPB>>>((u32*)bufferA, indexesA, nodemap);
+    if (abort) return false;
+
+    checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
+    cudaEventSynchronize(stop); cudaEventElapsedTime(&durationY, start, stop);
+    cudaEventRecord(start, NULL);
+  
+#ifdef VERBOSE
+    print_log("NodemapRound<<<%d,%d>>>\n", NX2/NA, TRIM0_TPB); // 1024x1024
+    print_log("YSeeding completed in %.0f ms\n", durationY);
+#endif
+
+#endif
 
     cudaMemset(indexesA, 0, indexesSizeNA);
-    cudaMemset(nodemap, 0, nodemapSize);
     for (u32 i=0; i < NA; i++) {
-      FluffySeed<SEED_TPB, EDGES_A/NA><<<tp.seed.blocks, SEED_TPB>>>((uint4*)(bufferA+i*(sizeA/NA2)), indexesA+i*NX2, nodemap, i*(NEDGES/NA));
+      FluffySeed<SEED_TPB, EDGES_A/NA><<<tp.seed.blocks, SEED_TPB>>>((uint4*)(bufferA+i*(sizeA/NA2)), indexesA+i*NX2, i*(NEDGES/NA));
       if (abort) return false;
     }
   
@@ -210,7 +237,6 @@ struct edgetrimmer {
 
     cudaMemset(indexesB, 0, indexesSizeNA);
     const u32 qB = sizeB/NA;
-    const u32 qI = NX2 / NA;
     for (u32 i=0; i < NA; i++) {
       FluffyRound_A1<TRIM0_TPB, EDGES_A/NA, EDGES_B/NA><<<NX2/NA, TRIM0_TPB>>>((uint2*)bufferA, (uint4*)(bufferB+i*qB), indexesA, indexesB, nodemap, i*qI); // .632
       if (abort) return false;
@@ -285,7 +311,7 @@ struct edgetrimmer {
 
     cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
-    print_log("%d+%d rounds %d edges\n", tp.ntrims, PROOFSIZE/2, nedges);
+    print_log("%d rounds %d edges\n", tp.ntrims, nedges);
     return nedges;
   }
 };
@@ -565,7 +591,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  assert((params.ntrims & 1) == (PROOFSIZE/2 & 1)); // number of trims must match half cycle length in parity
   int nDevices;
   checkCudaErrors(cudaGetDeviceCount(&nDevices));
   assert(device < nDevices);

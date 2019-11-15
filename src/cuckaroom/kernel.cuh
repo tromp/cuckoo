@@ -84,20 +84,138 @@ __constant__ u64 recovery[42];
   for (int r = 0; r < 4; r++)\
   SIPROUND;\
 }
-#define CYCLE 0x10000ULL
+
+#define NX2NA (NX2 / NA)
+#define YDUMP(E) {\
+  u32 edgey = ((E) >> 32) & NODEMASK;\
+  int bucket = edgey >> ZBITS;\
+  for (u32 ret = atomicCAS(&magazine[bucket], 0, edgey); ret; ) {\
+    u32 ret2 = atomicCAS(&magazine[bucket], ret, 0);\
+    if (ret2 == ret) {\
+      int position = (min(bktOutSize - 2, (atomicAdd(indexes + bucket, 2))));\
+      int idx = ((offi * NX2 + bucket) * bktOutSize + position) / 2;\
+      buffer[idx] = make_uint2(ret2, edgey);\
+      break;\
+    }\
+    ret = ret2 ? ret2 : atomicCAS(&magazine[bucket], 0, edgey);\
+  }\
+}
+
+template<int tpb, int bktOutSize>
+__global__  void YSeed(uint2 * __restrict__ buffer, u32 * __restrict__ indexes, const u32 offi)
+{
+  const int gid = blockDim.x * blockIdx.x + threadIdx.x;
+  const int lid = threadIdx.x;
+  const int nthreads = gridDim.x * tpb;
+
+  const int nloops = (NEDGES / NA / EDGE_BLOCK_SIZE - gid + nthreads-1) / nthreads;
+  ulonglong4 sipblockL[EDGE_BLOCK_SIZE/4];
+  __shared__ u32 magazine[NX2];
+
+  uint64_t v0, v1, v2, v3;
+
+#if tpb && NX2 % tpb == 0
+  for (int i = 0; i < NX2/tpb; i++)
+#else
+  for (int i = 0; i < (NX2 - lid + tpb-1) / tpb; i++)
+#endif
+    magazine[lid + tpb * i] = 0;
+
+  __syncthreads();
+
+  for (int i = 0; i < nloops; i++) {
+    u64 blockNonce = offi * (NEDGES / NA) + (gid * nloops * EDGE_BLOCK_SIZE + i * EDGE_BLOCK_SIZE);
+
+    v0 = dipkeys.k0;
+    v1 = dipkeys.k1;
+    v2 = dipkeys.k2;
+    v3 = dipkeys.k3;
+
+    // do one block of 64 edges
+    for (int b = 0; b < EDGE_BLOCK_SIZE; b += 4) {
+      SIPBLOCK(blockNonce + b);
+      u64 e0 = (v0 ^ v1) ^ (v2  ^ v3);
+      SIPBLOCK(blockNonce + b + 1);
+      u64 e1 = (v0 ^ v1) ^ (v2  ^ v3);
+      SIPBLOCK(blockNonce + b + 2);
+      u64 e2 = (v0 ^ v1) ^ (v2  ^ v3);
+      SIPBLOCK(blockNonce + b + 3);
+      u64 e3 = (v0 ^ v1) ^ (v2  ^ v3);
+      sipblockL[b / 4] = make_ulonglong4(e0, e1, e2, e3);
+    }
+
+    u64 last = 0;
+
+    for (int s = EDGE_BLOCK_SIZE/4; s--; ) {
+      ulonglong4 edges = sipblockL[s];
+      YDUMP(last ^= edges.w);
+      YDUMP(last ^= edges.z);
+      YDUMP(last ^= edges.y);
+      YDUMP(last ^= edges.x);
+    }
+  }
+
+  __syncthreads();
+
+  for (int i = 0; i < NX2/tpb; i++) {
+    int bucket = lid + (tpb * i);
+    u32 edgey = magazine[bucket];
+    if (edgey != 0) {
+      int position = (min(bktOutSize - 2, (atomicAdd(indexes + bucket, 2))));
+      int idx = ((offi * NX2 + bucket) * bktOutSize + position) / 2;
+      buffer[idx] = make_uint2(edgey, 0);
+    }
+  }
+}
+
+template<int tpb, int bktInSize>
+__global__  void NodemapRound(const u32 *source, const u32 *sourceIndexes, u32 *nodemap)
+{
+  const int lid = threadIdx.x;
+  const int group = blockIdx.x;
+
+  __shared__ u32 ecounters[NZ/32];
+
+  for (int i = 0; i < NZ/32/tpb; i++)
+    ecounters[lid + i * tpb] = 0;
+
+  int nloops[NA];
+  for (int a = 0; a < NA; a++)
+    nloops[a] = (min(sourceIndexes[a * NX2 + group], bktInSize) - lid + tpb-1) / tpb;
+
+  source += lid;
+
+  __syncthreads();
+
+  for (int a = 0; a < NA; a++) {
+    const int delta = (a * NX2 + group) * bktInSize;
+    for (int i = 0; i < nloops[a]; i++) {
+      u32 edgey = source[delta + i * tpb];
+      setbit(ecounters, edgey & ZMASK);
+    }
+  }
+
+  __syncthreads();
+
+  nodemap += group * (NZ / 32);
+  for (int i = 0; i < NZ/32/tpb; i++) {
+    const int idx = lid + i * tpb;
+    nodemap[idx] = ecounters[idx];
+  }
+}
+
 #define DUMP(E) {\
   u64 lookup = (E);\
   const uint2 edge1 = make_uint2(lookup & NODEMASK, (lookup >> 32) & NODEMASK);\
-  setbit(nodemap, edge1.y);\
   int bucket = edge1.x >> ZBITS;\
-  u64 ret, edge64 = (((u64)edge1.y) << 32) | edge1.x;\
-  for (ret = atomicCAS(&magazine[bucket], 0, edge64); ret; ) {\
+  u64 edge64 = (((u64)edge1.y) << 32) | edge1.x;\
+  for (u64 ret = atomicCAS(&magazine[bucket], 0, edge64); ret; ) {\
     u64 ret2 = atomicCAS(&magazine[bucket], ret, 0);\
     if (ret2 == ret) {\
-      int block = bucket / (NX2 / NA);\
+      int block = bucket / NX2NA;\
       int shift = (bktOutSize * NX2) * block;\
       int position = (min(bktOutSize - 2, (atomicAdd(indexes + bucket, 2))));\
-      int idx = (shift+((bucket%(NX2 / NA)) * (bktOutSize) + position)) / 2;\
+      int idx = (shift+((bucket%NX2NA) * (bktOutSize) + position)) / 2;\
       buffer[idx] = make_uint4(ret, ret >> 32, edge1.x, edge1.y);\
       break;\
     }\
@@ -106,7 +224,7 @@ __constant__ u64 recovery[42];
 }
 
 template<int tpb, int bktOutSize>
-__global__  void FluffySeed(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, u32 * __restrict__ nodemap, const u32 offset)
+__global__  void FluffySeed(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, const u32 offset)
 {
   const int gid = blockDim.x * blockIdx.x + threadIdx.x;
   const int lid = threadIdx.x;
@@ -159,25 +277,16 @@ __global__  void FluffySeed(uint4 * __restrict__ buffer, u32 * __restrict__ inde
     }
   }
 
-#if 0
-  if (!offset && !gid) {
-  DUMP((3*CYCLE) << 32 | (1*CYCLE));
-  DUMP((5*CYCLE) << 32 | (3*CYCLE));
-  DUMP((7*CYCLE) << 32 | (5*CYCLE));
-  DUMP((1*CYCLE) << 32 | (7*CYCLE));
-  }
-#endif
-
   __syncthreads();
 
   for (int i = 0; i < NX2/tpb; i++) {
     int bucket = lid + (tpb * i);
     u64 edge = magazine[bucket];
     if (edge != 0) {
-      int block = bucket / (NX2 / NA);
+      int block = bucket / NX2NA;
       int shift = (bktOutSize * NX2) * block;
       int position = (min(bktOutSize - 2, (atomicAdd(indexes + bucket, 2))));
-      int idx = (shift + ((bucket % (NX2 / NA)) * bktOutSize + position)) / 2;
+      int idx = (shift + ((bucket % NX2NA) * bktOutSize + position)) / 2;
       buffer[idx] = make_uint4(edge, edge >> 32, 0, 0);
     }
   }
@@ -213,11 +322,10 @@ __global__  void FluffyRound_A1(const uint2 *source, uint4 *destination, const u
   __syncthreads();
 
   for (int a = 0; a < NA; a++) {
-    const int delta = a * (NX2/NA) * bktInSize;
+    const int delta = a * NX2NA * bktInSize;
     for (int i = 0; i < nloops[a]; i++) {
       uint2 edge = source[delta + i * tpb];
       if (edge.x == 0 && edge.y == 0) continue;
-      assert((edge.x >> ZBITS) == offset+group);
       if (testbit(nodemap, edge.x)) {
         setbit(ecounters, edge.x & ZMASK);
         int bucket = edge.y >> ZBITS;
