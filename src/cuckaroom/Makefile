@@ -14,7 +14,7 @@ GCC ?= gcc $(GCC_ARCH_FLAGS) -std=gnu11 $(CFLAGS)
 BLAKE_2B_SRC ?= ../crypto/blake2b-ref.c
 NVCC ?= nvcc -std=c++11 
 
-all : simpletest meantest
+all : simpletest # cpu miner not working yet # meantest
 
 simpletest:     simple19
 	./simple19 -n 64
@@ -58,8 +58,5 @@ mean30x8:	cuckaroom.hpp  bitmap.hpp graph.hpp ../threads/barrier.hpp ../crypto/s
 cuda19:		../crypto/siphash.cuh compress.hpp graph.hpp mean.cu Makefile
 	$(NVCC) -o $@ -DEPS_A=4 -DEPS_B=3 -DIDXSHIFT=2 -DEDGEBITS=19 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
 
-cuda29:		../crypto/siphash.cuh compress.hpp graph.hpp mean.cu Makefile
+cuda29:		../crypto/siphash.cuh compress.hpp graph.hpp mean.cu kernel.cuh Makefile
 	$(NVCC) -o $@ -DEDGEBITS=29 -arch sm_35 mean.cu $(BLAKE_2B_SRC)
-
-photon29:	../crypto/siphash.cuh compress.hpp graph.hpp kernel.cuh photon.cu Makefile
-	$(NVCC) -o $@ -DEDGEBITS=29 -arch sm_35 photon.cu $(BLAKE_2B_SRC)
