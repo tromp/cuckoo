@@ -123,7 +123,9 @@ typedef u32 proof[PROOFSIZE];
 struct edgetrimmer {
   trimparams tp;
   edgetrimmer *dt;
-  size_t sizeA, sizeB, bufferSize;
+  const size_t sizeA = ROW_EDGES_A * NX * sizeof(uint2);
+  const size_t sizeB = ROW_EDGES_B * NX * sizeof(uint2);
+  const size_t bufferSize = sizeB / NA + sizeA;
   const size_t indexesSize = NX2 * sizeof(u32);
   const size_t indexesSizeNA = NA * indexesSize;
   const size_t nodemapSize = NNODES / 8; // 8 bits per byte
@@ -143,10 +145,7 @@ struct edgetrimmer {
     checkCudaErrors_V(cudaMalloc((void**)&indexesA, indexesSizeNA));
     checkCudaErrors_V(cudaMalloc((void**)&indexesB, indexesSizeNA));
     checkCudaErrors_V(cudaMalloc((void**)&nodemap, nodemapSize));
-    sizeA = ROW_EDGES_A * NX * sizeof(uint2);
-    sizeB = ROW_EDGES_B * NX * sizeof(uint2);
     const size_t sizeC = ROW_EDGES_C * NX * sizeof(uint2);
-    bufferSize = sizeB / NA + sizeA;
     assert(bufferSize >= sizeB + sizeC);
     checkCudaErrors_V(cudaMalloc((void**)&bufferB, bufferSize));
     bufferA = bufferB + sizeB / NA;
@@ -490,7 +489,6 @@ CALL_CONVENTION SolverCtx* create_solver_ctx(SolverParams* params) {
   tp.trim.tpb = params->trimtpb;
   tp.tail.tpb = params->tailtpb;
   tp.recover.blocks = params->recoverblocks;
-  print_log("create_solver_ctx %d = %d\n", tp.recover.tpb, params->recovertpb);
   tp.recover.tpb = params->recovertpb;
 
   cudaDeviceProp prop;
