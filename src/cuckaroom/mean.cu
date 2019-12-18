@@ -145,8 +145,7 @@ struct edgetrimmer {
     checkCudaErrors_V(cudaMalloc((void**)&indexesA, indexesSizeNA));
     checkCudaErrors_V(cudaMalloc((void**)&indexesB, indexesSizeNA));
     checkCudaErrors_V(cudaMalloc((void**)&nodemap, nodemapSize));
-    const size_t sizeC = ROW_EDGES_C * NX * sizeof(uint2);
-    assert(bufferSize >= sizeB + sizeC);
+    assert(bufferSize >= sizeB + ROW_EDGES_C * NX * sizeof(uint2));
     checkCudaErrors_V(cudaMalloc((void**)&bufferB, bufferSize));
     bufferA = bufferB + sizeB / NA;
     bufferA1 = bufferB + sizeB;
@@ -531,10 +530,10 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
 }
 
 
-static_assert(NLISTS % (RELAY_TPB) == 0);    // for Tag_Edges lists    init
-static_assert(NZ % (32 * TRIM0_TPB) == 0); // for Round_A1 ecounters init
-static_assert(NZ % (32 * TRIM1_TPB) == 0); // for Round_A3 ecounters init
-static_assert(NZ % (32 *  TRIM_TPB) == 0); // for Round_A2 ecounters init
+static_assert(NLISTS % (RELAY_TPB) == 0, "RELAY_TPB must be of NLISTS");    // for Tag_Edges lists    init
+static_assert(NZ % (32 * TRIM0_TPB) == 0, "TRIM0_TPB must be divisor of NZ/32"); // for Round_A1 ecounters init
+static_assert(NZ % (32 * TRIM1_TPB) == 0, "TRIM1_TPB must be divisor of NZ/32"); // for Round_A3 ecounters init
+static_assert(NZ % (32 *  TRIM_TPB) == 0, "TRIM_TPB must be divisor of NZ/32"); // for Round_A2 ecounters init
 
 int main(int argc, char **argv) {
   trimparams tp;

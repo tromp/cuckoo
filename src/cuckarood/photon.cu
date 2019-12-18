@@ -488,10 +488,10 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
 }
 
 
-static_assert(NLISTS % (RELAY_TPB) == 0);    // for Tag_Edges lists    init
-static_assert(NZ % (32 * TRIM0_TPB) == 0); // for Round_A1 ecounters init
-static_assert(NZ % (32 * TRIM1_TPB) == 0); // for Round_A3 ecounters init
-static_assert(NZ % (32 *  TRIM_TPB) == 0); // for Round_A2 ecounters init
+static_assert(NLISTS % (RELAY_TPB) == 0, "RELAY_TPB must be divisor of NLISTS");    // for Tag_Edges lists    init
+static_assert(NZ % (32 * TRIM0_TPB) == 0, "TRIM0_TPB must be divisor of NZ/32"); // for Round_A1 ecounters init
+static_assert(NZ % (32 * TRIM1_TPB) == 0, "TRIM1_TPB must be divisor of NZ/32"); // for Round_A3 ecounters init
+static_assert(NZ % (32 *  TRIM_TPB) == 0, "TRIM_TPB must be divisor of NZ/32"); // for Round_A2 ecounters init
 
 int main(int argc, char **argv) {
   trimparams tp;
