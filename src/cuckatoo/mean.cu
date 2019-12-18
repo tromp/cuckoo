@@ -180,8 +180,9 @@ const word_t NONPART_MASK = (1 << NONPART_BITS) - 1;
 const int BITMAPBYTES = (NZ >> PART_BITS) / 8;
 
 template<int tpb, int maxIn, int maxOut>
-__global__ void Round0(const int part, u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx, const int offset) {
-  const int group = blockIdx.x;
+__global__ void Round0(u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx, const int offset) {
+  const int part = blockIdx.x & PART_MASK;
+  const int group = blockIdx.x >> PART_BITS;
   const int lid = threadIdx.x;
   const int BITMAPWORDS = BITMAPBYTES / sizeof(u32);
   int nloops[NA];
@@ -233,8 +234,9 @@ __global__ void Round0(const int part, u32 * src, u32 * dst, u32 * srcIdx, u32 *
 }
 
 template<int tpb, int maxIn, int maxOut>
-__global__ void Round1(const int part, u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx) {
-  const int group = blockIdx.x;
+__global__ void Round1(u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx) {
+  const int part = blockIdx.x & PART_MASK;
+  const int group = blockIdx.x >> PART_BITS;
   const int lid = threadIdx.x;
 
   const int BITMAPWORDS = BITMAPBYTES / sizeof(u32);
@@ -284,9 +286,10 @@ __global__ void Round1(const int part, u32 * src, u32 * dst, u32 * srcIdx, u32 *
 }
 
 template<int tpb, int maxIn, typename EdgeIn, int maxOut>
-__global__ void Round(const int round, const int part, EdgeIn * src, uint2 * dst, u32 * srcIdx, u32 * dstIdx) {
+__global__ void Round(const int round, EdgeIn * src, uint2 * dst, u32 * srcIdx, u32 * dstIdx) {
+  const int part = blockIdx.x & PART_MASK;
+  const int group = blockIdx.x >> PART_BITS;
   const int lid = threadIdx.x;
-  const int group = blockIdx.x;
 
   const int BITMAPWORDS = BITMAPBYTES / sizeof(u32);
 
@@ -613,52 +616,40 @@ struct edgetrimmer {
 
     const size_t qB = sizeB / NA;
     for (u32 i = 0; i < NA; i++) {
-      for (u32 part = 0; part <= PART_MASK; part++) {
-        Round0<TRIM0_TPB, EDGES_A/NA, EDGES_B/NA><<<NX2_NA, TRIM0_TPB, BITMAPBYTES>>>(part, (u32*)bufferA, (u32*)(bufferB+i*qB), indexesA, indexesB, i*NX2_NA); // to .632
-        if (abort) return false;
-      }
+      Round0<TRIM0_TPB, EDGES_A/NA, EDGES_B/NA><<<NX2_NA<<PART_BITS, TRIM0_TPB, BITMAPBYTES>>>((u32*)bufferA, (u32*)(bufferB+i*qB), indexesA, indexesB, i*NX2_NA); // to .632
+      if (abort) return false;
     }
     indexcount(1, indexesB);
 
     cudaMemset(indexesA, 0, indexesSize);
 
-    for (u32 part = 0; part <= PART_MASK; part++) {
-      Round1<TRIM1_TPB, EDGES_B/NA, EDGES_B/2><<<NX2, TRIM1_TPB, BITMAPBYTES>>>(part, (u32*)bufferB, (u32*)bufferA1, indexesB, indexesA); // to .296
-      if (abort) return false;
-    }
+    Round1<TRIM1_TPB, EDGES_B/NA, EDGES_B/2><<<NX2<<PART_BITS, TRIM1_TPB, BITMAPBYTES>>>((u32*)bufferB, (u32*)bufferA1, indexesB, indexesA); // to .296
+    if (abort) return false;
     indexcount(2, indexesA);
 
     cudaMemset(indexesB, 0, indexesSize);
 
-    for (u32 part = 0; part <= PART_MASK; part++) {
-      Round<TRIM_TPB, EDGES_B/2, u32, EDGES_A/4><<<NX2, TRIM_TPB, BITMAPBYTES>>>(2, part, (u32 *)bufferA1, (uint2 *)bufferB, indexesA, indexesB); // to .176
-      if (abort) return false;
-    }
+    Round<TRIM_TPB, EDGES_B/2, u32, EDGES_A/4><<<NX2<<PART_BITS, TRIM_TPB, BITMAPBYTES>>>(2, (u32 *)bufferA1, (uint2 *)bufferB, indexesA, indexesB); // to .176
+    if (abort) return false;
     indexcount(3, indexesB);
 
     cudaMemset(indexesA, 0, indexesSize);
 
-    for (u32 part = 0; part <= PART_MASK; part++) {
-      Round<TRIM_TPB, EDGES_A/4, uint2, EDGES_B/4><<<NX2, TRIM_TPB, BITMAPBYTES>>>(3, part, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA); // to .116
-      if (abort) return false;
-    }
+    Round<TRIM_TPB, EDGES_A/4, uint2, EDGES_B/4><<<NX2<<PART_BITS, TRIM_TPB, BITMAPBYTES>>>(3, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA); // to .116
+    if (abort) return false;
     indexcount(4, indexesA);
   
     for (int round = 5; round < tp.ntrims + PROOFSIZE/2-1; round += 2) {
       cudaMemset(indexesB, 0, indexesSize);
       if (round >= tp.ntrims)
         Relay<RELAY_TPB, EDGES_B/4, EDGES_B/4><<<NX2, RELAY_TPB>>>(round-1, (uint2 *)bufferA1, (uint2 *)bufferB, indexesA, indexesB, round > tp.ntrims);
-      else for (u32 part = 0; part <= PART_MASK; part++) {
-        Round<TRIM_TPB, EDGES_B/4, uint2, EDGES_B/4><<<NX2, TRIM_TPB, BITMAPBYTES>>>(round-1, part, (uint2 *)bufferA1, (uint2 *)bufferB, indexesA, indexesB);
-      }
+      else Round<TRIM_TPB, EDGES_B/4, uint2, EDGES_B/4><<<NX2<<PART_BITS, TRIM_TPB, BITMAPBYTES>>>(round-1, (uint2 *)bufferA1, (uint2 *)bufferB, indexesA, indexesB);
       indexcount(round, indexesB);
       if (abort) return false;
       cudaMemset(indexesA, 0, indexesSize);
       if (round+1 >= tp.ntrims)
         Relay<RELAY_TPB, EDGES_B/4, EDGES_B/4><<<NX2, RELAY_TPB>>>(round, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA, round+1 > tp.ntrims);
-      else for (u32 part = 0; part <= PART_MASK; part++) {
-        Round<TRIM_TPB, EDGES_B/4, uint2, EDGES_B/4><<<NX2, TRIM_TPB, BITMAPBYTES>>>(round, part, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA);
-      }
+      else Round<TRIM_TPB, EDGES_B/4, uint2, EDGES_B/4><<<NX2<<PART_BITS, TRIM_TPB, BITMAPBYTES>>>(round, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA);
       indexcount(round+1, indexesA);
       if (abort) return false;
     }

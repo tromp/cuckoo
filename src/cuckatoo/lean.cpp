@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
   int c;
 
   memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:m:n:r:t:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:r:t:x:")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
@@ -133,6 +133,12 @@ int main(int argc, char **argv) {
         break;
       case 't':
         nthreads = atoi(optarg);
+        break;
+      case 'x':
+        len = strlen(optarg)/2;
+        assert(len == sizeof(header));
+        for (u32 i=0; i<len; i++)
+          sscanf(optarg+2*i, "%2hhx", header+i);
         break;
     }
   }
