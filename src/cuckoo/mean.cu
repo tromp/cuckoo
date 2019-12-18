@@ -1,5 +1,5 @@
 // Cuckoo Cycle, a memory-hard proof-of-work by John Tromp
-// Copyright (c) 2018 Jiri Vadura (photon) and John Tromp
+// Copyright (c) 2018-2020 Jiri Vadura (photon) and John Tromp
 // This software is covered by the FAIR MINING license
 
 #include <stdio.h>

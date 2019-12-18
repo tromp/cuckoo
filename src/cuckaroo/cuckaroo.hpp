@@ -1,5 +1,5 @@
 // Cuck(at)oo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2019 John Tromp
+// Copyright (c) 2013-2020 John Tromp
 
 #include <stdint.h> // for types uint32_t,uint64_t
 #include <string.h> // for functions strlen, memset

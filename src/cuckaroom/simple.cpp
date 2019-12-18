@@ -1,5 +1,5 @@
-// Cuck(at)oo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2019 John Tromp
+// Cuckaroom Cycle, a memory-hard proof-of-work
+// Copyright (c) 2013-2020 John Tromp
 
 #include "cuckaroom.hpp"
 #include "graph.hpp"

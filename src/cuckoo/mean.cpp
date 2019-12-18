@@ -1,5 +1,5 @@
 // Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2018 John Tromp
+// Copyright (c) 2013-2020 John Tromp
 
 #include "mean.hpp"
 #include <unistd.h>

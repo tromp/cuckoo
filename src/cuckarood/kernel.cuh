@@ -1,5 +1,5 @@
 // Cuckarood Cycle, a memory-hard proof-of-work by John Tromp and team Grin
-// Copyright (c) 2018 Jiri Photon Vadura and John Tromp
+// Copyright (c) 2018-2020 Jiri Photon Vadura and John Tromp
 // This GGM miner file is covered by the FAIR MINING license
 
 //Includes for IntelliSense

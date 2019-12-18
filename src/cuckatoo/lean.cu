@@ -1,5 +1,5 @@
-// Cuckoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2016 John Tromp
+// Cuck(at)oo Cycle, a memory-hard proof-of-work
+// Copyright (c) 2013-2020 John Tromp
 
 // The edge-trimming memory optimization is due to Dave Andersen
 // http://da-data.blogspot.com/2014/03/a-public-review-of-cuckoo-cycle.html
