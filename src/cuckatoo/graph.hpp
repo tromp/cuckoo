@@ -87,7 +87,9 @@ public:
   }
 
   static int nonce_cmp(const void *a, const void *b) {
-    return *(word_t *)a - *(word_t *)b;
+    u32 x = *(u32 *)a, y = *(u32 *)b;
+    // printf("nonce_cmp %x %x\n", x, y);
+    return x < y ? -1 : x > y;
   }
 
   void cycles_with_link(u32 len, word_t u, word_t dest) {

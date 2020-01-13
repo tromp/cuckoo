@@ -1031,7 +1031,9 @@ void *etworker(void *vp) {
 const u32 MAXPATHLEN = 16 << (EDGEBITS/3);
 
 int nonce_cmp(const void *a, const void *b) {
-  return *(u32 *)a - *(u32 *)b;
+  u32 x = *(u32 *)a, y = *(u32 *)b;
+  // printf("nonce_cmp %x %x\n", x, y);
+  return x < y ? -1 : x > y;
 }
 
 typedef word_t proof[PROOFSIZE];
