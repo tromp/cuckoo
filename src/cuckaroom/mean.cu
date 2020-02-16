@@ -50,7 +50,6 @@ const u32 EDGES_C = NZ * NEPS_C / NEPS;
 
 const u32 ROW_EDGES_A = EDGES_A * NY;
 const u32 ROW_EDGES_B = EDGES_B * NY;
-const u32 ROW_EDGES_C = EDGES_C * NY;
 
 #define checkCudaErrors_V(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return;})
 #define checkCudaErrors_N(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return NULL;})
@@ -145,7 +144,6 @@ struct edgetrimmer {
     checkCudaErrors_V(cudaMalloc((void**)&indexesA, indexesSizeNA));
     checkCudaErrors_V(cudaMalloc((void**)&indexesB, indexesSizeNA));
     checkCudaErrors_V(cudaMalloc((void**)&nodemap, nodemapSize));
-    assert(bufferSize >= sizeB + ROW_EDGES_C * NX * sizeof(uint2));
     checkCudaErrors_V(cudaMalloc((void**)&bufferB, bufferSize));
     bufferA = bufferB + sizeB / NA;
     bufferA1 = bufferB + sizeB;

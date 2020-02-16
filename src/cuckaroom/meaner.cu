@@ -802,11 +802,9 @@ const u32 MAXEDGES = NEDGES >> IDXSHIFT;
 
 const u32 EDGES_A = NZ * NEPS_A / NEPS;
 const u32 EDGES_B = NZ * NEPS_B / NEPS;
-const u32 EDGES_C = NZ * NEPS_C / NEPS;
 
 const u32 ALL_EDGES_A = EDGES_A * NB;
 const u32 ALL_EDGES_B = EDGES_B * NB;
-const u32 ALL_EDGES_C = EDGES_C * NB;
 
 #define checkCudaErrors_V(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return;})
 #define checkCudaErrors_N(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return NULL;})
@@ -882,8 +880,6 @@ struct edgetrimmer {
     checkCudaErrors_V(cudaMalloc((void**)&indexesA, indexesSizeNTLB));
     checkCudaErrors_V(cudaMalloc((void**)&indexesB, indexesSizeNMEM + indexesSize));
     checkCudaErrors_V(cudaMalloc((void**)&edgemap, edgemapSize));
-    const size_t sizeC = ALL_EDGES_C * sizeof(uint2);
-    assert(bufferSize >= sizeB + sizeC);
     checkCudaErrors_V(cudaMalloc((void**)&bufferB, bufferSize));
     bufferA = bufferB + sizeA / NMEM;
     // print_log("allocated %lld bytes bufferB %llx endBuffer %llx\n", bufferSize, bufferB, bufferB+bufferSize);
