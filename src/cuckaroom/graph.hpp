@@ -108,7 +108,7 @@ public:
     }
   }
 
-  void add_edge(word_t from, word_t to) {
+  bool add_edge(word_t from, word_t to) {
     assert(from < MAXNODES);
     assert(to   < MAXNODES);
     if (from == to || adjlist[to] != NIL) { // possibly part of a cycle
@@ -119,11 +119,16 @@ public:
     word_t link = nlinks++;
     assert(link != NIL);    // avoid confusing links with NIL; guaranteed if bits in word_t > EDGEBITS + 1
     assert(link < MAXEDGES);
+#ifndef ALLOWDUPES
+    for (word_t au = adjlist[from]; au != NIL; au = links[au].next)
+      if (links[au].to == to) return false; // drop duplicate edge
+#endif
     links[link].next = adjlist[from];
     links[adjlist[from] = link].to = to;
+    return true;
   }
 
-  void add_compress_edge(word_t from, word_t to) {
-    add_edge(compress->compress(from), compress->compress(to));
+  bool add_compress_edge(word_t from, word_t to) {
+    return add_edge(compress->compress(from), compress->compress(to));
   }
 };
