@@ -1016,8 +1016,8 @@ struct edgetrimmer {
     print_log("UnsplitEdges<><<<%d,%d>>>\n", NB, UNSPLIT_TPB);
 #endif
 
-    static_assert(NTLB >= 2); // ensure 2 indexsets fit in indexesA
-    static_assert(NMEM >= 2); // ensure 2 indexsets fit in indexesB
+    static_assert(NTLB >= 2, "2 index sets need to fit in indexesA");
+    static_assert(NMEM >= 2, "2 index sets need to fit in indexesB");
 
     for (int r = 0; r < PROOFSIZE/2 - 1; r++) {
       // printf("Relay round %d\n", r);
