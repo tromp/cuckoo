@@ -142,8 +142,8 @@ int verify(word_t edges[PROOFSIZE], siphash_keys &keys) {
     if (n && edges[n] <= edges[n-1])
       return POW_TOO_SMALL;
     u64 edge = sipblock(keys, edges[n], sips);
-    xoruv ^= uv[2*n]   =  edge        & EDGEMASK;
-    xoruv ^= uv[2*n+1] = (edge >> 32) & EDGEMASK;
+    xoruv ^= uv[2*n]   =  edge        & NODEMASK;
+    xoruv ^= uv[2*n+1] = (edge >> 32) & NODEMASK;
   }
   if (xoruv)              // optional check for obviously bad proofs
     return POW_NON_MATCHING;

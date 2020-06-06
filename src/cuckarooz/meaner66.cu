@@ -1,5 +1,5 @@
 // Cuckarooz Cycle, a memory-hard proof-of-work by John Tromp
-// Copyright (c) 2018-2020 Wilke Trei, Jiri Vadura (photon) and John Tromp
+// Copyright (c) 2018-2020 Wilke Trei (Lolliedieb), Jiri Vadura (photon) and John Tromp
 // This software is covered by the FAIR MINING license
 
 //Includes for IntelliSense
@@ -16,22 +16,20 @@
 #include <string.h>
 #include <vector>
 #include <assert.h>
-#include "cuckarooz.hpp"
+#include "cuckaroom.hpp"
 #include "graph.hpp"
 #include "../crypto/blake2.h"
 
 // number of invocations of seeding kernel
-// values larger than 1 reduce pressure on TLB
+// larger values reduce pressure on TLB
 // which appears to be an issue on GTX cards
 #ifndef NTLB
-#define NTLB 2
+#define NTLB 4
 #endif
 // number of slices in edge splitting kernel
 // larger values reduce memory use
 // which is proportional to 1+1/NMEM
-#ifndef NMEM
 #define NMEM 4
-#endif
 // after seeding, main memory buffer is a NMEM x NTLB matrix
 // of blocks of buckets
 #define NMEMTLB (NMEM * NTLB)
@@ -50,12 +48,15 @@ typedef uint32_t u32;
 #endif
 
 const u32 NB = 1 << BUCKBITS;
+const u32 BMASK = NB - 1;
 const u32 NB_NTLB  = NB / NTLB;
 const u32 NB_NMEM  = NB / NMEM;
 const u32 ZBITS = NODEBITS - BUCKBITS;
-const u32 ZBITS1 = ZBITS + 1;
 const u32 NZ = 1 << ZBITS;
 const u32 ZMASK = NZ - 1;
+const u32 ZBITS1 = ZBITS - 1;
+const u32 NZ1 = 1 << ZBITS1;
+const u32 Z1MASK = NZ1 - 1;
 
 __device__ __forceinline__ uint2 ld_cs_u32_v2(const uint2 *p_src)
 {
@@ -97,9 +98,9 @@ __device__ __forceinline__ void resetbit(u64 *edgemap, const int slot)
   atomicAnd((u32 *)edgemap + word, ~mask);
 }
 
-__device__ __forceinline__ bool testbit(const u64 edgemap, const int slot)
+__device__ __forceinline__ bool testbit(u64 *edgemap, const int slot)
 {
-  return (edgemap >> slot) & 1;
+  return testbit((u32 *)edgemap, slot);
 }
 
 __constant__ siphash_keys dipkeys;
@@ -129,6 +130,12 @@ __constant__ u64 recovery[42];
 #ifndef SPLIT_TPB
 #define SPLIT_TPB 1024
 #endif
+#ifndef TRIM0_TPB
+#define TRIM0_TPB 1024
+#endif
+#ifndef TRIM1_TPB
+#define TRIM1_TPB 512
+#endif
 #ifndef TRIM_TPB
 #define TRIM_TPB 1024
 #endif
@@ -144,9 +151,11 @@ __constant__ u64 recovery[42];
 
 template<int maxOut>
 __global__ void Seed(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, const u32 part)
+// Seed<EDGES_A/NTLB><<<tp.seed.blocks, SEED_TPB>>>((uint4*)bufferA, indexesA, i);
 {
-  const int gid = blockDim.x * blockIdx.x + threadIdx.x;
+  const int group = blockIdx.x;
   const int lid = threadIdx.x;
+  const int gid = group * SEED_TPB + lid;
   const int nthreads = gridDim.x * SEED_TPB;
 
   const int nloops = (NEDGES / NTLB / EDGE_BLOCK_SIZE - gid + nthreads-1) / nthreads;
@@ -161,7 +170,7 @@ __global__ void Seed(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, co
   __syncthreads();
 
   u64 offset = part * (NEDGES / NTLB);
-  buffer  += part * (maxOut * NB_NMEM / 2); 
+  buffer  += part * (maxOut * NB_NMEM / 2); // buffer indexed by edgepairs rather than edges
   indexes += part * NB;
 
   for (int i = 0; i < nloops; i++) {
@@ -187,10 +196,25 @@ __global__ void Seed(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, co
 
     u64 last = 0;
 
+#define BBITS2 (BUCKBITS/2)
+#define NBB2 (1 << BBITS2)
+#define BB2MASK (NBB2 - 1)
+#define BBITS21 (BBITS2 - 1)
+#define NBB21 (1 << BBITS21)
+#define BB21MASK (NBB21 - 1)
+
 #define DUMP(E) {\
   u64 lookup = (E);\
   const uint2 edge1 = make_uint2(lookup & NODEMASK, (lookup >> 32) & NODEMASK);\
-  int bucket = edge1.x >> ZBITS;\
+  int buckx = edge1.x >> (ZBITS + BBITS2);\
+  assert(buckx < NB2);\
+  int bucky = edge1.y >> (ZBITS + BBITS2);\
+  assert(bucky < NB2);\
+  int bucka = 2 * (buckx >> BBITS21) + (bucky >> BBITS21);\
+  assert(bucka < 4);\
+  int buckb = (buckx & BB21MASK) << BBITS21 | (bucky & BB21MASK);\
+  assert(buckb < 1024);\
+  int bucket = bucka << 10 | buckb;\
   u64 edge64 = (((u64)edge1.y) << 32) | edge1.x;\
   for (u64 ret = atomicCAS(&magazine[bucket], 0, edge64); ret; ) {\
     u64 ret2 = atomicCAS(&magazine[bucket], ret, 0);\
@@ -200,7 +224,7 @@ __global__ void Seed(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, co
         printf("Seed dropping edges %llx %llx\n", ret, edge64);\
         break;\
       }\
-      int idx = (bucket + (bucket / NB_NMEM) * (NTLB-1) * NB_NMEM) * maxOut + position;\
+      const u32 idx = (bucka * NTLB * NB_NMEM + buckb) * maxOut + position;\
       buffer[idx/2] = make_uint4(ret, ret >> 32, edge1.x, edge1.y);\
       break;\
     }\
@@ -228,30 +252,22 @@ __global__ void Seed(uint4 * __restrict__ buffer, u32 * __restrict__ indexes, co
         printf("Seed dropping edge %llx\n", edge);
         continue;
       }
-      int idx = (bucket + (bucket / NB_NMEM) * (NTLB-1) * NB_NMEM) * maxOut + position;\
+      const u32 idx = (bucka * NTLB * NB_NMEM + buckb) * maxOut + position;
       buffer[idx/2] = make_uint4(edge, edge >> 32, 0, 0);
     }
   }
 }
 
 #ifndef EXTSHARED
-#define EXTSHARED 0xc000
+#define EXTSHARED 0xc004
 #endif
-
-#ifndef CYCLE_V0
-#define CYCLE_V0 0x59f7ada
-#define CYCLE_V1 0x106a0753
-#endif
-#define BUCK0 (CYCLE_V0 >> ZBITS)
-#define REST0 (CYCLE_V0 & ZMASK)
-#define BUCK1 (CYCLE_V1 >> ZBITS)
-#define REST1 (CYCLE_V1 & ZMASK)
 
 template<int maxIn, int maxOut>
-__global__ void EdgeSplit(const uint2 *src, uint2 *dst, const u32 *srcIdx, u32 *dstIdx, u64 *edgemap, const int part)
+__global__  void EdgeSplit(const uint2 *src, uint2 *dst, const u32 *srcIdx, u32 *dstIdx, u64 *edgemap, const int bucka)
+// EdgeSplit<EDGES_A/NTLB, EDGES_A/NMEM><<<NB/NMEM, SPLIT_TPB, EXTSHARED>>>((uint2*)bufferA, (uint2*)bufferB, indexesA, indexesB, edgemap, i);
 {
-  const int lid = threadIdx.x;
   const int group = blockIdx.x;
+  const int lid = threadIdx.x;
 
   extern __shared__ unsigned long long magazine[];
   u32 *emap = (u32 *)(magazine + NB);
@@ -262,9 +278,11 @@ __global__ void EdgeSplit(const uint2 *src, uint2 *dst, const u32 *srcIdx, u32 *
     emap[lid + SPLIT_TPB * i] = 0;
   }
 
-  const int offset = part * NB_NMEM;
-  const int Group = offset + group;
-  edgemap += NB * Group;
+  if (!lid) assert(bucka < 4);
+  const u32 buckx = group >> BBITS21; // 5 bits
+  const u32 bucky = group & BB21MASK; // 5 bits
+  if (!lid) assert(buckx < 32);
+  if (!lid) assert(bucky < 32);
 
 #if EXTSHARED >= 0xc004
   u32 *ourIdx = emap + NB;
@@ -278,24 +296,31 @@ __global__ void EdgeSplit(const uint2 *src, uint2 *dst, const u32 *srcIdx, u32 *
   for (int a = 0; a < NTLB; a++)
     nloops[a] = (min(srcIdx[a * NB + Group], maxIn) - lid + SPLIT_TPB-1) / SPLIT_TPB;
 
-  src += (offset * NTLB + group) * maxIn + lid;
-  dst += part * NB * maxOut;
-  uint2 *dstX = dst + (NB_NMEM + group) * NTLB * maxIn / 2;
+  src += (bucka * NB_NMEM * NTLB + group) * maxIn + lid;
+  dst += bucka * NB * 2 * maxOut;
+  uint2 *ydst = dst + NB * maxOut;
+  u32 *xdstIdx = dstIdx + bucka * NB * 2;
+  u32 *ydstIdx = dstIdx + bucka * NB * 2 + NB;
 
   __syncthreads();
 
-  const int rowOffset = offset * NMEM;
   for (int a = 0; a < NTLB; a++) {
     const u32 delta = a * NB_NMEM * maxIn;
     for (int i = 0; i < nloops[a]; i++) {
       uint2 edge = src[delta + i * SPLIT_TPB];
       if (edge.x == edge.y) continue;
-      int bucket = edge.y >> ZBITS;
+      const u32 bucketx = edge.x >> ZBITS; // 12 bits
+      const u32 buckety = edge.y >> ZBITS; // 12 bits
+      assert(bucketx >> BBITS2 == bucka/2 << BBITS21 | buckx); // match 6 bits
+      assert(buckety >> BBITS2 == bucka%2 << BBITS21 | bucky); // match 6 bits
+      const u32 bucket = (bucketx % NBB2) * NBB2 + buckety % NBB2;
+      assert(bucket < NB);
       u64 edge64 = (((u64)edge.y) << 32) | edge.x;
       for (u64 ret = atomicCAS(&magazine[bucket], 0, edge64); ret; ) {
         u64 ret2 = atomicCAS(&magazine[bucket], ret, 0);
         if (ret2 == ret) {
           const u32 slot = atomicAdd(emap + bucket, 2);
+          assert(slot % 2 == 0); 
           if (slot >= 64) {
 #ifdef VERBOSE
             printf("dropped edges %llx %llx\n", ret, edge64);
@@ -303,16 +328,22 @@ __global__ void EdgeSplit(const uint2 *src, uint2 *dst, const u32 *srcIdx, u32 *
             break;
           }
           const u32 slots = (slot+1) << 6 | slot; // slot for edge, slot+1 for ret
-          int bktIdx = atomicAdd(ourIdx, 1);
-          dstX[bktIdx] = make_uint2(bucket << ZBITS | edge.x & ZMASK, slots << ZBITS | ret & ZMASK);
-          bktIdx = atomicAdd(dstIdx + rowOffset + bucket, 1);
-          if (bktIdx >= maxOut/2) {
+          const u32 bktIdx = atomicAdd(xdstIdx + bucket, 1);
+          if (bktIdx >= maxOut) {
+#ifdef VERBOSE
+            printf("dropped halfedge %llx\n", edge64);
+#endif
+            break;
+          }
+          dst[bucket * maxOut + bktIdx] = make_uint2((buckety << ZBITS) | (edge.x & ZMASK), slots << ZBITS | ret & ZMASK);
+          bktIdx = atomicAdd(ydstIdx + bucket, 1);
+          if (bktIdx >= maxOut) {
 #ifdef VERBOSE
             printf("dropped halfedge %llx\n", edge);
 #endif
             break;
           }
-          dst[bucket * maxOut/2 + bktIdx] = make_uint2(Group << ZBITS | edge.y & ZMASK, slots << ZBITS | (ret>>32) & ZMASK);
+          ydst[bucket * maxOut + bktIdx] = make_uint2((bucketx << ZBITS) | (edge.y & ZMASK), slots << ZBITS | (ret>>32) & ZMASK);
           break;
         }
         ret = ret2 ? ret2 : atomicCAS(&magazine[bucket], 0, edge64);
@@ -323,44 +354,49 @@ __global__ void EdgeSplit(const uint2 *src, uint2 *dst, const u32 *srcIdx, u32 *
   __syncthreads();
 
   for (int i = 0; i < NB/SPLIT_TPB; i++) {
-    int bucket = lid + SPLIT_TPB * i;
-    u64 edge = magazine[bucket];
+    int bucketxy = lid + SPLIT_TPB * i;
+    u64 edge = magazine[bucketxy];
     if (edge != 0) {
-      const u32 slot = atomicAdd(emap + bucket, 1);
+      const u32 slot = atomicAdd(emap + bucketxy, 1);
+      assert(slot % 2 == 0); 
       if (slot >= 64) {
 #ifdef VERBOSE
         printf("dropped edge %llx\n", edge);
 #endif
         continue;
       }
+      int bucketx = buckx * NBB2 + bucketxy / NBB2;
+      int buckety = bucky * NBB2 + bucketxy % NBB2;
       const u32 slots = slot << 6 | slot; // duplicate slot indicates singleton pair
-      int bktIdx = atomicAdd(ourIdx, 1);
-      dstX[bktIdx] = make_uint2(bucket << ZBITS | edge & ZMASK, slots << ZBITS | edge & ZMASK);
-      bktIdx = atomicAdd(dstIdx + rowOffset + bucket, 1);
-      if (bktIdx >= maxOut/2) {
+      int bktIdx = atomicAdd(xdstIdx + bucketx, 1);
+      if (bktIdx >= maxOut) {
 #ifdef VERBOSE
-        printf("dropped halfedge %llx\n", edge);
+        printf("dropped halfedge %llx\n", edge64);
 #endif
-        continue;
+        break;
       }
-      dst[bucket * maxOut/2 + bktIdx] = make_uint2(Group << ZBITS | (edge>>32) & ZMASK, slots << ZBITS | (edge>>32) & ZMASK);
+      dst[bucketx * maxOut + bktIdx] = make_uint2((buckety << ZBITS) | (edge & ZMASK), slots << ZBITS | edge & ZMASK);
+      bktIdx = atomicAdd(ydstIdx + buckety, 1);
+      if (bktIdx >= maxOut) {
+#ifdef VERBOSE
+        printf("dropped halfedge %llx\n", edge64);
+#endif
+        break;
+      }
+      ydst[buckety * maxOut + bktIdx] = make_uint2((bucketx << ZBITS) | (edge>>32) & ZMASK, slots << ZBITS | (edge>>32) & ZMASK);
     }
   }
 
   __syncthreads();
 
-  if (!lid) {
-    u32 *dstXIdx = dstIdx + NMEM * NB;
-    dstXIdx[Group] = *ourIdx;
-  }
-
   for (int i = 0; i < NB/SPLIT_TPB; i++) {
-    int idx = lid + SPLIT_TPB * i;
-    edgemap[idx] = emap[idx] < 64 ? (1ULL << emap[idx]) - 1 : ~0ULL;
+    int bucketxy = lid + SPLIT_TPB * i;
+    edgemap[(groupx*NBB2 + bucketxy/NBB2) * NB + groupy*NBB2 + bucketxy%NBB2] = emap[bucketxy] < 64 ? (1ULL << emap[bucketxy]) - 1 : ~0ULL;
   }
 }
 
 __device__ __forceinline__ void addhalfedge(u32 *magazine, const u32 bucket, const u32 rest, const u32 slot, u32 *indices, uint2* dst) {
+// addhalfedge(magazine, bucket, pair.x&ZMASK, slot0, sourceIndexes+NMEM*NB+group, source+delta);
   u32 halfedge = slot << ZBITS | rest;
   for (u32 ret = atomicCAS(&magazine[bucket], 0, halfedge); ret; ) {
     u64 ret2 = atomicCAS(&magazine[bucket], ret, 0);
@@ -388,29 +424,36 @@ __device__ __forceinline__ void flushhalfedges(u32 *magazine, const int lid, u32
 }
 
 template<int maxIn> // maxIn is size of small buckets in half-edges
-__global__ void Round(uint2 *source, u32 *sourceIndexes, u64 *edgemap)
+__global__  void Round(uint2 *source, u32 *sourceIndexes, u64 *edgemap)
+// Round<EDGES_A/NMEM><<<NB, TRIM_TPB>>>((uint2*)bufferB, indexesB, edgemap);
 {
   const int lid = threadIdx.x;
   const int group = blockIdx.x;
-  int bktsize[NMEM];
-  int npairs[NMEM];
+  int xsize[NMEM], ysize[NMEM];
+  int nxpairs[NMEM], nypairs[NMEM];
 
-  __shared__ u32 htnode[2*NZ/32/NPARTS]; // u & v node bits
+  __shared__ u32 htnode[2 * NZ/32]; // head & tail node bits
   __shared__ u32 magazine[NB];
 
-  for (int i = 0; i < 2*NZ/32/NPARTS/TRIM_TPB; i++)
+  for (int i = 0; i < 2 * NZ/32/TRIM_TPB; i++)
     htnode[lid + i * TRIM_TPB] = 0;
 
   for (int i = 0; i < NB/TRIM_TPB; i++)
     magazine[lid + i * TRIM_TPB] = 0;
 
   for (int a = 0; a < NMEM; a++) {
-    bktsize[a] = sourceIndexes[a * NB + group];
-    npairs[a] = (bktsize[a] + TRIM_TPB-1) / TRIM_TPB;
+    xsize[a] = sourceIndexes[        a  * NB + group];
+    ysize[a] = sourceIndexes[(NMEM + a) * NB + group];
+    if (!lid && xsize[a] + ysize[a] > maxIn)
+      printf("group %d xsize %d ysize %d excess %d\n", group, xsize[a], ysize[a], xsize[a]+ysize[a]-maxIn);
+    nxpairs[a] = (xsize[a] + TRIM_TPB-1) / TRIM_TPB;
+    nypairs[a] = (ysize[a] + TRIM_TPB-1) / TRIM_TPB;
   }
   const u32 bsize = sourceIndexes[NMEM * NB + group];
+  assert(bsize <= NMEM * maxIn/2);
   const u32 np = (bsize + TRIM_TPB-1) / TRIM_TPB;
 
+#if 0
   __syncthreads();
 
   if (lid <= NMEM)
@@ -423,13 +466,13 @@ __global__ void Round(uint2 *source, u32 *sourceIndexes, u64 *edgemap)
     if (idx >= bsize) continue;
     uint2 pair = source[delta + idx];
     u32 bucket = pair.x >> ZBITS;
+    assert(bucket < NB);
     u32 slots = pair.y >> ZBITS;
     u32 slot0 = slots % 64, slot1 = slots / 64;
-    u64 es = edgemap[group * NB + bucket];
-    if (testbit(es, slot0))
-      setbit(htnode, pair.x & ZMASK);
-    if (slot1 != slot0 && testbit(es, slot1))
-      setbit(htnode, pair.y & ZMASK);
+    if (testbit(edgemap + group * NB + bucket, slot0))
+      setbit(htnode, 2 * (pair.x & ZMASK));
+    if (slot1 != slot0 && testbit(edgemap + group * NB + bucket, slot1))
+      setbit(htnode, 2 * (pair.y & ZMASK));
   }
 
   for (int a = 0; a < NMEM; a++) {
@@ -440,42 +483,19 @@ __global__ void Round(uint2 *source, u32 *sourceIndexes, u64 *edgemap)
       if (idx >= bktsize[a]) continue;
       uint2 pair = source[delta + idx];
       u32 bucket = pair.x >> ZBITS;
+      assert(bucket < NB);
       u32 slots = pair.y >> ZBITS;
       u32 slot0 = slots % 64, slot1 = slots / 64;
-      u64 es = edgemap[bucket * NB + group];
-      if (testbit(es, slot0)) {
-	if (testbit(htnode, pair.x & ZMASK)) {
-          setbit(htnode, pair.x & ZMASK);
-	}
-      }
-      if (slot1 != slot0 && testbit(es, slot1)) {
-        if (testbit(htnode, pair.y & ZMASK)) {
-          setbit(htnode, pair.y & ZMASK);
-	}
-      }
-    }
-    __syncthreads();
-  }
-
-  for (int a = 0; a < NMEM; a++) {
-    const u32 delta = a * NB * maxIn + group * maxIn/2; // / 2 for indexing pairs, * 2 for alternate buckets
-    for (int i = 0; i < npairs[a]; i++) {
-      __syncthreads();
-      u32 idx = lid + i * TRIM_TPB;
-      if (idx >= bktsize[a]) continue;
-      uint2 pair = source[delta + idx];
-      u32 bucket = pair.x >> ZBITS;
-      u32 slots = pair.y >> ZBITS;
-      u32 slot0 = slots % 64, slot1 = slots / 64;
-      u64 es = edgemap[bucket * NB + group];
-      if (testbit(es, slot0)) {
-	if (testbit(htnode, pair.x & ZMASK)) {
+      if (testbit(edgemap + bucket * NB + group, slot0)) {
+	if (testbit(htnode, 2 * (pair.x & ZMASK))) {
           addhalfedge(magazine, bucket, pair.x&ZMASK, slot0, sourceIndexes+a*NB+group, source+delta);
+          setbit(htnode, 2 * (pair.x & ZMASK) + 1);
 	} else resetbit(edgemap + bucket * NB + group, slot0);
       }
-      if (slot1 != slot0 && testbit(es, slot1)) {
-        if (testbit(htnode, pair.y & ZMASK)) {
+      if (slot1 != slot0 && testbit(edgemap + bucket * NB + group, slot1)) {
+        if (testbit(htnode, 2 * (pair.y & ZMASK))) {
           addhalfedge(magazine, bucket, pair.y&ZMASK, slot1, sourceIndexes+a*NB+group, source+delta);
+          setbit(htnode, 2 * (pair.y & ZMASK) + 1);
 	} else resetbit(edgemap + bucket * NB + group, slot1);
       }
     }
@@ -490,16 +510,16 @@ __global__ void Round(uint2 *source, u32 *sourceIndexes, u64 *edgemap)
     if (idx >= bsize) continue;
     uint2 pair = source[delta + idx];
     u32 bucket = pair.x >> ZBITS;
+    assert(bucket < NB);
     u32 slots = pair.y >> ZBITS;
     u32 slot0 = slots % 64, slot1 = slots / 64;
-    u64 es = edgemap[group * NB + bucket];
-    if (testbit(es, slot0)) {
-      if (testbit(htnode, pair.x & ZMASK)) {
+    if (testbit(edgemap + group * NB + bucket, slot0)) {
+      if (testbit(htnode, 2 * (pair.x & ZMASK) + 1)) {
         addhalfedge(magazine, bucket, pair.x&ZMASK, slot0, sourceIndexes+NMEM*NB+group, source+delta);
       } else resetbit(edgemap + group * NB + bucket, slot0);
     }
-    if (slot1 != slot0 && testbit(es, slot1)) {
-      if (testbit(htnode, pair.y & ZMASK)) {
+    if (slot1 != slot0 && testbit(edgemap + group * NB + bucket, slot1)) {
+      if (testbit(htnode, 2 * (pair.y & ZMASK) + 1)) {
         addhalfedge(magazine, bucket, pair.y&ZMASK, slot1, sourceIndexes+NMEM*NB+group, source+delta);
       } else resetbit(edgemap + group * NB + bucket, slot1);
     }
@@ -507,116 +527,11 @@ __global__ void Round(uint2 *source, u32 *sourceIndexes, u64 *edgemap)
   __syncthreads();
 
   flushhalfedges(magazine, lid, sourceIndexes+NMEM*NB+group, source+delta);
-}
-
-template<int maxIn> // maxIn is size of small buckets in half-edges
-__global__ void EdgesMeet(uint2 *source, u32 *sourceIndexes, u32 *destIndexes)
-{
-  const int lid = threadIdx.x;
-  const int group = blockIdx.x;
-  int bktsize[NMEM];
-  int npairs[NMEM];
-
-  for (int a = 0; a < NMEM; a++) {
-    bktsize[a] = sourceIndexes[a * NB + group];
-    npairs[a] = (bktsize[a] + TRIM_TPB-1) / TRIM_TPB;
-  }
-
-  __syncthreads();
-
-  for (int a = 0; a < NMEM; a++) {
-    const u32 delta = a * NB * maxIn + group * maxIn/2; // / 2 for indexing pairs, * 2 for alternate buckets
-    const u32 delta2 = a * NB * maxIn + NB * maxIn/2;
-    for (int i = 0; i < npairs[a]; i++) {
-      __syncthreads();
-      u32 idx = lid + i * TRIM_TPB;
-      if (idx >= bktsize[a]) continue;
-      uint2 pair = source[delta + idx];
-      u32 bucket = pair.x >> ZBITS;
-      pair.x = (group << ZBITS) | (pair.x & ZMASK);
-      int i = atomicAdd(destIndexes + bucket, 1);
-      const u32 dlt = (bucket % NB_NMEM) * NMEM * maxIn/2;
-      source[delta2 + dlt + i] = pair;
-    }
-  }
-}
-
-template<int maxOut>
-__device__ __forceinline__ void addedge(const u32 buckx, const u32 restx, const u32 bucky, const u32 resty, u32 *indices, uint2* dest, u32* dstidx) {
-  int idx = atomicAdd(indices + bucky, 1);
-  dest[    bucky *maxOut + idx] = make_uint2(restx << ZBITS1 | resty, buckx << ZBITS | restx); // extra +1 shift makes a 0 copybit
-  int idx2 = atomicAdd(dstidx, 1);
-  dest[(NB+buckx)*maxOut + idx2] = make_uint2(resty << ZBITS1 | restx, bucky << ZBITS | resty);
-}
-
-template<int maxIn, int maxOut> // maxIn is size of small buckets in half-edges
-__global__ void UnsplitEdges(uint2 *source, u32 *srcIndexes, u32 *srcIndexes2, uint2 *dest, u32 *dstIndexes)
-{
-  const int lid = threadIdx.x;
-  const int group = blockIdx.x;
-
-  __shared__ u32 lists[NB];
-  __shared__ u32 nexts[NB];
-  __shared__ u32 dstidx;
-
-  for (int i = 0; i < NB/UNSPLIT_TPB; i++)
-    lists[i * UNSPLIT_TPB + lid] = ~0;
-
-  if (!lid)
-    dstidx = 0;
-
-  const u32 size1 = srcIndexes[group];
-  const u32 np1 = (size1 + UNSPLIT_TPB-1) / UNSPLIT_TPB;
-  const u32 size2 = srcIndexes2[group];
-  const u32 np2 = (size2-size1 + UNSPLIT_TPB-1) / UNSPLIT_TPB;
-
-  __syncthreads();
-
-  const u32 delta = (group / NB_NMEM) * NB * maxIn + (NB + (group % NB_NMEM) * NMEM) * maxIn/2;
-  source += delta;
-  for (int i = 0; i < np1; i++) {
-    const u32 index = lid + i * UNSPLIT_TPB;
-    if (index >= size1) continue;
-    const uint2 pair = source[index];
-    const u32 bucket = pair.x >> ZBITS;
-    nexts[index] = atomicExch(&lists[bucket], index);
-  }
-
-  __syncthreads();
-
-  for (int i = 0; i < np2; i++) {
-    const u32 index = size1 + lid + i * UNSPLIT_TPB;
-    if (index >= size2) continue;
-    const uint2 pair = source[index];
-    const u32 bucket = pair.x >> ZBITS;
-    const u32 slots = pair.y >> ZBITS;
-    const u32 slot0 = slots % 64, slot1 = slots / 64;
-    for (u32 idx = lists[bucket]; idx != ~0; idx = nexts[idx]) {
-      const uint2 pair2 = source[idx];
-      const u32 slots2 = pair2.y >> ZBITS;
-      const u32 slot20 = slots2 % 64, slot21 = slots2 / 64;
-      if (slot20 == slot0)
-        addedge<maxOut>(group, pair2.x & ZMASK, bucket, pair.x & ZMASK, dstIndexes, dest, &dstidx);
-      else if (slot20 == slot1)
-        addedge<maxOut>(group, pair2.x & ZMASK, bucket, pair.y & ZMASK, dstIndexes, dest, &dstidx);
-      if (slot21 != slot20) {
-        if (slot21 == slot0)
-          addedge<maxOut>(group, pair2.y & ZMASK, bucket, pair.x & ZMASK, dstIndexes, dest, &dstidx);
-        else if (slot21 == slot1)
-          addedge<maxOut>(group, pair2.y & ZMASK, bucket, pair.y & ZMASK, dstIndexes, dest, &dstidx);
-      }
-      // if (slots != slots2) printf("pair slots %d %d pair2 slots %d %d\n", slot0, slot1, slot20, slot21);
-    }
-  }
-
-  __syncthreads();
-
-  if (!lid)
-    dstIndexes[NB + group] = dstidx;
+#endif
 }
 
 #ifndef LISTBITS
-#define LISTBITS 11
+#define LISTBITS 12
 #endif
 
 const u32 NLISTS  = 1 << LISTBITS;
@@ -625,124 +540,75 @@ const u32 NLISTS  = 1 << LISTBITS;
 #define NNEXTS NLISTS
 #endif
 
-template<int maxIn, int maxOut>
-__global__ void Tag_Relay(const uint2 *source, uint2 *destination, const u32 *sourceIndexes, u32 *destinationIndexes)
+template<int tpb, int maxIn, int maxOut>
+__global__  void Tag_Relay(const uint2 *source, uint2 *destination, const u32 *sourceIndexes, u32 *destinationIndexes, bool TAGGED)
 {
   const int lid = threadIdx.x;
   const int group = blockIdx.x;
   const u32 LISTMASK = NLISTS - 1;
-  const u32 TAGMASK = (~1U) << ZBITS;
-  const u32 COPYFLAG = NZ;
 
-  __shared__ u32 lists0[NLISTS];
-  __shared__ u32 nexts0[NNEXTS];
-  __shared__ u32 lists1[NLISTS];
-  __shared__ u32 nexts1[NNEXTS];
+  __shared__ u32 lists[NLISTS];
+  __shared__ u32 nexts[NNEXTS];
 
-  const int nloops0 = (min(sourceIndexes[   group], NNEXTS) - lid + RELAY_TPB-1) / RELAY_TPB;
-  const int nloops1 = (min(sourceIndexes[NB+group], NNEXTS) - lid + RELAY_TPB-1) / RELAY_TPB;
+  const int nloops = (min(sourceIndexes[group], NNEXTS) - lid + tpb-1) / tpb;
 
-  source += group * maxIn;
+  source += maxIn * group;
 
-  for (int i = 0; i < NLISTS/RELAY_TPB; i++)
-    lists0[i * RELAY_TPB + lid] = lists1[i * RELAY_TPB + lid] = ~0;
+  for (int i = 0; i < NLISTS/tpb; i++)
+    lists[i * tpb + lid] = ~0;
 
   __syncthreads();
 
-  for (int i = 0; i < nloops0; i++) {
-    const u32 index = i * RELAY_TPB + lid;
-    const uint2 edge = source[index];
-    const u32 list = edge.x & LISTMASK;
-    nexts0[index] = atomicExch(&lists0[list], index);
+  for (int i = 0; i < nloops; i++) {
+    const u32 index = i * tpb + lid;
+    const u32 list = source[index].x & LISTMASK;
+    nexts[index] = atomicExch(&lists[list], index);
   }
 
   __syncthreads();
 
-  for (int i = 0; i < nloops1; i++) {
-    const u32 index = i * RELAY_TPB + lid;
-    const uint2 edge = source[NB * maxIn + index];
-    const u32 list = edge.x & LISTMASK;
-    nexts1[index] = atomicExch(&lists1[list], index);
-    if (edge.x & COPYFLAG) continue; // copies don't relay
+  for (int i = nloops; --i >= 0;) {
+    const u32 index = i * tpb + lid;
+    const uint2 edge = source[index];
+    if (edge.y & NEDGES) continue; // copies don't relay
     u32 bucket = edge.y >> ZBITS;
     u32 copybit = 0;
-    for (u32 idx = lists0[list]; idx != ~0; idx = nexts0[idx]) {
+    const u32 list = (edge.x & LISTMASK) ^ 1;
+    for (u32 idx = lists[list]; idx != ~0; idx = nexts[idx]) {
       uint2 tagged = source[idx];
-      // printf("compare with tagged %08x %08x xor %x\n", tagged.x, tagged.y, (tagged.x ^ edge.x) & ZMASK);
-      if ((tagged.x ^ edge.x) & ZMASK) continue;
+      if ((tagged.x ^ edge.x ^ 1) & ZMASK) continue;
       u32 bktIdx = min(atomicAdd(destinationIndexes + bucket, 1), maxOut - 1);
-      // printf("relaying from tagged %08x %08x bktIdx %d\n", tagged.x, tagged.y, bktIdx);
-      u32 tag = (tagged.x & TAGMASK) | copybit;
-      destination[bucket * maxOut + bktIdx] = make_uint2(tag | (edge.y & ZMASK), (group << ZBITS) | (edge.x & ZMASK));
-      copybit = COPYFLAG;
-    }
-  }
-
-  __syncthreads();
-
-  for (int i = 0; i < nloops0; i++) {
-    const u32 index = i * RELAY_TPB + lid;
-    const uint2 edge = source[index];
-    const u32 list = edge.x & LISTMASK;
-    if (edge.x & COPYFLAG) continue; // copies don't relay
-    u32 bucket = edge.y >> ZBITS;
-    u32 copybit = 0;
-    for (u32 idx = lists1[list]; idx != ~0; idx = nexts1[idx]) {
-      uint2 tagged = source[NB * maxIn + idx];
-      if ((tagged.x ^ edge.x) & ZMASK) continue;
-      u32 bktIdx = min(atomicAdd(destinationIndexes + NB + bucket, 1), maxOut - 1);
-      // printf("relaying from tagged %08x %08x bktIdx %d\n", tagged.x, tagged.y, bktIdx);
-      u32 tag = (tagged.x & TAGMASK) | copybit;
-      destination[(NB + bucket) * maxOut + bktIdx] = make_uint2(tag | (edge.y & ZMASK), (group << ZBITS) | (edge.x & ZMASK));
-      copybit = COPYFLAG;
+      u32 tag = TAGGED ? tagged.x >> ZBITS : tagged.y >> 1;
+      destination[(bucket * maxOut) + bktIdx] = make_uint2((tag << ZBITS) | (edge.y & ZMASK), copybit | (group << ZBITS) | (edge.x & ZMASK));
+      copybit = NEDGES;
     }
   }
 }
 
-template<int maxIn>
-__global__ void Tail(const uint2 *source, uint2 *destination, const u32 *sourceIndexes, u32 *destinationIndexes)
+template<int tpb, int maxIn>
+__global__  void Tail(const uint2 *source, uint2 *destination, const u32 *sourceIndexes, u32 *destinationIndexes)
 {
   const int lid = threadIdx.x;
   const int group = blockIdx.x;
-  const u32 LISTMASK = NLISTS - 1;
-  const u32 COPYFLAG = NZ;
+  __shared__ u32 destIdx;
 
-  __shared__ u32 lists0[NLISTS];
-  __shared__ u32 nexts0[NNEXTS];
+  const u32 myEdges = sourceIndexes[group];
+  const int nloops = (myEdges - lid + tpb-1) / tpb;
 
-  const int nloops0 = (min(sourceIndexes[   group], NNEXTS) - lid + TAIL_TPB-1) / TAIL_TPB;
-  const int nloops1 = (min(sourceIndexes[NB+group], NNEXTS) - lid + TAIL_TPB-1) / TAIL_TPB;
-
-  source += group * maxIn;
-
-  for (int i = 0; i < NLISTS/TAIL_TPB; i++)
-    lists0[i * TAIL_TPB + lid] = ~0;
+  if (lid == 0)
+    destIdx = atomicAdd(destinationIndexes, myEdges);
 
   __syncthreads();
 
-  for (int i = 0; i < nloops0; i++) {
-    const u32 index = i * TAIL_TPB + lid;
-    const uint2 edge = source[index];
-    const u32 list = edge.x & LISTMASK;
-    nexts0[index] = atomicExch(&lists0[list], index);
-  }
-
-  __syncthreads();
-
-  for (int i = 0; i < nloops1; i++) {
-    const u32 index = i * TAIL_TPB + lid;
-    const uint2 edge = source[NB * maxIn + index];
-    const u32 list = edge.x & LISTMASK;
-    for (u32 idx = lists0[list]; idx != ~0; idx = nexts0[idx]) {
-      uint2 tagged = source[idx];
-      if ((tagged.x ^ edge.x) & ~COPYFLAG) continue;
-      u32 bktIdx = atomicAdd(destinationIndexes, 1);
-      destination[bktIdx] = make_uint2((group << ZBITS) | (edge.x & ZMASK), edge.y);
-    }
+  source += maxIn * group;
+  destination += destIdx;
+  for (int i = 0; i < nloops; i++) {
+    const u32 index = i * tpb + lid;
+    destination[index] = source[index];
   }
 }
 
-__global__ void Recovery(u32 * indexes)
+__global__  void Recovery(u32 * indexes)
 {
   const int gid = blockDim.x * blockIdx.x + threadIdx.x;
   const int lid = threadIdx.x;
@@ -813,7 +679,7 @@ typedef uint16_t u16;
 const u32 MAXEDGES = NEDGES >> IDXSHIFT;
 
 #ifndef NEPS_A
-#define NEPS_A 135
+#define NEPS_A 138
 #endif
 #ifndef NEPS_B
 #define NEPS_B 88
@@ -825,9 +691,11 @@ const u32 MAXEDGES = NEDGES >> IDXSHIFT;
 
 const u32 EDGES_A = NZ * NEPS_A / NEPS;
 const u32 EDGES_B = NZ * NEPS_B / NEPS;
+const u32 EDGES_C = NZ * NEPS_C / NEPS;
 
 const u32 ALL_EDGES_A = EDGES_A * NB;
 const u32 ALL_EDGES_B = EDGES_B * NB;
+const u32 ALL_EDGES_C = EDGES_C * NB;
 
 #define checkCudaErrors_V(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return;})
 #define checkCudaErrors_N(ans) ({if (gpuAssert((ans), __FILE__, __LINE__) != cudaSuccess) return NULL;})
@@ -863,9 +731,9 @@ struct trimparams {
     seed.blocks    =   NB_NTLB;
     seed.tpb       =  SEED_TPB;
     trim0.blocks   =   NB_NMEM;
-    trim0.tpb      =  TRIM_TPB;
+    trim0.tpb      = TRIM0_TPB;
     trim1.blocks   =   NB_NMEM;
-    trim1.tpb      =  TRIM_TPB;
+    trim1.tpb      = TRIM1_TPB;
     trim.blocks    =        NB;
     trim.tpb       =  TRIM_TPB;
     tail.blocks    =        NB;
@@ -886,10 +754,11 @@ struct edgetrimmer {
   const size_t bufferSize = sizeA / NMEM + sizeA;
   const size_t indexesSize = NB * sizeof(u32);
   const size_t indexesSizeNTLB = NTLB * indexesSize;
-  const size_t indexesSizeNMEM = NMEM * indexesSize;
+  const size_t indexesSizeNMEM2 = NMEM * 2 * indexesSize;
   const size_t edgemapSize = 2 * NEDGES / 8; // 8 bits per byte; twice that for bucket (2^24 in all) size variance
   u8 *bufferA;
   u8 *bufferB;
+  u8 *bufferA1;
   u32 *indexesA;
   u32 *indexesB;
   u64 *edgemap;
@@ -901,17 +770,21 @@ struct edgetrimmer {
   edgetrimmer(const trimparams _tp) : tp(_tp) {
     checkCudaErrors_V(cudaMalloc((void**)&dt, sizeof(edgetrimmer)));
     checkCudaErrors_V(cudaMalloc((void**)&indexesA, indexesSizeNTLB));
-    checkCudaErrors_V(cudaMalloc((void**)&indexesB, indexesSizeNMEM + indexesSize));
+    checkCudaErrors_V(cudaMalloc((void**)&indexesB, indexesSizeNMEM2));
     checkCudaErrors_V(cudaMalloc((void**)&edgemap, edgemapSize));
+    const size_t sizeC = ALL_EDGES_C * sizeof(uint2);
+    assert(bufferSize >= sizeB + sizeC);
     checkCudaErrors_V(cudaMalloc((void**)&bufferB, bufferSize));
     bufferA = bufferB + sizeA / NMEM;
-    // print_log("allocated %lld bytes bufferB %llx endBuffer %llx\n", bufferSize, bufferB, bufferB+bufferSize);
+    bufferA1 = bufferB + bufferSize - sizeB;
+    print_log("allocated %lld bytes bufferB %llx endBuffer %llx\n", bufferSize, bufferB, bufferB+bufferSize);
+    print_log("bufferA %llx bufferA1 %llx\n", bufferA, bufferA1);
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
     initsuccess = true;
     cudaFuncSetAttribute(EdgeSplit<EDGES_A/NTLB, EDGES_A/NMEM>, cudaFuncAttributeMaxDynamicSharedMemorySize, EXTSHARED);
   }
   u64 globalbytes() const {
-    return bufferSize + indexesSizeNTLB + indexesSizeNMEM + indexesSize + edgemapSize + sizeof(siphash_keys) + sizeof(edgetrimmer);
+    return bufferSize + indexesSizeNTLB + indexesSizeNMEM2 + edgemapSize + sizeof(siphash_keys) + sizeof(edgetrimmer);
   }
   ~edgetrimmer() {
     checkCudaErrors_V(cudaFree(bufferB));
@@ -922,7 +795,7 @@ struct edgetrimmer {
     cudaDeviceReset();
   }
   void indexcount(u32 round, const u32 *indexes) {
-#ifdef VERBOSE
+#if 1
     u32 nedges[NB];
     for (int i = 0; i < NB; i++)
       nedges[i] = 0;
@@ -934,11 +807,11 @@ struct edgetrimmer {
       if (nedges[i] > max)
         max = nedges[i];
     }
-    print_log("round %d edges avg %d max %d sum %d\n", round, sum/NB, max, sum);
+    print_log("round %d edges avg %d max %d\n", round, sum/NB, max);
 #endif
   }
   void edgemapcount(const int round, const u64* edgemap) {
-#ifdef VERBOSE
+#ifdef VRBOSE
     u64* emap = (u64 *)calloc(NB*NB, sizeof(u64));
     assert(emap);
     cudaMemcpy(emap, edgemap, NB*NB*sizeof(u64), cudaMemcpyDeviceToHost);
@@ -953,7 +826,6 @@ struct edgetrimmer {
 #endif
   }
   u32 trim() {
-    u32 nedges = 0;
     cudaEvent_t start, stop;
     checkCudaErrors(cudaEventCreate(&start)); checkCudaErrors(cudaEventCreate(&stop));
     cudaMemcpyToSymbol(dipkeys, &sipkeys, sizeof(sipkeys));
@@ -982,10 +854,12 @@ struct edgetrimmer {
     print_log("Seeding completed in %.0f ms\n", durationA);
     print_log("EdgeSplit<<<%d,%d>>>\n", NB_NMEM, SPLIT_TPB); // 1024x1024
 #endif
+    if (abort) return false;
 
-    cudaMemset(indexesB, 0, indexesSizeNMEM + indexesSize);
-    for (u32 i=0; i < NMEM; i++) {
-      EdgeSplit<EDGES_A/NTLB, EDGES_A/NMEM><<<NB_NMEM, SPLIT_TPB, EXTSHARED>>>((uint2*)bufferA, (uint2*)bufferB, indexesA, indexesB, edgemap, i);
+  assert((uint2*)bufferB + NB * EDGES_A/NMEM == (uint2 *)bufferA);
+    cudaMemset(indexesB, 0, indexesSizeNMEM2);
+    for (u32 i=0; i < 1+0*NMEM; i++) {
+      EdgeSplit<EDGES_A/NTLB, EDGES_A/NMEM><<<NB/NMEM, SPLIT_TPB, EXTSHARED>>>((uint2*)bufferA, (uint2*)bufferB, indexesA, indexesB, edgemap, i);
       if (abort) return false;
     }
 
@@ -999,9 +873,12 @@ struct edgetrimmer {
     indexcount(1, indexesB+NMEM*NB);
     edgemapcount(1, edgemap); // .400
     print_log("EdgeSplit completed in %.0f ms\n", durationB);
-    print_log("Round<<<%d,%d>>>\n", NB, TRIM_TPB); // 4096x1024
+    print_log("Round<<<%d,%d>>>\n", NB, TRIM1_TPB); // 4096x1024
 #endif
 
+return false;
+
+    cudaMemset(indexesA, 0, indexesSize);
     Round<EDGES_A/NMEM><<<NB, TRIM_TPB>>>((uint2*)bufferB, indexesB, edgemap);
 
     checkCudaErrors(cudaDeviceSynchronize()); cudaEventRecord(stop, NULL);
@@ -1016,7 +893,7 @@ struct edgetrimmer {
     if (abort) return false;
 
 #ifdef VERBOSE
-    print_log("Round<><<<%d,%d>>>\n", NB, TRIM_TPB);
+    print_log("Round<><<<%d,%d>>>\n", NB, TRIM_TPB); // 4096x512
 #endif
 
     for (int r = 3; r < tp.ntrims; r++) {
@@ -1025,49 +902,18 @@ struct edgetrimmer {
       edgemapcount(r, edgemap);
     }
 
-    cudaMemcpy((void *)indexesA, indexesB+NMEM*NB, indexesSize, cudaMemcpyDeviceToDevice);
-    EdgesMeet<EDGES_A/NMEM><<<NB, TRIM_TPB>>>((uint2*)bufferB, indexesB, indexesA);
-
-    uint2 *bufferC = (uint2 *)bufferA;
-    cudaMemset(indexesB, 0, indexesSize); // UnsplitEdges zeroes second indexes set
-    UnsplitEdges<EDGES_A/NMEM, EDGES_A/128><<<NB, UNSPLIT_TPB>>>((uint2*)bufferB, indexesB+NMEM*NB, indexesA, bufferC, indexesB);
-    checkCudaErrors(cudaDeviceSynchronize());
-    indexcount(tp.ntrims, indexesB);
-    indexcount(tp.ntrims, indexesB+NB);
-
-#ifdef VERBOSE
-    print_log("UnsplitEdges<><<<%d,%d>>>\n", NB, UNSPLIT_TPB);
-#endif
-
-    static_assert(NTLB >= 2, "2 index sets need to fit in indexesA");
-    static_assert(NMEM >= 2, "2 index sets need to fit in indexesB");
-
-    for (int r = 0; r < PROOFSIZE/2 - 1; r++) {
-      // printf("Relay round %d\n", r);
-      if (r % 2 == 0) {
-        cudaMemset(indexesA, 0, 2*indexesSize);
-        Tag_Relay<EDGES_A/128, EDGES_A/128><<<NB, RELAY_TPB>>>(bufferC, bufferC+NB_NMEM*EDGES_A, indexesB, indexesA);
-      } else {
-        cudaMemset(indexesB, 0, 2*indexesSize);
-        Tag_Relay<EDGES_A/128, EDGES_A/128><<<NB, RELAY_TPB>>>(bufferC+NB_NMEM*EDGES_A, bufferC, indexesA, indexesB);
-      }
-      checkCudaErrors(cudaDeviceSynchronize());
-    }
-
+    u32 nedges = 0;
+#if 0
+    cudaMemset(indexesB, 0, indexesSize);
 #ifdef VERBOSE
     print_log("Tail<><<<%d,%d>>>\n", NB, TAIL_TPB);
 #endif
+    Tail<TAIL_TPB, EDGES_A/8><<<NB, TAIL_TPB>>>((uint2*)bufferA1, (uint2*)bufferB, indexesA, indexesB);
 
-    cudaMemset(indexesA, 0, sizeof(u32));
-    if ((PROOFSIZE/2 - 1) % 2 == 0) {
-      Tail<EDGES_A/128><<<NB, TAIL_TPB>>>(bufferC,                 (uint2 *)bufferB, indexesB, indexesB+2*NB);
-    } else {
-      Tail<EDGES_A/128><<<NB, TAIL_TPB>>>(bufferC+NB_NMEM*EDGES_A, (uint2 *)bufferB, indexesA, indexesB+2*NB);
-    }
-
-    cudaMemcpy(&nedges, indexesB+2*NB, sizeof(u32), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&nedges, indexesB, sizeof(u32), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
     print_log("%d rounds %d edges\n", tp.ntrims, nedges);
+#endif
     return nedges;
   }
 };
@@ -1096,10 +942,9 @@ struct solver_ctx {
   }
 
   int findcycles(uint2 *edges, u32 nedges) {
-    u32 ndupes = 0;
     cg.reset();
     for (u32 i = 0; i < nedges; i++) {
-      ndupes += !cg.add_compress_edge(edges[i].x, edges[i].y);
+      cg.add_compress_edge(edges[i].x, edges[i].y);
     }
     for (u32 s = 0 ;s < cg.nsols; s++) {
 #ifdef VERBOSE
@@ -1120,12 +965,12 @@ struct solver_ctx {
 #ifdef VERBOSE
     print_log("Recovery<><<<%d,%d>>>\n", trimmer.tp.recover.blocks, trimmer.tp.recover.tpb);
 #endif
-      Recovery<<<trimmer.tp.recover.blocks, trimmer.tp.recover.tpb>>>((u32 *)trimmer.bufferA);
-      cudaMemcpy(&sols[sols.size()-PROOFSIZE], trimmer.bufferA, PROOFSIZE * sizeof(u32), cudaMemcpyDeviceToHost);
+      Recovery<<<trimmer.tp.recover.blocks, trimmer.tp.recover.tpb>>>((u32 *)trimmer.bufferA1);
+      cudaMemcpy(&sols[sols.size()-PROOFSIZE], trimmer.bufferA1, PROOFSIZE * sizeof(u32), cudaMemcpyDeviceToHost);
       checkCudaErrors(cudaDeviceSynchronize());
       qsort(&sols[sols.size()-PROOFSIZE], PROOFSIZE, sizeof(u32), cg.nonce_cmp);
     }
-    return ndupes;
+    return 0;
   }
 
   int solve() {
@@ -1144,9 +989,9 @@ struct solver_ctx {
     cudaMemcpy(edges, trimmer.bufferB, sizeof(uint2[nedges]), cudaMemcpyDeviceToHost);
     time1 = timestamp(); timems  = (time1 - time0) / 1000000;
     time0 = timestamp();
-    const u32 ndupes = findcycles(edges, nedges);
+    // findcycles(edges, nedges);
     time1 = timestamp(); timems2 = (time1 - time0) / 1000000;
-    print_log("%d trims %d ms %d edges %d dupes %d ms total %d ms\n", trimmer.tp.ntrims, timems, nedges, ndupes, timems2, timems+timems2);
+    print_log("trim time %d ms findcycles edges %d time %d ms total %d ms\n", timems, nedges, timems2, timems+timems2);
     return sols.size() / PROOFSIZE;
   }
 
@@ -1288,10 +1133,13 @@ CALL_CONVENTION void fill_default_params(SolverParams* params) {
   params->cpuload = false;
 }
 
+static_assert(BUCKBITS % 2 == 0, "BUCKBITS must be even");
 static_assert(NB % SEED_TPB == 0, "SEED_TPB must divide NB");
 static_assert(NB % SPLIT_TPB == 0, "SPLIT_TPB must divide NB");
 static_assert(NLISTS % (RELAY_TPB) == 0, "RELAY_TPB must divide NLISTS"); // for Tag_Edges lists    init
 static_assert(NZ % (32 * SPLIT_TPB) == 0, "SPLIT_TPB must divide NZ/32"); // for EdgeSplit htnode init
+static_assert(NZ % (32 * TRIM0_TPB) == 0, "TRIM1_TPB must divide NZ/32"); // for Round0 htnode init
+static_assert(NZ % (32 * TRIM1_TPB) == 0, "TRIM1_TPB must divide NZ/32"); // for Round1 htnode init
 static_assert(NZ % (32 *  TRIM_TPB) == 0, "TRIM_TPB must divide NZ/32"); // for Round htnode init
 
 int main(int argc, char **argv) {
@@ -1326,7 +1174,7 @@ int main(int argc, char **argv) {
         for (u32 i=0; i<len; i++)
           sscanf(optarg+2*i, "%2hhx", header+i); // hh specifies storage of a single byte
         break;
-      case 'm': // ntrims         =        15;
+      case 'm': // ntrims         =       458;
         params.ntrims = atoi(optarg);
         break;
       case 'n':
@@ -1358,7 +1206,7 @@ int main(int argc, char **argv) {
   print_log("%s with %d%cB @ %d bits x %dMHz\n", prop.name, (u32)dbytes, " KMGT"[dunit], prop.memoryBusWidth, prop.memoryClockRate/1000);
   // cudaSetDevice(device);
 
-  print_log("Looking for %d-cycle on cuckarooz%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
+  print_log("Looking for %d-cycle on cuckaroom%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
   if (range > 1)
     print_log("-%d", nonce+range-1);
   print_log(") with 50%% edges, %d buckets, and %d trims.\n", NB, params.ntrims);
