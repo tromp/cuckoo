@@ -184,7 +184,6 @@ Projects using Cuckoo Cycle
 --------------
 * [Grin](https://hq.grin.ninja/)
 * [æternity - the oracle machine](http://www.aeternity.com/)
-* [BitGrin // MimbleWimble with bitcoin economics](https://bitgrin.io/)
 * [CodeChain](https://codechain.io/)
 * [BitCash](https://www.choosebitcash.com/)
 * [Veres One](https://veres.one)
