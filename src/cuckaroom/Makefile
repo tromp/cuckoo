@@ -63,3 +63,15 @@ oldcuda29:	../crypto/siphash.cuh compress.hpp graph.hpp mean.cu kernel.cuh Makef
 
 cuda29:		../crypto/siphash.cuh compress.hpp graph.hpp meaner.cu Makefile
 	$(NVCC) -o $@ -DEDGEBITS=29 -arch sm_35 meaner.cu $(BLAKE_2B_SRC)
+
+cuda66:		../crypto/siphash.cuh compress.hpp graph.hpp meaner66.cu Makefile
+	$(NVCC) -o $@ -DEDGEBITS=29 -arch sm_35 meaner66.cu $(BLAKE_2B_SRC)
+
+cuda29v:		../crypto/siphash.cuh compress.hpp graph.hpp meaner.cu Makefile
+	$(NVCC) -o $@ -DEDGEBITS=29 -DVERBOSE -arch sm_35 meaner.cu $(BLAKE_2B_SRC)
+
+old66v:		../crypto/siphash.cuh compress.hpp graph.hpp old66.cu Makefile
+	$(NVCC) -o $@ -DEDGEBITS=29 -DVERBOSE -arch sm_35 old66.cu $(BLAKE_2B_SRC)
+
+cuda66v:		../crypto/siphash.cuh compress.hpp graph.hpp meaner66.cu Makefile
+	$(NVCC) -o $@ -DEDGEBITS=29 -DVERBOSE -arch sm_35 meaner66.cu $(BLAKE_2B_SRC)
