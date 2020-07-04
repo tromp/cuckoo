@@ -50,6 +50,7 @@ typedef uint16_t word_t;
 #define NNODES (2*NEDGES)
 // used to mask siphash output
 #define NODEMASK ((word_t)NNODES - 1)
+#define NODE1MASK NODEMASK
 
 // Common Solver parameters, to return to caller
 struct SolverParams {

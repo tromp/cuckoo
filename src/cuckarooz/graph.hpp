@@ -109,6 +109,10 @@ public:
   }
 
   bool add_edge(word_t u, word_t v) {
+#ifndef ALLOWDUPES
+    for (word_t au = adjlist[u]; au != NIL; au = links[au].next)
+      if (links[au^1].to == v) { nlinks += 2; return false; } // drop duplicate edge
+#endif
     assert(u < MAXNODES);
     assert(v < MAXNODES);
     if (u != v && adjlist[u] != NIL && adjlist[v] != NIL) { // possibly part of a cycle
@@ -119,10 +123,6 @@ public:
     word_t ulink = nlinks++;
     word_t vlink = nlinks++; // the two halfedges of an edge differ only in last bit
     assert(vlink < 2*MAXEDGES); // assume MAXEDGES fits in word_t
-#ifndef ALLOWDUPES
-    for (word_t au = adjlist[u]; au != NIL; au = links[au].next)
-      if (links[au].to == v) return false; // drop duplicate edge
-#endif
     links[ulink].next = adjlist[u];
     links[vlink].next = adjlist[v];
     links[adjlist[u] = ulink].to = u;
