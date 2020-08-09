@@ -117,7 +117,7 @@ public:
   cuckoo_ctx(u32 n_threads, u32 n_trims, u32 max_sols, bool mutate_nonce) : alive(n_threads), nonleaf(NNODES1 >> PART_BITS),
       cg(MAXEDGES, MAXEDGES, max_sols, IDXSHIFT, (char *)nonleaf.bits), barry(n_threads) {
     print_log("cg.bytes %llu NEDGES/8 %llu\n", cg.bytes(), NEDGES/8);
-    assert(cg.bytes() <= NNODES1/8); // check that graph cg can fit in share nonleaf's memory
+    assert(cg.bytes() <= (NNODES1>>PART_BITS)/8); // check that graph cg can fit in share nonleaf's memory
     nthreads = n_threads;
     ntrims = n_trims;
     sols = new proof[max_sols];
@@ -241,7 +241,7 @@ void *worker(void *vp) {
 
   shrinkingset &alive = ctx->alive;
 #ifdef VERBOSE
-  if (tp->id == 0) print_log("initial size %llu\n", NEDGES);
+  if (tp->id == 0) print_log("initial size %llu maxedges %llu\n", NEDGES, MAXEDGES);
 #endif
   u32 round;
   for (round=0; round < ctx->ntrims; round++) {

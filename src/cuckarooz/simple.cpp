@@ -89,11 +89,18 @@ int main(int argc, char **argv) {
   u32 range = 1;
   u64 time0, time1;
   u32 timems;
+  u32 len;
 
-  while ((c = getopt (argc, argv, "h:n:r:")) != -1) {
+  while ((c = getopt (argc, argv, "h:n:r:x:")) != -1) {
     switch (c) {
       case 'h':
         memcpy(header, optarg, strlen(optarg));
+        break;
+      case 'x':
+        len = strlen(optarg)/2;
+        assert(len == sizeof(header));
+        for (u32 i=0; i<len; i++)
+          sscanf(optarg+2*i, "%2hhx", header+i);
         break;
       case 'n':
         nonce = atoi(optarg);
