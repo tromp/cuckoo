@@ -1,5 +1,5 @@
 Let siphash24 be the standard siphash-2-4 function [0]
-with a 256 bit key K=<k0,k1,k2,k3> instead of the 128-bit one,
+with a 256 bit key K=<k0,k1,k2,k3> instead of the usual 128-bit one,
 and a modified Initialization phase that sets v_i to k_i for 0 <= i < 4.
 
 Set N = 2^32
@@ -7,7 +7,7 @@ Define a bipartite graph [1] G_K=(V,E) with N edges on N + N nodes as follows:
   For 0 <= i < N, E_i = (V_i_0, V_i_1) = (siphash24(K,2*i) % N, siphash24(K,2*i+1) % N)
 
 Define the associated bipartite node-pairs graph G'_K=(V',E') with N edges on N/2 + N/2 node-pairs as follows:
-  For 0 <= i < N, E'_i = (V_i_0>>1, V_i_1>>1)
+  For 0 <= i < N, E'_i = (V_i_0 >> 1, V_i_1 >> 1)
 
 A Cuckatoo32 solution for key K is a 42-cycle [2] in G'_K that is a matching [3] in G_K.
 
