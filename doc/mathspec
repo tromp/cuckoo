@@ -4,12 +4,13 @@ and a modified Initialization phase that sets v_i to k_i for 0 <= i < 4.
 
 Set N = 2^32
 Define a bipartite graph [1] G_K=(V,E) with N edges on N + N nodes as follows:
-  For 0 <= i < N, E_i = (V_i_0, V_i_1) = (siphash24(K,2*i) % N, siphash24(K,2*i+1) % N)
+  for 0 <= i < N, E_i = (V_i_0, V_i_1) = (siphash24(K,2*i) % N, siphash24(K,2*i+1) % N)
 
-Define the associated bipartite node-pairs graph G'_K=(V',E') with N edges on N/2 + N/2 node-pairs as follows:
-  For 0 <= i < N, E'_i = (V_i_0 >> 1, V_i_1 >> 1)
+From G_K we obtain the graph G'_K by identifying nodes that differ only in the last bit:
+  for 0 <= i < N, E'_i = (V_i_0 >> 1, V_i_1 >> 1)
 
 A Cuckatoo32 solution for key K is a 42-cycle [2] in G'_K that is a matching [3] in G_K.
+In other words, it's a cycle on node-pairs with edges incident on both nodes in a pair.
 
 For verification purposes, the solution is given as the sequence of 42 edge indices in increasing order.
 

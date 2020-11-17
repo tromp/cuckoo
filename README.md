@@ -14,8 +14,9 @@ Cuckatoo Cycle is a variation of Cuckoo Cycle that aims to simplify ASICs by red
 
 Simplest known PoW
 ------------------
-With a 42-line [complete specification](doc/spec), Cuckatoo Cycle is less than half the size of either
-[SHA256](https://en.wikipedia.org/wiki/SHA-2#Pseudocode),
+With a 42-line [complete specification in C](doc/spec) and a brief
+[mathematical description](doc/mathspec), Cuckatoo Cycle is less than half the
+size of either [SHA256](https://en.wikipedia.org/wiki/SHA-2#Pseudocode),
 [Blake2b](https://en.wikipedia.org/wiki/BLAKE_%28hash_function%29#Blake2b_algorithm), or
 [SHA3 (Keccak)](https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c)
 as used in Bitcoin, Equihash and ethash. Simplicity matters.
