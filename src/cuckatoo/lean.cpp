@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 // arbitrary length of header hashed into siphash key
-#define HEADERLEN 80
+#define HEADERLEN 246
 
 typedef cuckoo_ctx SolverCtx;
 
@@ -103,6 +103,7 @@ CALL_CONVENTION void stop_solver(SolverCtx* ctx) {
 CALL_CONVENTION void fill_default_params(SolverParams* params) {
   params->nthreads = 1;
   params->ntrims   = 8 * (PART_BITS+3) * (PART_BITS+4);
+  params->mutate_nonce = 0;
 }
 
 int main(int argc, char **argv) {
@@ -113,7 +114,9 @@ int main(int argc, char **argv) {
   char header[HEADERLEN];
   unsigned len;
   int c;
+  SolverParams params;
 
+  fill_default_params(&params);
   memset(header, 0, sizeof(header));
   while ((c = getopt (argc, argv, "h:m:n:r:t:x:")) != -1) {
     switch (c) {
@@ -124,9 +127,11 @@ int main(int argc, char **argv) {
         break;
       case 'n':
         nonce = atoi(optarg);
+        params.mutate_nonce = 1;
         break;
       case 'r':
         range = atoi(optarg);
+        params.mutate_nonce = 1;
         break;
       case 'm':
         ntrims = atoi(optarg);
@@ -136,20 +141,21 @@ int main(int argc, char **argv) {
         break;
       case 'x':
         len = strlen(optarg)/2;
-        assert(len == sizeof(header));
+        assert(len == sizeof(header)-sizeof(u64) || len == sizeof(header));
         for (u32 i=0; i<len; i++)
           sscanf(optarg+2*i, "%2hhx", header+i);
         break;
     }
   }
-  SolverParams params;
-  fill_default_params(&params);
   params.nthreads = nthreads;
   params.ntrims = ntrims;
 
-  print_log("Looking for %d-cycle on cuckatoo%d(\"%s\",%d", PROOFSIZE, EDGEBITS, header, nonce);
+  print_log("Looking for %d-cycle on cuckatoo%d(\"", PROOFSIZE, EDGEBITS);
+  for (int i=0; i < HEADERLEN; i++)
+    print_log("%02x", (unsigned char)header[i]);
+  print_log("\"");
   if (range > 1)
-    print_log("-%d", nonce+range-1);
+    print_log(",%d-%d", nonce, nonce+range-1);
   print_log(") with trimming to %d bits, %d threads\n", EDGEBITS-IDXSHIFT, nthreads);
 
   u64 EdgeBytes = NEDGES/8;
