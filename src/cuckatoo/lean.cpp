@@ -156,6 +156,7 @@ int main(int argc, char **argv) {
   print_log("\"");
   if (range > 1)
     print_log(",%d-%d", nonce, nonce+range-1);
+  else if (nonce)  print_log(",%d", nonce);
   print_log(") with trimming to %d bits, %d threads\n", EDGEBITS-IDXSHIFT, nthreads);
 
   u64 EdgeBytes = NEDGES/8;

@@ -9,33 +9,43 @@
 #include <assert.h>   // d'uh
 
 // arbitrary length of header hashed into siphash key
-#define HEADERLEN 80
+#define HEADERLEN 246
 
 int main(int argc, char **argv) {
-  const char *header = "";
+  char headernonce[HEADERLEN];
+  memset(headernonce, 0, HEADERLEN);
   int nonce = 0;
-  int c;
-  while ((c = getopt (argc, argv, "h:n:")) != -1) {
+  int len, c;
+  while ((c = getopt (argc, argv, "h:n:x:")) != -1) {
     switch (c) {
       case 'h':
-        header = optarg;
+        len = strlen(optarg);
+        assert(len <= sizeof(headernonce));
+        memcpy(headernonce, optarg, len);
+        break;
+      case 'x':
+        len = strlen(optarg)/2;
+        assert(len == sizeof(headernonce)-sizeof(u64) || len == sizeof(headernonce));
+        for (u32 i=0; i<len; i++) {
+          sscanf(optarg+2*i, "%2hhx", headernonce+i);
+          printf("%d %0xx\n", i, headernonce[i]);
+        }
         break;
       case 'n':
         nonce = atoi(optarg);
+        ((u32 *)headernonce)[HEADERLEN/sizeof(u32)-1] = htole32(nonce); // place nonce near end aligned at u32
         break;
     }
   }
-  char headernonce[HEADERLEN];
-  u32 hdrlen = strlen(header);
-  assert(hdrlen <= HEADERLEN);
-  memcpy(headernonce, header, hdrlen);
-  memset(headernonce+hdrlen, 0, sizeof(headernonce)-hdrlen);
-  ((u32 *)headernonce)[HEADERLEN/sizeof(u32)-1] = htole32(nonce);
   siphash_keys keys;
   setheader(headernonce, sizeof(headernonce), &keys);
   printf("nonce %d k0 k1 k2 k3 %llx %llx %llx %llx\n", nonce, keys.k0, keys.k1, keys.k2, keys.k3);
-  printf("Verifying size %d proof for cuckatoo%d(\"%s\",%d)\n",
-               PROOFSIZE, EDGEBITS, header, nonce);
+  printf("Verifying size %d proof for cuckatoo%d(\"", PROOFSIZE, EDGEBITS);
+  for (int i=0; i < HEADERLEN; i++)
+    print_log("%02x", (unsigned char)headernonce[i]);
+  if (nonce) print_log(",%d", nonce);
+  print_log(")\n");
+
   for (int nsols=0; scanf(" Solution") == 0; nsols++) {
     word_t nonces[PROOFSIZE];
     for (int n = 0; n < PROOFSIZE; n++) {

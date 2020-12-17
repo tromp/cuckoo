@@ -20,7 +20,7 @@ simpletest:     simple19
 	./simple19 -n 68
 
 leantest:       lean19x1
-	./lean19x1 -n 68
+	./lean19x1 -n 74
 
 meantest:	mean29x4
 	./mean29x4 -n 20 -t 4 -s
@@ -29,13 +29,16 @@ test33:		lean33x8
 	./lean33x8 -n 79
 
 verifytest:     lean19x1 verify19
-	./lean19x1 -n 68 | grep ^Sol | ./verify19 -n 68
+	./lean19x1 -n 74 | grep ^Sol | ./verify19 -n 74
 
 simple19:	../crypto/siphash.hpp cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DPROOFSIZE=42 -DEDGEBITS=19 simple.cpp $(BLAKE_2B_SRC)
 
 verify19:       ../crypto/siphash.hpp cuckatoo.h cuckatoo.c simple.cpp Makefile
 	$(GPP) -o $@ -DPROOFSIZE=42 -DEDGEBITS=19 cuckatoo.c $(BLAKE_2B_SRC)
+
+verify32:       ../crypto/siphash.hpp cuckatoo.h cuckatoo.c simple.cpp Makefile
+	$(GPP) -o $@ -DPROOFSIZE=42 -DEDGEBITS=32 cuckatoo.c $(BLAKE_2B_SRC)
 
 simple29:	../crypto/siphash.hpp cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DPROOFSIZE=42 -DEDGEBITS=29 simple.cpp $(BLAKE_2B_SRC)
