@@ -28,7 +28,6 @@ int main(int argc, char **argv) {
         assert(len == sizeof(headernonce)-sizeof(u64) || len == sizeof(headernonce));
         for (u32 i=0; i<len; i++) {
           sscanf(optarg+2*i, "%2hhx", headernonce+i);
-          printf("%d %0xx\n", i, headernonce[i]);
         }
         break;
       case 'n':
@@ -46,13 +45,19 @@ int main(int argc, char **argv) {
   if (nonce) print_log(",%d", nonce);
   print_log(")\n");
 
-  for (int nsols=0; scanf(" Solution") == 0; nsols++) {
-    word_t nonces[PROOFSIZE];
+  word_t nonces[PROOFSIZE];
+  uint64_t index;
+#ifdef cuckoo_solution
+  for (int nsols=0; scanf(" \"cuckoo_solution\": [") == 0; nsols++) {
     for (int n = 0; n < PROOFSIZE; n++) {
-      uint64_t nonce;
-      int nscan = scanf(" %" SCNx64, &nonce);
+      int nscan = scanf(" %" SCNu64 ",", &index);
+#else
+  for (int nsols=0; scanf(" Solution") == 0; nsols++) {
+    for (int n = 0; n < PROOFSIZE; n++) {
+      int nscan = scanf(" %" SCNx64, &index);
+#endif
       assert(nscan == 1);
-      nonces[n] = nonce;
+      nonces[n] = index;
     }
     int pow_rc = verify(nonces, &keys);
     if (pow_rc == POW_OK) {

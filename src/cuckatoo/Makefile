@@ -40,6 +40,9 @@ verify19:       ../crypto/siphash.hpp cuckatoo.h cuckatoo.c simple.cpp Makefile
 verify32:       ../crypto/siphash.hpp cuckatoo.h cuckatoo.c simple.cpp Makefile
 	$(GPP) -o $@ -DPROOFSIZE=42 -DEDGEBITS=32 cuckatoo.c $(BLAKE_2B_SRC)
 
+verify32_:       ../crypto/siphash.hpp cuckatoo.h cuckatoo.c simple.cpp Makefile
+	$(GPP) -o $@ -Dcuckoo_solution -DPROOFSIZE=42 -DEDGEBITS=32 cuckatoo.c $(BLAKE_2B_SRC)
+
 simple29:	../crypto/siphash.hpp cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Makefile
 	$(GPP) -o $@ -DPROOFSIZE=42 -DEDGEBITS=29 simple.cpp $(BLAKE_2B_SRC)
 
