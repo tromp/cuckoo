@@ -14,24 +14,25 @@ Cuckatoo Cycle is a variation of Cuckoo Cycle that aims to simplify ASICs by red
 
 Simplest known PoW
 ------------------
-With a 42-line [complete specification in C](doc/spec) and a brief
+With a 42-line [complete specification in C](doc/spec) and a 13-line
 [mathematical description](doc/mathspec), Cuckatoo Cycle is less than half the
 size of either [SHA256](https://en.wikipedia.org/wiki/SHA-2#Pseudocode),
 [Blake2b](https://en.wikipedia.org/wiki/BLAKE_%28hash_function%29#Blake2b_algorithm), or
 [SHA3 (Keccak)](https://github.com/mjosaarinen/tiny_sha3/blob/master/sha3.c)
 as used in Bitcoin, Equihash and ethash. Simplicity matters.
 
-Cuckatoo proofs take the form of a length 42 off-by-1-cycle in a bipartite graph with 2^N+2^N nodes and
-2^N edges, with N ranging from 10 up to 64.
+Cuckatoo proofs take the form of a length 42 node-pair-cycle in a bipartite graph with N+N nodes and
+N edges, with N=2^n and n ranging from 10 up to 64.
 
-In an off-by-1-cycle, consecutive edges are not incident on a single node, but on two nodes that differ in the last bit only.
-From now on, whenever we say cycle, we'll mean n off-by-1-cycle.
+In a node-pair-cycle, consecutive edges are not incident on a single node, but on a node-pair,
+that is, two nodes differing in the last bit only.
+From now on, whenever we say cycle, we'll mean a node-pair-cycle.
 
 The graph is defined by the siphash-2-4 keyed hash function mapping an edge index
 and partition side (0 or 1) to the edge endpoint on that side.
 This makes verification trivial: hash the header to derive the siphash key,
 then compute the 42x2 edge endpoints with 84 siphashes,
-and that you come back to the starting edge only after traversing 42 off-by-1 incident nodes.
+and that you come back to the starting edge only after traversing 42 node-pairs.
 
 While trivially verifiable, finding a 42-cycle, on the other hand, is far from trivial,
 requiring considerable resources, and some luck
@@ -51,9 +52,9 @@ and is bottlenecked by bucket sorting, making it memory bandwidth bound.
 
 Dynamic Sizing
 --------------
-Instead of fixing N, a proof-of-work system could allow miners to work on any graph size they like,
+Instead of fixing n, a proof-of-work system could allow miners to work on any graph size they like,
 above a certain minimum. Cycles in larger graphs are more valued as they take more effort to find.
-We propose to scale the difficulty for a graph with 2^N edges by 2^(N+1) * N,
+We propose to scale the difficulty for a graph with N=2^n edges by 2^(n+1) * n,
 which is the number of bits of siphash output that define the graph.
 
 Upgrade by Soft Fork
@@ -77,15 +78,15 @@ The most efficient known way to find cycles in random bipartite graphs is
 to start by eliminating edges that are not part of any cycle (over 99.9% of edges).
 This preprocessing phase is called edge trimming and actually takes the vast majority of runtime.
 
-The algorithm implemented in lean_miner.hpp runs in time linear in 2^N.
+The algorithm implemented in lean_miner.hpp runs in time linear in N.
 (Note that running in sub-linear time is out of the question, as you could
 only compute a fraction of all edges, and the odds of all 42 edges of a cycle
 occurring in this fraction are astronomically small).
-Memory-wise, it uses an 2^N bit edge bitmap of potential cycle edges,
-and a 2^N bit node bitmap of nodes with incident edges.
+Memory-wise, it uses an N bit edge bitmap of potential cycle edges,
+and an N bit node bitmap of nodes with incident edges.
 
 The bandwidth bound algorithm implemented in mean_miner.hpp
-uses (1+&Epsilon;) &times; 2^N words to maintain bucket sorted bins of edges instead of a bitmap,
+uses (1+&Epsilon;) &times; N words to maintain bucket sorted bins of edges instead of a bitmap,
 and only uses tiny node bitmaps within a bin to trim edges.
 
 After edge trimming, an standard backtracking graph traversal
@@ -122,9 +123,9 @@ as mean_miner, regardless of memory use.
 
 Linear Time-Memory Trade-Off Bounty
 -----------------------------------
-$10000 for an open source implementation that uses at most 2^N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
+$10000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
 
-All of these bounties require N ranging over {27,29,31} and #threads
+All of these bounties require n ranging over {27,29,31} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
 recent gcc compiler with regular flags as in my Makefile.
 
