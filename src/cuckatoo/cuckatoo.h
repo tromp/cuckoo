@@ -30,6 +30,10 @@ typedef uint64_t u64;
 #define PROOFSIZE 42
 #endif
 
+#ifndef SIZEMASK
+#define SIZEMASK (~0u >> __builtin_clz(PROOFSIZE))
+#endif
+
 #if EDGEBITS > 32
 typedef uint64_t word_t;
 #elif EDGEBITS > 16
@@ -119,22 +123,37 @@ const char *errstr[] = { "OK", "wrong header length", "edge too big", "edges not
 
 // verify that edges are ascending and form a cycle in header-generated graph
 int verify(word_t edges[PROOFSIZE], siphash_keys *keys) {
-  word_t uvs[2*PROOFSIZE], xor0, xor1;
+  word_t uvs[2*PROOFSIZE], xor0, xor1, u, v, umasked, vmasked;
+  word_t prev[2*PROOFSIZE], headu[SIZEMASK+1], headv[SIZEMASK+1];
   xor0 = xor1 = (PROOFSIZE/2) & 1;
 
+  memset(headu, -1, sizeof(headu));
+  memset(headv, -1, sizeof(headv));
   for (u32 n = 0; n < PROOFSIZE; n++) {
     if (edges[n] > NODEMASK)
       return POW_TOO_BIG;
     if (n && edges[n] <= edges[n-1])
       return POW_TOO_SMALL;
-    xor0 ^= uvs[2*n  ] = sipnode(keys, edges[n], 0);
-    xor1 ^= uvs[2*n+1] = sipnode(keys, edges[n], 1);
+    u = sipnode(keys, edges[n], 0);
+    xor0 ^= uvs[2*n  ] = u;
+    umasked = (u >> 1) & SIZEMASK;
+    prev[2*n] = headu[umasked];
+    headu[umasked] = 2*n;
+    v = sipnode(keys, edges[n], 1);
+    xor1 ^= uvs[2*n+1] = v;
+    vmasked = (v >> 1) & SIZEMASK;
+    prev[2*n+1] = headv[vmasked];
+    headv[vmasked] = 2*n+1;
+  }
+  for (u32 n = 0; n < PROOFSIZE; n++) {
+    if (prev[2*n] == -1) prev[2*n] = headu[(uvs[2*n] >> 1) & SIZEMASK];
+    if (prev[2*n+1] == -1) prev[2*n+1] = headv[(uvs[2*n+1] >> 1) & SIZEMASK];
   }
   if (xor0|xor1)              // optional check for obviously bad proofs
     return POW_NON_MATCHING;
   u32 n = 0, i = 0, j;
   do {                        // follow cycle
-    for (u32 k = j = i; (k = (k+2) % (2*PROOFSIZE)) != i; ) {
+    for (u32 k = j = i; (k = prev[k]) != i; ) {
       if (uvs[k]>>1 == uvs[i]>>1) { // find other edge endpoint matching one at i
         if (j != i)           // already found one before
           return POW_BRANCH;
