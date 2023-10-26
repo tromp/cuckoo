@@ -6,6 +6,7 @@ Cuck(at)oo Cycle
 [Whitepaper](doc/cuckoo.pdf?raw=true)
 
 My [Grincon0 talk](https://www.youtube.com/watch?v=OsBsz8bKeN4) on Jan 28, 2019 in San Mateo.
+
 My [Grincon1](https://grincon.org/) [talk](https://www.youtube.com/watch?list=PLvgCPbagiHgqYdVUj-ylqhsXOifWrExiq&v=CLiKX0nOsHE) on Nov 22, 2019 in Berlin.
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work, and the most memory bound, yet with instant verification.
