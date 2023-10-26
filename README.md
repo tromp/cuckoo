@@ -132,7 +132,7 @@ recent gcc compiler with regular flags as in my Makefile.
 
 GPU Cuckatoo32 Speedup Bounty
 ------------------
-$10000 for an open source CUDA Cuckatoo32 solver that achieves 1.2 gps on an NVIDIA 4070Ti with minimal cycle-loss.
+$10000 for an open source Cuckatoo32 solver that achieves 1.2 gps on an NVIDIA 4070Ti or 1 gps on an AMD RX 6900 XT with minimal cycle-loss.
 
 Apple M1 Cuckatoo32 Ultra Bounty
 -----------------
