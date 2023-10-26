@@ -25,8 +25,8 @@ leantest:       lean19x1
 meantest:	mean29x4
 	./mean29x4 -n 20 -t 4 -s
 
-test33:		lean33x8
-	./lean33x8 -n 79
+test33:		lean33x4
+	./lean33x4 -n 79
 
 verifytest:     lean19x1 verify19
 	./lean19x1 -n 74 | grep ^Sol | ./verify19 -n 74
@@ -64,8 +64,8 @@ lean31x8:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp co
 lean32x8:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=32 lean.cpp $(BLAKE_2B_SRC)
 
-lean33x8:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
-	$(GPP) -o $@ -mavx2 -DIDXSHIFT=9 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=33 lean.cpp $(BLAKE_2B_SRC)
+lean33x4:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -mavx2 -DIDXSHIFT=9 -DNSIPHASH=4 -DATOMIC -DEDGEBITS=33 lean.cpp $(BLAKE_2B_SRC)
 
 mean19x1:	cuckatoo.h  bitmap.hpp graph.hpp ../threads/barrier.hpp ../crypto/siphash.hpp mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -DXBITS=2 -DNSIPHASH=1 -DEDGEBITS=19 mean.cpp $(BLAKE_2B_SRC)

@@ -1,12 +1,12 @@
 Cuck(at)oo Cycle
 ================
 
-My [Grincon0](https://grincon.org/) talk on [Cuckoo Cycle](https://www.youtube.com/watch?list=PLvgCPbagiHgqYdVUj-ylqhsXOifWrExiq&v=CLiKX0nOsHE)
-My [GrinconUS](https://grincon.us/) talk on [Cuckoo Cycle](https://www.youtube.com/watch?v=OsBsz8bKeN4)
-
 [Blog article explaining Cuckoo Cycle](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing)
 
 [Whitepaper](doc/cuckoo.pdf?raw=true)
+
+My [Grincon0 talk](https://www.youtube.com/watch?v=OsBsz8bKeN4) on Jan 28, 2019 in San Mateo.
+My [Grincon1](https://grincon.org/) [talk](https://www.youtube.com/watch?list=PLvgCPbagiHgqYdVUj-ylqhsXOifWrExiq&v=CLiKX0nOsHE) on Nov 22, 2019 in Berlin.
 
 Cuckoo Cycle is the first graph-theoretic proof-of-work, and the most memory bound, yet with instant verification.
 Unlike Hashcash, Cuckoo Cycle is immune from quantum speedup by Grover's search algorithm.
@@ -129,15 +129,13 @@ All of these bounties require n ranging over {27,29,31} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
 recent gcc compiler with regular flags as in my Makefile.
 
-GPU Speedup Bounty
+GPU Cuckatoo32 Speedup Bounty
 ------------------
-$5000 for an open source implementation for a consumer GPU
-that finds 42-cycles twice as fast as cuckoo/lean_miner.cu on 2^29 edge graphs on comparable hardware, using no more than a nibble per edge.
+$10000 for an open source CUDA Cuckatoo32 solver that achieves 1.2 gps on an NVIDIA 4070Ti with minimal cycle-loss.
 
-$5000 for an open source implementation for a consumer GPU
-that finds 42-cycles twice as fast as cuckarood/photon.cu on 2^29 edge graphs on comparable hardware.
-
-The Makefile defines corresponding targets leancpubounty, meancpubounty, tmtobounty, and gpubounty.
+Apple M1 Cuckatoo32 Ultra Bounty
+-----------------
+1 BTC for an open source Mac Studio (M1 Ultra) Cuckatoo32 miner achieving 0.5 gps with minimal cycle-loss.
 
 Double and fractional bounties
 ------------------------------

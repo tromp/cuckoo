@@ -5,7 +5,9 @@
 #include <unistd.h>
 
 // arbitrary length of header hashed into siphash key
+#ifndef HEADERLEN
 #define HEADERLEN 246
+#endif
 
 typedef cuckoo_ctx SolverCtx;
 
@@ -117,8 +119,8 @@ int main(int argc, char **argv) {
   SolverParams params;
 
   fill_default_params(&params);
-  memset(header, 0, sizeof(header));
-  while ((c = getopt (argc, argv, "h:m:n:r:t:x:")) != -1) {
+  memset(header, 0, len = sizeof(header));
+  while ((c = getopt (argc, argv, "hm:n:r:t:x:")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
@@ -151,7 +153,7 @@ int main(int argc, char **argv) {
   params.ntrims = ntrims;
 
   print_log("Looking for %d-cycle on cuckatoo%d(\"", PROOFSIZE, EDGEBITS);
-  for (int i=0; i < HEADERLEN; i++)
+  for (int i=0; i < len; i++)
     print_log("%02x", (unsigned char)header[i]);
   print_log("\"");
   if (range > 1)
@@ -170,7 +172,7 @@ int main(int argc, char **argv) {
 
   SolverCtx* ctx = create_solver_ctx(&params);
 
-  run_solver(ctx, header, sizeof(header), nonce, range, NULL, NULL);
+  run_solver(ctx, header, len, nonce, range, NULL, NULL);
 
   destroy_solver_ctx(ctx);
 
