@@ -112,16 +112,6 @@ and finally, that mean_miner.cu is a reasonably optimal GPU miner.
 The latter runs about 10x faster on an NVIDA 1080Ti than mean_miner.cpp on an Intel Core-i7 CPU.
 In support of these claims, I offer the following bounties:
 
-CPU Speedup Bounties
---------------------
-$10000 for an open source implementation that finds 42-cycles twice as fast
-as cuckoo/slean_miner, using no more than 1 byte per edge.
-
-Wilke Trei has submitted a successful (1-1/e)-bounty claim with his slean miner at https://github.com/Lolliedieb/cuckoo
-
-$10000 for an open source implementation that finds 42-cycles twice as fast
-as mean_miner, regardless of memory use.
-
 Linear Time-Memory Trade-Off Bounty
 -----------------------------------
 $10000 for an open source implementation that uses at most N/k bits while finding 42-cycles up to 10 k times slower, for any k>=2.
@@ -137,15 +127,6 @@ $10000 for an open source Cuckatoo32 solver that achieves 1.2 gps on an NVIDIA 4
 Apple M1 Cuckatoo32 Ultra Bounty
 -----------------
 1 BTC for an open source Mac Studio (M1 Ultra) Cuckatoo32 miner achieving 0.5 gps with minimal cycle-loss.
-
-Double and fractional bounties
-------------------------------
-Improvements by a factor of 4 will be rewarded with double the regular bounty.
-
-In order to minimize the risk of missing out on less drastic improvements,
-I further offer a fraction FRAC of the regular CPU/GPU-speedup bounty, payable in bitcoin cash,
-for improvements by a factor of 2^FRAC, where FRAC is at least one-tenth.
-Note that 2^0.1 is about a 7% improvement.
 
 Siphash Bounties
 ----------------
