@@ -146,8 +146,8 @@ int verify(word_t edges[PROOFSIZE], siphash_keys *keys) {
     headv[vmasked] = 2*n+1;
   }
   for (u32 n = 0; n < PROOFSIZE; n++) {
-    if (prev[2*n] == -1) prev[2*n] = headu[(uvs[2*n] >> 1) & SIZEMASK];
-    if (prev[2*n+1] == -1) prev[2*n+1] = headv[(uvs[2*n+1] >> 1) & SIZEMASK];
+    if (prev[2*n] == (word_t)-1) prev[2*n] = headu[(uvs[2*n] >> 1) & SIZEMASK];
+    if (prev[2*n+1] == (word_t)-1) prev[2*n+1] = headv[(uvs[2*n+1] >> 1) & SIZEMASK];
   }
   if (xor0|xor1)              // optional check for obviously bad proofs
     return POW_NON_MATCHING;

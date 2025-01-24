@@ -49,6 +49,9 @@ simple29:	../crypto/siphash.hpp cuckatoo.h  bitmap.hpp graph.hpp simple.cpp Make
 lean19x1:		../crypto/siphash.hpp cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -DNSIPHASH=1 -DATOMIC -DEDGEBITS=19 lean.cpp $(BLAKE_2B_SRC)
 
+lean29x4:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -mavx2 -DNSIPHASH=4 -DATOMIC -DEDGEBITS=29 lean.cpp $(BLAKE_2B_SRC)
+
 lean29x8:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=29 lean.cpp $(BLAKE_2B_SRC)
 
@@ -60,6 +63,9 @@ lean31x4:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp co
 
 lean31x8:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=31 lean.cpp $(BLAKE_2B_SRC)
+
+lean32x4:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
+	$(GPP) -o $@ -mavx2 -DNSIPHASH=4 -DATOMIC -DEDGEBITS=32 lean.cpp $(BLAKE_2B_SRC)
 
 lean32x8:	../threads/barrier.hpp ../crypto/siphash.hpp cuckatoo.h  bitmap.hpp compress.hpp graph.hpp lean.hpp lean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DATOMIC -DEDGEBITS=32 lean.cpp $(BLAKE_2B_SRC)
@@ -78,6 +84,9 @@ mean29x4:	cuckatoo.h  bitmap.hpp graph.hpp ../crypto/siphash.hpp mean.hpp mean.c
 
 mean29x8:	cuckatoo.h  bitmap.hpp graph.hpp ../threads/barrier.hpp ../crypto/siphash.hpp mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEDGEBITS=29 mean.cpp $(BLAKE_2B_SRC)
+
+mean30x4:	cuckatoo.h  bitmap.hpp graph.hpp ../threads/barrier.hpp ../crypto/siphash.hpp mean.hpp mean.cpp Makefile
+	$(GPP) -o $@ -mno-avx2 -DNSIPHASH=4 -DEXPANDROUND=10 -DCOMPRESSROUND=22 -DEDGEBITS=30 mean.cpp $(BLAKE_2B_SRC)
 
 mean30x8:	cuckatoo.h  bitmap.hpp graph.hpp ../threads/barrier.hpp ../crypto/siphash.hpp mean.hpp mean.cpp Makefile
 	$(GPP) -o $@ -mavx2 -DNSIPHASH=8 -DEXPANDROUND=10 -DCOMPRESSROUND=22 -DEDGEBITS=30 mean.cpp $(BLAKE_2B_SRC)

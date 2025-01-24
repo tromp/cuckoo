@@ -1,10 +1,9 @@
 // Cuckatoo Cycle, a memory-hard proof-of-work
-// Copyright (c) 2013-2020 John Tromp
+// Copyright (c) 2013-2023 John Tromp
 
 #include "lean.hpp"
 #include <unistd.h>
 
-// arbitrary length of header hashed into siphash key
 #ifndef HEADERLEN
 #define HEADERLEN 246
 #endif
@@ -36,7 +35,6 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
       int err = pthread_create(&threads[t].thread, NULL, worker, (void *)&threads[t]);
       assert(err == 0);
     }
-    // sleep(39); ctx->abort();
     for (u32 t = 0; t < ctx->nthreads; t++) {
       int err = pthread_join(threads[t].thread, NULL);
       assert(err == 0);
@@ -120,7 +118,7 @@ int main(int argc, char **argv) {
 
   fill_default_params(&params);
   memset(header, 0, len = sizeof(header));
-  while ((c = getopt (argc, argv, "hm:n:r:t:x:")) != -1) {
+  while ((c = getopt (argc, argv, "h:m:n:r:t:x:")) != -1) {
     switch (c) {
       case 'h':
         len = strlen(optarg);
@@ -159,7 +157,7 @@ int main(int argc, char **argv) {
   if (range > 1)
     print_log(",%d-%d", nonce, nonce+range-1);
   else if (nonce)  print_log(",%d", nonce);
-  print_log(") with trimming to %d bits, %d threads\n", EDGEBITS-IDXSHIFT, nthreads);
+  print_log(") with trimming to %d bits, %d trimming rounds, %d threads\n", EDGEBITS-IDXSHIFT, ntrims, nthreads);
 
   u64 EdgeBytes = NEDGES/8;
   int EdgeUnit;
@@ -171,9 +169,7 @@ int main(int argc, char **argv) {
      (int)EdgeBytes, " KMGT"[EdgeUnit], (int)NodeBytes, " KMGT"[NodeUnit], NSIPHASH);
 
   SolverCtx* ctx = create_solver_ctx(&params);
-
   run_solver(ctx, header, len, nonce, range, NULL, NULL);
-
   destroy_solver_ctx(ctx);
 
   return 0;
