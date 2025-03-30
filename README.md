@@ -3,8 +3,9 @@ Cuck(at)oo Cycle
 
 [Blog article explaining Cuckoo
 Cycle](http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing)
-[on archive.org](
-https://web.archive.org/web/20230320065301/http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing/)
+
+[same article archived in case cryptorials is down](
+https://web.archive.org/web/20190114062459/http://cryptorials.io/beyond-hashcash-proof-work-theres-mining-hashing/)
 
 [Whitepaper](doc/cuckoo.pdf?raw=true)
 
