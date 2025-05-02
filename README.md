@@ -124,6 +124,28 @@ All of these bounties require n ranging over {27,29,31} and #threads
 ranging over {1,2,4,8}, and further assume a high-end Intel Core i7 or Xeon and
 recent gcc compiler with regular flags as in my Makefile.
 
+On April 11, 2025 I received a submission from Stephan Theisgen to claim this bounty,
+providing me with access to his <a href="https://github.com/StephanTheisgen">splean</a> github repo.
+This contains not only the required implementation, but also an extremely detailed write-up
+of the task, Dave Andersen's sampling suggestion, the solution approach,
+pseudo code for all the steps involved,
+an analysis of the amount of number of hashes to be computed, parameter selection,
+memory requirements and of various data structure candidates and their selection,
+code testing, and validation. And it came with over a dozen references.
+A wortwhile submission to the Journal of PoW Algorithms, if there were such a publication.
+
+The code quality matched that of the documentation. After finally gaining access to a high-end
+Linux box, and with Stephan's help in using the appropriate compile-time defines for my desired
+benching runs, I was able to verify the claimed performance.
+
+My estimate of memory deficient solvers incurring "at least one order of magnitude extra slowdown" turned
+out to be overly pessimistic. It looks to be closer to half an order of magnitude for this well optimized
+solver.
+
+What does this mean for the feasibility of small memory ASICs? As Stephan's analysis showed, a "tiny" ASIC with only N/k bits of memory needs to hash each edge roughly (k+1000) times to find the cycle in a graph containing one, while the lean miner needs to hash each edge less than 6 times. That will make the tiny ASIC use far more electricity per solution, quickly wiping out the cost benefit of using negligible memory. Cuckatoo Cycle thus remains a "Proof of SRAM".
+
+Congratulations to Stephan for winning the bounty, paid out on April 30.
+
 GPU Cuckatoo32 Speedup Bounty
 ------------------
 $10000 for an open source Cuckatoo32 solver that achieves 1.2 gps on an NVIDIA 4070Ti or 1 gps on an AMD RX 6900 XT with minimal cycle-loss.
