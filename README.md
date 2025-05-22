@@ -155,6 +155,7 @@ Apple M1 Cuckatoo32 Ultra Bounty
 1 BTC for an open source Mac Studio (M1 Ultra) Cuckatoo32 miner achieving 0.5 gps with minimal cycle-loss.
 
 Nicolas Flamel has <a href="https://github.com/NicolasFlamel1/Mac-Studio-M1-Ultra-Cuckatoo-Trimmer">attempted</a> this bounty, but found the M1 Ultra GPU topping out at 0.26 gps even while offloading all but the inital trimming round to the CPU.
+He also generously provided a comprehesive <a href="https://github.com/NicolasFlamel1/Cuckatoo-Reference-Miner">reference Cuckatoo miner </a>.
 
 Siphash Bounties
 ----------------
