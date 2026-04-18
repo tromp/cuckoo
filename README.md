@@ -168,10 +168,10 @@ siphash-1-2, with 1 compression round and only 2 finalization rounds,
 We invite attacks on Cuckoo Cycle's dependence on its underlying hash function by offering
 
 $5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
-twice as fast as lean_miner on graphs defined by siphash-2-4, using no more than 1 byte per edge.
+twice as fast as on graphs defined by siphash-2-4, using no more than 1 byte per edge.
 
 $5000 for an open source implementation that finds 42-cycles in graphs defined by siphash-1-2
-twice as fast as mean_miner on graphs defined by siphash-2-4, regardless of memory use.
+twice as fast as on graphs defined by siphash-2-4, regardless of memory use.
 
 These bounties are not subject to double and/or fractional payouts.
 
