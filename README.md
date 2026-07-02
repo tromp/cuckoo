@@ -159,6 +159,20 @@ Apple M1 Cuckatoo32 Ultra Bounty
 Nicolas Flamel has <a href="https://github.com/NicolasFlamel1/Mac-Studio-M1-Ultra-Cuckatoo-Trimmer">attempted</a> this bounty, but found the M1 Ultra GPU topping out at 0.26 gps even while offloading all but the inital trimming round to the CPU.
 He also generously provided a comprehesive <a href="https://github.com/NicolasFlamel1/Cuckatoo-Reference-Miner">reference Cuckatoo miner </a>.
 
+On April 16 2026, Ethan (anexus on grin forum / 3k3r1l4rz on github) 
+<a href="https://forum.grin.mw/t/bounty-1-btc-100-grin-for-a-macos-m1-c32-open-source-miner-with-0-5-gps/9652/34">announced</a> work on a new miner running on an A100 that he planned to port to the M1 Ultra.
+which he managed to do by early June.
+On Jun 16, he posted the <a href="https://github.com/3k3r1l4rz/m1_grin_miner_fastest">full source code</a>
+with a claimed bounty-satisfying 0.7 gps performance.
+I was lacking the required access to Apple Studio hardware to test the performance, but found Ethan willing
+o let me borrow his AWS credentials. After checking as best as I could that the machine I ssh-ed into
+was an actual Apple M1 Ultra, I proceeded to run a few hundred random C32 instances. These indeed
+ran as fast as claimed and produced a handful of solutions. I then, very very slowly, verified all these
+instances against my own slow lean miner, which proved successful.
+By June 27, Ethan managed to further increase performance to 0.8 gps.
+
+Congratulations to Ethan for winning the bounty, which was paid out on July 2.
+
 Siphash Bounties
 ----------------
 While both siphash-2-4 and siphash-1-3 pass the [smhasher](https://github.com/aappleby/smhasher)
