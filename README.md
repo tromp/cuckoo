@@ -148,10 +148,6 @@ What does this mean for the feasibility of small memory ASICs? As Stephan's anal
 
 Congratulations to Stephan for winning the bounty, paid out on April 30.
 
-GPU Cuckatoo32 Speedup Bounty
-------------------
-$10000 for an open source Cuckatoo32 solver that achieves 1.2 gps on an NVIDIA 4070Ti or 1 gps on an AMD RX 6900 XT with minimal cycle-loss.
-
 Apple M1 Cuckatoo32 Ultra Bounty
 -----------------
 1 BTC for an open source Mac Studio (M1 Ultra) Cuckatoo32 miner achieving 0.5 gps with minimal cycle-loss.
@@ -172,6 +168,10 @@ instances against my own slow lean miner, which proved successful.
 By June 27, Ethan managed to further increase performance to 0.8 gps.
 
 Congratulations to Ethan for winning the bounty, which was paid out on July 2.
+
+Efficient Commodity Hardware Bounty
+------------------
+$10000 for an open source Cuckatoo32 solver that achieves x>=1 gps at <=100x Watt on any consumer hardware with minimal cycle-loss.
 
 Siphash Bounties
 ----------------
