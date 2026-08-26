@@ -171,7 +171,7 @@ Congratulations to Ethan for winning the bounty, which was paid out on July 2.
 
 Efficient Commodity Hardware Bounty
 ------------------
-For the first open source Cuckatoo32 solver that achieves x>=1 gps at <=100x Watt (measured at the wall) on any widely available consumer hardware with minimal cycle-loss, I offer a bounty of $10000 minus the cost of said hardware.
+For the first open source Cuckatoo32 solver that achieves x>=1 gps at <=100\*x Watt (measured at the wall) on any widely available consumer hardware with minimal cycle-loss, I offer a bounty of $10000 minus the cost of said hardware.
 
 Siphash Bounties
 ----------------
