@@ -65,8 +65,8 @@ CALL_CONVENTION int run_solver(SolverCtx* ctx,
       } else {
         print_log("FAILED due to %s\n", errstr[pow_rc]);
       }
-      sumnsols += ctx->nsols;
     }
+    sumnsols += ctx->nsols;
     if (stats != NULL) {
       stats->device_id = 0;
       stats->edge_bits = EDGEBITS;
