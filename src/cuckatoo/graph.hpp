@@ -49,6 +49,8 @@ public:
     if (!sharedmem) {
       delete[] adjlist;
       delete[] links;
+      delete compressu;
+      delete compressv;
     }
     delete[] sols;
   }
