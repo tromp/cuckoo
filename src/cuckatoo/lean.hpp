@@ -172,9 +172,7 @@ public:
   
     memset(hashes, 0, NPREFETCH * sizeof(u64)); // allow many nonleaf.set(0) to reduce branching
     u32 nidx = 0;
-    word_t nloops = NEDGES / 64 / nthreads;
-    for (word_t loop = 0; loop < nloops; loop++) {
-      word_t block = 64 * (id + loop * nthreads);
+    for (word_t block = 64*id; block < NEDGES; block += 64*nthreads) {
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
@@ -202,9 +200,7 @@ public:
     for (int i=0; i < NPREFETCH; i++)
       hashes[i] = 1; // allow many nonleaf.test(0) to reduce branching
     u32 nidx = 0;
-    word_t nloops = NEDGES / 64 / nthreads;
-    for (word_t loop = 0; loop < nloops; loop++) {
-      word_t block = 64 * (id + loop * nthreads);
+    for (word_t block = 64*id; block < NEDGES; block += 64*nthreads) {
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
@@ -268,9 +264,7 @@ void *worker(void *vp) {
     pthread_exit(NULL);
   print_log("%d trims completed  %d edges left\n", round-1, alive.count());
   ctx->cg.reset();
-  word_t nloops = NEDGES / 64;
-  for (word_t loop = 0; loop < nloops; loop++) {
-    word_t block = 64 * loop;
+  for (word_t block = 0; block < NEDGES; block += 64) {
     u64 alive64 = alive.block(block);
     for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
       u32 ffs = __builtin_ffsll(alive64);
@@ -282,9 +276,7 @@ void *worker(void *vp) {
   }
   for (u32 s=0; s < ctx->cg.nsols; s++) {
     u32 j = 0, nalive = 0;
-    word_t nloops = NEDGES / 64;
-    for (word_t loop = 0; loop < nloops; loop++) {
-      word_t block = 64 * loop;
+    for (word_t block = 0; block < NEDGES; block += 64) {
       u64 alive64 = alive.block(block);
       for (word_t nonce = block-1; alive64; ) { // -1 compensates for 1-based ffs
         u32 ffs = __builtin_ffsll(alive64);
