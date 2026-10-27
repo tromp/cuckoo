@@ -97,7 +97,8 @@ __device__ __forceinline__  u32 endpoint(uint2 nodes, bool uorv) {
 }
 
 #ifndef SEED_TPB
-#define SEED_TPB 256
+// larger Seed blocks pay off once NB=4096 (safe since Seed flushes until done)
+#define SEED_TPB (BUCKBITS >= 12 ? 1024 : 256)
 #endif
 #ifndef TRIM0_TPB
 #define TRIM0_TPB 1024
@@ -146,12 +147,13 @@ __global__ void Seed(u32 * __restrict__ buffer, u32 * __restrict__ indexes, cons
     const u32 node0 = endpoint(nonce, 0);
     const u32 bucket = node0 >> ZBITS;
     u32 counter = atomicAdd(counters + bucket, 1);
-    for (u32 nf=0; ; nf++) {
+    // keep flushing until every thread's nonce is stored; a fixed NFLUSH passes drops nonces
+    // whenever one bucket gets more than (NFLUSH+1)*FLUSHA-1 hits in an iteration, which
+    // happens with larger SEED_TPB
+    for (;;) {
       if (counter < FLUSHA-1) // int counter would need additional test counter >= 0
         tmp[bucket][counter] = nonce;
       __syncthreads();
-      if (nf == NFLUSH)
-        break;
       if (counter == FLUSHA-1) {
         const u32 pos = min((u32)atomicAdd(indexes + bucket, FLUSHA), (u32)(maxOut - FLUSHA));
         const u64 idx = (u64)(bucket + (bucket / NB_NMEM) * (NTLB-1) * NB_NMEM) * maxOut + pos;
@@ -162,11 +164,10 @@ __global__ void Seed(u32 * __restrict__ buffer, u32 * __restrict__ indexes, cons
 #endif
         counters[bucket] %= FLUSHA;
       }
-      __syncthreads();
-      counter -= FLUSHA;
+      const bool pending = counter != ~0u && counter >= FLUSHA;
+      counter = pending ? counter - FLUSHA : ~0u;
+      if (!__syncthreads_or(pending)) break;
     }
-    // negative counters are fine
-    if ((int)counter >= FLUSHA-1) printf("WHOOPS!\n");
   }
   for (u32 i = 0; i < NB / SEED_TPB; i++) {
     const u32 bucket = lid + i * SEED_TPB;
@@ -195,24 +196,90 @@ const u32 PART_MASK = (1 << PART_BITS) - 1;
 const u32 NONPART_BITS = ZBITS - PART_BITS;
 const word_t NONPART_MASK = (1 << NONPART_BITS) - 1;
 const u32 BITMAPBYTES = (NZ >> PART_BITS) / 8;
+#ifndef LATEBYTES
+// extra, unused shared memory requested by the small trim rounds from round 3 on: fewer resident
+// blocks per SM made them about 20% faster on an RTX 4060 Ti
+#define LATEBYTES 40960
+#endif
+// Seed keeps FLUSHA-1 staged nonces plus a counter per bucket in shared memory
+const u32 SEEDBYTES = NB * FLUSHA * sizeof(u32) > BITMAPBYTES ? NB * FLUSHA * sizeof(u32) : BITMAPBYTES;
+
+// Round0 output staging: survivors are grouped per destination bucket in shared memory and
+// written four at a time with one 16-byte store, as Seed does, instead of one 4-byte store and
+// one global atomic per surviving edge. Groups fill a bucket from the front; the 0..3 leftovers
+// a block has per bucket at the end are written singly from the back of the bucket, counted in
+// a second index array, so no padding is introduced and bucket capacity is unchanged.
+
+#ifndef R0K
+// edges each Round0 thread hands to the staging buffer per block synchronization
+#define R0K 4
+#endif
+
+// Every thread of the block calls this the same number of times (it synchronizes).
+template <u32 maxOut>
+__device__ __forceinline__ void stage4(const bool *valid, const u32 *bucket, const u32 *val, u32 *tmp, u32 *counters,
+                                       u32 *dstIdx, u32 *dst) {
+  const u32 NONE = ~0u;
+  u32 counter[R0K];
+  for (u32 k = 0; k < R0K; k++) counter[k] = valid[k] ? atomicAdd(counters + bucket[k], 1) : NONE;
+  for (;;) {
+    for (u32 k = 0; k < R0K; k++)
+      if (counter[k] < 3) tmp[bucket[k] * 3 + counter[k]] = val[k];
+    __syncthreads();
+    bool any = false;
+    for (u32 k = 0; k < R0K; k++) {
+      if (counter[k] == 3) {
+        const u32 *t = tmp + bucket[k] * 3;
+        const u32 pos = min((u32)atomicAdd(dstIdx + bucket[k], 4), (u32)(maxOut - 4));
+        *(uint4 *)(dst + (u64)bucket[k] * maxOut + pos) = make_uint4(t[0], t[1], t[2], val[k]);
+        counters[bucket[k]] %= 4;
+      }
+      const bool pending = counter[k] != NONE && counter[k] >= 4;
+      counter[k] = pending ? counter[k] - 4 : NONE;
+      any |= pending;
+    }
+    if (!__syncthreads_or(any)) break;
+  }
+}
+
+template <u32 maxOut, u32 tpb>
+__device__ __forceinline__ void stage4_leftovers(const u32 *tmp, const u32 *counters, u32 *dstIdxBack, u32 *dst) {
+  for (u32 bucket = threadIdx.x; bucket < NB; bucket += tpb)
+    for (u32 j = 0; j < counters[bucket]; j++) {
+      const u32 p = min((u32)atomicAdd(dstIdxBack + bucket, 1), (u32)(maxOut - 1));
+      dst[(u64)bucket * maxOut + maxOut - 1 - p] = tmp[bucket * 3 + j];
+    }
+}
+
+// staging needs 16 bytes per bucket next to the bitmap; configurations whose bitmap leaves no room
+// (e.g. EDGEBITS=32 with PART_BITS=1) keep the direct scattered stores
+const bool STAGE_R0 = BITMAPBYTES + NB * 4 * sizeof(u32) <= 0x18000;
+const u32 ROUND0BYTES = BITMAPBYTES + (STAGE_R0 ? NB * 4 * sizeof(u32) : 0);
 
 template<u32 maxIn, u32 maxOut>
-__global__ void Round0(u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx, const u32 offset) {
+__global__ void Round0(u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx, u32 * dstIdxBack, const u32 offset) {
   const u32 part = blockIdx.x & PART_MASK;
   const u32 group = blockIdx.x >> PART_BITS;
   const u32 lid = threadIdx.x;
   const u32 BITMAPWORDS = BITMAPBYTES / sizeof(u32);
-  u32 nloops[NTLB];
+  u32 nloops[NTLB], ncnt[NTLB];
 
   extern __shared__ u32 ebitmap[];
+  u32 *tmp = ebitmap + BITMAPWORDS;
+  u32 *counters = tmp + NB * 3;
 
   static_assert(BITMAPWORDS % TRIM0_TPB == 0, "TRIM0_TPB must divide BITMAPWORDS");
 
   for (u32 i = 0; i < BITMAPWORDS/TRIM0_TPB; i++)
     ebitmap[lid + TRIM0_TPB * i] = 0;
+  if (STAGE_R0)
+    for (u32 i = lid; i < NB; i += TRIM0_TPB)
+      counters[i] = 0;
 
-  for (u32 a = 0; a < NTLB; a++)
-    nloops[a] = (min(srcIdx[a * NB + offset + group], maxIn) - lid + TRIM0_TPB-1) / TRIM0_TPB;
+  for (u32 a = 0; a < NTLB; a++) {
+    ncnt[a] = min(srcIdx[a * NB + offset + group], maxIn);
+    nloops[a] = (ncnt[a] - lid + TRIM0_TPB-1) / TRIM0_TPB;
+  }
 
   src += (u64)(offset * NTLB + group) * maxIn + lid;
 
@@ -232,30 +299,57 @@ __global__ void Round0(u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx, const u
   __syncthreads();
 
   const u32 rowOffset = offset * NMEM;
-  for (u32 a = 0; a < NTLB; a++) {
-    const u64 delta = a * NB_NMEM * (u64)maxIn;
-    for (u32 i = 0; i < nloops[a]; i++) {
-      const u32 edge = src[delta + i * TRIM0_TPB];
-      if (!edge) continue;
-      const u32 node0 = endpoint(edge, 0);
-      const u32 z = node0 & ZMASK;
-      if ((!PART_BITS || (z >> NONPART_BITS) == part) && bitmaptest(ebitmap, (z & NONPART_MASK) ^ 1)) {
-        const u32 bucket = endpoint(edge, 1) >> ZBITS;
-        const u32 bktIdx = min(atomicAdd(dstIdx + rowOffset + bucket, 1), maxOut - 1);
-        dst[bucket * maxOut + bktIdx] = edge;
+  if (!STAGE_R0) {
+    for (u32 a = 0; a < NTLB; a++) {
+      const u64 delta = a * NB_NMEM * (u64)maxIn;
+      for (u32 i = 0; i < nloops[a]; i++) {
+        const u32 edge = src[delta + i * TRIM0_TPB];
+        if (!edge) continue;
+        const u32 node0 = endpoint(edge, 0);
+        const u32 z = node0 & ZMASK;
+        if ((!PART_BITS || (z >> NONPART_BITS) == part) && bitmaptest(ebitmap, (z & NONPART_MASK) ^ 1)) {
+          const u32 bucket = endpoint(edge, 1) >> ZBITS;
+          const u32 bktIdx = min(atomicAdd(dstIdx + rowOffset + bucket, 1), maxOut - 1);
+          dst[bucket * maxOut + bktIdx] = edge;
+        }
       }
     }
+  } else {
+    for (u32 a = 0; a < NTLB; a++) {
+      const u64 delta = a * NB_NMEM * (u64)maxIn;
+      const u32 uloops = (ncnt[a] + TRIM0_TPB - 1) / TRIM0_TPB;   // same trip count for the whole block
+      for (u32 i0 = 0; i0 < uloops; i0 += R0K) {
+        bool keep[R0K];
+        u32 edge[R0K], bucket[R0K];
+        for (u32 k = 0; k < R0K; k++) {
+          const u32 i = i0 + k;
+          keep[k] = false; edge[k] = 0; bucket[k] = 0;
+          if (i < nloops[a]) {
+            edge[k] = src[delta + i * TRIM0_TPB];
+            if (edge[k]) {
+              const u32 z = endpoint(edge[k], 0) & ZMASK;
+              if ((!PART_BITS || (z >> NONPART_BITS) == part) && bitmaptest(ebitmap, (z & NONPART_MASK) ^ 1)) {
+                bucket[k] = endpoint(edge[k], 1) >> ZBITS;
+                keep[k] = true;
+              }
+            }
+          }
+        }
+        stage4<maxOut>(keep, bucket, edge, tmp, counters, dstIdx + rowOffset, dst);
+      }
+    }
+    stage4_leftovers<maxOut, TRIM0_TPB>(tmp, counters, dstIdxBack + rowOffset, dst);
   }
 }
 
 template<u32 maxIn, u32 maxOut>
-__global__ void Round1(u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx) {
+__global__ void Round1(u32 * src, u32 * dst, u32 * srcIdx, u32 * srcIdxBack, u32 * dstIdx) {
   const u32 part = blockIdx.x & PART_MASK;
   const u32 group = blockIdx.x >> PART_BITS;
   const u32 lid = threadIdx.x;
 
   const u32 BITMAPWORDS = BITMAPBYTES / sizeof(u32);
-  u32 nloops[NMEM];
+  u32 nfront[NMEM], ncnt[NMEM];
 
   extern __shared__ u32 ebitmap[];
 
@@ -264,18 +358,21 @@ __global__ void Round1(u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx) {
   for (u32 i = 0; i < BITMAPWORDS/TRIM1_TPB; i++)
     ebitmap[lid + TRIM1_TPB * i] = 0;
 
-  for (u32 a = 0; a < NMEM; a++)
-    nloops[a] = (min(srcIdx[a * NB + group], maxIn) - lid + TRIM1_TPB-1) / TRIM1_TPB;
+  // Round0 wrote 16-byte groups at the front of each bucket and leftovers at the back
+  for (u32 a = 0; a < NMEM; a++) {
+    nfront[a] = min(srcIdx[a * NB + group], maxIn);
+    ncnt[a] = nfront[a] + min(srcIdxBack[a * NB + group], maxIn - nfront[a]);
+  }
 
-  src += (u64)maxIn * group + lid;
+  src += (u64)maxIn * group;
 
   __syncthreads();
 
   for (u32 a = 0; a < NMEM; a++) {
     const u64 delta = a * (u64)maxIn * NB;
-    for (u32 i = 0; i < nloops[a]; i++) {
-      u32 edge = src[delta + i * TRIM1_TPB];
-      u32 z = endpoint(edge, 1) & ZMASK;
+    for (u32 e = lid; e < ncnt[a]; e += TRIM1_TPB) {
+      const u32 edge = src[delta + (e < nfront[a] ? e : maxIn - 1 - (e - nfront[a]))];
+      const u32 z = endpoint(edge, 1) & ZMASK;
       if ((z >> NONPART_BITS) == part)
         bitmapset(ebitmap, z & NONPART_MASK);
     }
@@ -285,8 +382,8 @@ __global__ void Round1(u32 * src, u32 * dst, u32 * srcIdx, u32 * dstIdx) {
 
   for (u32 a = 0; a < NMEM; a++) {
     const u64 delta = a * (u64)maxIn * NB;
-    for (u32 i = 0; i < nloops[a]; i++) {
-      const u32 edge = src[delta + i * TRIM1_TPB];
+    for (u32 e = lid; e < ncnt[a]; e += TRIM1_TPB) {
+      const u32 edge = src[delta + (e < nfront[a] ? e : maxIn - 1 - (e - nfront[a]))];
       const u32 node1 = endpoint(edge, 1);
       const u32 z = node1 & ZMASK;
       if ((z >> NONPART_BITS) == part && bitmaptest(ebitmap, (z & NONPART_MASK) ^ 1)) {
@@ -524,6 +621,7 @@ struct edgetrimmer {
   u8 *bufferA1;
   u32 *indexesA;
   u32 *indexesB;
+  u32 *indexesB2; // Round0 leftovers, counted from the back of each bucket
   u32 nedges;
   u32 *uvnodes;
   siphash_keys sipkeys;
@@ -538,6 +636,7 @@ struct edgetrimmer {
     checkCudaErrors_V(cudaMalloc((void**)&uvnodes, PROOFSIZE * 2 * sizeof(u32)));
     checkCudaErrors_V(cudaMalloc((void**)&indexesA, indexesSizeNTLB));
     checkCudaErrors_V(cudaMalloc((void**)&indexesB, indexesSizeNMEM));
+    checkCudaErrors_V(cudaMalloc((void**)&indexesB2, indexesSizeNMEM));
     sizeA = (u64)EDGES_A * NB * sizeof(u32);
     sizeB = (u64)EDGES_B * NB * sizeof(u32);
     const size_t bufferSize = sizeA + sizeB / NMEM;
@@ -548,7 +647,7 @@ struct edgetrimmer {
     // print_log("endB %llx endA %llx endBuffer %llx\n", bufferB+sizeB, bufferA+sizeA, bufferB+bufferSize);
     cudaMemcpy(dt, this, sizeof(edgetrimmer), cudaMemcpyHostToDevice);
     initsuccess = true;
-    u32 maxbytes = 0x10000; // 64 KB
+    u32 maxbytes = 0x18000; // 96 KB
     cudaFuncSetAttribute(Seed  <EDGES_A/NTLB               >, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     cudaFuncSetAttribute(Round0<EDGES_A/NTLB,  EDGES_B/NMEM>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
     cudaFuncSetAttribute(Round1<EDGES_B/NMEM,     EDGES_B/2>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
@@ -557,12 +656,13 @@ struct edgetrimmer {
     cudaFuncSetAttribute(Round <EDGES_B/4, uint2, EDGES_B/4>, cudaFuncAttributeMaxDynamicSharedMemorySize, maxbytes);
   }
   u64 globalbytes() const {
-    return sizeA + sizeB/NMEM + indexesSizeNTLB + indexesSizeNMEM + sizeof(siphash_keys) + PROOFSIZE * 2*sizeof(u32) + sizeof(edgetrimmer);
+    return sizeA + sizeB/NMEM + indexesSizeNTLB + 2 * indexesSizeNMEM + sizeof(siphash_keys) + PROOFSIZE * 2*sizeof(u32) + sizeof(edgetrimmer);
   }
   ~edgetrimmer() {
     checkCudaErrors_V(cudaFree(bufferB));
     checkCudaErrors_V(cudaFree(indexesA));
     checkCudaErrors_V(cudaFree(indexesB));
+    checkCudaErrors_V(cudaFree(indexesB2));
     checkCudaErrors_V(cudaFree(uvnodes));
     checkCudaErrors_V(cudaFree(dt));
     cudaDeviceReset();
@@ -597,7 +697,7 @@ struct edgetrimmer {
   
     cudaMemset(indexesA, 0, indexesSizeNTLB);
     for (u32 i = 0; i < NTLB; i++) {
-      Seed<EDGES_A/NTLB><<<tp.seed.blocks, SEED_TPB, BITMAPBYTES>>>((u32*)(bufferA+i*(sizeA/NMEMTLB)), indexesA+i*NB, i*(NEDGES/NTLB));
+      Seed<EDGES_A/NTLB><<<tp.seed.blocks, SEED_TPB, SEEDBYTES>>>((u32*)(bufferA+i*(sizeA/NMEMTLB)), indexesA+i*NB, i*(NEDGES/NTLB));
     cudaDeviceSynchronize();
       if (abort) return false;
     }
@@ -612,17 +712,18 @@ struct edgetrimmer {
     if (abort) return false;
   
     cudaMemset(indexesB, 0, indexesSizeNMEM);
+    cudaMemset(indexesB2, 0, indexesSizeNMEM);
 
     const size_t qB = sizeB / NMEM;
     for (u32 i = 0; i < NMEM; i++) {
-      Round0<EDGES_A/NTLB, EDGES_B/NMEM><<<NB_NMEM<<PART_BITS, TRIM0_TPB, BITMAPBYTES>>>((u32*)bufferA, (u32*)(bufferB+i*qB), indexesA, indexesB, i*NB_NMEM); // to .632
+      Round0<EDGES_A/NTLB, EDGES_B/NMEM><<<NB_NMEM<<PART_BITS, TRIM0_TPB, ROUND0BYTES>>>((u32*)bufferA, (u32*)(bufferB+i*qB), indexesA, indexesB, indexesB2, i*NB_NMEM); // to .632
       if (abort) return false;
     }
     indexcount(1, indexesB);
 
     cudaMemset(indexesA, 0, indexesSize);
 
-    Round1<EDGES_B/NMEM, EDGES_B/2><<<NB<<PART_BITS, TRIM1_TPB, BITMAPBYTES>>>((u32*)bufferB, (u32*)bufferA1, indexesB, indexesA); // to .296
+    Round1<EDGES_B/NMEM, EDGES_B/2><<<NB<<PART_BITS, TRIM1_TPB, BITMAPBYTES>>>((u32*)bufferB, (u32*)bufferA1, indexesB, indexesB2, indexesA); // to .296
     if (abort) return false;
     indexcount(2, indexesA);
 
@@ -634,7 +735,7 @@ struct edgetrimmer {
 
     cudaMemset(indexesA, 0, indexesSize);
 
-    Round<EDGES_A/4, uint2, EDGES_B/4><<<NB<<PART_BITS, TRIM_TPB, BITMAPBYTES>>>(3, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA); // to .116
+    Round<EDGES_A/4, uint2, EDGES_B/4><<<NB<<PART_BITS, TRIM_TPB, BITMAPBYTES + LATEBYTES>>>(3, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA); // to .116
     if (abort) return false;
     indexcount(4, indexesA);
   
@@ -642,13 +743,13 @@ struct edgetrimmer {
       cudaMemset(indexesB, 0, indexesSize);
       if (round >= tp.ntrims)
         Relay<EDGES_B/4, EDGES_B/4><<<NB, RELAY_TPB>>>(round-1, (uint2 *)bufferA1, (uint2 *)bufferB, indexesA, indexesB, round > tp.ntrims);
-      else Round<EDGES_B/4, uint2, EDGES_B/4><<<NB<<PART_BITS, TRIM_TPB, BITMAPBYTES>>>(round-1, (uint2 *)bufferA1, (uint2 *)bufferB, indexesA, indexesB);
+      else Round<EDGES_B/4, uint2, EDGES_B/4><<<NB<<PART_BITS, TRIM_TPB, BITMAPBYTES + LATEBYTES>>>(round-1, (uint2 *)bufferA1, (uint2 *)bufferB, indexesA, indexesB);
       indexcount(round, indexesB);
       if (abort) return false;
       cudaMemset(indexesA, 0, indexesSize);
       if (round+1 >= tp.ntrims)
         Relay<EDGES_B/4, EDGES_B/4><<<NB, RELAY_TPB>>>(round, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA, round+1 > tp.ntrims);
-      else Round<EDGES_B/4, uint2, EDGES_B/4><<<NB<<PART_BITS, TRIM_TPB, BITMAPBYTES>>>(round, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA);
+      else Round<EDGES_B/4, uint2, EDGES_B/4><<<NB<<PART_BITS, TRIM_TPB, BITMAPBYTES + LATEBYTES>>>(round, (uint2 *)bufferB, (uint2 *)bufferA1, indexesB, indexesA);
       indexcount(round+1, indexesA);
       if (abort) return false;
     }
